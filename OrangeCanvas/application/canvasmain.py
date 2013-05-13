@@ -338,7 +338,7 @@ class CanvasMainWindow(QMainWindow):
         self.dock_widget.setExpanded(True)
         self.dock_widget.expandedChanged.connect(self._on_tool_dock_expanded)
 
-        self.addDockWidget(Qt.RightDockWidgetArea, self.dock_widget)
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_widget)
         self.dock_widget.dockLocationChanged.connect(
             self._on_dock_location_changed
         )
@@ -667,7 +667,7 @@ class CanvasMainWindow(QMainWindow):
         )
 
         self.toogle_margins_action.setChecked(
-            settings.value("scheme-margins-enabled", True, type=bool)
+            settings.value("scheme-margins-enabled", False, type=bool)
         )
 
         default_dir = QDesktopServices.storageLocation(
@@ -1673,7 +1673,7 @@ class CanvasMainWindow(QMainWindow):
             triggers |= SchemeEditWidget.DoubleClicked
 
         right_click = settings.value("trigger-on-right-click",
-                                    defaultValue=False,
+                                    defaultValue=True,
                                     type=bool)
         if right_click:
             triggers |= SchemeEditWidget.RightClicked
