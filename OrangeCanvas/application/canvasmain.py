@@ -46,7 +46,7 @@ from .settings import UserSettingsDialog
 from ..document.schemeedit import SchemeEditWidget
 
 from ..scheme import widgetsscheme
-from ..scheme.readwrite import parse_scheme, sniff_version
+from ..scheme.readwrite import scheme_load, sniff_version
 
 from . import welcomedialog
 from ..preview import previewdialog, previewmodel
@@ -933,9 +933,9 @@ class CanvasMainWindow(QMainWindow):
         new_scheme = widgetsscheme.WidgetsScheme(parent=self)
         errors = []
         try:
-            parse_scheme(new_scheme, open(filename, "rb"),
-                         error_handler=errors.append,
-                         allow_pickle_data=True)
+            scheme_load(new_scheme, open(filename, "rb"),
+                        error_handler=errors.append)
+
         except Exception:
             message_critical(
                  self.tr("Could not load an Orange Scheme file"),
