@@ -170,7 +170,7 @@ class SchemeEditWidget(QWidget):
                     objectName="zoom-action",
                     checkable=True,
                     shortcut=QKeySequence.ZoomIn,
-                    toolTip=self.tr("Zoom in the scheme."),
+                    toolTip=self.tr("Zoom in the workflow."),
                     toggled=self.toggleZoom,
                     )
 
@@ -184,7 +184,7 @@ class SchemeEditWidget(QWidget):
         self.__newTextAnnotationAction = \
             QAction(self.tr("Text"), self,
                     objectName="new-text-action",
-                    toolTip=self.tr("Add a text annotation to the scheme."),
+                    toolTip=self.tr("Add a text annotation to the workflow."),
                     checkable=True,
                     toggled=self.__toggleNewTextAnnotation,
                     )
@@ -214,7 +214,7 @@ class SchemeEditWidget(QWidget):
         self.__newArrowAnnotationAction = \
             QAction(self.tr("Arrow"), self,
                     objectName="new-arrow-action",
-                    toolTip=self.tr("Add a arrow annotation to the scheme."),
+                    toolTip=self.tr("Add a arrow annotation to the workflow."),
                     checkable=True,
                     toggled=self.__toggleNewArrowAnnotation,
                     )
