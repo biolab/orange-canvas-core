@@ -1,3 +1,4 @@
+from __future__ import print_function
 from PyQt4.QtGui import QAction, QToolButton
 
 from .. import test
@@ -15,10 +16,10 @@ class TestToolGrid(test.QAppTestCase):
             # Process layout events so the buttons have right positions
             self.app.processEvents()
             buttons = w.findChildren(QToolButton)
-            return sorted(buttons, key=lambda b: (b.y(), b.x()))
+            return list(sorted(buttons, key=lambda b: (b.y(), b.x())))
 
         def buttonsOrderedLogical():
-            return map(w.buttonForAction, w.actions())
+            return list(map(w.buttonForAction, w.actions()))
 
         def assertOrdered():
             self.assertSequenceEqual(buttonsOrderedLogical(),
@@ -88,7 +89,7 @@ class TestToolGrid(test.QAppTestCase):
         triggered_actions = []
 
         def p(action):
-            print action.text()
+            print(action.text())
 
         w.actionTriggered.connect(p)
         w.actionTriggered.connect(triggered_actions.append)

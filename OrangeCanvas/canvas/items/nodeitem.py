@@ -8,6 +8,8 @@ import string
 
 from xml.sax.saxutils import escape
 
+import six
+
 from PyQt4.QtGui import (
     QGraphicsItem, QGraphicsObject, QGraphicsTextItem,
     QGraphicsDropShadowEffect, QGraphicsView,
@@ -26,6 +28,7 @@ from ...scheme.node import UserMessage
 from ...registry import NAMED_COLORS
 from ...resources import icon_loader
 from .utils import uniform_linear_layout
+from ...utils import qtcompat
 
 
 def create_palette(light_color, color):
@@ -309,7 +312,7 @@ class AnchorPoint(QGraphicsObject):
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.ItemScenePositionHasChanged:
-            self.scenePositionChanged.emit(value.toPointF())
+            self.scenePositionChanged.emit(qtcompat.qunwrap(value))
 
         return QGraphicsObject.itemChange(self, change, value)
 
@@ -980,7 +983,7 @@ class NodeItem(QGraphicsObject):
         """
         return self.__title
 
-    title_ = Property(unicode, fget=title, fset=setTitle,
+    title_ = Property(six.text_type, fget=title, fset=setTitle,
                       doc="Node title text.")
 
     def setFont(self, font):
@@ -1066,7 +1069,7 @@ class NodeItem(QGraphicsObject):
 
         """
         if self.__statusMessage != message:
-            self.__statusMessage = unicode(message)
+            self.__statusMessage = six.text_type(message)
             self.__updateTitleText()
 
     def statusMessage(self):
@@ -1293,8 +1296,9 @@ class NodeItem(QGraphicsObject):
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.ItemSelectedChange:
-            self.shapeItem.setSelected(value.toBool())
-            self.captionTextItem.setSelectionState(value.toBool())
+            selected = bool(qtcompat.qunwrap(value))
+            self.shapeItem.setSelected(selected)
+            self.captionTextItem.setSelectionState(selected)
         elif change == QGraphicsItem.ItemPositionHasChanged:
             self.positionChanged.emit()
 

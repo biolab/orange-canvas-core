@@ -18,6 +18,8 @@ import pkgutil
 from collections import namedtuple
 import pkg_resources
 
+import six
+
 from .description import (
     WidgetDescription, CategoryDescription,
     WidgetSpecificationError, CategorySpecificationError
@@ -50,7 +52,7 @@ def default_category_for_module(module):
     for a `module`.
 
     """
-    if isinstance(module, basestring):
+    if isinstance(module, six.string_types):
         module = __import__(module, fromlist=[""])
     name = module.__name__.rsplit(".", 1)[-1]
     qualified_name = module.__name__
@@ -79,7 +81,7 @@ class WidgetDiscovery(object):
         to retrieve the iterator using `pkg_resources.iter_entry_points`.
 
         """
-        if isinstance(entry_points_iter, basestring):
+        if isinstance(entry_points_iter, six.string_types):
             entry_points_iter = \
                 pkg_resources.iter_entry_points(entry_points_iter)
 
@@ -171,7 +173,7 @@ class WidgetDiscovery(object):
         try:
             desc = self.widget_description(module, widget_name=name,
                                            distribution=distribution)
-        except (WidgetSpecificationError, Exception), ex:
+        except (WidgetSpecificationError, Exception) as ex:
             log.info("Invalid widget specification.", exc_info=True)
             return
 
@@ -199,7 +201,7 @@ class WidgetDiscovery(object):
         else:
             try:
                 cat_desc = CategoryDescription.from_package(category)
-            except (CategorySpecificationError, Exception), ex:
+            except (CategorySpecificationError, Exception) as ex:
                 log.info("Package %r does not describe a category.", category,
                          exc_info=True)
                 cat_desc = default_category_for_module(category)
@@ -327,7 +329,7 @@ class WidgetDiscovery(object):
         """
         Return a widget description from a module.
         """
-        if isinstance(module, basestring):
+        if isinstance(module, six.string_types):
             module = __import__(module, fromlist=[""])
 
         desc = None
@@ -349,7 +351,7 @@ class WidgetDiscovery(object):
 
         if desc is None:
             # Raise the original exception.
-            raise exc_info
+            raise exc_info[1]
 
         if widget_name is not None:
             desc.name = widget_name
@@ -553,7 +555,7 @@ def asmodule(module):
     """
     if isinstance(module, types.ModuleType):
         return module
-    elif isinstance(module, basestring):
+    elif isinstance(module, six.string_types):
         return __import__(module, fromlist=[""])
     else:
         raise TypeError(type(module))

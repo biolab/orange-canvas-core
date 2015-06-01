@@ -21,6 +21,7 @@ from PyQt4.QtCore import pyqtSignal as Signal
 
 
 from .scheme import SchemeNode
+from functools import reduce
 
 log = logging.getLogger(__name__)
 

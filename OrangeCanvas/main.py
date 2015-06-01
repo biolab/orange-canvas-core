@@ -9,10 +9,15 @@ import gc
 import re
 import logging
 import optparse
-import cPickle
+import pickle
 import shlex
 import shutil
-from contextlib import nested
+import io
+
+if sys.version_info < (3, 3):
+    from contextlib2 import ExitStack
+else:
+    from contextlib import ExitStack
 
 import pkg_resources
 
@@ -198,7 +203,7 @@ def main(argv=None):
 
     if stylesheet != "none":
         if os.path.isfile(stylesheet):
-            stylesheet_string = open(stylesheet, "rb").read()
+            stylesheet_string = io.open(stylesheet, "r").read()
         else:
             if not os.path.splitext(stylesheet)[1]:
                 # no extension
@@ -209,7 +214,7 @@ def main(argv=None):
 
             if pkg_resources.resource_exists(pkg_name, resource):
                 stylesheet_string = \
-                    pkg_resources.resource_string(pkg_name, resource)
+                    pkg_resources.resource_string(pkg_name, resource).decode("utf-8")
 
                 base = pkg_resources.resource_filename(pkg_name, "styles")
 
@@ -277,14 +282,14 @@ def main(argv=None):
 
     cache_filename = os.path.join(config.cache_dir(), "widget-registry.pck")
     if options.no_discovery:
-        widget_registry = cPickle.load(open(cache_filename, "rb"))
+        widget_registry = pickle.load(open(cache_filename, "rb"))
         widget_registry = qt.QtWidgetRegistry(widget_registry)
     else:
         widget_discovery.run(config.widgets_entry_points())
         # Store cached descriptions
         cache.save_registry_cache(widget_discovery.cached_descriptions)
-        cPickle.dump(WidgetRegistry(widget_registry),
-                     open(cache_filename, "wb"))
+        pickle.dump(WidgetRegistry(widget_registry),
+                    open(cache_filename, "wb"))
     set_global_registry(widget_registry)
     canvas_window.set_widget_registry(widget_registry)
     canvas_window.show()
@@ -350,7 +355,9 @@ def main(argv=None):
         sys.excepthook = ExceptHook()
         sys.excepthook.handledException.connect(output_view.parent().show)
 
-    with nested(redirect_stdout(stdout), redirect_stderr(stderr)):
+    with ExitStack() as stack:
+        stack.enter_context(redirect_stdout(stdout))
+        stack.enter_context(redirect_stderr(stderr))
         log.info("Entering main event loop.")
         try:
             status = app.exec_()

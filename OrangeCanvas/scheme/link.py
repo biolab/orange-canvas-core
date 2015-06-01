@@ -5,6 +5,8 @@ Scheme Link
 
 """
 
+import six
+
 from PyQt4.QtCore import QObject
 from PyQt4.QtCore import pyqtSignal as Signal
 from PyQt4.QtCore import pyqtProperty as Property
@@ -82,7 +84,7 @@ class SchemeLink(QObject):
         QObject.__init__(self, parent)
         self.source_node = source_node
 
-        if isinstance(source_channel, basestring):
+        if isinstance(source_channel, six.string_types):
             source_channel = source_node.output_channel(source_channel)
         elif source_channel not in source_node.output_channels():
             raise ValueError("%r not in in nodes output channels." \
@@ -92,7 +94,7 @@ class SchemeLink(QObject):
 
         self.sink_node = sink_node
 
-        if isinstance(sink_channel, basestring):
+        if isinstance(sink_channel, six.string_types):
             sink_channel = sink_node.input_channel(sink_channel)
         elif sink_channel not in sink_node.input_channels():
             raise ValueError("%r not in in nodes input channels." \

@@ -3,6 +3,8 @@ Scheme Info editor widget.
 
 """
 
+import six
+
 from PyQt4.QtGui import (
     QWidget, QDialog, QLabel, QTextEdit, QCheckBox, QFormLayout,
     QVBoxLayout, QHBoxLayout, QDialogButtonBox, QSizePolicy
@@ -65,9 +67,9 @@ class SchemeInfoEdit(QWidget):
             # 'untitled' text was not changed
             name = ""
         else:
-            name = unicode(self.name_edit.text()).strip()
+            name = six.text_type(self.name_edit.text()).strip()
 
-        description = unicode(self.desc_edit.toPlainText()).strip()
+        description = six.text_type(self.desc_edit.toPlainText()).strip()
         self.scheme.title = name
         self.scheme.description = description
 
@@ -75,10 +77,10 @@ class SchemeInfoEdit(QWidget):
         return StyledWidget_paintEvent(self, event)
 
     def title(self):
-        return unicode(self.name_edit.text()).strip()
+        return six.text_type(self.name_edit.text()).strip()
 
     def description(self):
-        return unicode(self.desc_edit.toPlainText()).strip()
+        return six.text_type(self.desc_edit.toPlainText()).strip()
 
 
 class SchemeInfoDialog(QDialog):

@@ -1,3 +1,4 @@
+from __future__ import print_function
 from PyQt4.QtGui import QStringListModel
 from PyQt4.QtCore import QPoint
 
@@ -7,6 +8,7 @@ from ..quickmenu import QuickMenu, SuggestMenuPage, FlattenedTreeItemModel, \
 from ...gui.test import QAppTestCase
 from ...registry import global_registry
 from ...registry.qt import QtWidgetRegistry
+from ...utils import qtcompat
 
 
 class TestMenu(QAppTestCase):
@@ -14,10 +16,10 @@ class TestMenu(QAppTestCase):
         menu = QuickMenu()
 
         def triggered(action):
-            print "Triggered", action.text()
+            print("Triggered", action.text())
 
         def hovered(action):
-            print "Hover", action.text()
+            print("Hover", action.text())
 
         menu.triggered.connect(triggered)
         menu.hovered.connect(hovered)
@@ -44,13 +46,13 @@ class TestMenu(QAppTestCase):
         triggered_action = []
 
         def triggered(action):
-            print "Triggered", action.text()
+            print("Triggered", action.text())
             self.assertIsInstance(action, QAction)
             triggered_action.append(action)
 
         def hovered(action):
             self.assertIsInstance(action, QAction)
-            print "Hover", action.text()
+            print("Hover", action.text())
 
         menu.triggered.connect(triggered)
         menu.hovered.connect(hovered)
@@ -79,7 +81,7 @@ class TestMenu(QAppTestCase):
         flat.setSourceModel(model)
 
         def get(row):
-            return flat.index(row, 0).data().toPyObject()
+            return qtcompat.qunwrap(flat.index(row, 0).data())
 
         self.assertEqual(get(0), "0")
         self.assertEqual(get(1), "1")

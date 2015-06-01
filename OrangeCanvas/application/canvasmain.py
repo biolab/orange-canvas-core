@@ -6,10 +6,12 @@ import os
 import sys
 import logging
 import operator
+import io
 from functools import partial
-from StringIO import StringIO
 
 import pkg_resources
+
+import six
 
 from PyQt4.QtGui import (
     QMainWindow, QWidget, QAction, QActionGroup, QMenu, QMenuBar, QDialog,
@@ -28,7 +30,7 @@ from PyQt4.QtWebKit import QWebView
 from PyQt4.QtCore import pyqtProperty as Property, pyqtSignal as Signal
 
 # Compatibility with PyQt < v4.8.3
-from ..utils.qtcompat import QSettings
+from ..utils.qtcompat import QSettings, qunwrap
 
 from ..gui.dropshadow import DropShadowFrame
 from ..gui.dock import CollapsibleDockWidget
@@ -708,7 +710,7 @@ class CanvasMainWindow(QMainWindow):
         )
 
         self.last_scheme_dir = settings.value("last-scheme-dir", default_dir,
-                                              type=unicode)
+                                              type=six.text_type)
 
         if not os.path.exists(self.last_scheme_dir):
             # if directory no longer exists reset the saved location.
@@ -784,7 +786,7 @@ class CanvasMainWindow(QMainWindow):
     def on_tool_box_widget_activated(self, action):
         """A widget action in the widget toolbox has been activated.
         """
-        widget_desc = action.data().toPyObject()
+        widget_desc = qunwrap(action.data())
         if widget_desc:
             scheme_widget = self.current_document()
             if scheme_widget:
@@ -948,7 +950,7 @@ class CanvasMainWindow(QMainWindow):
         property.
 
         """
-        filename = unicode(filename)
+        filename = six.text_type(filename)
         dirname = os.path.dirname(filename)
 
         self.last_scheme_dir = dirname
@@ -1136,7 +1138,7 @@ class CanvasMainWindow(QMainWindow):
                     QDesktopServices.DocumentsLocation
                 )
 
-            start_dir = os.path.join(unicode(start_dir), title + ".ows")
+            start_dir = os.path.join(six.text_type(start_dir), title + ".ows")
 
         filename = QFileDialog.getSaveFileName(
             self, self.tr("Save Orange Workflow File"),
@@ -1144,7 +1146,7 @@ class CanvasMainWindow(QMainWindow):
         )
 
         if filename:
-            filename = unicode(filename)
+            filename = six.text_type(filename)
             if not self.check_can_save(document, filename):
                 return QDialog.Rejected
 
@@ -1172,7 +1174,7 @@ class CanvasMainWindow(QMainWindow):
 
         # First write the scheme to a buffer so we don't truncate an
         # existing scheme file if `scheme.save_to` raises an error.
-        buffer = StringIO()
+        buffer = io.BytesIO()
         try:
             scheme.save_to(buffer, pretty=True, pickle_fallback=True)
         except Exception:
@@ -1287,7 +1289,7 @@ class CanvasMainWindow(QMainWindow):
 
             selected = model.item(index)
 
-            self.load_scheme(unicode(selected.path()))
+            self.load_scheme(six.text_type(selected.path()))
 
         return status
 
@@ -1325,7 +1327,7 @@ class CanvasMainWindow(QMainWindow):
 
             selected = model.item(index)
 
-            new_scheme = self.new_scheme_from(unicode(selected.path()))
+            new_scheme = self.new_scheme_from(six.text_type(selected.path()))
             if new_scheme is not None:
                 self.set_new_scheme(new_scheme)
 
@@ -1572,7 +1574,7 @@ class CanvasMainWindow(QMainWindow):
 
         actions_by_filename = {}
         for action in self.recent_scheme_action_group.actions():
-            path = unicode(action.data().toString())
+            path = six.text_type(qunwrap(action.data()))
             actions_by_filename[path] = action
 
         if filename in actions_by_filename:
@@ -1613,8 +1615,8 @@ class CanvasMainWindow(QMainWindow):
         actions = list(self.recent_menu.actions())
 
         # Exclude permanent actions (Browse Recent, separators, Clear List)
-        actions_to_remove = [action for action in actions \
-                             if unicode(action.data().toString())]
+        actions_to_remove = [action for action in actions
+                             if six.text_type(qunwrap(action.data()))]
 
         for action in actions_to_remove:
             self.recent_menu.removeAction(action)
@@ -1631,7 +1633,7 @@ class CanvasMainWindow(QMainWindow):
             if self.ask_save_changes() == QDialog.Rejected:
                 return
 
-        filename = unicode(action.data().toString())
+        filename = six.text_type(qunwrap(action.data()))
         self.load_scheme(filename)
 
     def _on_dock_location_changed(self, location):
@@ -1822,7 +1824,7 @@ class CanvasMainWindow(QMainWindow):
     def tr(self, sourceText, disambiguation=None, n=-1):
         """Translate the string.
         """
-        return unicode(QMainWindow.tr(self, sourceText, disambiguation, n))
+        return six.text_type(QMainWindow.tr(self, sourceText, disambiguation, n))
 
     def __update_from_settings(self):
         settings = QSettings()
@@ -2002,7 +2004,7 @@ class UrlDropEventFilter(QObject):
             if mime.hasUrls() and len(mime.urls()) == 1:
                 url = mime.urls()[0]
                 if url.scheme() == "file":
-                    filename = unicode(url.toLocalFile())
+                    filename = six.text_type(url.toLocalFile())
                     _, ext = os.path.splitext(filename)
                     if ext == ".ows":
                         event.acceptProposedAction()

@@ -11,8 +11,9 @@ import logging
 
 from collections import namedtuple, MutableMapping
 
-from PyQt4.QtCore import QObject, QString, QChar, QEvent, QCoreApplication
+import six
 
+from PyQt4.QtCore import QObject, QEvent, QCoreApplication
 from PyQt4.QtCore import pyqtSignal as Signal
 
 pyqtWrapperType = type(QObject)
@@ -76,8 +77,10 @@ def qt_to_mapped_type(value):
     (i.e. QString to unicode, etc.).
 
     """
+    return value
+
     if isinstance(value, QString):
-        return unicode(value)
+        return six.text_type(value)
     elif isinstance(value, QChar):
         return str(value)
     else:
@@ -94,16 +97,13 @@ class _pickledvalue(object):
     def __init__(self, value):
         self.value = value
 
-
-class Settings(QObject, MutableMapping):
+class Settings(six.with_metaclass(QABCMeta, QObject, MutableMapping)):
     """
     A `dict` like interface to a QSettings store.
     """
-    __metaclass__ = QABCMeta
-
-    valueChanged = Signal(unicode, object)
-    valueAdded = Signal(unicode, object)
-    keyRemoved = Signal(unicode)
+    valueChanged = Signal(six.text_type, object)
+    valueAdded = Signal(six.text_type, object)
+    keyRemoved = Signal(six.text_type)
 
     def __init__(self, parent=None, defaults=(), path=None, store=None):
         QObject.__init__(self, parent)
@@ -220,7 +220,7 @@ class Settings(QObject, MutableMapping):
         """
         Set the setting for key.
         """
-        if not isinstance(key, basestring):
+        if not isinstance(key, six.string_types):
             raise TypeError(key)
 
         fullkey = self.__key(key)
@@ -259,8 +259,8 @@ class Settings(QObject, MutableMapping):
     def __iter__(self):
         """Return an iterator over over all keys.
         """
-        keys = map(unicode, self.__store.allKeys()) + \
-               self.__defaults.keys()
+        keys = list(map(six.text_type, self.__store.allKeys())) + \
+               list(self.__defaults.keys())
 
         if self.__path:
             path = self.__path + "/"

@@ -9,8 +9,7 @@ from collections import namedtuple
 
 from .. import config
 from ..utils.settings import SettingChangedEvent
-from ..utils.qtcompat import QSettings
-from ..utils import toPyObject
+from ..utils.qtcompat import QSettings, qunwrap
 
 from ..utils.propertybindings import (
     AbstractBoundProperty, PropertyBinding, BindingManager
@@ -137,7 +136,7 @@ class UserSettingsModel(QAbstractItemModel):
     def setData(self, index, value, role=Qt.EditRole):
         if self._valid(index) and index.column() == 3:
             key = self._keyFromIndex(index)
-            value = toPyObject(value)
+            value = qunwrap(value)
             try:
                 self.__settings[key] = value
             except (TypeError, ValueError) as ex:
@@ -155,7 +154,7 @@ class UserSettingsModel(QAbstractItemModel):
 
     def _keyFromIndex(self, index):
         row = index.row()
-        return self.__settings.keys()[row]
+        return list(self.__settings.keys())[row]
 
 
 def container_widget_helper(orientation=Qt.Vertical, spacing=None, margin=0):

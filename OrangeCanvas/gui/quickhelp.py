@@ -1,5 +1,7 @@
 from collections import Callable
 
+import six
+
 from PyQt4.QtGui import QTextBrowser, QStatusTipEvent, QWhatsThisClickedEvent
 from PyQt4.QtCore import QObject, QCoreApplication, QEvent, QTimer, QUrl
 from PyQt4.QtCore import pyqtSignal as Signal
@@ -31,7 +33,7 @@ class QuickHelp(QTextBrowser):
 
         """
         if self.__text != text:
-            self.__text = unicode(text)
+            self.__text = six.text_type(text)
             self.__update()
             self.textChanged.emit()
 

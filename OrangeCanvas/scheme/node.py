@@ -4,6 +4,7 @@ Scheme Node
 ===========
 
 """
+import six
 
 from PyQt4.QtCore import QObject
 from PyQt4.QtCore import pyqtSignal as Signal
@@ -108,14 +109,14 @@ class SchemeNode(QObject):
                          (name, self.description.name))
 
     #: The title of the node has changed
-    title_changed = Signal(unicode)
+    title_changed = Signal(six.text_type)
 
     def set_title(self, title):
         """
         Set the node title.
         """
         if self.__title != title:
-            self.__title = unicode(title)
+            self.__title = six.text_type(title)
             self.title_changed.emit(self.__title)
 
     def title(self):
@@ -124,7 +125,7 @@ class SchemeNode(QObject):
         """
         return self.__title
 
-    title = Property(unicode, fset=set_title, fget=title)
+    title = Property(six.text_type, fset=set_title, fget=title)
 
     #: Position of the node in the scheme has changed
     position_changed = Signal(tuple)
@@ -195,7 +196,7 @@ class SchemeNode(QObject):
                         fget=tool_tip)
 
     #: The node's status tip has changes
-    status_message_changed = Signal(unicode)
+    status_message_changed = Signal(six.text_type)
 
     def set_status_message(self, text):
         if self.__status_message != text:

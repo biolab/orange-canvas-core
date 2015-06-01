@@ -9,6 +9,8 @@ import types
 import collections
 from itertools import chain
 
+import six
+
 import pkg_resources
 
 log = logging.getLogger(__name__)
@@ -94,7 +96,7 @@ class Tutorial(object):
         if self.package is not None:
             return pkg_resources.resource_filename(self.package.__name__,
                                                    self.resource)
-        elif isinstance(self.resource, basestring):
+        elif isinstance(self.resource, six.string_types):
             if os.path.isabs(self.resource):
                 return self.resource
 
@@ -106,7 +108,7 @@ class Tutorial(object):
         if self.package is not None:
             return pkg_resources.resource_stream(self.package.__name__,
                                                  self.resource)
-        elif isinstance(self.resource, basestring):
+        elif isinstance(self.resource, six.string_types):
             if os.path.isabs(self.resource) and os.path.exists(self.resource):
                 return open(self.resource, "rb")
 

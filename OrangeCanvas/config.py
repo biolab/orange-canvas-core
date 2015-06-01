@@ -6,10 +6,11 @@ Orange Canvas Configuration
 import os
 import sys
 import logging
-import cPickle as pickle
+import pickle
 import itertools
 
 import pkg_resources
+import six
 
 from PyQt4.QtGui import (
     QDesktopServices, QPainter, QFont, QFontMetrics, QColor, QPixmap, QIcon
@@ -58,7 +59,7 @@ spec = \
      ("startup/show-welcome-screen", bool, True,
       "Show Welcome screen at startup"),
 
-     ("stylesheet", unicode, "orange",
+     ("stylesheet", six.text_type, "orange",
       "QSS stylesheet to use"),
 
      ("schemeinfo/show-at-new-scheme", bool, True,
@@ -153,7 +154,7 @@ def data_dir():
     """
     init()
     datadir = QDesktopServices.storageLocation(QDesktopServices.DataLocation)
-    datadir = unicode(datadir)
+    datadir = six.text_type(datadir)
     if not os.path.exists(datadir):
         os.makedirs(datadir)
     return datadir
@@ -166,7 +167,7 @@ def cache_dir():
     """
     init()
     cachedir = QDesktopServices.storageLocation(QDesktopServices.CacheLocation)
-    cachedir = unicode(cachedir)
+    cachedir = six.text_type(cachedir)
     if not os.path.exists(cachedir):
         os.makedirs(cachedir)
     return cachedir

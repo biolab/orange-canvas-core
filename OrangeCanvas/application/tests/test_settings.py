@@ -1,5 +1,7 @@
 import logging
 
+import six
+
 from PyQt4.QtGui import QTreeView
 
 from ...gui import test
@@ -25,7 +27,7 @@ class TestUserSettings(test.QAppTestCase):
                           "biolab.si", "Orange Canvas UnitTests")
 
         defaults = [config_slot("S1", bool, True, "Something"),
-                    config_slot("S2", unicode, "I an not a String",
+                    config_slot("S2", six.text_type, "I an not a String",
                                 "Disregard the string.")]
 
         settings = Settings(defaults=defaults, store=store)

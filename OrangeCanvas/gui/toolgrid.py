@@ -4,16 +4,18 @@ A widget containing a grid of clickable actions/buttons.
 """
 from collections import namedtuple, deque
 
+import six
+
 from PyQt4.QtGui import (
     QFrame, QAction, QToolButton, QGridLayout, QFontMetrics,
     QSizePolicy, QStyleOptionToolButton, QStylePainter, QStyle
 )
 
-from PyQt4.QtCore import Qt, QObject, QSize, QVariant, QEvent, QSignalMapper
+from PyQt4.QtCore import Qt, QObject, QSize, QEvent, QSignalMapper
 from PyQt4.QtCore import pyqtSignal as Signal
 
 from . import utils
-
+from ..utils import qtcompat
 
 _ToolGridSlot = namedtuple(
     "_ToolGridSlot",
@@ -43,7 +45,7 @@ class _ToolGridButton(QToolButton):
 
     def __textLayout(self):
         fm = QFontMetrics(self.font())
-        text = unicode(self.defaultAction().iconText())
+        text = six.text_type(self.defaultAction().iconText())
         words = deque(text.split())
 
         lines = []
@@ -73,7 +75,7 @@ class _ToolGridButton(QToolButton):
                     # Warning: hardcoded max lines
                     curr_line = fm.elidedText(line_extended, Qt.ElideRight,
                                               width)
-                    curr_line = unicode(curr_line)
+                    curr_line = six.text_type(curr_line)
                 else:
                     # Put the word back
                     words.appendleft(w)
@@ -287,7 +289,7 @@ class ToolGrid(QFrame):
             button.setIconSize(self.__iconSize)
 
         button.setToolButtonStyle(self.__toolButtonStyle)
-        button.setProperty("tool-grid-button", QVariant(True))
+        button.setProperty("tool-grid-button", qtcompat.qwrap(True))
         return button
 
     def count(self):

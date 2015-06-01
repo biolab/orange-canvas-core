@@ -1,6 +1,7 @@
 """
 Test for welcome screen.
 """
+from __future__ import print_function
 
 from PyQt4.QtGui import QAction
 
@@ -32,7 +33,7 @@ class TestDialog(QAppTestCase):
         action = [None]
 
         def p(a):
-            print str(a.text())
+            print(str(a.text()))
             action[0] = a
 
         d.triggered.connect(p)

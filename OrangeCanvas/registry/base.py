@@ -10,6 +10,8 @@ import bisect
 
 from operator import attrgetter
 
+import six
+
 from . import description
 
 log = logging.getLogger(__name__)
@@ -109,14 +111,14 @@ class WidgetRegistry(object):
         """
         if category is None:
             categories = self.categories()
-        elif isinstance(category, basestring):
+        elif isinstance(category, six.string_types):
             categories = [self.category(category)]
         else:
             categories = [category]
 
         widgets = []
         for cat in categories:
-            if isinstance(cat, basestring):
+            if isinstance(cat, six.string_types):
                 cat = self.category(cat)
             cat_widgets = self._categories_dict[cat.name][1]
             widgets.extend(sorted(cat_widgets,

@@ -5,7 +5,7 @@ Orange Canvas Tool Dock widget
 import sys
 
 from PyQt4.QtGui import (
-    QWidget, QSplitter, QVBoxLayout, QTextEdit, QAction, QPalette,
+    QWidget, QSplitter, QVBoxLayout, QTextEdit, QAction, QPalette, QBrush,
     QSizePolicy, QApplication, QDrag
 )
 
@@ -25,7 +25,7 @@ from ..document.quickmenu import create_css_gradient
 from .widgettoolbox import WidgetToolBox, iter_index, item_text, item_icon, item_tooltip
 
 from ..registry.qt import QtWidgetRegistry
-from ..utils.qtcompat import toPyObject
+from ..utils.qtcompat import qunwrap
 
 
 class SplitterResizer(QObject):
@@ -302,13 +302,14 @@ class QuickCategoryToolbar(ToolGrid):
         """
         button = ToolGrid.createButtonForAction(self, action)
 
-        item = action.data().toPyObject()  # QPersistentModelIndex
-        if item.data(Qt.BackgroundRole).isValid():
-            brush = item.background()
-        elif item.data(QtWidgetRegistry.BACKGROUND_ROLE).isValid():
-            brush = item.data(QtWidgetRegistry.BACKGROUND_ROLE).toPyObject()
-        else:
-            brush = self.palette().brush(QPalette.Button)
+        item = qunwrap(action.data())  # QPersistentModelIndex
+        assert isinstance(item, QPersistentModelIndex)
+
+        brush = qunwrap(item.data(Qt.BackgroundRole))
+        if not isinstance(brush, QBrush):
+            brush = qunwrap(item.data(QtWidgetRegistry.BACKGROUND_ROLE))
+            if not isinstance(brush, QBrush):
+                brush = self.palette().brush(QPalette.Button)
 
         palette = button.palette()
         palette.setColor(QPalette.Button, brush.color())
@@ -426,8 +427,8 @@ class CategoryPopupMenu(FramelessWindow):
             self.__loop.exit(0)
 
     def __onDragStarted(self, index):
-        desc = toPyObject(index.data(QtWidgetRegistry.WIDGET_DESC_ROLE))
-        icon = toPyObject(index.data(Qt.DecorationRole))
+        desc = qunwrap(index.data(QtWidgetRegistry.WIDGET_DESC_ROLE))
+        icon = qunwrap(index.data(Qt.DecorationRole))
 
         drag_data = QMimeData()
         drag_data.setData(

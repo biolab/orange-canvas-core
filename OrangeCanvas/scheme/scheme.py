@@ -12,6 +12,8 @@ from collections import deque
 
 import logging
 
+import six
+
 from PyQt4.QtCore import QObject
 from PyQt4.QtCore import pyqtSignal as Signal
 from PyQt4.QtCore import pyqtProperty as Property
@@ -81,10 +83,10 @@ class Scheme(QObject):
     annotation_removed = Signal(BaseSchemeAnnotation)
 
     # Signal emitted when the title of scheme changes.
-    title_changed = Signal(unicode)
+    title_changed = Signal(six.text_type)
 
     # Signal emitted when the description of scheme changes.
-    description_changed = Signal(unicode)
+    description_changed = Signal(six.text_type)
 
     node_state_changed = Signal()
     channel_state_changed = Signal()
@@ -140,7 +142,7 @@ class Scheme(QObject):
         """
         return self.__title
 
-    title = Property(unicode, fget=title, fset=set_title)
+    title = Property(six.text_type, fget=title, fset=set_title)
 
     def set_description(self, description):
         """
@@ -156,7 +158,7 @@ class Scheme(QObject):
         """
         return self.__description
 
-    description = Property(unicode, fget=description, fset=set_description)
+    description = Property(six.text_type, fget=description, fset=set_description)
 
     def add_node(self, node):
         """
@@ -614,7 +616,7 @@ class Scheme(QObject):
         .scheme_to_ows_stream
 
         """
-        if isinstance(stream, basestring):
+        if isinstance(stream, six.string_types):
             stream = open(stream, "wb")
 
         self.sync_node_properties()
@@ -630,7 +632,7 @@ class Scheme(QObject):
             # TODO: should we clear the scheme and load it.
             raise ValueError("Scheme is not empty.")
 
-        if isinstance(stream, basestring):
+        if isinstance(stream, six.string_types):
             stream = open(stream, "rb")
         readwrite.scheme_load(self, stream)
 #         parse_scheme(self, stream)

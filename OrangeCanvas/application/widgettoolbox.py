@@ -9,6 +9,8 @@ A tool box with a tool grid for each category.
 
 import logging
 
+import six
+
 from PyQt4.QtGui import (
     QAbstractButton, QSizePolicy, QAction, QApplication, QDrag, QPalette,
     QBrush, QIcon
@@ -49,18 +51,15 @@ def iter_index(model, index):
 
 
 def qvariant_to_string(variant):
-    if qtcompat.HAS_QVARIANT:
-        return unicode(variant.toString())
+    val = qtcompat.qunwrap(variant)
+    if val is None:
+        return ""
     else:
-        return unicode(variant)
+        return six.text_type(val)
 
 
 def qvariant_to_icon(variant):
-    if qtcompat.HAS_QVARIANT:
-        value = variant.toPyObject()
-    else:
-        value = variant
-
+    value = qtcompat.qunwrap(variant)
     if isinstance(value, QIcon):
         return value
     else:
@@ -68,11 +67,7 @@ def qvariant_to_icon(variant):
 
 
 def qvariant_to_object(variant):
-    if qtcompat.HAS_QVARIANT:
-        value = variant.toPyObject()
-    else:
-        value = variant
-    return value
+    return qtcompat.qunwrap(variant)
 
 
 def item_text(index):
@@ -189,9 +184,9 @@ class WidgetToolGrid(ToolGrid):
         """
         Insert a widget action from `item` (`QModelIndex`) at `index`.
         """
-        value = item.data(self.__actionRole)
-        if value.isValid():
-            action = value.toPyObject()
+        value = qtcompat.qunwrap(item.data(self.__actionRole))
+        if isinstance(value, QAction):
+            action = value
         else:
             action = QAction(item_text(item), self)
             action.setIcon(item_icon(item))
@@ -226,7 +221,7 @@ class WidgetToolGrid(ToolGrid):
         Start a drag from button
         """
         action = button.defaultAction()
-        desc = action.data().toPyObject()  # Widget Description
+        desc = qtcompat.qunwrap(action.data())  # Widget Description
         icon = action.icon()
         drag_data = QMimeData()
         drag_data.setData(
@@ -302,7 +297,7 @@ class WidgetToolBox(ToolBox):
         Set the widget icon size (icons in the button grid).
         """
         self.__iconSize = size
-        for widget in  map(self.widget, range(self.count())):
+        for widget in map(self.widget, range(self.count())):
             widget.setIconSize(size)
 
     def iconSize(self):
@@ -419,12 +414,11 @@ class WidgetToolBox(ToolBox):
         button = self.tabButton(index)
 
         # Set the 'highlight' color
-        if item.data(Qt.BackgroundRole).isValid():
-            brush = item.background()
-        elif item.data(QtWidgetRegistry.BACKGROUND_ROLE).isValid():
-            brush = item.data(QtWidgetRegistry.BACKGROUND_ROLE).toPyObject()
-        else:
-            brush = self.palette().brush(QPalette.Button)
+        brush = qtcompat.qunwrap(item.data(Qt.BackgroundRole))
+        if not isinstance(brush, QBrush):
+            brush = qtcompat.qunwrap(item.data(QtWidgetRegistry.BACKGROUND_ROLE))
+            if not isinstance(brush, QBrush):
+                brush = self.palette().brush(QPalette.Button)
 
         if not brush.gradient():
             gradient = create_gradient(brush.color())

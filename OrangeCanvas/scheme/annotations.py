@@ -4,8 +4,9 @@ Scheme Annotations
 ==================
 
 """
+import six
 
-from PyQt4.QtCore import QObject, QString
+from PyQt4.QtCore import QObject
 from PyQt4.QtCore import pyqtSignal as Signal
 from PyQt4.QtCore import pyqtProperty as Property
 
@@ -25,7 +26,7 @@ class SchemeArrowAnnotation(BaseSchemeAnnotation):
     An arrow annotation in the scheme.
     """
 
-    color_changed = Signal(unicode)
+    color_changed = Signal(six.text_type)
 
     def __init__(self, start_pos, end_pos, color="red", anchor=None,
                  parent=None):
@@ -60,12 +61,13 @@ class SchemeArrowAnnotation(BaseSchemeAnnotation):
 
     end_pos = Property(tuple, fget=end_pos)
 
-    def set_geometry(self, (start_pos, end_pos)):
+    def set_geometry(self, geometry):
         """
         Set the geometry of the arrow as a start and end position tuples
         (e.g. ``set_geometry(((0, 0), (100, 0))``).
 
         """
+        (start_pos, end_pos) = geometry
         self.set_line(start_pos, end_pos)
 
     def geometry(self):
@@ -83,8 +85,8 @@ class SchemeArrowAnnotation(BaseSchemeAnnotation):
         names).
 
         """
-        check_type(color, (basestring, QString))
-        color = unicode(color)
+        check_type(color, six.string_types)
+        color = six.text_type(color)
         if self.__color != color:
             self.__color = color
             self.color_changed.emit(color)
@@ -95,7 +97,7 @@ class SchemeArrowAnnotation(BaseSchemeAnnotation):
         """
         return self.__color
 
-    color = Property(unicode, fget=color, fset=set_color)
+    color = Property(six.text_type, fget=color, fset=set_color)
 
 
 class SchemeTextAnnotation(BaseSchemeAnnotation):
@@ -104,7 +106,7 @@ class SchemeTextAnnotation(BaseSchemeAnnotation):
     """
 
     # Signal emitted when the annotation text changes.
-    text_changed = Signal(unicode)
+    text_changed = Signal(six.text_type)
 
     # Signal emitted when the annotation text font changes.
     font_changed = Signal(dict)
@@ -116,13 +118,12 @@ class SchemeTextAnnotation(BaseSchemeAnnotation):
         self.__font = {} if font is None else font
         self.__anchor = anchor
 
-    def set_rect(self, (x, y, w, h)):
+    def set_rect(self, rect):
         """
         Set the text geometry bounding rectangle (``(x, y, width, height)``
         tuple).
 
         """
-        rect = (x, y, w, h)
         if self.__rect != rect:
             self.__rect = rect
             self.geometry_changed.emit()
@@ -153,8 +154,8 @@ class SchemeTextAnnotation(BaseSchemeAnnotation):
         """
         Set the annotation text.
         """
-        check_type(text, (basestring, QString))
-        text = unicode(text)
+        check_type(text, six.string_types)
+        text = six.text_type(text)
         if self.__text != text:
             self.__text = text
             self.text_changed.emit(text)
@@ -187,4 +188,4 @@ class SchemeTextAnnotation(BaseSchemeAnnotation):
         """
         return dict(self.__font)
 
-    font = Property(unicode, fget=font, fset=set_font)
+    font = Property(six.text_type, fget=font, fset=set_font)

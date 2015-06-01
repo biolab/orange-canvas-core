@@ -3,6 +3,8 @@ from PyQt4.QtGui import QGraphicsObject, QPainterPath, QPainterPathStroker, \
 
 from PyQt4.QtCore import Qt, QPointF, pyqtSignal as Signal
 
+from ...utils.qtcompat import qunwrap
+
 
 class GraphicsPathObject(QGraphicsObject):
     """A QGraphicsObject subclass implementing an interface similar to
@@ -95,8 +97,9 @@ class GraphicsPathObject(QGraphicsObject):
 
     def itemChange(self, change, value):
         if change == QGraphicsObject.ItemPositionHasChanged:
+            pos = qunwrap(value)
             self.positionChanged.emit()
-            self.positionChanged[QPointF].emit(value.toPyObject())
+            self.positionChanged[QPointF].emit(pos)
 
         return QGraphicsObject.itemChange(self, change, value)
 

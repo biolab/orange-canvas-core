@@ -2,6 +2,7 @@
 Unittests for PrewiewBrowser widget.
 
 """
+from __future__ import print_function
 
 from ...gui import test
 
@@ -35,7 +36,7 @@ class TestPreviewBrowser(test.QAppTestCase):
         w.show()
 
         def p(index):
-            print index
+            print(index)
 
         w.currentIndexChanged.connect(p)
         self.app.exec_()

@@ -5,6 +5,8 @@ Preview Browser Widget.
 
 from xml.sax.saxutils import escape
 
+import six
+
 from PyQt4.QtGui import (
     QWidget, QLabel, QListView, QAction, QVBoxLayout, QHBoxLayout, QSizePolicy,
     QStyleOption, QStylePainter
@@ -18,7 +20,7 @@ from PyQt4.QtCore import (
 
 from PyQt4.QtCore import pyqtSignal as Signal
 
-from ..utils import check_type
+from ..utils import check_type, qtcompat
 from ..gui.dropshadow import DropShadowFrame
 from . import previewmodel
 
@@ -84,9 +86,9 @@ class TextLabel(QWidget):
     def setText(self, text):
         """Set the `text` string to display.
         """
-        check_type(text, basestring)
+        check_type(text, six.string_types)
         if self.__text != text:
-            self.__text = unicode(text)
+            self.__text = six.text_type(text)
             self.__update()
 
     def text(self):
@@ -314,21 +316,27 @@ class PreviewBrowser(QWidget):
             path = ""
             svg = NO_PREVIEW_SVG
         else:
-            description = unicode(index.data(Qt.WhatsThisRole).toString())
-            if not description:
-                description = "No description."
+            description = qtcompat.qunwrap(index.data(Qt.WhatsThisRole))
+            if description:
+                description = six.text_type(description)
+            else:
+                description = u"No description."
 
             description = escape(description)
             description = description.replace("\n", "<br/>")
 
-            name = unicode(index.data(Qt.DisplayRole).toString())
-            if not name:
+            name = qtcompat.qunwrap(index.data(Qt.DisplayRole))
+            if name:
+                name = six.text_type(name)
+            else:
                 name = "Untitled"
 
             name = escape(name)
-            path = unicode(index.data(Qt.StatusTipRole).toString())
+            path = qtcompat.qunwrap(index.data(Qt.StatusTipRole))
+            path = six.text_type(path)
 
-            svg = unicode(index.data(previewmodel.ThumbnailSVGRole).toString())
+            svg = qtcompat.qunwrap(index.data(previewmodel.ThumbnailSVGRole))
+            svg = six.text_type(svg)
 
         desc_text = self.__template.format(description=description, name=name)
 

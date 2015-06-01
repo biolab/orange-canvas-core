@@ -14,6 +14,9 @@ All interactions are subclasses of :class:`UserInteraction`.
 """
 
 import logging
+from functools import reduce
+
+import six
 
 from PyQt4.QtGui import (
     QApplication, QGraphicsRectItem, QPen, QBrush, QColor, QFontMetrics,
@@ -26,6 +29,7 @@ from PyQt4.QtCore import (
 
 from PyQt4.QtCore import pyqtSignal as Signal
 
+from ..registry.description import WidgetDescription
 from ..registry.qt import QtWidgetRegistry
 from .. import scheme
 from ..canvas import items
@@ -33,6 +37,7 @@ from ..canvas.items import controlpoints
 from ..gui.quickhelp import QuickHelpTipEvent
 from . import commands
 from .editlinksdialog import EditLinksDialog
+from ..utils.qtcompat import qunwrap
 
 log = logging.getLogger(__name__)
 
@@ -452,9 +457,8 @@ class NewLinkAction(UserInteraction):
             is_compatible = reversed_arguments(is_compatible)
 
         def filter(index):
-            desc = index.data(QtWidgetRegistry.WIDGET_DESC_ROLE)
-            if desc.isValid():
-                desc = desc.toPyObject()
+            desc = qunwrap(index.data(QtWidgetRegistry.WIDGET_DESC_ROLE))
+            if isinstance(desc, WidgetDescription):
                 return is_compatible(from_desc, desc)
             else:
                 return False
@@ -466,8 +470,8 @@ class NewLinkAction(UserInteraction):
             menu.setFilterFunc(None)
 
         if action:
-            item = action.property("item").toPyObject()
-            desc = item.data(QtWidgetRegistry.WIDGET_DESC_ROLE).toPyObject()
+            item = qunwrap(action.property("item"))
+            desc = qunwrap(item.data(QtWidgetRegistry.WIDGET_DESC_ROLE))
             pos = event.scenePos()
             # a new widget should be placed so that the connection
             # stays as it was
@@ -610,9 +614,9 @@ class NewLinkAction(UserInteraction):
                                in links_to_remove]
 
             links_to_remove = reduce(list.__add__, links_to_remove, [])
-            conflicting = filter(None,
-                                 [conflicting_single_link(self.scheme, link)
-                                  for link in links_to_add])
+            conflicting = [conflicting_single_link(self.scheme, link)
+                           for link in links_to_add]
+            conflicting = [link for link in conflicting if link is not None]
             for link in conflicting:
                 if link not in links_to_remove:
                     links_to_remove.append(link)
@@ -701,7 +705,7 @@ def add_links_plan(scheme, links, force_replace=False):
     links_to_add = list(links)
     links_to_remove = [conflicting_single_link(scheme, link)
                        for link in links]
-    links_to_remove = filter(None, links_to_remove)
+    links_to_remove = [link for link in links_to_remove if link is not None]
 
     if not force_replace:
         links_to_add, links_to_remove = remove_duplicates(links_to_add,
@@ -735,15 +739,15 @@ def remove_duplicates(links_to_add, links_to_remove):
         return (link.source_node, link.source_channel,
                 link.sink_node, link.sink_channel)
 
-    add_keys = map(link_key, links_to_add)
-    remove_keys = map(link_key, links_to_remove)
+    add_keys = list(map(link_key, links_to_add))
+    remove_keys = list(map(link_key, links_to_remove))
     duplicate_keys = set(add_keys).intersection(remove_keys)
 
     def not_duplicate(link):
         return link_key(link) not in duplicate_keys
 
-    links_to_add = filter(not_duplicate, links_to_add)
-    links_to_remove = filter(not_duplicate, links_to_remove)
+    links_to_add = list(filter(not_duplicate, links_to_add))
+    links_to_remove = list(filter(not_duplicate, links_to_remove))
     return links_to_add, links_to_remove
 
 
@@ -770,8 +774,8 @@ class NewNodeAction(UserInteraction):
 
         action = menu.exec_(pos, search_text)
         if action:
-            item = action.property("item").toPyObject()
-            desc = item.data(QtWidgetRegistry.WIDGET_DESC_ROLE).toPyObject()
+            item = qunwrap(action.property("item"))
+            desc = qunwrap(item.data(QtWidgetRegistry.WIDGET_DESC_ROLE))
             # Get the scene position
             view = self.document.view()
             pos = view.mapToScene(view.mapFromGlobal(pos))
@@ -1150,7 +1154,7 @@ class NewTextAnnotation(UserInteraction):
         Create a new TextAnnotation at with `rect` as the geometry.
         """
         annot = scheme.SchemeTextAnnotation(rect_to_tuple(rect))
-        font = {"family": unicode(self.font.family()),
+        font = {"family": six.text_type(self.font.family()),
                 "size": self.font.pixelSize()}
         annot.set_font(font)
 

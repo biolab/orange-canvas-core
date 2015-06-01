@@ -13,6 +13,8 @@ import logging
 
 from collections import namedtuple, Callable
 
+import six
+
 import numpy
 
 from PyQt4.QtGui import (
@@ -100,7 +102,7 @@ class MenuPage(ToolTree):
         """
         return self.__title
 
-    title_ = Property(unicode, fget=title, fset=setTitle,
+    title_ = Property(six.text_type, fget=title, fset=setTitle,
                       doc="Title of the page.")
 
     def setIcon(self, icon):
@@ -820,11 +822,9 @@ class PagedMenu(QWidget):
 
 
 def qvariant_to_qbrush(variant):
-    if qtcompat.HAS_QVARIANT:
-        variant = variant.toPyObject()
-
-    if isinstance(variant, QBrush):
-        return variant
+    value = qtcompat.qunwrap(variant)
+    if isinstance(value, QBrush):
+        return value
     else:
         return None
 
@@ -1002,14 +1002,14 @@ class QuickMenu(FramelessWindow):
             # bar at the top.
             view.setAttribute(Qt.WA_MacShowFocusRect, False)
 
-        name = unicode(index.data(Qt.DisplayRole))
+        name = six.text_type(index.data(Qt.DisplayRole))
         page.setTitle(name)
 
-        icon = index.data(Qt.DecorationRole).toPyObject()
+        icon = qtcompat.qunwrap(index.data(Qt.DecorationRole))
         if isinstance(icon, QIcon):
             page.setIcon(icon)
 
-        page.setToolTip(index.data(Qt.ToolTipRole).toPyObject())
+        page.setToolTip(qtcompat.qunwrap(index.data(Qt.ToolTipRole)))
         return page
 
     def __clear(self):

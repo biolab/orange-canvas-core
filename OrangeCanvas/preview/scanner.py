@@ -7,6 +7,8 @@ import logging
 
 from xml.sax import make_parser, handler, saxutils, SAXParseException
 
+import six
+
 from ..scheme.readwrite import scheme_load
 log = logging.getLogger(__name__)
 
@@ -99,14 +101,11 @@ def scan_update(item):
 
     """
 
-    path = unicode(item.path())
-
-    # workaround for bugs.python.org/issue11159
-    path = path.encode(sys.getfilesystemencoding())
+    path = item.path()
 
     try:
         title, desc, svg = preview_parse(path)
-    except SAXParseException, ex:
+    except SAXParseException as ex:
         log.error("%r is malformed (%r)", path, ex)
         item.setEnabled(False)
         item.setSelectable(False)

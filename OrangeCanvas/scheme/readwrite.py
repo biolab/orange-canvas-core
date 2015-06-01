@@ -4,13 +4,15 @@ Scheme save/load routines.
 """
 import sys
 import warnings
+import base64
+import itertools
 
 from xml.etree.ElementTree import TreeBuilder, Element, ElementTree, parse
 
 from collections import defaultdict, namedtuple
 from itertools import chain, count
 
-import cPickle as pickle
+import pickle
 import json
 import pprint
 
@@ -18,6 +20,8 @@ import ast
 from ast import literal_eval
 
 import logging
+
+import six
 
 from . import SchemeNode, SchemeLink
 from .annotations import SchemeTextAnnotation, SchemeArrowAnnotation
@@ -211,7 +215,7 @@ def parse_scheme_v_2_0(etree, scheme, error_handler, widget_registry=None,
     for node_el in etree.findall("nodes/node"):
         try:
             node = scheme_node_from_element(node_el, widget_registry)
-        except UnknownWidgetDefinition, ex:
+        except UnknownWidgetDefinition as ex:
             # description was not found
             error_handler(ex)
             node = None
@@ -709,14 +713,6 @@ def scheme_load(scheme, stream, registry=None, error_handler=None):
     return scheme
 
 
-def inf_range(start=0, step=1):
-    """Return an infinite range iterator.
-    """
-    while True:
-        yield start
-        start += step
-
-
 def scheme_to_etree(scheme, data_format="literal", pickle_fallback=False):
     """
     Return an `xml.etree.ElementTree` representation of the `scheme.
@@ -727,7 +723,7 @@ def scheme_to_etree(scheme, data_format="literal", pickle_fallback=False):
                              "description": scheme.description or ""})
 
     ## Nodes
-    node_ids = defaultdict(inf_range().next)
+    node_ids = defaultdict(lambda c=itertools.count(): next(c))
     builder.start("nodes", {})
     for node in scheme.nodes:
         desc = node.description
@@ -750,7 +746,7 @@ def scheme_to_etree(scheme, data_format="literal", pickle_fallback=False):
     builder.end("nodes")
 
     ## Links
-    link_ids = defaultdict(inf_range().next)
+    link_ids = defaultdict(lambda c=itertools.count(): next(c))
     builder.start("links", {})
     for link in scheme.links:
         source = link.source_node
@@ -770,7 +766,7 @@ def scheme_to_etree(scheme, data_format="literal", pickle_fallback=False):
     builder.end("links")
 
     ## Annotations
-    annotation_ids = defaultdict(inf_range().next)
+    annotation_ids = defaultdict(lambda c=itertools.count(): next(c))
     builder.start("annotations", {})
     for annotation in scheme.annotations:
         annot_id = annotation_ids[annotation]
@@ -784,9 +780,9 @@ def scheme_to_etree(scheme, data_format="literal", pickle_fallback=False):
             font = annotation.font
             attrs.update({"font-family": font.get("family", None),
                           "font-size": font.get("size", None)})
-            attrs = [(key, value) for key, value in attrs.items() \
+            attrs = [(key, value) for key, value in attrs.items()
                      if value is not None]
-            attrs = dict((key, unicode(value)) for key, value in attrs)
+            attrs = dict((key, six.text_type(value)) for key, value in attrs)
 
             data = annotation.text
 
@@ -966,7 +962,7 @@ def literal_dumps(obj, prettyprint=False, indent=4):
     NoneType = type(None)
 
     def check(obj):
-        if type(obj) in [int, long, float, bool, NoneType, unicode, str]:
+        if type(obj) in [int, float, bool, NoneType, bytes, six.text_type]:
             return True
 
         if id(obj) in memo:
@@ -977,7 +973,7 @@ def literal_dumps(obj, prettyprint=False, indent=4):
         if type(obj) in [list, tuple]:
             return all(map(check, obj))
         elif type(obj) is dict:
-            return all(map(check, chain(obj.iterkeys(), obj.itervalues())))
+            return all(map(check, chain(obj.keys(), obj.values())))
         else:
             raise TypeError("{0} can not be serialized as a python "
                              "literal".format(type(obj)))

@@ -12,13 +12,15 @@ from operator import attrgetter
 
 from xml.sax.saxutils import escape
 
+import six
+
 from PyQt4.QtGui import QGraphicsScene, QPainter, QBrush, QColor, QFont, \
                         QGraphicsItem
 
 from PyQt4.QtCore import Qt, QPointF, QRectF, QSizeF, QLineF, QBuffer, QEvent
 
 from PyQt4.QtCore import pyqtSignal as Signal
-from PyQt4.QtCore import PYQT_VERSION_STR
+from PyQt4.QtCore import PYQT_VERSION
 
 
 from .. import scheme
@@ -461,7 +463,7 @@ class CanvasScene(QGraphicsScene):
         item.setSinkItem(sink_item)
 
         def channel_name(channel):
-            if isinstance(channel, basestring):
+            if isinstance(channel, six.string_types):
                 return channel
             else:
                 return channel.name
@@ -717,8 +719,8 @@ class CanvasScene(QGraphicsScene):
         """
         Return a list of `node_item`'s (class:`NodeItem`) neighbor nodes.
         """
-        neighbors = map(attrgetter("sourceItem"),
-                        self.node_input_links(node_item))
+        neighbors = list(map(attrgetter("sourceItem"),
+                             self.node_input_links(node_item)))
 
         neighbors.extend(map(attrgetter("sinkItem"),
                              self.node_output_links(node_item)))
@@ -778,7 +780,7 @@ class CanvasScene(QGraphicsScene):
 
         return items[0] if items else None
 
-    if map(int, PYQT_VERSION_STR.split('.')) < [4, 9]:
+    if PYQT_VERSION < 0x040900:
         # For QGraphicsObject subclasses items, itemAt ... return a
         # QGraphicsItem wrapper instance and not the actual class instance.
         def itemAt(self, *args, **kwargs):
@@ -787,15 +789,15 @@ class CanvasScene(QGraphicsScene):
 
         def items(self, *args, **kwargs):
             items = QGraphicsScene.items(self, *args, **kwargs)
-            return map(toGraphicsObjectIfPossible, items)
+            return list(map(toGraphicsObjectIfPossible, items))
 
         def selectedItems(self, *args, **kwargs):
-            return map(toGraphicsObjectIfPossible,
-                       QGraphicsScene.selectedItems(self, *args, **kwargs))
+            return list(map(toGraphicsObjectIfPossible,
+                            QGraphicsScene.selectedItems(self, *args, **kwargs)))
 
         def collidingItems(self, *args, **kwargs):
-            return map(toGraphicsObjectIfPossible,
-                       QGraphicsScene.collidingItems(self, *args, **kwargs))
+            return list(map(toGraphicsObjectIfPossible,
+                            QGraphicsScene.collidingItems(self, *args, **kwargs)))
 
         def focusItem(self, *args, **kwargs):
             item = QGraphicsScene.focusItem(self, *args, **kwargs)
@@ -945,5 +947,5 @@ def grab_svg(scene):
     scene.render(painter, target_rect, source_rect)
     painter.end()
 
-    buffer_str = str(svg_buffer.buffer())
-    return unicode(buffer_str.decode("utf-8"))
+    buffer_str = bytes(svg_buffer.buffer())
+    return buffer_str.decode("utf-8")

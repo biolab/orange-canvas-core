@@ -3,6 +3,7 @@ Preview item model.
 """
 
 import logging
+import six
 
 from PyQt4.QtGui import (
     QStandardItemModel, QStandardItem, QStyledItemDelegate, QIcon
@@ -11,6 +12,7 @@ from PyQt4.QtGui import (
 from PyQt4.QtCore import Qt, QTimer
 
 from . import scanner
+from ..utils.qtcompat import qunwrap
 
 log = logging.getLogger(__name__)
 
@@ -60,7 +62,7 @@ class PreviewModel(QStandardItemModel):
                     scanner.scan_update(item)
                 except Exception:
                     log.error("An unexpected error occurred while "
-                              "scanning %r.", unicode(item.text()),
+                              "scanning %r.", six.text_type(item.text()),
                               exc_info=True)
                     item.setEnabled(False)
                 yield
@@ -71,7 +73,7 @@ class PreviewModel(QStandardItemModel):
 
         def process_one():
             try:
-                iter_scan.next()
+                next(iter_scan)
             except StopIteration:
                 self.__timer.timeout.disconnect(process_one)
                 self.__timer.stop()
@@ -133,13 +135,16 @@ class PreviewItem(QStandardItem):
         return the string for `WhatsThisRole`.
 
         """
-        desc = self.data(DescriptionRole)
+        desc = qunwrap(self.data(DescriptionRole))
 
-        if desc.isValid():
-            return desc.toString()
+        if desc is not None:
+            return six.text_type(desc)
 
-        whatsthis = self.data(Qt.WhatsThisRole)
-        return whatsthis.toString()
+        whatsthis = qunwrap(self.data(Qt.WhatsThisRole))
+        if whatsthis:
+            return six.text_type(whatsthis)
+        else:
+            return u""
 
     def setDescription(self, description):
         self.setData(description, DescriptionRole)
@@ -150,9 +155,11 @@ class PreviewItem(QStandardItem):
 
         This is stored as `ThumbnailSVGRole`
         """
-        thumb = self.data(ThumbnailSVGRole)
-        if thumb.isValid():
-            return thumb.toString()
+        thumb = qunwrap(self.data(ThumbnailSVGRole))
+        if thumb is not None:
+            return six.text_type(thumb)
+        else:
+            return u""
 
     def setThumbnail(self, thumbnail):
         """Set the thumbnail SVG contents as a string.
@@ -176,7 +183,7 @@ class PreviewItem(QStandardItem):
     def path(self):
         """Return the path item data.
         """
-        return self.data(PathRole).toString()
+        return six.text_type(qunwrap(self.data(PathRole)))
 
     def setPath(self, path):
         """Set the path data of the item.

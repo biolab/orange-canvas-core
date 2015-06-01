@@ -4,6 +4,8 @@ import multiprocessing.pool
 from datetime import datetime
 from threading import current_thread
 
+import six
+
 from PyQt4.QtCore import Qt, QThread
 from ...gui.test import QAppTestCase
 
@@ -18,16 +20,16 @@ class TestOutputView(QAppTestCase):
         line1 = "A line \n"
         line2 = "A different line\n"
         output.write(line1)
-        self.assertEqual(unicode(output.toPlainText()), line1)
+        self.assertEqual(six.text_type(output.toPlainText()), line1)
 
         output.write(line2)
-        self.assertEqual(unicode(output.toPlainText()), line1 + line2)
+        self.assertEqual(six.text_type(output.toPlainText()), line1 + line2)
 
         output.clear()
-        self.assertEqual(unicode(output.toPlainText()), "")
+        self.assertEqual(six.text_type(output.toPlainText()), "")
 
         output.writelines([line1, line2])
-        self.assertEqual(unicode(output.toPlainText()), line1 + line2)
+        self.assertEqual(six.text_type(output.toPlainText()), line1 + line2)
 
         output.setMaximumLines(5)
 
@@ -35,7 +37,7 @@ class TestOutputView(QAppTestCase):
             now = datetime.now().strftime("%c\n")
             output.write(now)
 
-            text = unicode(output.toPlainText())
+            text = six.text_type(output.toPlainText())
             self.assertLessEqual(len(text.splitlines()), 5)
 
             self.singleShot(500, advance)

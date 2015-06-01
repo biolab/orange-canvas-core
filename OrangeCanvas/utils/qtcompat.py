@@ -8,7 +8,10 @@ PyQt4 compatibility utility functions.
 """
 from operator import methodcaller
 
+import six
+
 import sip
+import PyQt4.QtCore
 
 # All known api names for compatibility with version of sip where
 # `getapi` is not available ( < v4.9)
@@ -48,13 +51,26 @@ def toPyObject(variant):
     for QVariant does not export it just return the object unchanged.
 
     """
-    if HAS_QVARIANT:
+    if not HAS_QVARIANT:
         return variant
     elif isinstance(variant, QVariant):
         return variant.toPyObject()
     else:
         raise TypeError("Expected a 'QVariant'")
 
+
+def qunwrap(variant):
+    if HAS_QVARIANT and isinstance(variant, QVariant):
+        return variant.toPyObject()
+    else:
+        return variant
+
+
+def qwrap(obj):
+    if HAS_QVARIANT and not isinstance(obj, QVariant):
+        return QVariant(obj)
+    else:
+        return obj
 
 if HAS_QVARIANT:
     toBitArray = methodcaller("toBitArray")
@@ -64,14 +80,15 @@ if HAS_QVARIANT:
     toDate = methodcaller("")
     toPyObject = methodcaller("toPyObject")
 
-    toFlaot = methodcaller("toFlaot")
+    toFlaot = methodcaller("toFloat")
 
 
-def _check_error((val, status)):
+def _check_error(value_status):
+    value, status = value_status
     if not status:
         raise TypeError()
     else:
-        return val
+        return value
 
 
 def qvariant_to_py(variant, py_type):
@@ -82,10 +99,10 @@ def qvariant_to_py(variant, py_type):
         return variant.toBool()
     elif py_type == int:
         return _check_error(variant.toInt())
-    elif py_type == str:
-        return unicode(variant.toString())
-    elif py_type == unicode:
-        return unicode(variant.toString())
+    elif py_type == bytes:
+        return six.text_type(variant.toString())
+    elif py_type == six.text_type:
+        return six.text_type(variant.toString())
     elif py_type == QByteArray:
         return variant.toByteArray()
 

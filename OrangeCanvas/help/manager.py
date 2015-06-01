@@ -14,6 +14,8 @@ from operator import itemgetter
 
 import pkg_resources
 
+import six
+
 from .provider import IntersphinxHelpProvider
 
 from PyQt4.QtCore import QObject, QUrl
@@ -114,7 +116,7 @@ def get_by_id(registry, descriptor_id):
 def qurl_query_items(url):
     items = []
     for key, value in url.queryItems():
-        items.append((unicode(key), unicode(value)))
+        items.append((six.text_type(key), six.text_type(value)))
     return items
 
 

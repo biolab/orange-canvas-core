@@ -14,6 +14,7 @@ from PyQt4.QtCore import QRectF, QLineF, QEvent
 from .items import NodeItem, LinkItem, SourceAnchorItem, SinkAnchorItem
 from .items.utils import typed_signal_mapper, invert_permutation_indices, \
                          linspace
+from functools import reduce
 
 LinkItemSignalMapper = typed_signal_mapper(LinkItem)
 
@@ -59,7 +60,7 @@ class AnchorLayout(QGraphicsObject):
         items = scene.items()
         links = [item for item in items if isinstance(item, LinkItem)]
         point_pairs = [(link.sourceAnchor, link.sinkAnchor) for link in links]
-        point_pairs.extend(map(reversed, point_pairs))
+        point_pairs += [(a, b) for b, a in point_pairs]
         to_other = dict(point_pairs)
 
         anchors = set(self.__invalidatedAnchors)

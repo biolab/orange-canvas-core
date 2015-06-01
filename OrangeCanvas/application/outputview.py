@@ -4,6 +4,9 @@ import sys
 import traceback
 
 from functools import wraps
+
+import six
+
 from PyQt4.QtGui import (
     QWidget, QPlainTextEdit, QVBoxLayout, QTextCursor, QTextCharFormat,
     QFont, QSizePolicy
@@ -223,7 +226,7 @@ class QueuedCallEvent(QEvent):
             self._state = 1
             if self.semaphore is not None:
                 self.semaphore.release()
-        except BaseException, ex:
+        except BaseException as ex:
             self._exc_info = (type(ex), ex.args, None)
             if self.semaphore is not None:
                 self.semaphore.release()
@@ -233,7 +236,7 @@ class QueuedCallEvent(QEvent):
         if self._state == 1:
             return self._result
         elif self._exc_info:
-            raise self._exc_info[0], self._exc_info[1]
+            raise self._exc_info[0](self._exc_info[1])
         else:
             # Should this block, add timeout?
             raise RuntimeError("Result of a QueuedCallEvent is not yet ready")
@@ -279,7 +282,7 @@ def queued_blocking(method):
 
 
 class TextStream(QObject):
-    stream = Signal(basestring)
+    stream = Signal(six.text_type)
     flushed = Signal()
 
     def __init__(self, parent=None):

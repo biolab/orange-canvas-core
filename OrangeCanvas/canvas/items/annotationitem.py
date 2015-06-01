@@ -1,6 +1,8 @@
 
 import logging
 
+import six
+
 from PyQt4.QtGui import (
     QGraphicsItem, QGraphicsPathItem, QGraphicsWidget, QGraphicsTextItem,
     QGraphicsDropShadowEffect, QPainterPath, QPainterPathStroker,
@@ -59,9 +61,9 @@ class GraphicsTextEdit(QGraphicsTextItem):
         """
         Return the placeholder text.
         """
-        return unicode(self.__placeholderText)
+        return six.text_type(self.__placeholderText)
 
-    placeholderText_ = Property(unicode, placeholderText, setPlaceholderText,
+    placeholderText_ = Property(six.text_type, placeholderText, setPlaceholderText,
                                 doc="Placeholder text")
 
     def paint(self, painter, option, widget=None):

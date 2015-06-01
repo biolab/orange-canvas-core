@@ -1,11 +1,17 @@
 """
 
 """
+import sys
 import os
 import logging
 import io
 
-from urlparse import urljoin
+if sys.version_info < (3, ):
+    from urlparse import urljoin
+else:
+    from urllib.parse import urljoin
+
+import six
 
 from PyQt4.QtCore import QObject, QUrl
 
@@ -89,7 +95,7 @@ class IntersphinxHelpProvider(HelpProvider):
             self._reply = manager.get(req)
             manager.finished.connect(self._on_finished)
         else:
-            self._load_inventory(open(unicode(url.toLocalFile()), "rb"))
+            self._load_inventory(open(six.text_type(url.toLocalFile()), "rb"))
 
     def _on_finished(self, reply):
         if reply.error() != QNetworkReply.NoError:
@@ -126,7 +132,7 @@ class IntersphinxHelpProvider(HelpProvider):
 def qurl_query_items(url):
     items = []
     for key, value in url.queryItems():
-        items.append((unicode(key), unicode(value)))
+        items.append((six.text_type(key), six.text_type(value)))
     return items
 
 

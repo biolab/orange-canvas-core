@@ -6,6 +6,8 @@ Orange Canvas Resource Loader
 import os
 import logging
 
+import six
+
 log = logging.getLogger(__name__)
 
 
@@ -13,7 +15,7 @@ def package_dirname(package):
     """Return the directory path where package is located.
 
     """
-    if isinstance(package, basestring):
+    if isinstance(package, six.string_types):
         package = __import__(package, fromlist=[""])
     filename = package.__file__
     dirname = os.path.dirname(filename)

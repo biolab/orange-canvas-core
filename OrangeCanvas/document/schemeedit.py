@@ -12,8 +12,18 @@ import itertools
 import unicodedata
 
 from operator import attrgetter
-from contextlib import nested
-from urllib import urlencode
+
+if sys.version_info < (3, ):
+    from urllib import urlencode
+else:
+    from urllib.parse import urlencode
+
+if sys.version_info < (3, 3):
+    from contextlib2 import ExitStack
+else:
+    from contextlib import ExitStack
+
+import six
 
 from PyQt4.QtGui import (
     QWidget, QVBoxLayout, QInputDialog, QMenu, QAction, QActionGroup,
@@ -41,7 +51,7 @@ from ..canvas import items
 from . import interactions
 from . import commands
 from . import quickmenu
-
+from ..utils.qtcompat import qunwrap
 
 log = logging.getLogger(__name__)
 
@@ -96,10 +106,10 @@ class SchemeEditWidget(QWidget):
     selectionChanged = Signal()
 
     #: Document title has changed.
-    titleChanged = Signal(unicode)
+    titleChanged = Signal(six.text_type)
 
     #: Document path has changed.
-    pathChanged = Signal(unicode)
+    pathChanged = Signal(six.text_type)
 
     # Quick Menu triggers
     (NoTriggers,
@@ -576,7 +586,7 @@ class SchemeEditWidget(QWidget):
 
         """
         if self.__path != path:
-            self.__path = unicode(path)
+            self.__path = six.text_type(path)
             self.pathChanged.emit(self.__path)
 
     def path(self):
@@ -730,7 +740,7 @@ class SchemeEditWidget(QWidget):
         curr_titles = set([node.title for node in self.scheme().nodes])
         template = title + " ({0})"
 
-        enumerated = itertools.imap(template.format, itertools.count(1))
+        enumerated = (template.format(i) for i in itertools.count(1))
         candidates = itertools.chain([title], enumerated)
 
         seq = itertools.dropwhile(curr_titles.__contains__, candidates)
@@ -885,15 +895,15 @@ class SchemeEditWidget(QWidget):
         """
         Return all selected :class:`.SchemeNode` items.
         """
-        return map(self.scene().node_for_item,
-                   self.scene().selected_node_items())
+        return list(map(self.scene().node_for_item,
+                        self.scene().selected_node_items()))
 
     def selectedAnnotations(self):
         """
         Return all selected :class:`.BaseSchemeAnnotation` items.
         """
-        return map(self.scene().annotation_for_item,
-                   self.scene().selected_annotation_items())
+        return list(map(self.scene().annotation_for_item,
+                        self.scene().selected_annotation_items()))
 
     def openSelected(self):
         """
@@ -909,7 +919,7 @@ class SchemeEditWidget(QWidget):
         """
         name, ok = QInputDialog.getText(
                     self, self.tr("Rename"),
-                    unicode(self.tr("Enter a new name for the '%s' widget")) \
+                    six.text_type(self.tr("Enter a new name for the '%s' widget")) \
                     % node.title,
                     text=node.title
                     )
@@ -917,7 +927,7 @@ class SchemeEditWidget(QWidget):
         if ok:
             self.__undoStack.push(
                 commands.RenameNodeCommand(self.__scheme, node, node.title,
-                                           unicode(name))
+                                           six.text_type(name))
             )
 
     def __onCleanChanged(self, clean):
@@ -951,7 +961,7 @@ class SchemeEditWidget(QWidget):
                     "application/vnv.orange-canvas.registry.qualified-name"
                 )
                 try:
-                    desc = self.__registry.widget(unicode(qname))
+                    desc = self.__registry.widget(bytes(qname).decode("utf-8"))
                 except KeyError:
                     log.error("Unknown qualified name '%s'", qname)
                 else:
@@ -1098,9 +1108,9 @@ class SchemeEditWidget(QWidget):
             # Double click on an empty spot
             # Create a new node using QuickMenu
             action = interactions.NewNodeAction(self)
-
-            with nested(disabled(self.__undoAction),
-                        disabled(self.__redoAction)):
+            with ExitStack() as stack:
+                stack.enter_context(disabled(self.__undoAction))
+                stack.enter_context(disabled(self.__redoAction))
                 action.create_new(event.screenPos())
 
             event.accept()
@@ -1142,9 +1152,9 @@ class SchemeEditWidget(QWidget):
 
         elif len(event.text()) and \
                 self.__quickMenuTriggers & SchemeEditWidget.AnyKey and \
-                is_printable(unicode(event.text())[0]):
+                is_printable(six.text_type(event.text())[0]):
             handler = interactions.NewNodeAction(self)
-            searchText = unicode(event.text())
+            searchText = six.text_type(event.text())
 
             # TODO: set the search text to event.text() and set focus on the
             # search line
@@ -1155,9 +1165,10 @@ class SchemeEditWidget(QWidget):
             # be selected items in the canvas), so we disable the
             # remove widget action so the text editing follows standard
             # 'look and feel'
-            with nested(disabled(self.__removeSelectedAction),
-                        disabled(self.__undoAction),
-                        disabled(self.__redoAction)):
+            with ExitStack() as stack:
+                stack.enter_context(disabled(self.__removeSelectedAction))
+                stack.enter_context(disabled(self.__undoAction))
+                stack.enter_context(disabled(self.__redoAction))
                 handler.create_new(QCursor.pos(), searchText)
 
             event.accept()
@@ -1320,7 +1331,7 @@ class SchemeEditWidget(QWidget):
         Text annotation editing has finished.
         """
         annot = self.__scene.annotation_for_item(item)
-        text = unicode(item.toPlainText())
+        text = six.text_type(item.toPlainText())
         if annot.text != text:
             self.__undoStack.push(
                 commands.TextChangeCommand(self.scheme(), annot,
@@ -1346,7 +1357,7 @@ class SchemeEditWidget(QWidget):
         else:
             handler = interactions.NewArrowAnnotation(self)
             checked = self.__arrowColorActionGroup.checkedAction()
-            handler.setColor(checked.data().toPyObject())
+            handler.setColor(qunwrap(checked.data()))
 
             handler.ended.connect(action.toggle)
 
@@ -1397,7 +1408,7 @@ class SchemeEditWidget(QWidget):
             # Update the preferred color on the interaction handler
             handler = self.__scene.user_interaction_handler
             if isinstance(handler, interactions.NewArrowAnnotation):
-                handler.setColor(action.data().toPyObject())
+                handler.setColor(qunwrap(action.data()))
 
     def __onCustomContextMenuRequested(self, pos):
         scenePos = self.view().mapToScene(pos)
@@ -1421,9 +1432,9 @@ class SchemeEditWidget(QWidget):
         if not item and \
                 self.__quickMenuTriggers & SchemeEditWidget.RightClicked:
             action = interactions.NewNodeAction(self)
-
-            with nested(disabled(self.__undoAction),
-                        disabled(self.__redoAction)):
+            with ExitStack() as stack:
+                stack.enter_context(disabled(self.__undoAction))
+                stack.enter_context(disabled(self.__redoAction))
                 action.create_new(globalPos)
             return
 

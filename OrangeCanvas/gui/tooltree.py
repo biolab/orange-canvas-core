@@ -18,6 +18,7 @@ from PyQt4.QtGui import (
 from PyQt4.QtCore import Qt, QEvent, QModelIndex
 from PyQt4.QtCore import pyqtSignal as Signal
 
+from ..utils import qtcompat
 log = logging.getLogger(__name__)
 
 
@@ -123,15 +124,11 @@ class ToolTree(QWidget):
         return self.__actionRole
 
     def __actionForIndex(self, index):
-        val = index.data(self.__actionRole)
-        if val.isValid():
-            action = val.toPyObject()
-            if isinstance(action, QAction):
-                return action
-            else:
-                log.debug("index does not have an QAction")
+        val = qtcompat.qunwrap(index.data(self.__actionRole))
+        if isinstance(val, QAction):
+            return val
         else:
-            log.debug("index does not have a value for action role")
+            log.debug("index does not have an QAction")
 
     def __onActivated(self, index):
         """The item was activated, if index has an action we

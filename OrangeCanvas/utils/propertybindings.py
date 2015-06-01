@@ -15,7 +15,7 @@ from PyQt4.QtCore import QObject, QEvent
 
 from PyQt4.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
-from .qtcompat import toPyObject
+from .qtcompat import qunwrap
 
 
 def find_meta_property(obj, name):
@@ -77,7 +77,7 @@ class AbstractBoundProperty(QObject):
         """
         Return the property value.
         """
-        return toPyObject(self.obj.property(self.propertyName))
+        return qunwrap(self.obj.property(self.propertyName))
 
     @Slot()
     def notifyChanged(self):

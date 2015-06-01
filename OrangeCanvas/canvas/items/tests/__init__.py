@@ -29,9 +29,9 @@ class TestItems(unittest.TestCase):
         self.view.show()
         QTimer.singleShot(10000, self.app.exit)
 
-        def my_excepthook(*args):
+        def my_excepthook(etype, value, tb):
             sys.setrecursionlimit(1010)
-            traceback.print_exc(limit=4)
+            traceback.print_exception(etype, value, tb)
 
         self._orig_excepthook = sys.excepthook
         sys.excepthook = my_excepthook
