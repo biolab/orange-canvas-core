@@ -19,20 +19,22 @@ import pkg_resources
 from PyQt4.QtGui import QFont, QColor
 from PyQt4.QtCore import Qt, QDir
 
-from Orange import OrangeCanvas
-from Orange.OrangeCanvas.application.application import CanvasApplication
-from Orange.OrangeCanvas.application.canvasmain import CanvasMainWindow
-from Orange.OrangeCanvas.application.outputview import TextStream, ExceptHook
+# PEP-0366 boilerplate
+if __name__ == "__main__" and __package__ is None:
+    __package__ = "OrangeCanvas"
 
-from Orange.OrangeCanvas.gui.splashscreen import SplashScreen
-from Orange.OrangeCanvas.config import cache_dir
-from Orange.OrangeCanvas import config
-from Orange.OrangeCanvas.utils.redirect import redirect_stdout, redirect_stderr
-from Orange.OrangeCanvas.utils.qtcompat import QSettings
+from .application.application import CanvasApplication
+from .application.canvasmain import CanvasMainWindow
+from .application.outputview import TextStream, ExceptHook
 
-from Orange.OrangeCanvas.registry import qt
-from Orange.OrangeCanvas.registry import WidgetRegistry, set_global_registry
-from Orange.OrangeCanvas.registry import cache
+from . import config
+from .gui.splashscreen import SplashScreen
+from .utils.redirect import redirect_stdout, redirect_stderr
+from .utils.qtcompat import QSettings
+
+from .registry import qt
+from .registry import WidgetRegistry, set_global_registry
+from .registry import cache
 
 log = logging.getLogger(__name__)
 
@@ -136,7 +138,7 @@ def main(argv=None):
     # File handler should always be at least INFO level so we need
     # the application root level to be at least at INFO.
     root_level = min(levels[options.log_level], logging.INFO)
-    rootlogger = logging.getLogger(OrangeCanvas.__name__)
+    rootlogger = logging.getLogger(__package__)
     rootlogger.setLevel(root_level)
 
     # Standard output stream handler at the requested level
@@ -202,7 +204,7 @@ def main(argv=None):
                 # no extension
                 stylesheet = os.path.extsep.join([stylesheet, "qss"])
 
-            pkg_name = OrangeCanvas.__name__
+            pkg_name = __package__
             resource = "styles/" + stylesheet
 
             if pkg_resources.resource_exists(pkg_name, resource):
@@ -229,7 +231,7 @@ def main(argv=None):
                 log.info("%r style sheet not found.", stylesheet)
 
     # Add the default canvas_icons search path
-    dirpath = os.path.abspath(os.path.dirname(OrangeCanvas.__file__))
+    dirpath = os.path.abspath(os.path.dirname(__file__))
     QDir.addSearchPath("canvas_icons", os.path.join(dirpath, "icons"))
 
     canvas_window = CanvasMainWindow()
@@ -273,7 +275,7 @@ def main(argv=None):
 
     log.info("Running widget discovery process.")
 
-    cache_filename = os.path.join(cache_dir(), "widget-registry.pck")
+    cache_filename = os.path.join(config.cache_dir(), "widget-registry.pck")
     if options.no_discovery:
         widget_registry = cPickle.load(open(cache_filename, "rb"))
         widget_registry = qt.QtWidgetRegistry(widget_registry)
