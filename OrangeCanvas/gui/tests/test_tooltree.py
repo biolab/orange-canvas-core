@@ -82,10 +82,10 @@ class TestToolTree(QAppTestCase):
         item.setText("New text")
 
         self.assertTrue(len(changed) == 1)
-        self.assertEquals(str(qunwrap(changed[-1][0].data(Qt.DisplayRole))),
-                          "New text")
+        self.assertEqual(str(qunwrap(changed[-1][0].data(Qt.DisplayRole))),
+                        "New text")
 
-        self.assertEquals(str(qunwrap(model.data(model.index(1)))), "New text")
+        self.assertEqual(str(qunwrap(model.data(model.index(1)))), "New text")
 
         model.setFlatteningMode(FlattenedTreeItemModel.InternalNodesDisabled)
 
@@ -93,7 +93,7 @@ class TestToolTree(QAppTestCase):
 
         model.setFlatteningMode(FlattenedTreeItemModel.LeavesOnly)
 
-        self.assertTrue(model.rowCount() == 3)
+        self.assertEqual(model.rowCount(), len(reg.widgets()))
 
         def p(action):
             print("triggered", action.text())

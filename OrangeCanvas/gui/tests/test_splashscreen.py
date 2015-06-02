@@ -12,12 +12,13 @@ from PyQt4.QtCore import Qt, QRect
 from ..splashscreen import SplashScreen
 
 from ..test import QAppTestCase
+from ... import config
 
 
 class TestSplashScreen(QAppTestCase):
     def test_splashscreen(self):
         splash = pkg_resources.resource_filename(
-                     "Orange.OrangeCanvas",
+                     config.__package__,
                      "icons/orange-splash-screen.png"
                  )
 
