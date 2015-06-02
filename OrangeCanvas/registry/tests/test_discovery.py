@@ -17,6 +17,14 @@ class TestDiscovery(unittest.TestCase):
 
     def setUp(self):
         logging.basicConfig()
+        from . import set_up_modules, operators, constants
+        set_up_modules()
+        self.operators = operators
+        self.constants = constants
+
+    def tearDown(self):
+        from . import tear_down_modules
+        tear_down_modules()
 
     def discovery_class(self):
         return WidgetDiscovery()
@@ -32,28 +40,10 @@ class TestDiscovery(unittest.TestCase):
                                  category="C",)
         disc.handle_widget(desc)
 
-    def test_file(self):
-        from Orange.OrangeWidgets.Data import OWFile
-        disc = self.discovery_class()
-        disc.process_file(OWFile.__file__)
-
-    def test_process_directory(self):
-        from Orange.OrangeWidgets import Data, Visualize
-        data_dirname = os.path.dirname(Data.__file__)
-        visualize_dirname = os.path.dirname(Visualize.__file__)
-
-        disc = self.discovery_class()
-        disc.process_directory(data_dirname)
-        disc.process_directory(visualize_dirname)
-
     def test_process_module(self):
         disc = self.discovery_class()
-        disc.process_category_package(
-            "Orange.OrangeWidgets.Data"
-        )
-        disc.process_widget_module(
-            "Orange.OrangeWidgets.Classify.OWNaiveBayes"
-        )
+        disc.process_category_package(self.operators.__name__)
+        disc.process_widget_module(self.constants.one.__name__)
 
     def test_process_loader(self):
         disc = self.discovery_class()
@@ -64,8 +54,9 @@ class TestDiscovery(unittest.TestCase):
 
             discovery.handle_category(desc)
 
-            desc = WidgetDescription.from_module(
-                "Orange.OrangeWidgets.Data.OWFile"
+            desc = WidgetDescription(
+                name="CSV", id="some.id", qualified_name="Some.widget",
+                inputs=[], category="Data",
             )
             discovery.handle_widget(desc)
 
@@ -74,10 +65,12 @@ class TestDiscovery(unittest.TestCase):
     def test_process_iter(self):
         disc = self.discovery_class()
         cat_desc = CategoryDescription.from_package(
-            "Orange.OrangeWidgets.Data"
+            self.operators.__name__,
         )
+        # TODO: Fix (the widget_description_package does not iterate
+        # over faked package (no valid operator.__path__)
         wid_desc = widget_descriptions_from_package(
-            "Orange.OrangeWidgets.Data"
+            self.operators.__name__,
         )
         disc.process_iter([cat_desc] + wid_desc)
 

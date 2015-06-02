@@ -1,7 +1,6 @@
 """
 Test WidgetRegistry.
 """
-
 import logging
 from operator import attrgetter
 
@@ -14,95 +13,94 @@ from .. import description
 class TestRegistry(unittest.TestCase):
     def setUp(self):
         logging.basicConfig()
+        from . import set_up_modules
+        set_up_modules()
+
+        from . import constants
+        from . import operators
+        self.constants = constants
+        self.operators = operators
+
+    def tearDown(self):
+        from . import tear_down_modules
+        tear_down_modules()
 
     def test_registry_const(self):
         reg = WidgetRegistry()
 
-        data_desc = description.CategoryDescription.from_package(
-            "Orange.OrangeWidgets.Data"
-        )
+        const_cat = description.CategoryDescription.from_package(
+            self.constants.__name__)
+        reg.register_category(const_cat)
 
-        reg.register_category(data_desc)
+        zero_desc = description.WidgetDescription.from_module(
+            self.constants.zero.__name__)
 
-        self.assertTrue(reg.has_category(data_desc.name))
-        self.assertSequenceEqual(reg.categories(), [data_desc])
-        self.assertIs(reg.category(data_desc.name), data_desc)
+        reg.register_widget(zero_desc)
 
-        file_desc = description.WidgetDescription.from_module(
-            "Orange.OrangeWidgets.Data.OWFile"
-        )
-
-        reg.register_widget(file_desc)
-
-        self.assertTrue(reg.has_widget(file_desc.qualified_name))
-        self.assertSequenceEqual(reg.widgets("Data"), [file_desc])
-        self.assertIs(reg.widget(file_desc.qualified_name), file_desc)
+        self.assertTrue(reg.has_widget(zero_desc.qualified_name))
+        self.assertSequenceEqual(reg.widgets(self.constants.NAME), [zero_desc])
+        self.assertIs(reg.widget(zero_desc.qualified_name), zero_desc)
 
         # ValueError adding a description with the same qualified name
         with self.assertRaises(ValueError):
             desc = description.WidgetDescription(
                 name="A name",
-                id=file_desc.id,
-                qualified_name=file_desc.qualified_name
+                id=zero_desc.id,
+                qualified_name=zero_desc.qualified_name
             )
             reg.register_widget(desc)
 
-        discretize_desc = description.WidgetDescription.from_module(
-            "Orange.OrangeWidgets.Data.OWDiscretize"
-        )
-        reg.register_widget(discretize_desc)
+        one_desc = description.WidgetDescription.from_module(
+            self.constants.one)
+        reg.register_widget(one_desc)
 
-        self.assertTrue(reg.has_widget(discretize_desc.qualified_name))
-        self.assertIs(reg.widget(discretize_desc.qualified_name),
-                      discretize_desc)
+        self.assertTrue(reg.has_widget(one_desc.qualified_name))
+        self.assertIs(reg.widget(one_desc.qualified_name), one_desc)
 
-        self.assertSetEqual(set(reg.widgets("Data")),
-                            set([file_desc, discretize_desc]))
+        self.assertSetEqual(set(reg.widgets(self.constants.NAME)),
+                            set([zero_desc, one_desc]))
 
-        classify_desc = description.CategoryDescription.from_package(
-            "Orange.OrangeWidgets.Classify"
-        )
-        reg.register_category(classify_desc)
+        op_cat = description.CategoryDescription.from_package(
+            self.operators.__name__)
+        reg.register_category(op_cat)
 
-        self.assertTrue(reg.has_category(classify_desc.name))
-        self.assertIs(reg.category(classify_desc.name), classify_desc)
+        self.assertTrue(reg.has_category(op_cat.name))
+        self.assertIs(reg.category(op_cat.name), op_cat)
         self.assertSetEqual(set(reg.categories()),
-                            set([data_desc, classify_desc]))
+                            set([const_cat, op_cat]))
 
-        bayes_desc = description.WidgetDescription.from_module(
-            "Orange.OrangeWidgets.Classify.OWNaiveBayes"
+        add_desc = description.WidgetDescription.from_module(
+            self.operators.add
         )
-        reg.register_widget(bayes_desc)
+        reg.register_widget(add_desc)
 
-        self.assertTrue(reg.has_widget(bayes_desc.qualified_name))
-        self.assertIs(reg.widget(bayes_desc.qualified_name), bayes_desc)
-        self.assertSequenceEqual(reg.widgets("Classify"), [bayes_desc])
+        self.assertTrue(reg.has_widget(add_desc.qualified_name))
+        self.assertIs(reg.widget(add_desc.qualified_name), add_desc)
+        self.assertSequenceEqual(reg.widgets(self.operators.NAME), [add_desc])
 
-        info_desc = description.WidgetDescription.from_file(
-            __import__("Orange.OrangeWidgets.Data.OWDataInfo",
-                       fromlist=[""]).__file__
-        )
-        reg.register_widget(info_desc)
+        sub_desc = description.WidgetDescription.from_module(
+            self.operators.sub)
+
+        reg.register_widget(sub_desc)
 
         # Test copy constructor
         reg1 = WidgetRegistry(reg)
-        self.assertTrue(reg1.has_category(data_desc.name))
-        self.assertTrue(reg1.has_category(classify_desc.name))
+        self.assertTrue(reg1.has_category(const_cat.name))
+        self.assertTrue(reg1.has_category(op_cat.name))
         self.assertSequenceEqual(reg.categories(), reg1.categories())
 
         # Test 'widgets()'
         self.assertSetEqual(set(reg1.widgets()),
-                            set([file_desc, info_desc, discretize_desc,
-                                 bayes_desc]))
+                            set([zero_desc, one_desc, add_desc, sub_desc]))
 
         # Test ordering by priority
         self.assertSequenceEqual(
-             reg.widgets("Data"),
-             sorted([file_desc, discretize_desc, info_desc],
+             reg.widgets(op_cat.name),
+             sorted([add_desc, sub_desc],
                     key=attrgetter("priority"))
         )
 
         self.assertTrue(all(isinstance(desc.priority, int)
-                            for desc in [file_desc, info_desc, discretize_desc,
-                                         bayes_desc])
+                            for desc in [one_desc, zero_desc, sub_desc,
+                                         add_desc])
                         )
