@@ -8,6 +8,8 @@ import logging
 
 import six
 
+from PyQt4.QtGui import QIcon
+
 log = logging.getLogger(__name__)
 
 
@@ -49,9 +51,7 @@ def package(qualified_name):
 
 dirname = os.path.abspath(os.path.dirname(__file__))
 
-DEFAULT_SEARCH_PATHS = \
-    [("", dirname),
-     ("", os.path.join(dirname, "../OrangeWidgets"))]
+DEFAULT_SEARCH_PATHS = [("", dirname)]
 
 del dirname
 
@@ -151,7 +151,7 @@ import glob
 
 
 class icon_loader(resource_loader):
-    DEFAULT_ICON = "icons/Unknown.png"
+    DEFAULT_ICON = "icons/default-category.svg"
 
     def match(self, path):
         if resource_loader.match(self, path):
@@ -169,18 +169,20 @@ class icon_loader(resource_loader):
         return bool(glob.glob(pattern))
 
     def get(self, name, default=None):
-        path = self.find(name)
-        if not path:
+        if name:
+            path = self.find(name)
+        else:
+            path = None
+
+        if path is None:
             path = self.find(self.DEFAULT_ICON if default is None else default)
-        if not path:
-            raise IOError(2, "Cannot find %r in %s" % \
-                          (name, self.search_paths()))
+        if path is None:
+            return QIcon()
+
         if self.is_icon_glob(path):
             icons = self.icon_glob(path)
         else:
             icons = [path]
-
-        from PyQt4.QtGui import QIcon
 
         icon = QIcon()
         for path in icons:
