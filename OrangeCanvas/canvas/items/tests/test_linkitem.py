@@ -13,82 +13,78 @@ class TestLinkItem(TestItems):
     def test_linkitem(self):
         reg = small_testing_registry()
 
-        data_desc = reg.category("Data")
+        const_desc = reg.category("Constants")
 
-        file_desc = reg.widget("Orange.OrangeWidgets.Data.OWFile.OWFile")
+        one_desc = reg.widget("one")
 
-        file_item = NodeItem()
-        file_item.setWidgetDescription(file_desc)
-        file_item.setWidgetCategory(data_desc)
-        file_item.setPos(0, 100)
+        one_item = NodeItem()
+        one_item.setWidgetDescription(one_desc)
+        one_item.setWidgetCategory(const_desc)
+        one_item.setPos(0, 100)
 
-        discretize_desc = reg.widget(
-            "Orange.OrangeWidgets.Data.OWDiscretize.OWDiscretize"
-        )
+        negate_desc = reg.widget("negate")
 
-        discretize_item = NodeItem()
-        discretize_item.setWidgetDescription(discretize_desc)
-        discretize_item.setWidgetCategory(data_desc)
-        discretize_item.setPos(200, 100)
-        classify_desc = reg.category("Classify")
+        negate_item = NodeItem()
+        negate_item.setWidgetDescription(negate_desc)
+        negate_item.setWidgetCategory(const_desc)
+        negate_item.setPos(200, 100)
+        operator_desc = reg.category("Operators")
 
-        bayes_desc = reg.widget(
-            "Orange.OrangeWidgets.Classify.OWNaiveBayes.OWNaiveBayes"
-        )
+        add_desc = reg.widget("add")
 
         nb_item = NodeItem()
-        nb_item.setWidgetDescription(bayes_desc)
-        nb_item.setWidgetCategory(classify_desc)
+        nb_item.setWidgetDescription(add_desc)
+        nb_item.setWidgetCategory(operator_desc)
         nb_item.setPos(400, 100)
 
-        self.scene.addItem(file_item)
-        self.scene.addItem(discretize_item)
+        self.scene.addItem(one_item)
+        self.scene.addItem(negate_item)
         self.scene.addItem(nb_item)
 
         link = LinkItem()
-        anchor1 = file_item.newOutputAnchor()
-        anchor2 = discretize_item.newInputAnchor()
+        anchor1 = one_item.newOutputAnchor()
+        anchor2 = negate_item.newInputAnchor()
 
-        self.assertSequenceEqual(file_item.outputAnchors(), [anchor1])
-        self.assertSequenceEqual(discretize_item.inputAnchors(), [anchor2])
+        self.assertSequenceEqual(one_item.outputAnchors(), [anchor1])
+        self.assertSequenceEqual(negate_item.inputAnchors(), [anchor2])
 
-        link.setSourceItem(file_item, anchor1)
-        link.setSinkItem(discretize_item, anchor2)
+        link.setSourceItem(one_item, anchor1)
+        link.setSinkItem(negate_item, anchor2)
 
         # Setting an item and an anchor not in the item's anchors raises
         # an error.
         with self.assertRaises(ValueError):
-            link.setSourceItem(file_item, AnchorPoint())
+            link.setSourceItem(one_item, AnchorPoint())
 
-        self.assertSequenceEqual(file_item.outputAnchors(), [anchor1])
+        self.assertSequenceEqual(one_item.outputAnchors(), [anchor1])
 
-        anchor2 = file_item.newOutputAnchor()
+        anchor2 = one_item.newOutputAnchor()
 
-        link.setSourceItem(file_item, anchor2)
-        self.assertSequenceEqual(file_item.outputAnchors(), [anchor1, anchor2])
+        link.setSourceItem(one_item, anchor2)
+        self.assertSequenceEqual(one_item.outputAnchors(), [anchor1, anchor2])
         self.assertIs(link.sourceAnchor, anchor2)
 
-        file_item.removeOutputAnchor(anchor1)
+        one_item.removeOutputAnchor(anchor1)
 
         self.scene.addItem(link)
 
         link = LinkItem()
-        link.setSourceItem(discretize_item)
+        link.setSourceItem(negate_item)
         link.setSinkItem(nb_item)
 
         self.scene.addItem(link)
 
         self.assertTrue(len(nb_item.inputAnchors()) == 1)
-        self.assertTrue(len(discretize_item.outputAnchors()) == 1)
-        self.assertTrue(len(discretize_item.inputAnchors()) == 1)
-        self.assertTrue(len(file_item.outputAnchors()) == 1)
+        self.assertTrue(len(negate_item.outputAnchors()) == 1)
+        self.assertTrue(len(negate_item.inputAnchors()) == 1)
+        self.assertTrue(len(one_item.outputAnchors()) == 1)
 
         link.removeLink()
 
         self.assertTrue(len(nb_item.inputAnchors()) == 0)
-        self.assertTrue(len(discretize_item.outputAnchors()) == 0)
-        self.assertTrue(len(discretize_item.inputAnchors()) == 1)
-        self.assertTrue(len(file_item.outputAnchors()) == 1)
+        self.assertTrue(len(negate_item.outputAnchors()) == 0)
+        self.assertTrue(len(negate_item.inputAnchors()) == 1)
+        self.assertTrue(len(one_item.outputAnchors()) == 1)
 
         self.app.exec_()
 

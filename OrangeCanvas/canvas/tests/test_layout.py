@@ -7,6 +7,7 @@ from ...gui.test import QAppTestCase
 from ..layout import AnchorLayout
 from ..scene import CanvasScene
 from ..items import NodeItem, LinkItem
+from ...registry.tests import small_testing_registry
 
 
 class TestAnchorLayout(QAppTestCase):
@@ -19,40 +20,40 @@ class TestAnchorLayout(QAppTestCase):
         self.view.resize(600, 400)
 
     def test_layout(self):
-        file_desc, disc_desc, bayes_desc = self.widget_desc()
-        file_item = NodeItem()
-        file_item.setWidgetDescription(file_desc)
-        file_item.setPos(0, 150)
-        self.scene.add_node_item(file_item)
+        one_desc, negate_desc, cons_desc = self.widget_desc()
+        one_item = NodeItem()
+        one_item.setWidgetDescription(one_desc)
+        one_item.setPos(0, 150)
+        self.scene.add_node_item(one_item)
 
-        bayes_item = NodeItem()
-        bayes_item.setWidgetDescription(bayes_desc)
-        bayes_item.setPos(200, 0)
-        self.scene.add_node_item(bayes_item)
+        cons_item = NodeItem()
+        cons_item.setWidgetDescription(cons_desc)
+        cons_item.setPos(200, 0)
+        self.scene.add_node_item(cons_item)
 
-        disc_item = NodeItem()
-        disc_item.setWidgetDescription(disc_desc)
-        disc_item.setPos(200, 300)
-        self.scene.add_node_item(disc_item)
+        negate_item = NodeItem()
+        negate_item.setWidgetDescription(negate_desc)
+        negate_item.setPos(200, 300)
+        self.scene.add_node_item(negate_item)
 
         link = LinkItem()
-        link.setSourceItem(file_item)
-        link.setSinkItem(disc_item)
+        link.setSourceItem(one_item)
+        link.setSinkItem(negate_item)
         self.scene.add_link_item(link)
 
         link = LinkItem()
-        link.setSourceItem(file_item)
-        link.setSinkItem(bayes_item)
+        link.setSourceItem(one_item)
+        link.setSinkItem(cons_item)
         self.scene.add_link_item(link)
 
         layout = AnchorLayout()
         self.scene.addItem(layout)
         self.scene.set_anchor_layout(layout)
 
-        layout.invalidateNode(file_item)
+        layout.invalidateNode(one_item)
         layout.activate()
 
-        p1, p2 = file_item.outputAnchorItem.anchorPositions()
+        p1, p2 = one_item.outputAnchorItem.anchorPositions()
         self.assertTrue(p1 > p2)
 
         self.scene.node_item_position_changed.connect(layout.invalidateNode)
@@ -62,8 +63,8 @@ class TestAnchorLayout(QAppTestCase):
 
         def advance():
             t = time.clock()
-            bayes_item.setPos(path.pointAtPercent(t % 1.0))
-            disc_item.setPos(path.pointAtPercent((t + 0.5) % 1.0))
+            cons_item.setPos(path.pointAtPercent(t % 1.0))
+            negate_item.setPos(path.pointAtPercent((t + 0.5) % 1.0))
 
             self.singleShot(20, advance)
 
@@ -72,19 +73,8 @@ class TestAnchorLayout(QAppTestCase):
         self.app.exec_()
 
     def widget_desc(self):
-        from ...registry.tests import small_testing_registry
         reg = small_testing_registry()
-
-        file_desc = reg.widget(
-            "Orange.OrangeWidgets.Data.OWFile.OWFile"
-        )
-
-        discretize_desc = reg.widget(
-            "Orange.OrangeWidgets.Data.OWDiscretize.OWDiscretize"
-        )
-
-        bayes_desc = reg.widget(
-            "Orange.OrangeWidgets.Classify.OWNaiveBayes.OWNaiveBayes"
-        )
-
-        return file_desc, discretize_desc, bayes_desc
+        one_desc = reg.widget("one")
+        negate_desc = reg.widget("negate")
+        cons_desc = reg.widget("cons")
+        return one_desc, negate_desc, cons_desc

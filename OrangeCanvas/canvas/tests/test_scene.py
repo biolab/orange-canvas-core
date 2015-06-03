@@ -3,7 +3,7 @@ from PyQt4.QtGui import QGraphicsView, QPainter
 from ..scene import CanvasScene
 from .. import items
 from ... import scheme
-
+from ...registry.tests import small_testing_registry
 from ...gui.test import QAppTestCase
 
 
@@ -12,7 +12,7 @@ class TestScene(QAppTestCase):
         QAppTestCase.setUp(self)
         self.scene = CanvasScene()
         self.view = QGraphicsView(self.scene)
-        self.view.setRenderHints(QPainter.Antialiasing | \
+        self.view.setRenderHints(QPainter.Antialiasing |
                                  QPainter.TextAntialiasing)
         self.view.show()
         self.view.resize(400, 300)
@@ -20,33 +20,35 @@ class TestScene(QAppTestCase):
     def test_scene(self):
         """Test basic scene functionality.
         """
-        file_desc, disc_desc, bayes_desc = self.widget_desc()
+        one_desc, negate_desc, cons_desc = self.widget_desc()
 
-        file_item = items.NodeItem(file_desc)
-        disc_item = items.NodeItem(disc_desc)
-        bayes_item = items.NodeItem(bayes_desc)
+        one_item = items.NodeItem(one_desc)
+        negate_item = items.NodeItem(negate_desc)
+        cons_item = items.NodeItem(cons_desc)
 
-        file_item = self.scene.add_node_item(file_item)
-        disc_item = self.scene.add_node_item(disc_item)
-        bayes_item = self.scene.add_node_item(bayes_item)
+        one_item = self.scene.add_node_item(one_item)
+        negate_item = self.scene.add_node_item(negate_item)
+        cons_item = self.scene.add_node_item(cons_item)
 
         # Remove a node
-        self.scene.remove_node_item(bayes_item)
+        self.scene.remove_node_item(cons_item)
         self.assertSequenceEqual(self.scene.node_items(),
-                                 [file_item, disc_item])
+                                 [one_item, negate_item])
 
         # And add it again
-        self.scene.add_node_item(bayes_item)
+        self.scene.add_node_item(cons_item)
         self.assertSequenceEqual(self.scene.node_items(),
-                                 [file_item, disc_item, bayes_item])
+                                 [one_item, negate_item, cons_item])
 
         # Adding the same item again should raise an exception
         with self.assertRaises(ValueError):
-            self.scene.add_node_item(bayes_item)
+            self.scene.add_node_item(cons_item)
 
         # Add links
-        link1 = self.scene.new_link_item(file_item, "Data", disc_item, "Data")
-        link2 = self.scene.new_link_item(disc_item, "Data", bayes_item, "Data")
+        link1 = self.scene.new_link_item(
+            one_item, "value", negate_item, "value")
+        link2 = self.scene.new_link_item(
+            negate_item, "result", cons_item, "first")
 
         link1a = self.scene.add_link_item(link1)
         link2a = self.scene.add_link_item(link2)
@@ -62,18 +64,19 @@ class TestScene(QAppTestCase):
         self.assertTrue(link1.sourceItem is None and link1.sinkItem is None)
         self.assertTrue(link2.sourceItem is None and link2.sinkItem is None)
 
-        self.assertSequenceEqual(file_item.outputAnchors(), [])
-        self.assertSequenceEqual(disc_item.inputAnchors(), [])
-        self.assertSequenceEqual(disc_item.outputAnchors(), [])
-        self.assertSequenceEqual(bayes_item.outputAnchors(), [])
+        self.assertSequenceEqual(one_item.outputAnchors(), [])
+        self.assertSequenceEqual(negate_item.inputAnchors(), [])
+        self.assertSequenceEqual(negate_item.outputAnchors(), [])
+        self.assertSequenceEqual(cons_item.outputAnchors(), [])
 
         # And add one link again
-        link1 = self.scene.new_link_item(file_item, "Data", disc_item, "Data")
+        link1 = self.scene.new_link_item(
+            one_item, "value", negate_item, "value")
         link1 = self.scene.add_link_item(link1)
         self.assertSequenceEqual(self.scene.link_items(), [link1])
 
-        self.assertTrue(file_item.outputAnchors())
-        self.assertTrue(disc_item.inputAnchors())
+        self.assertTrue(one_item.outputAnchors())
+        self.assertTrue(negate_item.inputAnchors())
 
         self.app.exec_()
 
@@ -91,15 +94,15 @@ class TestScene(QAppTestCase):
         self.scene.link_item_added.connect(link_items.append)
         self.scene.link_item_removed.connect(link_items.remove)
 
-        file_desc, disc_desc, bayes_desc = self.widget_desc()
-        file_node = scheme.SchemeNode(file_desc)
-        disc_node = scheme.SchemeNode(disc_desc)
-        bayes_node = scheme.SchemeNode(bayes_desc)
+        one_desc, negate_desc, cons_desc = self.widget_desc()
+        one_node = scheme.SchemeNode(one_desc)
+        negate_node = scheme.SchemeNode(negate_desc)
+        cons_node = scheme.SchemeNode(cons_desc)
 
-        nodes = [file_node, disc_node, bayes_node]
-        test_scheme.add_node(file_node)
-        test_scheme.add_node(disc_node)
-        test_scheme.add_node(bayes_node)
+        nodes = [one_node, negate_node, cons_node]
+        test_scheme.add_node(one_node)
+        test_scheme.add_node(negate_node)
+        test_scheme.add_node(cons_node)
 
         self.assertTrue(len(self.scene.node_items()) == 3)
         self.assertSequenceEqual(self.scene.node_items(), node_items)
@@ -108,18 +111,18 @@ class TestScene(QAppTestCase):
             self.assertIs(item, self.scene.item_for_node(node))
 
         # Remove a widget
-        test_scheme.remove_node(bayes_node)
+        test_scheme.remove_node(cons_node)
         self.assertTrue(len(self.scene.node_items()) == 2)
         self.assertSequenceEqual(self.scene.node_items(), node_items)
 
         # And add it again
-        test_scheme.add_node(bayes_node)
+        test_scheme.add_node(cons_node)
         self.assertTrue(len(self.scene.node_items()) == 3)
         self.assertSequenceEqual(self.scene.node_items(), node_items)
 
         # Add links
-        link1 = test_scheme.new_link(file_node, "Data", disc_node, "Data")
-        link2 = test_scheme.new_link(disc_node, "Data", bayes_node, "Data")
+        link1 = test_scheme.new_link(one_node, "value", negate_node, "value")
+        link2 = test_scheme.new_link(negate_node, "result", cons_node, "first")
         self.assertTrue(len(self.scene.link_items()) == 2)
         self.assertSequenceEqual(self.scene.link_items(), link_items)
 
@@ -149,52 +152,52 @@ class TestScene(QAppTestCase):
         self.scene.link_item_added.connect(link_items.append)
         self.scene.link_item_removed.connect(link_items.remove)
 
-        file_desc, disc_desc, bayes_desc = self.widget_desc()
-        file_node = scheme.SchemeNode(file_desc)
+        one_desc, negate_desc, cons_desc = self.widget_desc()
+        one_node = scheme.SchemeNode(one_desc)
 
-        file_item = self.scene.add_node(file_node)
-        self.scene.commit_scheme_node(file_node)
+        one_item = self.scene.add_node(one_node)
+        self.scene.commit_scheme_node(one_node)
 
-        self.assertSequenceEqual(self.scene.node_items(), [file_item])
-        self.assertSequenceEqual(node_items, [file_item])
-        self.assertSequenceEqual(test_scheme.nodes, [file_node])
+        self.assertSequenceEqual(self.scene.node_items(), [one_item])
+        self.assertSequenceEqual(node_items, [one_item])
+        self.assertSequenceEqual(test_scheme.nodes, [one_node])
 
-        disc_node = scheme.SchemeNode(disc_desc)
-        bayes_node = scheme.SchemeNode(bayes_desc)
+        negate_node = scheme.SchemeNode(negate_desc)
+        cons_node = scheme.SchemeNode(cons_desc)
 
-        disc_item = self.scene.add_node(disc_node)
-        bayes_item = self.scene.add_node(bayes_node)
+        negate_item = self.scene.add_node(negate_node)
+        cons_item = self.scene.add_node(cons_node)
 
         self.assertSequenceEqual(self.scene.node_items(),
-                                 [file_item, disc_item, bayes_item])
+                                 [one_item, negate_item, cons_item])
         self.assertSequenceEqual(self.scene.node_items(), node_items)
 
         # The scheme is still the same.
-        self.assertSequenceEqual(test_scheme.nodes, [file_node])
+        self.assertSequenceEqual(test_scheme.nodes, [one_node])
 
         # Remove items
-        self.scene.remove_node(disc_node)
-        self.scene.remove_node(bayes_node)
+        self.scene.remove_node(negate_node)
+        self.scene.remove_node(cons_node)
 
-        self.assertSequenceEqual(self.scene.node_items(), [file_item])
-        self.assertSequenceEqual(node_items, [file_item])
-        self.assertSequenceEqual(test_scheme.nodes, [file_node])
+        self.assertSequenceEqual(self.scene.node_items(), [one_item])
+        self.assertSequenceEqual(node_items, [one_item])
+        self.assertSequenceEqual(test_scheme.nodes, [one_node])
 
         # Add them again this time also in the scheme.
-        disc_item = self.scene.add_node(disc_node)
-        bayes_item = self.scene.add_node(bayes_node)
+        negate_item = self.scene.add_node(negate_node)
+        cons_item = self.scene.add_node(cons_node)
 
-        self.scene.commit_scheme_node(disc_node)
-        self.scene.commit_scheme_node(bayes_node)
+        self.scene.commit_scheme_node(negate_node)
+        self.scene.commit_scheme_node(cons_node)
 
         self.assertSequenceEqual(self.scene.node_items(),
-                                 [file_item, disc_item, bayes_item])
+                                 [one_item, negate_item, cons_item])
         self.assertSequenceEqual(self.scene.node_items(), node_items)
         self.assertSequenceEqual(test_scheme.nodes,
-                                 [file_node, disc_node, bayes_node])
+                                 [one_node, negate_node, cons_node])
 
-        link1 = scheme.SchemeLink(file_node, "Data", disc_node, "Data")
-        link2 = scheme.SchemeLink(disc_node, "Data", bayes_node, "Data")
+        link1 = scheme.SchemeLink(one_node, "value", negate_node, "value")
+        link2 = scheme.SchemeLink(negate_node, "result", cons_node, "first")
         link_item1 = self.scene.add_link(link1)
         link_item2 = self.scene.add_link(link2)
 
@@ -216,19 +219,8 @@ class TestScene(QAppTestCase):
         self.app.exec_()
 
     def widget_desc(self):
-        from ...registry.tests import small_testing_registry
         reg = small_testing_registry()
-
-        file_desc = reg.widget(
-            "Orange.OrangeWidgets.Data.OWFile.OWFile"
-        )
-
-        discretize_desc = reg.widget(
-            "Orange.OrangeWidgets.Data.OWDiscretize.OWDiscretize"
-        )
-
-        bayes_desc = reg.widget(
-            "Orange.OrangeWidgets.Classify.OWNaiveBayes.OWNaiveBayes"
-        )
-
-        return file_desc, discretize_desc, bayes_desc
+        one_desc = reg.widget("one")
+        negate_desc = reg.widget("negate")
+        cons_desc = reg.widget("cons")
+        return one_desc, negate_desc, cons_desc

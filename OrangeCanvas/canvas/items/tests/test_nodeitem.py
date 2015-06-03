@@ -3,85 +3,79 @@ from PyQt4.QtGui import QPainterPath, QGraphicsEllipseItem
 from .. import NodeItem, AnchorPoint, NodeAnchorItem
 
 from . import TestItems
+from ....registry.tests import small_testing_registry
 
 
 class TestNodeItem(TestItems):
     def setUp(self):
         TestItems.setUp(self)
-        from ....registry.tests import small_testing_registry
         self.reg = small_testing_registry()
 
-        self.data_desc = self.reg.category("Data")
-        self.classify_desc = self.reg.category("Classify")
+        self.const_desc = self.reg.category("Constants")
+        self.operator_desc = self.reg.category("Operators")
 
-        self.file_desc = self.reg.widget(
-            "Orange.OrangeWidgets.Data.OWFile.OWFile"
-        )
-        self.discretize_desc = self.reg.widget(
-            "Orange.OrangeWidgets.Data.OWDiscretize.OWDiscretize"
-        )
-        self.bayes_desc = self.reg.widget(
-            "Orange.OrangeWidgets.Classify.OWNaiveBayes.OWNaiveBayes"
-        )
+        self.one_desc = self.reg.widget("one")
+        self.negate_desc = self.reg.widget("negate")
+        self.add_desc = self.reg.widget("add")
 
     def test_nodeitem(self):
-        file_item = NodeItem()
-        file_item.setWidgetDescription(self.file_desc)
-        file_item.setWidgetCategory(self.data_desc)
+        one_item = NodeItem()
+        one_item.setWidgetDescription(self.one_desc)
+        one_item.setWidgetCategory(self.const_desc)
 
-        file_item.setTitle("File Node")
-        self.assertEqual(file_item.title(), "File Node")
+        one_item.setTitle("Neo")
+        self.assertEqual(one_item.title(), "Neo")
 
-        file_item.setProcessingState(True)
-        self.assertEqual(file_item.processingState(), True)
+        one_item.setProcessingState(True)
+        self.assertEqual(one_item.processingState(), True)
 
-        file_item.setProgress(50)
-        self.assertEqual(file_item.progress(), 50)
+        one_item.setProgress(50)
+        self.assertEqual(one_item.progress(), 50)
 
-        file_item.setProgress(100)
-        self.assertEqual(file_item.progress(), 100)
+        one_item.setProgress(100)
+        self.assertEqual(one_item.progress(), 100)
 
-        file_item.setProgress(101)
-        self.assertEqual(file_item.progress(), 100, "Progress overshots")
+        one_item.setProgress(101)
+        self.assertEqual(one_item.progress(), 100, "Progress overshots")
 
-        file_item.setProcessingState(False)
-        self.assertEqual(file_item.processingState(), False)
-        self.assertEqual(file_item.progress(), -1,
+        one_item.setProcessingState(False)
+        self.assertEqual(one_item.processingState(), False)
+        self.assertEqual(one_item.progress(), -1,
                          "setProcessingState does not clear the progress.")
 
-        self.scene.addItem(file_item)
-        file_item.setPos(100, 100)
+        self.scene.addItem(one_item)
+        one_item.setPos(100, 100)
 
-        discretize_item = NodeItem()
-        discretize_item.setWidgetDescription(self.discretize_desc)
-        discretize_item.setWidgetCategory(self.data_desc)
+        negate_item = NodeItem()
+        negate_item.setWidgetDescription(self.negate_desc)
+        negate_item.setWidgetCategory(self.const_desc)
 
-        self.scene.addItem(discretize_item)
-        discretize_item.setPos(300, 100)
+        self.scene.addItem(negate_item)
+        negate_item.setPos(300, 100)
 
         nb_item = NodeItem()
-        nb_item.setWidgetDescription(self.bayes_desc)
-        nb_item.setWidgetCategory(self.classify_desc)
+        nb_item.setWidgetDescription(self.add_desc)
+        nb_item.setWidgetCategory(self.operator_desc)
 
         self.scene.addItem(nb_item)
         nb_item.setPos(500, 100)
 
         positions = []
-        anchor = file_item.newOutputAnchor()
+        anchor = one_item.newOutputAnchor()
         anchor.scenePositionChanged.connect(positions.append)
 
-        file_item.setPos(110, 100)
+        one_item.setPos(110, 100)
         self.assertTrue(len(positions) > 0)
 
-        file_item.setErrorMessage("message")
-        file_item.setWarningMessage("message")
-        file_item.setInfoMessage("I am alive")
+        one_item.setErrorMessage("message")
+        one_item.setWarningMessage("message")
+        one_item.setInfoMessage("I am alive")
 
-        file_item.setErrorMessage(None)
-        file_item.setWarningMessage(None)
-        file_item.setInfoMessage(None)
+        one_item.setErrorMessage(None)
+        one_item.setWarningMessage(None)
+        one_item.setInfoMessage(None)
 
-        file_item.setInfoMessage("I am back.")
+        one_item.setInfoMessage("I am back.")
 
         def progress():
             self.singleShot(10, progress)
@@ -90,42 +84,42 @@ class TestNodeItem(TestItems):
 
             if p > 50:
                 nb_item.setInfoMessage("Over 50%")
-                file_item.setWarningMessage("Second")
+                one_item.setWarningMessage("Second")
             else:
                 nb_item.setInfoMessage(None)
-                file_item.setWarningMessage(None)
+                one_item.setWarningMessage(None)
 
-            discretize_item.setAnchorRotation(50 - p)
+            negate_item.setAnchorRotation(50 - p)
 
         progress()
 
         self.app.exec_()
 
     def test_nodeanchors(self):
-        file_item = NodeItem()
-        file_item.setWidgetDescription(self.file_desc)
-        file_item.setWidgetCategory(self.data_desc)
+        one_item = NodeItem()
+        one_item.setWidgetDescription(self.one_desc)
+        one_item.setWidgetCategory(self.const_desc)
 
-        file_item.setTitle("File Node")
+        one_item.setTitle("File Node")
 
-        self.scene.addItem(file_item)
-        file_item.setPos(100, 100)
+        self.scene.addItem(one_item)
+        one_item.setPos(100, 100)
 
-        discretize_item = NodeItem()
-        discretize_item.setWidgetDescription(self.discretize_desc)
-        discretize_item.setWidgetCategory(self.data_desc)
+        negate_item = NodeItem()
+        negate_item.setWidgetDescription(self.negate_desc)
+        negate_item.setWidgetCategory(self.const_desc)
 
-        self.scene.addItem(discretize_item)
-        discretize_item.setPos(300, 100)
+        self.scene.addItem(negate_item)
+        negate_item.setPos(300, 100)
 
         nb_item = NodeItem()
-        nb_item.setWidgetDescription(self.bayes_desc)
-        nb_item.setWidgetCategory(self.classify_desc)
+        nb_item.setWidgetDescription(self.add_desc)
+        nb_item.setWidgetCategory(self.operator_desc)
 
         with self.assertRaises(ValueError):
-            file_item.newInputAnchor()
+            one_item.newInputAnchor()
 
-        anchor = file_item.newOutputAnchor()
+        anchor = one_item.newOutputAnchor()
         self.assertIsInstance(anchor, AnchorPoint)
 
         self.app.exec_()
