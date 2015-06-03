@@ -1,6 +1,7 @@
 from PyQt4.QtGui import QGraphicsScene, QGraphicsView
 from PyQt4.QtCore import Qt
 
+from ...registry.tests import small_testing_registry
 from ...gui import test
 from ..editlinksdialog import EditLinksDialog, EditLinksNode, \
                               GraphicsTextWidget
@@ -9,18 +10,16 @@ from ...scheme import SchemeNode
 
 class TestLinksEditDialog(test.QAppTestCase):
     def test_links_edit(self):
-        from ...registry.tests import small_testing_registry
-
         dlg = EditLinksDialog()
         reg = small_testing_registry()
-        file_desc = reg.widget("Orange.OrangeWidgets.Data.OWFile.OWFile")
-        bayes_desc = reg.widget("Orange.OrangeWidgets.Classify.OWNaiveBayes."
-                                "OWNaiveBayes")
-        source_node = SchemeNode(file_desc, title="This is File")
-        sink_node = SchemeNode(bayes_desc)
+        one_desc = reg.widget("one")
+        negate_desc = reg.widget("negate")
 
-        source_channel = source_node.output_channel("Data")
-        sink_channel = sink_node.input_channel("Data")
+        source_node = SchemeNode(one_desc, title="This is 1")
+        sink_node = SchemeNode(negate_desc)
+
+        source_channel = source_node.output_channel("value")
+        sink_channel = sink_node.input_channel("value")
         links = [(source_channel, sink_channel)]
 
         dlg.setNodes(source_node, sink_node)
@@ -31,8 +30,7 @@ class TestLinksEditDialog(test.QAppTestCase):
         self.assertSequenceEqual(dlg.links(), links)
         status = dlg.exec_()
 
-        self.assertTrue(dlg.links() == [] or \
-                        dlg.links() == links)
+        self.assertTrue(dlg.links() == [] or dlg.links() == links)
 
     def test_graphicstextwidget(self):
         scene = QGraphicsScene()
@@ -47,14 +45,11 @@ class TestLinksEditDialog(test.QAppTestCase):
         self.app.exec_()
 
     def test_editlinksnode(self):
-        from ...registry.tests import small_testing_registry
-
         reg = small_testing_registry()
-        file_desc = reg.widget("Orange.OrangeWidgets.Data.OWFile.OWFile")
-        bayes_desc = reg.widget("Orange.OrangeWidgets.Classify.OWNaiveBayes."
-                                "OWNaiveBayes")
-        source_node = SchemeNode(file_desc, title="This is File")
-        sink_node = SchemeNode(bayes_desc)
+        one_desc = reg.widget("one")
+        negate_desc = reg.widget("negate")
+        source_node = SchemeNode(one_desc, title="This is 1")
+        sink_node = SchemeNode(negate_desc)
 
         scene = QGraphicsScene()
         view = QGraphicsView(scene)

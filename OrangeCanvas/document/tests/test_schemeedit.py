@@ -24,9 +24,6 @@ class TestSchemeEdit(QAppTestCase):
         self.assertIs(w.scheme(), scheme)
         self.assertTrue(not w.isModified())
 
-#        w.setModified(True)
-#        self.assertTrue(w.isModified())
-
         scheme = Scheme()
 
         w.setScheme(scheme)
@@ -35,9 +32,8 @@ class TestSchemeEdit(QAppTestCase):
 
         w.show()
 
-        base = "Orange.OrangeWidgets."
-        file_desc = reg.widget(base + "Data.OWFile.OWFile")
-        disc_desc = reg.widget(base + "Data.OWDiscretize.OWDiscretize")
+        one_desc = reg.widget("one")
+        negate_desc = reg.widget("negate")
 
         node_list = []
         link_list = []
@@ -52,8 +48,7 @@ class TestSchemeEdit(QAppTestCase):
         scheme.annotation_added.connect(annot_list.append)
         scheme.annotation_removed.connect(annot_list.remove)
 
-        node = SchemeNode(file_desc, title="title1",
-                                 position=(100, 100))
+        node = SchemeNode(one_desc, title="title1", position=(100, 100))
         w.addNode(node)
 
         self.assertSequenceEqual(node_list, [node])
@@ -70,15 +65,14 @@ class TestSchemeEdit(QAppTestCase):
 
         stack.redo()
 
-        node1 = SchemeNode(disc_desc, title="title2",
-                           position=(300, 100))
+        node1 = SchemeNode(negate_desc, title="title2", position=(300, 100))
         w.addNode(node1)
 
         self.assertSequenceEqual(node_list, [node, node1])
         self.assertSequenceEqual(scheme.nodes, node_list)
         self.assertTrue(w.isModified())
 
-        link = SchemeLink(node, "Data", node1, "Data")
+        link = SchemeLink(node, "value", node1, "value")
         w.addLink(link)
 
         self.assertSequenceEqual(link_list, [link])

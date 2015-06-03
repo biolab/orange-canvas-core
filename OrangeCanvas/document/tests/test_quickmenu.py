@@ -6,8 +6,8 @@ from ..quickmenu import QuickMenu, SuggestMenuPage, FlattenedTreeItemModel, \
                         MenuPage, QAction
 
 from ...gui.test import QAppTestCase
-from ...registry import global_registry
 from ...registry.qt import QtWidgetRegistry
+from ...registry.tests import small_testing_registry
 from ...utils import qtcompat
 
 
@@ -38,7 +38,7 @@ class TestMenu(QAppTestCase):
         self.app.exec_()
 
     def test_menu_with_registry(self):
-        registry = QtWidgetRegistry(global_registry())
+        registry = QtWidgetRegistry(small_testing_registry())
 
         menu = QuickMenu()
         menu.setModel(registry.model())
@@ -64,15 +64,15 @@ class TestMenu(QAppTestCase):
             self.assertIs(triggered_action[0], rval)
 
     def test_search(self):
-        registry = QtWidgetRegistry(global_registry())
+        registry = QtWidgetRegistry(small_testing_registry())
 
         menu = SuggestMenuPage()
 
         menu.setModel(registry.model())
         menu.show()
-        menu.setFilterFixedString("la")
-        self.singleShot(2500, lambda: menu.setFilterFixedString("ba"))
-        self.singleShot(5000, lambda: menu.setFilterFixedString("ab"))
+        menu.setFilterFixedString("o")
+        self.singleShot(2500, lambda: menu.setFilterFixedString("z"))
+        self.singleShot(5000, lambda: menu.setFilterFixedString("m"))
         self.app.exec_()
 
     def test_flattened_model(self):
