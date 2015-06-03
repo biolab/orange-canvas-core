@@ -92,17 +92,20 @@ def terminal_eval(source):
         return _terminal_value(node.body)
     except ValueError:
         raise
-        raise ValueError("%r is not a terminal constant" % source)
 
 
 def _terminal_value(node):
     if isinstance(node, ast.Str):
+        return node.s
+    elif sys.version_info >= (3,) and isinstance(node, ast.Bytes):
         return node.s
     elif isinstance(node, ast.Num):
         return node.n
     elif isinstance(node, ast.Name) and \
             node.id in ["True", "False", "None"]:
         return __builtins__[node.id]
+    elif sys.version_info >= (3, 4) and isinstance(node, ast.NameConstant):
+        return node.value
 
     raise ValueError("Not a terminal")
 
