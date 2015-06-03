@@ -4,34 +4,30 @@ Tests for SchemeLink
 
 from ...gui import test
 from ...registry.tests import small_testing_registry
-from ...registry import InputSignal, OutputSignal
 
 from .. import SchemeNode, SchemeLink, IncompatibleChannelTypeError
 
 
 class TestSchemeLink(test.QAppTestCase):
     def test_link(self):
-        import Orange
         reg = small_testing_registry()
-        base = "Orange.OrangeWidgets"
-        file_desc = reg.widget(base + ".Data.OWFile.OWFile")
-        discretize_desc = reg.widget(base + ".Data.OWDiscretize.OWDiscretize")
-        bayes_desc = reg.widget(base + ".Classify.OWNaiveBayes.OWNaiveBayes")
+        one_desc = reg.widget("one")
+        add_desc = reg.widget("add")
+        unit_desc = reg.widget("unit")
 
-        file_node = SchemeNode(file_desc)
-        discretize_node = SchemeNode(discretize_desc)
-        bayes_node = SchemeNode(bayes_desc)
+        one_node = SchemeNode(one_desc)
+        add_node = SchemeNode(add_desc)
+        unit_node = SchemeNode(unit_desc)
 
-        link1 = SchemeLink(file_node, file_node.output_channel("Data"),
-                           discretize_node,
-                           discretize_node.input_channel("Data"))
+        link1 = SchemeLink(one_node, one_node.output_channel("value"),
+                           add_node,
+                           add_node.input_channel("left"))
 
-        self.assertTrue(link1.source_type() is Orange.data.Table)
-        self.assertTrue(link1.sink_type() is Orange.data.Table)
+        self.assertTrue(link1.source_type() is int)
+        self.assertTrue(link1.sink_type() is int)
 
         with self.assertRaises(ValueError):
-            SchemeLink(discretize_node, "Data",
-                       file_node, "$$$[")
+            SchemeLink(add_node, "right", one_node, "$$$[")
 
         with self.assertRaises(IncompatibleChannelTypeError):
-            SchemeLink(bayes_node, "Learner", discretize_node, "Data")
+            SchemeLink(unit_node, "value", add_node, "right")

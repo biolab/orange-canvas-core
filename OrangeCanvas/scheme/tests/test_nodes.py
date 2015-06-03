@@ -13,12 +13,12 @@ class TestScheme(test.QAppTestCase):
         """Test SchemeNode.
         """
         reg = small_testing_registry()
-        file_desc = reg.widget("Orange.OrangeWidgets.Data.OWFile.OWFile")
+        one_desc = reg.widget("one")
 
-        node = SchemeNode(file_desc)
+        node = SchemeNode(one_desc)
 
         inputs = node.input_channels()
-        self.assertSequenceEqual(inputs, file_desc.inputs)
+        self.assertSequenceEqual(inputs, one_desc.inputs)
         for ch in inputs:
             channel = node.input_channel(ch.name)
             self.assertIsInstance(channel, InputSignal)
@@ -26,7 +26,7 @@ class TestScheme(test.QAppTestCase):
         self.assertRaises(ValueError, node.input_channel, "%%&&&$$()[()[")
 
         outputs = node.output_channels()
-        self.assertSequenceEqual(outputs, file_desc.outputs)
+        self.assertSequenceEqual(outputs, one_desc.outputs)
         for ch in outputs:
             channel = node.output_channel(ch.name)
             self.assertIsInstance(channel, OutputSignal)
