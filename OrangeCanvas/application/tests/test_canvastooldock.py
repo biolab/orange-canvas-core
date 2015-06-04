@@ -5,7 +5,7 @@ Test for canvas toolbox.
 from PyQt4.QtGui import QWidget, QToolBar, QTextEdit, QSplitter
 from PyQt4.QtCore import Qt
 
-from ...registry import global_registry
+from ...registry import tests as registry_tests
 from ...registry.qt import QtWidgetRegistry
 from ...gui.dock import CollapsibleDockWidget
 
@@ -17,7 +17,7 @@ from ...gui import test
 
 class TestCanvasDockWidget(test.QAppTestCase):
     def test_dock(self):
-        reg = global_registry()
+        reg = registry_tests.small_testing_registry()
         reg = QtWidgetRegistry(reg, parent=self.app)
 
         toolbox = WidgetToolBox()
@@ -45,7 +45,7 @@ class TestCanvasDockWidget(test.QAppTestCase):
         self.app.exec_()
 
     def test_canvas_tool_dock(self):
-        reg = global_registry()
+        reg = registry_tests.small_testing_registry()
         reg = QtWidgetRegistry(reg, parent=self.app)
 
         dock = CanvasToolDock()
@@ -74,7 +74,7 @@ class TestCanvasDockWidget(test.QAppTestCase):
         self.app.exec_()
 
     def test_category_toolbar(self):
-        reg = global_registry()
+        reg = registry_tests.small_testing_registry()
         reg = QtWidgetRegistry(reg, parent=self.app)
 
         w = QuickCategoryToolbar()

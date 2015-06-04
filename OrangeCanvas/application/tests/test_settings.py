@@ -9,6 +9,8 @@ from ...gui import test
 from ..settings import UserSettingsDialog, UserSettingsModel
 from ...utils.settings import Settings, config_slot
 from ...utils.qtcompat import QSettings
+from ... import registry
+from ...registry import tests as registry_tests
 
 
 class TestUserSettings(test.QAppTestCase):
@@ -16,11 +18,13 @@ class TestUserSettings(test.QAppTestCase):
         logging.basicConfig()
         test.QAppTestCase.setUp(self)
 
-    def test(self):
-        settings = UserSettingsDialog()
-        settings.show()
-
-        self.app.exec_()
+#     def test(self):
+#         registry.set_global_registry(registry_tests.small_testing_registry())
+#         settings = UserSettingsDialog()
+#         settings.show()
+#
+#         self.app.exec_()
+#         registry.set_global_registry(None)
 
     def test_settings_model(self):
         store = QSettings(QSettings.IniFormat, QSettings.UserScope,

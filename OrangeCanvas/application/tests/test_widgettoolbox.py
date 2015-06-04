@@ -5,7 +5,7 @@ Tests for WidgetsToolBox.
 from PyQt4.QtGui import QWidget, QHBoxLayout
 from PyQt4.QtCore import QSize
 
-from ...registry import global_registry
+from ...registry import tests as registry_tests
 from ...registry.qt import QtWidgetRegistry
 
 
@@ -18,21 +18,19 @@ class TestWidgetToolBox(test.QAppTestCase):
     def test_widgettoolgrid(self):
         w = QWidget()
         layout = QHBoxLayout()
+        reg = registry_tests.small_testing_registry()
 
-        reg = global_registry()
         qt_reg = QtWidgetRegistry(reg)
 
         triggered_actions1 = []
         triggered_actions2 = []
 
         model = qt_reg.model()
-        data_descriptions = qt_reg.widgets("Data")
+        data_descriptions = qt_reg.widgets("Constants")
 
-        file_action = qt_reg.action_for_widget(
-            "Orange.OrangeWidgets.Data.OWFile.OWFile"
-        )
+        one_action = qt_reg.action_for_widget("one")
 
-        actions = map(qt_reg.action_for_widget, data_descriptions)
+        actions = list(map(qt_reg.action_for_widget, data_descriptions))
 
         grid = ToolGrid(w)
         grid.setActions(actions)
@@ -58,7 +56,7 @@ class TestWidgetToolBox(test.QAppTestCase):
 
         w.setLayout(layout)
         w.show()
-        file_action.trigger()
+        one_action.trigger()
 
         self.app.exec_()
 
@@ -67,16 +65,14 @@ class TestWidgetToolBox(test.QAppTestCase):
         w = QWidget()
         layout = QHBoxLayout()
 
-        reg = global_registry()
+        reg = registry_tests.small_testing_registry()
         qt_reg = QtWidgetRegistry(reg)
 
         triggered_actions = []
 
         model = qt_reg.model()
 
-        file_action = qt_reg.action_for_widget(
-            "Orange.OrangeWidgets.Data.OWFile.OWFile"
-        )
+        one_action = qt_reg.action_for_widget("one")
 
         box = WidgetToolBox()
         box.setModel(model)
@@ -88,7 +84,7 @@ class TestWidgetToolBox(test.QAppTestCase):
         w.setLayout(layout)
         w.show()
 
-        file_action.trigger()
+        one_action.trigger()
 
         box.setButtonSize(QSize(60, 80))
         box.setIconSize(QSize(35, 35))
