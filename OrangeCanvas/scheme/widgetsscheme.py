@@ -35,6 +35,8 @@ from PyQt4.QtCore import pyqtSignal as Signal
 from .signalmanager import SignalManager, compress_signals, can_enable_dynamic
 from .scheme import Scheme, SchemeNode
 from .node import UserMessage
+from .events import WorkflowEvent, NodeEvent
+
 from ..utils import name_lookup
 from ..resources import icon_loader
 
@@ -222,6 +224,7 @@ class WidgetManager(QObject):
             QTimer.singleShot(int(1000 / 30) + 10, schedule_later)
         else:
             QCoreApplication.sendEvent(self, event)
+        node.installEventFilter(self)
 
     def __materialize(self, state):
         # Initialize an OWWidget for a Delayed widget initialization.
@@ -260,6 +263,7 @@ class WidgetManager(QObject):
 
             self.widget_for_node_removed.emit(node, state.widget)
             self._delete_widget(state.widget)
+        node.removeEventFilter(self)
 
     def _delete_widget(self, widget):
         """
@@ -430,6 +434,13 @@ class WidgetManager(QObject):
             WidgetManager.customEvent(self, event)
 
     def eventFilter(self, receiver, event):
+        if event.type() == NodeEvent.NodeActivateRequest and \
+               receiver in self.__widget_for_node:
+            widget = self.__widget_for_node[receiver]
+            widget.show()
+            widget._raise()
+            widget.activateWindow()
+
         if event.type() == QEvent.Close and receiver is self.__scheme:
             self.signal_manager().stop()
 
@@ -469,7 +480,7 @@ class WidgetManager(QObject):
         """
         Activate parent shortcut was pressed.
         """
-        event = ActivateParentEvent()
+        event = WorkflowEvent(WorkflowEvent.ActivateParentRequest)
         QCoreApplication.sendEvent(self.scheme(), event)
 
     def __initialize_widget_state(self, node, widget):
@@ -960,10 +971,3 @@ def mock_error_owwidget(node, message):
     widget.setBlocking(True)
     widget.setErrorMessage(message)
     return widget
-
-
-class ActivateParentEvent(QEvent):
-    ActivateParent = QEvent.registerEventType()
-
-    def __init__(self):
-        QEvent.__init__(self, self.ActivateParent)

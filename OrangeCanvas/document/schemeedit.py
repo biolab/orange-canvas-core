@@ -42,9 +42,9 @@ from ..registry.qt import whats_this_helper
 from ..gui.quickhelp import QuickHelpTipEvent
 from ..gui.utils import message_information, disabled
 from ..scheme import (
-    scheme, signalmanager, SchemeNode, SchemeLink, BaseSchemeAnnotation
+    scheme, signalmanager, SchemeNode, SchemeLink, BaseSchemeAnnotation,
+    WorkflowEvent
 )
-from ..scheme import widgetsscheme
 from ..canvas.scene import CanvasScene
 from ..canvas.view import CanvasView
 from ..canvas import items
@@ -909,9 +909,10 @@ class SchemeEditWidget(QWidget):
         """
         Open (show and raise) all widgets for the current selected nodes.
         """
-        selected = self.scene().selected_node_items()
-        for item in selected:
-            self.__onNodeActivate(item)
+        selected = self.selectedNodes()
+        for node in selected:
+            QCoreApplication.sendEvent(
+                node, WorkflowEvent(WorkflowEvent.NodeActivateRequest))
 
     def editNodeTitle(self, node):
         """
@@ -988,8 +989,7 @@ class SchemeEditWidget(QWidget):
             if event.type() == QEvent.WhatsThisClicked:
                 # Re post the event
                 self.__showHelpFor(event.href())
-            elif event.type() == \
-                    widgetsscheme.ActivateParentEvent.ActivateParent:
+            elif event.type() == WorkflowEvent.ActivateParentRequest:
                 self.window().activateWindow()
                 self.window().raise_()
 
@@ -1249,10 +1249,8 @@ class SchemeEditWidget(QWidget):
 
     def __onNodeActivate(self, item):
         node = self.__scene.node_for_item(item)
-        widget = self.scheme().widget_for_node(node)
-        widget.show()
-        widget.raise_()
-        widget.activateWindow()
+        QCoreApplication.sendEvent(
+            node, WorkflowEvent(WorkflowEvent.NodeActivateRequest))
 
     def __onNodePositionChanged(self, item, pos):
         node = self.__scene.node_for_item(item)

@@ -14,7 +14,7 @@ import logging
 
 import six
 
-from PyQt4.QtCore import QObject
+from PyQt4.QtCore import QObject, QCoreApplication
 from PyQt4.QtCore import pyqtSignal as Signal
 from PyQt4.QtCore import pyqtProperty as Property
 
@@ -28,6 +28,7 @@ from .errors import (
     SchemeCycleError, IncompatibleChannelTypeError, SinkChannelError,
     DuplicatedLinkError
 )
+from . import events
 
 from . import readwrite
 
@@ -170,8 +171,11 @@ class Scheme(QObject):
         check_arg(node not in self.__nodes,
                   "Node already in scheme.")
         check_type(node, SchemeNode)
-
         self.__nodes.append(node)
+
+        ev = events.NodeEvent(events.NodeEvent.NodeAdded, node)
+        QCoreApplication.sendEvent(self, ev)
+
         log.info("Added node %r to scheme %r." % (node.title, self.title))
         self.node_added.emit(node)
 
@@ -228,6 +232,8 @@ class Scheme(QObject):
 
         self.__remove_node_links(node)
         self.__nodes.remove(node)
+        ev = events.NodeEvent(events.NodeEvent.NodeRemoved, node)
+        QCoreApplication.sendEvent(self, ev)
         log.info("Removed node %r from scheme %r." % (node.title, self.title))
         self.node_removed.emit(node)
         return node
@@ -260,6 +266,9 @@ class Scheme(QObject):
 
         self.check_connect(link)
         self.__links.append(link)
+
+        ev = events.LinkEvent(events.LinkEvent.LinkAdded, link)
+        QCoreApplication.sendEvent(self, ev)
 
         log.info("Added link %r (%r) -> %r (%r) to scheme %r." % \
                  (link.source_node.title, link.source_channel.name,
@@ -312,6 +321,8 @@ class Scheme(QObject):
                   "Link is not in the scheme.")
 
         self.__links.remove(link)
+        ev = events.LinkEvent(events.LinkEvent.LinkRemoved, link)
+        QCoreApplication.sendEvent(self, ev)
         log.info("Removed link %r (%r) -> %r (%r) from scheme %r." % \
                  (link.source_node.title, link.source_channel.name,
                   link.sink_node.title, link.sink_channel.name,
@@ -566,6 +577,9 @@ class Scheme(QObject):
         check_type(annotation, BaseSchemeAnnotation)
 
         self.__annotations.append(annotation)
+        ev = events.AnnotationEvent(events.AnnotationEvent.AnnotationAdded,
+                                    annotation)
+        QCoreApplication.sendEvent(self, ev)
         self.annotation_added.emit(annotation)
 
     def remove_annotation(self, annotation):
@@ -575,6 +589,11 @@ class Scheme(QObject):
         check_arg(annotation in self.__annotations,
                   "Annotation is not in the scheme.")
         self.__annotations.remove(annotation)
+
+        ev = events.AnnotationEvent(events.AnnotationEvent.AnnotationRemoved,
+                                    annotation)
+        QCoreApplication.sendEvent(self, ev)
+
         self.annotation_removed.emit(annotation)
 
     def clear(self):
