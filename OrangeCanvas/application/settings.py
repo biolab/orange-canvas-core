@@ -531,7 +531,7 @@ class UserSettingsDialog(QMainWindow):
             self.__loop = None
 
     def __macOnToolBarAction(self, action):
-        index, _ = action.data().toInt()
+        index = qunwrap(action.data())
         self.stack.setCurrentIndex(index)
 
 

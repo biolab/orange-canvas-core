@@ -6,8 +6,6 @@ PyQt4 compatibility utility functions.
              module.
 
 """
-from operator import methodcaller
-
 import six
 
 import sip
@@ -40,8 +38,8 @@ if HAS_QVARIANT:
 from PyQt4.QtCore import QSettings, QByteArray
 from PyQt4.QtCore import PYQT_VERSION
 
+#: QSettings.value has a `type` parameter
 QSETTINGS_HAS_TYPE = PYQT_VERSION >= 0x40803
-"""QSettings.value has a `type` parameter"""
 
 
 def toPyObject(variant):
@@ -56,14 +54,18 @@ def toPyObject(variant):
     elif isinstance(variant, QVariant):
         return variant.toPyObject()
     else:
-        raise TypeError("Expected a 'QVariant'")
+        raise TypeError("Expected a 'QVariant' got '{}'."
+                        .format(type(variant).__name__))
 
 
 def qunwrap(variant):
-    if HAS_QVARIANT and isinstance(variant, QVariant):
-        return variant.toPyObject()
+    """Unwrap a `variant` and return it's contents.
+    """
+    value = toPyObject(variant)
+    if HAS_QSTRING and isinstance(value, PyQt4.QtCore.QString):
+        return six.text_type(value)
     else:
-        return variant
+        return value
 
 
 def qwrap(obj):
@@ -71,16 +73,6 @@ def qwrap(obj):
         return QVariant(obj)
     else:
         return obj
-
-if HAS_QVARIANT:
-    toBitArray = methodcaller("toBitArray")
-    toBool = methodcaller("toBool")
-    toByteArray = methodcaller("toByteArray")
-    toChar = methodcaller("toChar")
-    toDate = methodcaller("")
-    toPyObject = methodcaller("toPyObject")
-
-    toFlaot = methodcaller("toFloat")
 
 
 def _check_error(value_status):
@@ -100,7 +92,7 @@ def qvariant_to_py(variant, py_type):
     elif py_type == int:
         return _check_error(variant.toInt())
     elif py_type == bytes:
-        return six.text_type(variant.toString())
+        return bytes(variant.toByteArray())
     elif py_type == six.text_type:
         return six.text_type(variant.toString())
     elif py_type == QByteArray:
@@ -122,9 +114,7 @@ if not QSETTINGS_HAS_TYPE:
         # QSettings.value does not have `type` type before PyQt4 4.8.3
         # We dont't check if QVariant is exported, it is assumed on such old
         # installations the new api is not used.
-        def value(self, key,
-                  defaultValue=QVariant(),
-                  type=None):
+        def value(self, key, defaultValue=QVariant(), type=None):
             """
             Returns the value for setting key. If the setting doesn't exist,
             returns defaultValue.
