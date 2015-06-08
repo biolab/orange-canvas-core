@@ -11,7 +11,6 @@ This module implements a discovery process
 import os
 import sys
 import stat
-import glob
 import logging
 import types
 import pkgutil
@@ -27,6 +26,7 @@ from .description import (
 
 from . import VERSION_HEX
 from . import cache, WidgetRegistry
+from . import utils
 
 log = logging.getLogger(__name__)
 
@@ -129,42 +129,6 @@ class WidgetDiscovery(object):
                 log.error("An exception occurred while processing %r.",
                           entry_point, exc_info=True)
 
-    def process_directory(self, directory):
-        """
-        Process and locate any widgets in directory on a file system,
-        i.e. examines all .py files in the directory, delegating the
-        to `process_file` (deprecated)
-
-        """
-        for filename in glob.glob(os.path.join(directory, "*.py")):
-            self.process_file(filename)
-
-    def process_file(self, filename):
-        """
-        Process .py file containing the widget code (deprecated).
-        """
-        filename = fix_pyext(filename)
-        # TODO: zipped modules
-        if self.cache_has_valid_entry(filename):
-            desc = self.cache_get(filename).description
-            return
-
-        if self.cache_can_ignore(filename):
-            log.info("Ignoring %r.", filename)
-            return
-
-        try:
-            desc = WidgetDescription.from_file(filename)
-        except WidgetSpecificationError:
-            self.cache_insert(filename, 0, None, None,
-                              WidgetSpecificationError)
-            return
-        except Exception:
-            log.info("Error processing a file.", exc_info=True)
-            return
-
-        self.handle_widget(desc)
-
     def process_widget_module(self, module, name=None, category_name=None,
                               distribution=None):
         """
@@ -200,8 +164,8 @@ class WidgetDiscovery(object):
                 cat_desc = default_category_for_module(category)
         else:
             try:
-                cat_desc = CategoryDescription.from_package(category)
-            except (CategorySpecificationError, Exception) as ex:
+                cat_desc = utils.category_from_package_globals(category)
+            except (CategorySpecificationError, Exception):
                 log.info("Package %r does not describe a category.", category,
                          exc_info=True)
                 cat_desc = default_category_for_module(category)
@@ -334,20 +298,9 @@ class WidgetDiscovery(object):
 
         desc = None
         try:
-            desc = WidgetDescription.from_module(module)
+            desc = utils.widget_from_module_globals(module)
         except WidgetSpecificationError:
             exc_info = sys.exc_info()
-
-        if desc is None:
-            # Is it an old style widget file.
-            try:
-                desc = WidgetDescription.from_file(
-                    module.__file__, import_name=module.__name__
-                    )
-            except WidgetSpecificationError:
-                pass
-            except Exception:
-                pass
 
         if desc is None:
             # Raise the original exception.
@@ -497,16 +450,9 @@ def widget_descriptions_from_package(package):
 
         desc = None
         try:
-            desc = WidgetDescription.from_module(module)
+            desc = utils.widget_from_module_globals(module)
         except Exception:
             pass
-        if not desc:
-            try:
-                desc = WidgetDescription.from_file(
-                    module.__file__, import_name=name
-                    )
-            except Exception:
-                pass
 
         if not desc:
             log.info("Error in %r", name, exc_info=True)
