@@ -138,13 +138,6 @@ class CanvasScene(QGraphicsScene):
             self.scheme.annotation_added.disconnect(self.add_annotation)
             self.scheme.annotation_removed.disconnect(self.remove_annotation)
 
-            self.scheme.node_state_changed.disconnect(
-                self.on_widget_state_change
-            )
-            self.scheme.channel_state_changed.disconnect(
-                self.on_link_state_change
-            )
-
             # Remove all items to make sure all signals from scheme items
             # to canvas items are disconnected.
 
@@ -202,15 +195,6 @@ class CanvasScene(QGraphicsScene):
 
             self.scheme.annotation_added.connect(self.add_annotation)
             self.scheme.annotation_removed.connect(self.remove_annotation)
-
-            self.scheme.node_state_changed.connect(
-                self.on_widget_state_change
-            )
-            self.scheme.channel_state_changed.connect(
-                self.on_link_state_change
-            )
-
-            self.scheme.topology_changed.connect(self.on_scheme_change)
 
         for node in scheme.nodes:
             self.add_node(node)
@@ -725,15 +709,6 @@ class CanvasScene(QGraphicsScene):
         neighbors.extend(map(attrgetter("sinkItem"),
                              self.node_output_links(node_item)))
         return neighbors
-
-    def on_widget_state_change(self, widget, state):
-        pass
-
-    def on_link_state_change(self, link, state):
-        pass
-
-    def on_scheme_change(self, ):
-        pass
 
     def _on_position_change(self, item):
         # Invalidate the anchor point layout and schedule a layout.

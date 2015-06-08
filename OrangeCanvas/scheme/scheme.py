@@ -88,10 +88,6 @@ class Scheme(QObject):
     # Signal emitted when the description of scheme changes.
     description_changed = Signal(six.text_type)
 
-    node_state_changed = Signal()
-    channel_state_changed = Signal()
-    topology_changed = Signal()
-
     def __init__(self, parent=None, title=None, description=None):
         QObject.__init__(self, parent)
 
