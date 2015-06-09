@@ -7,12 +7,11 @@ import shlex
 import subprocess
 import itertools
 import concurrent.futures
+import xmlrpc.client
 
 from collections import namedtuple, deque
 from xml.sax.saxutils import escape
 from distutils import version
-
-import pkg_resources
 
 try:
     import docutils.core
@@ -35,6 +34,7 @@ from PyQt4.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 from ..gui.utils import message_warning, message_information, \
                         message_critical as message_error
 from ..help.manager import get_dist_meta, trim
+from .. import config
 
 Installable = namedtuple(
     "Installable",
@@ -522,10 +522,8 @@ def list_pypi_addons():
     """
     List add-ons available on pypi.
     """
-    from ..config import ADDON_PYPI_SEARCH_SPEC
-    import xmlrpc.client
     pypi = xmlrpc.client.ServerProxy("http://pypi.python.org/pypi")
-    addons = pypi.search(ADDON_PYPI_SEARCH_SPEC)
+    addons = pypi.search(config.default.addon_pypi_search_spec())
 
     multicall = xmlrpc.client.MultiCall(pypi)
     for addon in addons:
@@ -553,9 +551,7 @@ def list_pypi_addons():
 
 
 def list_installed_addons():
-    from ..config import ADDON_ENTRY
-    return [ep.dist for ep in
-            pkg_resources.iter_entry_points(ADDON_ENTRY)]
+    return [ep.dist for ep in config.default.addon_entry_points()]
 
 
 def unique(iterable):

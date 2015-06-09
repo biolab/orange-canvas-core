@@ -25,6 +25,95 @@ from .utils.qtcompat import QSettings
 
 log = logging.getLogger(__name__)
 
+__version__ = "0.0"
+
+# from . import __version__
+
+#: Entry point by which widgets are registered.
+WIDGETS_ENTRY = "orangecanvas.widgets"
+#: Entry point by which add-ons register with pkg_resources.
+ADDONS_ENTRY = "orangecanvas.addon"
+#: Parameters for searching add-on packages in PyPi using xmlrpc api.
+ADDON_PYPI_SEARCH_SPEC = {"keywords": "orange add-on"}
+
+TUTORIALS_ENTRY = "orangecanvas.tutorials"
+
+
+class default(object):
+    OrganizationDomain = "biolab.si"
+    AppliationName = "Orange Canvas Core"
+    ApplicationVersion = __version__
+
+    @staticmethod
+    def init():
+        QCoreApplication.setOrganizationDomain(default.OrganizationDomain)
+        QCoreApplication.setApplicationName(default.AppliationName)
+        QCoreApplication.setApplicationVersion(default.ApplicationVersion)
+
+        QSettings.setDefaultFormat(QSettings.IniFormat)
+
+    @staticmethod
+    def application_icon():
+        """
+        Return the main application icon.
+        """
+        path = pkg_resources.resource_filename(
+            __name__, "icons/orange-canvas.svg"
+        )
+        return QIcon(path)
+
+    @staticmethod
+    def splash_screen():
+        path = pkg_resources.resource_filename(
+            __name__, "icons/orange-splash-screen.png")
+        pm = QPixmap(path)
+
+        version = QCoreApplication.applicationVersion()
+        size = 21 if len(version) < 5 else 16
+        font = QFont("Helvetica")
+        font.setPixelSize(size)
+        font.setBold(True)
+        font.setItalic(True)
+        font.setLetterSpacing(QFont.AbsoluteSpacing, 2)
+        metrics = QFontMetrics(font)
+        br = metrics.boundingRect(version).adjusted(-5, 0, 5, 0)
+        br.moveCenter(QPoint(436, 224))
+
+        p = QPainter(pm)
+        p.setRenderHint(QPainter.Antialiasing)
+        p.setRenderHint(QPainter.TextAntialiasing)
+        p.setFont(font)
+        p.setPen(QColor("#231F20"))
+        p.drawText(br, Qt.AlignCenter, version)
+        p.end()
+        return pm, QRect(88, 193, 200, 20)
+
+    @staticmethod
+    def widgets_entry_points():
+        return pkg_resources.iter_entry_points(WIDGETS_ENTRY)
+
+    @staticmethod
+    def addon_entry_points():
+        return pkg_resources.iter_entry_points(ADDONS_ENTRY)
+
+    @staticmethod
+    def addon_pypi_search_spec():
+        return dict(ADDON_PYPI_SEARCH_SPEC)
+
+    @staticmethod
+    def tutorials_entry_points():
+        return pkg_resources.iter_entry_points(TUTORIALS_ENTRY)
+
+    @staticmethod
+    def widget_discovery(*args, **kwargs):
+        from . import registry
+        return registry.WidgetDiscovery(*args, **kwargs)
+
+    @staticmethod
+    def workflow_constructor(*args, **kwargs):
+        from . import scheme
+        return scheme.Scheme(*args, **kwargs)
+
 
 def init():
     """
@@ -35,17 +124,8 @@ def init():
               Otherwise it can break Qt's plugin search paths.
 
     """
-    dist = pkg_resources.get_distribution("Orange")
-    version = dist.version
-    # Use only major.minor
-    version = ".".join(version.split(".", 2)[:2])
-
-    QCoreApplication.setOrganizationDomain("biolab.si")
-    QCoreApplication.setApplicationName("Orange Canvas")
-    QCoreApplication.setApplicationVersion(version)
-    QSettings.setDefaultFormat(QSettings.IniFormat)
-
-    # Make it a null op.
+    default.init()
+    # Make consecutive calls a null op.
     global init
     init = lambda: None
 
@@ -153,8 +233,12 @@ def data_dir():
 
     """
     init()
+#     return default.data_dir()
+
     datadir = QDesktopServices.storageLocation(QDesktopServices.DataLocation)
     datadir = six.text_type(datadir)
+    version = six.text_type(QCoreApplication.applicationVersion())
+    datadir = os.path.join(datadir, version)
     if not os.path.exists(datadir):
         os.makedirs(datadir)
     return datadir
@@ -166,8 +250,11 @@ def cache_dir():
 
     """
     init()
+
     cachedir = QDesktopServices.storageLocation(QDesktopServices.CacheLocation)
     cachedir = six.text_type(cachedir)
+    version = six.text_type(QCoreApplication.applicationVersion())
+    cachedir = os.path.join(cachedir, version)
     if not os.path.exists(cachedir):
         os.makedirs(cachedir)
     return cachedir
@@ -238,77 +325,37 @@ def save_recent_scheme_list(scheme_list):
             pickle.dump(scheme_list, f)
 
 
-WIDGETS_ENTRY = "orange.widgets"
-
-
-# This could also be achieved by declaring the entry point in
-# Orange's setup.py, but that would not guaranty this entry point
-# is the first in a list.
-
-def default_entry_point():
-    """
-    Return a default orange.widgets entry point for loading
-    default Orange Widgets.
-
-    """
-    dist = pkg_resources.get_distribution("Orange")
-    ep = pkg_resources.EntryPoint("Orange Widgets", "Orange.OrangeWidgets",
-                                  dist=dist)
-    return ep
-
-
 def widgets_entry_points():
     """
     Return an `EntryPoint` iterator for all 'orange.widget' entry
     points plus the default Orange Widgets.
 
     """
-    ep_iter = pkg_resources.iter_entry_points(WIDGETS_ENTRY)
-    chain = [[default_entry_point()],
-             ep_iter
-             ]
-    return itertools.chain(*chain)
-
-#: Parameters for searching add-on packages in PyPi using xmlrpc api.
-ADDON_PYPI_SEARCH_SPEC = {"keywords": "orange3 add-on"}
-#: Entry points by which add-ons register with pkg_resources.
-ADDON_ENTRY = "orange3.addon"
+    return default.widgets_entry_points()
 
 
 def splash_screen():
     """
     """
-    pm = QPixmap(
-        pkg_resources.resource_filename(
-            __name__, "icons/orange-splash-screen.png")
-    )
-
-    version = QCoreApplication.applicationVersion()
-    size = 21 if len(version) < 5 else 16
-    font = QFont("Helvetica")
-    font.setPixelSize(size)
-    font.setBold(True)
-    font.setItalic(True)
-    font.setLetterSpacing(QFont.AbsoluteSpacing, 2)
-    metrics = QFontMetrics(font)
-    br = metrics.boundingRect(version).adjusted(-5, 0, 5, 0)
-    br.moveCenter(QPoint(436, 224))
-
-    p = QPainter(pm)
-    p.setRenderHint(QPainter.Antialiasing)
-    p.setRenderHint(QPainter.TextAntialiasing)
-    p.setFont(font)
-    p.setPen(QColor("#231F20"))
-    p.drawText(br, Qt.AlignCenter, version)
-    p.end()
-    return pm, QRect(88, 193, 200, 20)
+    return default.splash_screen()
 
 
 def application_icon():
     """
     Return the main application icon.
     """
-    path = pkg_resources.resource_filename(
-        __name__, "icons/orange-canvas.svg"
-    )
-    return QIcon(path)
+    return default.application_icon()
+
+
+def widget_discovery(*args, **kwargs):
+    return default.widget_discovery(*args, **kwargs)
+
+
+def workflow_constructor(*args, **kwargs):
+    return default.workflow_constructor(*args, **kwargs)
+
+
+def set_default(conf):
+    cfg = dict(conf.__dict__)
+    global default
+    default = type("config", (default,), cfg)

@@ -22,7 +22,7 @@ else:
 import pkg_resources
 
 from PyQt4.QtGui import QFont, QColor
-from PyQt4.QtCore import Qt, QDir
+from PyQt4.QtCore import Qt, QDir, QSysInfo, QT_VERSION
 
 # PEP-0366 boilerplate
 if __name__ == "__main__" and __package__ is None:
@@ -32,7 +32,7 @@ from .application.application import CanvasApplication
 from .application.canvasmain import CanvasMainWindow
 from .application.outputview import TextStream, ExceptHook
 
-from . import config
+from . import utils, config
 from .gui.splashscreen import SplashScreen
 from .utils.redirect import redirect_stdout, redirect_stderr
 from .utils.qtcompat import QSettings
@@ -54,7 +54,6 @@ def running_in_ipython():
 
 def fix_osx_private_font():
     """Temporary fixes for QTBUG-32789 an QTBUG-40833"""
-    from PyQt4.QtCore import QSysInfo, QT_VERSION
     if sys.platform == "darwin":
         try:
             if QSysInfo.MacintoshVersion > 11 and \
@@ -125,6 +124,13 @@ def main(argv=None):
                       help="Additional arguments for QApplication",
                       type="str", default=None)
 
+    parser.add_option("--config",
+                      help="Configuration namespace",
+                      type="str", default="orangecanvas.example")
+
+    # -m canvas orange.widgets
+    # -m canvas --config orange.widgets
+
     (options, args) = parser.parse_args(argv[1:])
 
     levels = [logging.CRITICAL,
@@ -137,7 +143,7 @@ def main(argv=None):
     # and write to the old file descriptors)
     fix_win_pythonw_std_stream()
 
-    # Try to fix fonts on OSX Mavericks/Yosemite
+    # Try to fix fonts on OSX Mavericks/Yosemite, ...
     fix_osx_private_font()
 
     # File handler should always be at least INFO level so we need
@@ -150,6 +156,17 @@ def main(argv=None):
     stream_hander = logging.StreamHandler()
     stream_hander.setLevel(level=levels[options.log_level])
     rootlogger.addHandler(stream_hander)
+
+    if options.config is not None:
+        try:
+            cfg = utils.name_lookup(options.config)
+        except (ImportError, AttributeError):
+            pass
+        else:
+#             config.default = cfg
+            config.set_default(cfg)
+
+            log.info("activating %s", options.config)
 
     log.info("Starting 'Orange Canvas' application.")
 
@@ -250,16 +267,9 @@ def main(argv=None):
     else:
         reg_cache = None
 
-    widget_discovery = qt.QtWidgetDiscovery(cached_descriptions=reg_cache)
-
     widget_registry = qt.QtWidgetRegistry()
-
-    widget_discovery.found_category.connect(
-        widget_registry.register_category
-    )
-    widget_discovery.found_widget.connect(
-        widget_registry.register_widget
-    )
+    widget_discovery = config.widget_discovery(
+        widget_registry, cached_descriptions=reg_cache)
 
     want_splash = \
         settings.value("startup/show-splash-screen", True, type=bool) and \
@@ -268,15 +278,18 @@ def main(argv=None):
     if want_splash:
         pm, rect = config.splash_screen()
         splash_screen = SplashScreen(pixmap=pm, textRect=rect)
+        splash_screen.setAttribute(Qt.WA_DeleteOnClose)
         splash_screen.setFont(QFont("Helvetica", 12))
         color = QColor("#FFD39F")
 
         def show_message(message):
             splash_screen.showMessage(message, color=color)
 
-        widget_discovery.discovery_start.connect(splash_screen.show)
-        widget_discovery.discovery_process.connect(show_message)
-        widget_discovery.discovery_finished.connect(splash_screen.hide)
+        widget_registry.category_added.connect(show_message)
+        show_splash = splash_screen.show
+        close_splash = splash_screen.close
+    else:
+        show_splash = close_splash = lambda: None
 
     log.info("Running widget discovery process.")
 
@@ -285,11 +298,15 @@ def main(argv=None):
         widget_registry = pickle.load(open(cache_filename, "rb"))
         widget_registry = qt.QtWidgetRegistry(widget_registry)
     else:
+        show_splash()
         widget_discovery.run(config.widgets_entry_points())
+        close_splash()
+
         # Store cached descriptions
         cache.save_registry_cache(widget_discovery.cached_descriptions)
-        pickle.dump(WidgetRegistry(widget_registry),
-                    open(cache_filename, "wb"))
+        with open(cache_filename, "wb") as f:
+            pickle.dump(WidgetRegistry(widget_registry), f)
+
     set_global_registry(widget_registry)
     canvas_window.set_widget_registry(widget_registry)
     canvas_window.show()

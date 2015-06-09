@@ -50,7 +50,6 @@ from .settings import UserSettingsDialog, category_state
 from ..document.schemeedit import SchemeEditWidget
 from ..document.quickmenu import SortFilterProxyModel
 
-from ..scheme import widgetsscheme
 from ..scheme.readwrite import scheme_load, sniff_version
 
 from . import welcomedialog
@@ -233,7 +232,8 @@ class CanvasMainWindow(QMainWindow):
         w.layout().setContentsMargins(20, 0, 10, 0)
 
         self.scheme_widget = SchemeEditWidget()
-        self.scheme_widget.setScheme(widgetsscheme.WidgetsScheme(parent=self))
+        self.scheme_widget.setScheme(config.workflow_constructor(parent=self))
+
         dropfilter = UrlDropEventFilter(self)
         dropfilter.urlDropped.connect(self.open_scheme_file)
         self.scheme_widget.setAcceptDrops(True)
@@ -862,7 +862,7 @@ class CanvasMainWindow(QMainWindow):
             if self.ask_save_changes() == QDialog.Rejected:
                 return QDialog.Rejected
 
-        new_scheme = widgetsscheme.WidgetsScheme(parent=self)
+        new_scheme = config.workflow_constructor(parent=self)
 
         settings = QSettings()
         show = settings.value("schemeinfo/show-at-new-scheme", True,
@@ -965,11 +965,11 @@ class CanvasMainWindow(QMainWindow):
             self.add_recent_scheme(new_scheme.title, filename)
 
     def new_scheme_from(self, filename):
-        """Create and return a new :class:`widgetsscheme.WidgetsScheme`
+        """Create and return a new :class:`scheme.Scheme`
         from a saved `filename`. Return `None` if an error occurs.
 
         """
-        new_scheme = widgetsscheme.WidgetsScheme(parent=self)
+        new_scheme = config.workflow_constructor(parent=self)
         errors = []
         try:
             scheme_load(new_scheme, open(filename, "rb"),
@@ -1674,8 +1674,7 @@ class CanvasMainWindow(QMainWindow):
         old_scheme = document.scheme()
 
         # Set an empty scheme to clear the document
-        document.setScheme(widgetsscheme.WidgetsScheme())
-
+        document.setScheme(config.workflow_constructor(parent=self))
         QApplication.sendEvent(old_scheme, QEvent(QEvent.Close))
 
         old_scheme.deleteLater()
