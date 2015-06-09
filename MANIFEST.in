@@ -1,0 +1,2 @@
+include LICENSE.txt README.txt ez_setup.py
+recursive-include docs *.*
