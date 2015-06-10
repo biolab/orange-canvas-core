@@ -146,12 +146,12 @@ def left_trim_lines(lines):
     """
     Remove all unnecessary leading space from lines.
     """
-    lines_striped = zip(lines[1:], map(string.lstrip, lines[1:]))
+    lines_striped = zip(lines[1:], map(str.lstrip, lines[1:]))
     lines_striped = filter(itemgetter(1), lines_striped)
     indent = min([len(line) - len(striped) \
-                  for line, striped in lines_striped] + [sys.maxint])
+                  for line, striped in lines_striped] + [sys.maxsize])
 
-    if indent < sys.maxint:
+    if indent < sys.maxsize:
         return [line[indent:] for line in lines]
     else:
         return list(lines)
@@ -183,7 +183,7 @@ def trim(string):
     """
     lines = string.expandtabs().splitlines()
 
-    lines = map(str.lstrip, lines[:1]) + left_trim_lines(lines[1:])
+    lines = list(map(str.lstrip, lines[:1])) + left_trim_lines(lines[1:])
 
     return  "\n".join(trim_leading_lines(trim_trailing_lines(lines)))
 
