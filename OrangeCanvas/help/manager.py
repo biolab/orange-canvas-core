@@ -52,17 +52,22 @@ class HelpManager(QObject):
             return
 
         reg = self._registry
-        all_projects = set(desc.project_name for desc in reg.widgets())
+        all_projects = set(desc.project_name for desc in reg.widgets()
+                           if desc.project_name is not None)
 
         providers = []
         for project in set(all_projects) - set(self._providers.keys()):
             provider = None
             try:
                 dist = pkg_resources.get_distribution(project)
-                provider = get_help_provider_for_distribution(dist)
-            except Exception:
-                log.exception("Error while initializing help "
-                              "provider for %r", project)
+            except pkg_resources.ResolutionError:
+                log.exception("Could not get distribution for '%s'", project)
+            else:
+                try:
+                    provider = get_help_provider_for_distribution(dist)
+                except Exception:
+                    log.exception("Error while initializing help "
+                                  "provider for %r", project)
 
             if provider:
                 providers.append((project, provider))
