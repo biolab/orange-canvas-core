@@ -376,9 +376,9 @@ class AddonManagerDialog(QDialog):
     def __init__(self, parent=None, **kwargs):
         super(AddonManagerDialog, self).__init__(parent, **kwargs)
         self.setLayout(QVBoxLayout())
-        self.layout().setContentsMargins(0, 0, 0, 0)
 
         self.addonwidget = AddonManagerWidget()
+        self.addonwidget.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().addWidget(self.addonwidget)
         buttons = QDialogButtonBox(
             orientation=Qt.Horizontal,
