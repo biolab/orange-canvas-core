@@ -265,23 +265,6 @@ class SignalManager(QObject):
 
         self._update()
 
-    def _update_links(self, source_node=None, source_channel=None,
-                      sink_node=None, sink_channel=None):
-        """
-        Schedule update of all enabled links matching the query.
-
-        See :ref:`Scheme.find_links` for description of parameters.
-
-        """
-        links = self.scheme().find_links(source_node=source_node,
-                                         source_channel=source_channel,
-                                         sink_node=sink_node,
-                                         sink_channel=sink_channel)
-        links = filter(is_enabled, links)
-
-        signals = reduce(add, self.signals_on_link, [])
-        self._schedule(signals)
-
     def _update_link(self, link):
         """
         Schedule update of a single link.
