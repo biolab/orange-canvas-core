@@ -1017,9 +1017,8 @@ class CanvasMainWindow(QMainWindow):
         """
         scheme_doc = self.current_document()
         old_scheme = scheme_doc.scheme()
-
-        manager = new_scheme.signal_manager
-        if self.freeze_action.isChecked():
+        manager = getattr(new_scheme, "signal_manager", None)
+        if self.freeze_action.isChecked() and manager is not None:
             manager.pause()
 
         scheme_doc.setScheme(new_scheme)
@@ -1478,11 +1477,12 @@ class CanvasMainWindow(QMainWindow):
 
     def set_signal_freeze(self, freeze):
         scheme = self.current_document().scheme()
-        manager = scheme.signal_manager
-        if freeze:
-            manager.pause()
-        else:
-            manager.resume()
+        manager = getattr(scheme, "signal_manager", None)
+        if manager is not None:
+            if freeze:
+                manager.pause()
+            else:
+                manager.resume()
 
     def remove_selected(self):
         """Remove current scheme selection.
