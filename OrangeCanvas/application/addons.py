@@ -34,6 +34,7 @@ from PyQt4.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 from ..gui.utils import message_warning, message_information, \
                         message_critical as message_error
 from ..help.manager import get_dist_meta, trim
+from ..utils.qtcompat import qunwrap
 from .. import config
 
 Installable = namedtuple(
@@ -307,7 +308,7 @@ class AddonManagerWidget(QWidget):
             self.__details.setText("")
         else:
             item = self.__model.item(index, 1)
-            item = item.data(Qt.UserRole)
+            item = qunwrap(item.data(Qt.UserRole))
             assert isinstance(item, (Installed, Available))
 #             if isinstance(item, Available):
 #                 self.__installed_label.setText("")

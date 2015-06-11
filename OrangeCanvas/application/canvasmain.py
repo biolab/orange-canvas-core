@@ -1606,7 +1606,7 @@ class CanvasMainWindow(QMainWindow):
 
         # Exclude permanent actions (Browse Recent, separators, Clear List)
         actions_to_remove = [action for action in actions
-                             if six.text_type(qunwrap(action.data()))]
+                             if qunwrap(action.data()) is not None]
 
         for action in actions_to_remove:
             self.recent_menu.removeAction(action)
