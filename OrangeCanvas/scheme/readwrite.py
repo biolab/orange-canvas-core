@@ -900,6 +900,14 @@ def indent(element, level=0, indent="\t"):
     return indent_(element, level, True)
 
 
+if six.PY3:
+    _encodebytes = base64.encodebytes
+    _decodebytes = base64.decodebytes
+else:
+    _encodebytes = base64.encodestring
+    _decodebytes = base64.decodestring
+
+
 def dumps(obj, format="literal", prettyprint=False, pickle_fallback=False):
     """
     Serialize `obj` using `format` ('json' or 'literal') and return its
@@ -933,14 +941,14 @@ def dumps(obj, format="literal", prettyprint=False, pickle_fallback=False):
                         exc_info=True)
 
     elif format == "pickle":
-        return pickle.dumps(obj), "pickle"
+        return _encodebytes(pickle.dumps(obj)).decode('ascii'), "pickle"
 
     else:
         raise ValueError("Unsupported format %r" % format)
 
     if pickle_fallback:
         log.warning("Using pickle fallback")
-        return pickle.dumps(obj), "pickle"
+        return _encodebytes(pickle.dumps(obj)).decode('ascii'), "pickle"
     else:
         raise Exception("Something strange happened.")
 
@@ -951,7 +959,7 @@ def loads(string, format):
     elif format == "json":
         return json.loads(string)
     elif format == "pickle":
-        return pickle.loads(string)
+        return pickle.loads(_decodebytes(string.encode('ascii')))
     else:
         raise ValueError("Unknown format")
 
