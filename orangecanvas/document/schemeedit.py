@@ -10,6 +10,7 @@ import sys
 import logging
 import itertools
 import unicodedata
+import copy
 
 from operator import attrgetter
 
@@ -27,7 +28,7 @@ import six
 
 from PyQt4.QtGui import (
     QWidget, QVBoxLayout, QInputDialog, QMenu, QAction, QActionGroup,
-    QKeySequence, QUndoStack, QGraphicsItem, QGraphicsObject,
+    QKeySequence, QUndoStack, QUndoCommand, QGraphicsItem, QGraphicsObject,
     QGraphicsTextItem, QCursor, QFont, QPainter, QPixmap, QColor,
     QIcon, QWhatsThisClickedEvent, QBrush
 )
@@ -157,6 +158,7 @@ class SchemeEditWidget(QWidget):
         self.__editMenu.addAction(self.__undoAction)
         self.__editMenu.addAction(self.__redoAction)
         self.__editMenu.addSeparator()
+        self.__editMenu.addAction(self.__duplicateSelectedAction)
         self.__editMenu.addAction(self.__selectAllAction)
 
         self.__widgetMenu = QMenu(self.tr("&Widget"), self)
@@ -338,11 +340,20 @@ class SchemeEditWidget(QWidget):
                     triggered=self.__linkReset,
                     )
 
+        self.__duplicateSelectedAction = \
+            QAction(self.tr("Duplicate Selected"), self,
+                    objectName="duplicate-action",
+                    enabled=False,
+                    shortcut=QKeySequence(Qt.ControlModifier + Qt.Key_D),
+                    triggered=self.__duplicateSelected,
+                    )
+
         self.addActions([self.__newTextAnnotationAction,
                          self.__newArrowAnnotationAction,
                          self.__linkEnableAction,
                          self.__linkRemoveAction,
-                         self.__linkResetAction])
+                         self.__linkResetAction,
+                         self.__duplicateSelectedAction])
 
         # Actions which should be disabled while a multistep
         # interaction is in progress.
@@ -350,7 +361,8 @@ class SchemeEditWidget(QWidget):
                 [self.__undoAction,
                  self.__redoAction,
                  self.__removeSelectedAction,
-                 self.__selectAllAction]
+                 self.__selectAllAction,
+                 self.__duplicateSelectedAction]
 
     def __setupUi(self):
         layout = QVBoxLayout()
@@ -1218,6 +1230,7 @@ class SchemeEditWidget(QWidget):
 
         self.__helpAction.setEnabled(len(nodes) == 1)
         self.__renameAction.setEnabled(len(nodes) == 1)
+        self.__duplicateSelectedAction.setEnabled(bool(nodes))
 
         if len(nodes) > 1:
             self.__openSelectedAction.setText(self.tr("Open All"))
@@ -1500,6 +1513,66 @@ class SchemeEditWidget(QWidget):
             )
             action.edit_links()
 
+    def __duplicateSelected(self):
+        """
+        Duplicate currently selected nodes.
+        """
+        def copy_node(node):
+            x, y = node.position
+            return SchemeNode(
+                node.description, node.title, position=(x + 20, y + 20),
+                properties=copy.deepcopy(node.properties))
+
+        def copy_link(link, source=None, sink=None):
+            source = link.source_node if source is None else source
+            sink = link.sink_node if sink is None else sink
+            return SchemeLink(
+                source, link.source_channel,
+                sink, link.sink_channel,
+                enabled=link.enabled,
+                properties=copy.deepcopy(link.properties))
+
+        scheme = self.scheme()
+        # ensure up to date node properties (settings)
+        scheme.sync_node_properties()
+
+        selection = self.selectedNodes()
+
+        links = [link for link in scheme.links
+                 if link.source_node in selection and
+                    link.sink_node in selection]
+        nodedups = [copy_node(node) for node in selection]
+        allnames = {node.title for node in scheme.nodes + nodedups}
+        for nodedup in nodedups:
+            nodedup.title = uniquify(
+                nodedup.title, allnames, pattern="{item} ({_})", start=1)
+
+        node_to_dup = dict(zip(selection, nodedups))
+
+        linkdups = [copy_link(link, source=node_to_dup[link.source_node],
+                              sink=node_to_dup[link.sink_node])
+                    for link in links]
+
+        command = QUndoCommand(self.tr("Duplicate"))
+        macrocommands = []
+        for nodedup in nodedups:
+            macrocommands.append(
+                commands.AddNodeCommand(scheme, nodedup, parent=command))
+        for linkdup in linkdups:
+            macrocommands.append(
+                commands.AddLinkCommand(scheme, linkdup, parent=command))
+
+        self.__undoStack.push(command)
+        scene = self.__scene
+
+        for node in selection:
+            item = scene.item_for_node(node)
+            item.setSelected(False)
+
+        for node in nodedups:
+            item = scene.item_for_node(node)
+            item.setSelected(True)
+
     def __startControlPointEdit(self, item):
         """
         Start a control point edit interaction for `item`.
@@ -1599,3 +1672,10 @@ def is_printable(unichar):
 def node_properties(scheme):
     scheme.sync_node_properties()
     return [dict(node.properties) for node in scheme.nodes]
+
+
+def uniquify(item, names, pattern="{item}-{_}", start=0):
+    candidates = (pattern.format(item=item, _=i)
+                  for i in itertools.count(start))
+    candidates = itertools.dropwhile(lambda item: item in names, candidates)
+    return next(candidates)
