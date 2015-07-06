@@ -901,8 +901,7 @@ class CanvasMainWindow(QMainWindow):
         )
 
         if filename:
-            self.load_scheme(filename)
-            return QDialog.Accepted
+            return self.load_scheme(filename)
         else:
             return QDialog.Rejected
 
@@ -936,8 +935,7 @@ class CanvasMainWindow(QMainWindow):
             if self.ask_save_changes() == QDialog.Rejected:
                 return QDialog.Rejected
 
-        self.load_scheme(filename)
-        return QDialog.Accepted
+        return self.load_scheme(filename)
 
     def load_scheme(self, filename):
         """Load a scheme from a file (`filename`) into the current
@@ -958,6 +956,9 @@ class CanvasMainWindow(QMainWindow):
             scheme_doc_widget.setPath(filename)
 
             self.add_recent_scheme(new_scheme.title, filename)
+            return QDialog.Accepted
+        else:
+            return QDialog.Rejected
 
     def new_scheme_from(self, filename):
         """Create and return a new :class:`scheme.Scheme`
@@ -1005,7 +1006,7 @@ class CanvasMainWindow(QMainWindow):
         # TODO: Search for a temp backup scheme with per process
         # locking.
         if self.recent_schemes:
-            self.load_scheme(self.recent_schemes[0][1])
+            return self.load_scheme(self.recent_schemes[0][1])
 
         return QDialog.Accepted
 
@@ -1283,7 +1284,7 @@ class CanvasMainWindow(QMainWindow):
 
             selected = model.item(index)
 
-            self.load_scheme(six.text_type(selected.path()))
+            return self.load_scheme(six.text_type(selected.path()))
 
         return status
 
