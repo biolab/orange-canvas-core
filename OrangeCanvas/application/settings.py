@@ -488,6 +488,12 @@ class UserSettingsDialog(QMainWindow):
             if icon:
                 self.tab.setTabIcon(i, icon)
 
+    def widget(self, index):
+        if self.__macUnified:
+            return self.stack.widget(index)
+        else:
+            return self.tab.widget(index)
+
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
             self.hide()
