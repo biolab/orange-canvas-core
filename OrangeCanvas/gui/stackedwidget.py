@@ -60,6 +60,7 @@ class StackLayout(QStackedLayout):
 
     """
     def __init__(self, parent=None):
+        self.__rect = QRect()
         QStackedLayout.__init__(self, parent)
         self.currentChanged.connect(self._onCurrentChanged)
 
@@ -88,8 +89,21 @@ class StackLayout(QStackedLayout):
         else:
             return QStackedLayout.maximumSize(self)
 
+    def geometry(self):
+        # Reimplemented due to QTBUG-47107.
+        return QRect(self.__rect)
+
     def setGeometry(self, rect):
+        if not isinstance(rect, QRect):
+            raise TypeError("QRect required")
+
+        if rect == self.__rect:
+            return
+
+        self.__rect = QRect(rect)
+
         QStackedLayout.setGeometry(self, rect)
+
         for i in range(self.count()):
             w = self.widget(i)
             hint = w.sizeHint()
