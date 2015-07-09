@@ -64,6 +64,8 @@ class Scheme(QObject):
         A list of all the annotations in the scheme.
 
     """
+    # Flags indicating if loops are allowed in the workflow.
+    NoLoops, AllowLoops, AllowSelfLoops = 0, 1, 2
 
     # Signal emitted when a `node` is added to the scheme.
     node_added = Signal(SchemeNode)
@@ -101,6 +103,7 @@ class Scheme(QObject):
         self.__annotations = []
         self.__nodes = []
         self.__links = []
+        self.__loop_flags = Scheme.NoLoops
 
     @property
     def nodes(self):
@@ -124,6 +127,12 @@ class Scheme(QObject):
 
         """
         return list(self.__annotations)
+
+    def set_loop_flags(self, flags):
+        self.__loop_flags = flags
+
+    def loop_flags(self):
+        return self.__loop_flags
 
     def set_title(self, title):
         """
@@ -338,7 +347,8 @@ class Scheme(QObject):
         Can raise:
             - :class:`TypeError` if `link` is not an instance of
               :class:`.SchemeLink`
-            - :class:`.SchemeCycleError` if the `link` would introduce a cycle
+            - :class:`.SchemeCycleError` if the `link` would introduce a loop
+              in the graph which does not allow loops.
             - :class:`.IncompatibleChannelTypeError` if the channel types are
               not compatible
             - :class:`.SinkChannelError` if a sink channel has a `Single` flag
@@ -349,7 +359,11 @@ class Scheme(QObject):
         """
         check_type(link, SchemeLink)
 
-        if self.creates_cycle(link):
+        if not self.loop_flags() & Scheme.AllowSelfLoops and \
+                link.source_node is link.sink_node:
+            raise SchemeCycleError("Cannot create self cycle in the scheme")
+        elif not self.loop_flags() & Scheme.AllowLoops and \
+                self.creates_cycle(link):
             raise SchemeCycleError("Cannot create cycles in the scheme")
 
         if not self.compatible_channels(link):
@@ -531,9 +545,14 @@ class Scheme(QObject):
         .. note:: This can depend on the links already in the scheme.
 
         """
-        if source_node is sink_node or \
+        if source_node is sink_node and \
+                not self.loop_flags() & Scheme.AllowSelfLoops:
+            # Self loops are not enabled
+            return []
+
+        elif not self.loop_flags() & Scheme.AllowLoops and \
                 self.is_ancestor(sink_node, source_node):
-            # Cyclic connections are not possible.
+            # Loops are not enabled.
             return []
 
         outputs = source_node.output_channels()

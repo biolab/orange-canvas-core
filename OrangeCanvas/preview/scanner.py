@@ -79,6 +79,7 @@ def scheme_svg_thumbnail(scheme_file):
     from ..registry import global_registry
 
     scheme = scheme.Scheme()
+    scheme.set_loop_flags(scheme.AllowLoops | scheme.AllowSelfLoops)
     errors = []
     scheme_load(scheme, scheme_file, error_handler=errors.append)
 
