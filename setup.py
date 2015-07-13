@@ -48,7 +48,6 @@ CLASSIFIERS = (
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
     "Operating System :: OS Independent",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Scientific/Engineering :: Visualization",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Intended Audience :: Education",
@@ -56,6 +55,15 @@ CLASSIFIERS = (
     "Intended Audience :: Developers",
 )
 
+EXTRAS_REQUIRE = {
+    # ?? :python_version<="3.2" does not work (Invalid environment
+    # marker error).
+    ':python_version=="2.7" or '
+    'python_version=="3.0" or '
+    'python_version=="3.1" or '
+    'python_version=="3.2" ': ["future", "futures", "contextlib2"],
+    ':python_version == "3.3"': ["future", "futures"]
+}
 
 if __name__ == "__main__":
     setup(name=NAME,
@@ -68,4 +76,5 @@ if __name__ == "__main__":
           license=LICENSE,
           packages=PACKAGES,
           package_data=PACKAGE_DATA,
-          install_requires=INSTALL_REQUIRES,)
+          install_requires=INSTALL_REQUIRES,
+          extras_require=EXTRAS_REQUIRE,)
