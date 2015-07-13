@@ -14,7 +14,7 @@ from PyQt4.QtGui import (
     QGraphicsItem, QGraphicsObject, QGraphicsTextItem,
     QGraphicsDropShadowEffect, QGraphicsView,
     QPen, QBrush, QColor, QPalette, QIcon, QStyle, QPainter,
-    QPainterPath, QPainterPathStroker, QApplication
+    QPainterPath, QPainterPathStroker, QGraphicsPathItem, QApplication
 )
 
 from PyQt4.QtCore import Qt, QPointF, QRectF, QSize, QTimer, QPropertyAnimation
@@ -822,6 +822,9 @@ class NodeItem(QGraphicsObject):
         self.warningItem = None
         self.infoItem = None
 
+        # background when selected
+        self.backgroundItem = None
+
         self.__title = ""
         self.__processingState = 0
         self.__progress = -1
@@ -904,6 +907,17 @@ class NodeItem(QGraphicsObject):
         self.errorItem = iconItem(QStyle.SP_MessageBoxCritical)
         self.warningItem = iconItem(QStyle.SP_MessageBoxWarning)
         self.infoItem = iconItem(QStyle.SP_MessageBoxInformation)
+
+        self.backgroundItem = QGraphicsPathItem(self)
+        backgroundrect = QPainterPath()
+        backgroundrect.addRoundedRect(anchor_rect.adjusted(-4, -2, 4, 2),
+                                      5, 5, mode=Qt.AbsoluteSize)
+        self.backgroundItem.setPen(QPen(Qt.NoPen))
+        self.backgroundItem.setBrush(QPalette().brush(QPalette.Highlight))
+        self.backgroundItem.setOpacity(0.5)
+        self.backgroundItem.setPath(backgroundrect)
+        self.backgroundItem.setZValue(-10)
+        self.backgroundItem.setVisible(self.isSelected())
 
         self.prepareGeometryChange()
         self.__boundingRect = None
@@ -1299,6 +1313,7 @@ class NodeItem(QGraphicsObject):
             selected = bool(qtcompat.qunwrap(value))
             self.shapeItem.setSelected(selected)
             self.captionTextItem.setSelectionState(selected)
+            self.backgroundItem.setVisible(selected)
         elif change == QGraphicsItem.ItemPositionHasChanged:
             self.positionChanged.emit()
 
