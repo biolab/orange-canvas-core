@@ -44,11 +44,11 @@ class default(object):
     ApplicationName = "Orange Canvas Core"
     ApplicationVersion = __version__
 
-    @staticmethod
-    def init():
-        QCoreApplication.setOrganizationDomain(default.OrganizationDomain)
-        QCoreApplication.setApplicationName(default.AppliationName)
-        QCoreApplication.setApplicationVersion(default.ApplicationVersion)
+    @classmethod
+    def init(cls):
+        QCoreApplication.setOrganizationDomain(cls.OrganizationDomain)
+        QCoreApplication.setApplicationName(cls.ApplicationName)
+        QCoreApplication.setApplicationVersion(cls.ApplicationVersion)
 
         QSettings.setDefaultFormat(QSettings.IniFormat)
 
@@ -127,6 +127,7 @@ def init():
     default.init()
     # Make consecutive calls a null op.
     global init
+    log.debug("Activating configuration for {}".format(default))
     init = lambda: None
 
 rc = {}
@@ -356,6 +357,5 @@ def workflow_constructor(*args, **kwargs):
 
 
 def set_default(conf):
-    cfg = dict(conf.__dict__)
     global default
-    default = type("config", (default,), cfg)
+    default = conf
