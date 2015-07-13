@@ -2,9 +2,9 @@
 Stacked Widget (``stackedwidget``)
 ==================================
 
-.. automodule:: Orange.OrangeCanvas.gui.stackedwidget
+.. automodule:: orangecanvas.gui.stackedwidget
 
-.. autoclass:: Orange.OrangeCanvas.gui.stackedwidget.AnimatedStackedWidget
+.. autoclass:: orangecanvas.gui.stackedwidget.AnimatedStackedWidget
    :members:
    :member-order: bysource
    :show-inheritance:
@@ -23,7 +23,7 @@ Stacked Widget (``stackedwidget``)
       Transition animation has finished
 
 
-.. autoclass:: Orange.OrangeCanvas.gui.stackedwidget.StackLayout
+.. autoclass:: orangecanvas.gui.stackedwidget.StackLayout
    :members:
    :member-order: bysource
    :show-inheritance:

@@ -5,7 +5,7 @@ Scheme (``scheme``)
 ###################
 
 
-.. automodule:: Orange.OrangeCanvas.scheme
+.. automodule:: orangecanvas.scheme
 
 
 .. toctree::

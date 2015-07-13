@@ -2,9 +2,9 @@
 Line Edit Widget (``lineedit``)
 ===============================
 
-.. automodule:: Orange.OrangeCanvas.gui.lineedit
+.. automodule:: orangecanvas.gui.lineedit
 
-.. autoclass:: Orange.OrangeCanvas.gui.lineedit.LineEdit
+.. autoclass:: orangecanvas.gui.lineedit.LineEdit
    :members:
    :member-order: bysource
    :show-inheritance:

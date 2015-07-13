@@ -2,7 +2,7 @@
 Quick Menu (:mod:`quickmenu`)
 =============================
 
-.. automodule:: Orange.OrangeCanvas.document.quickmenu
+.. automodule:: orangecanvas.document.quickmenu
 
 
 .. autoclass:: QuickMenu

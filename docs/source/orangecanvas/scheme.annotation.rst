@@ -4,7 +4,7 @@
 Scheme Annotations (``annotations``)
 ====================================
 
-.. automodule:: Orange.OrangeCanvas.scheme.annotations
+.. automodule:: orangecanvas.scheme.annotations
 
 
 .. autoclass:: BaseSchemeAnnotation

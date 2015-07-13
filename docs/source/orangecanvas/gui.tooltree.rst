@@ -2,9 +2,9 @@
 Tool Tree Widget (``tooltree``)
 ===============================
 
-.. automodule:: Orange.OrangeCanvas.gui.tooltree
+.. automodule:: orangecanvas.gui.tooltree
 
-.. autoclass:: Orange.OrangeCanvas.gui.tooltree.ToolTree
+.. autoclass:: orangecanvas.gui.tooltree.ToolTree
    :members:
    :member-order: bysource
    :show-inheritance:

@@ -4,7 +4,7 @@
 Scheme Link (``link``)
 ======================
 
-.. automodule:: Orange.OrangeCanvas.scheme.link
+.. automodule:: orangecanvas.scheme.link
 
 
 .. autoclass:: SchemeLink

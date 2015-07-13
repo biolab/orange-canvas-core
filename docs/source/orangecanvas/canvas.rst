@@ -3,7 +3,7 @@ Canvas (``canvas``)
 ===================
 
 
-.. automodule:: Orange.OrangeCanvas.canvas
+.. automodule:: orangecanvas.canvas
 
 
 .. toctree::

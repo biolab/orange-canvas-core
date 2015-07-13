@@ -2,7 +2,7 @@
 Registry (``registry``)
 #######################
 
-.. automodule:: Orange.OrangeCanvas.registry
+.. automodule:: orangecanvas.registry
    :member-order: bysource
 
 WidgetRegistry

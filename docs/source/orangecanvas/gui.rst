@@ -4,7 +4,7 @@
 GUI elements (``gui``)
 ######################
 
-.. automodule:: Orange.OrangeCanvas.gui
+.. automodule:: orangecanvas.gui
 
 .. toctree::
    :maxdepth: 1

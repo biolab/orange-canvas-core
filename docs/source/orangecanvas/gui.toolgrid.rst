@@ -2,9 +2,9 @@
 Tool Grid Widget (``toolgrid``)
 ===============================
 
-.. automodule:: Orange.OrangeCanvas.gui.toolgrid
+.. automodule:: orangecanvas.gui.toolgrid
 
-.. autoclass:: Orange.OrangeCanvas.gui.toolgrid.ToolGrid
+.. autoclass:: orangecanvas.gui.toolgrid.ToolGrid
    :members:
    :member-order: bysource
    :show-inheritance:

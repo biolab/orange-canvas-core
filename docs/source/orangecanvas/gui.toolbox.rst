@@ -2,9 +2,9 @@
 Tool Box Widget (``toolbox``)
 =============================
 
-.. automodule:: Orange.OrangeCanvas.gui.toolbox
+.. automodule:: orangecanvas.gui.toolbox
 
-.. autoclass:: Orange.OrangeCanvas.gui.toolbox.ToolBox
+.. autoclass:: orangecanvas.gui.toolbox.ToolBox
    :members:
    :member-order: bysource
    :show-inheritance:

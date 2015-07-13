@@ -4,7 +4,7 @@
 Scheme Node (``node``)
 ======================
 
-.. automodule:: Orange.OrangeCanvas.scheme.node
+.. automodule:: orangecanvas.scheme.node
 
 
 .. autoclass:: SchemeNode
