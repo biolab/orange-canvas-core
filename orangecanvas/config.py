@@ -41,7 +41,7 @@ TUTORIALS_ENTRY = "orangecanvas.tutorials"
 
 class default(object):
     OrganizationDomain = "biolab.si"
-    AppliationName = "Orange Canvas Core"
+    ApplicationName = "Orange Canvas Core"
     ApplicationVersion = __version__
 
     @staticmethod
