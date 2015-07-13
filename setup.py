@@ -24,8 +24,8 @@ DOWNLOAD_URL = 'https://github.org/ales-erjavec/orange-canvas'
 PACKAGES = find_packages()
 
 PACKAGE_DATA = {
-    "OrangeCanvas": ["icons/*.svg", "icons/*png"],
-    "OrangeCanvas.styles": ["*.qss", "orange/*.svg"],
+    "orangecanvas": ["icons/*.svg", "icons/*png"],
+    "orangecanvas.styles": ["*.qss", "orange/*.svg"],
 }
 
 INSTALL_REQUIRES = ("six",)
