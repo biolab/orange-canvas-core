@@ -11,7 +11,7 @@ except ImportError:
 from setuptools import setup, find_packages
 
 NAME = "Orange Canvas Core"
-VERSION = "0.0.0"
+VERSION = "0.0.1"
 DESCRIPTION = "Core component of Orange Canvas"
 LONG_DESCRIPTION = open("README.txt", "rt").read()
 
@@ -59,6 +59,7 @@ CLASSIFIERS = (
 
 if __name__ == "__main__":
     setup(name=NAME,
+          version=VERSION,
           description=DESCRIPTION,
           long_description=LONG_DESCRIPTION,
           url=URL,
