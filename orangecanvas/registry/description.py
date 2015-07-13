@@ -237,7 +237,7 @@ class WidgetDescription(object):
     background : str, optional
         Widget's background color (in the canvas GUI).
     replaces : list-of-str, optional
-        A list of `id`s this widget replaces (optional).
+        A list of ids this widget replaces (optional).
 
     """
     def __init__(self, name, id, category=None, version=None,

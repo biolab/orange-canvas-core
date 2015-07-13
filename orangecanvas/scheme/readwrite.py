@@ -718,7 +718,7 @@ def scheme_load(scheme, stream, registry=None, error_handler=None):
 
 def scheme_to_etree(scheme, data_format="literal", pickle_fallback=False):
     """
-    Return an `xml.etree.ElementTree` representation of the `scheme.
+    Return an `xml.etree.ElementTree` representation of the `scheme`.
     """
     builder = TreeBuilder(element_factory=Element)
     builder.start("scheme", {"version": "2.0",

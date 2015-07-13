@@ -19,7 +19,7 @@ class DynamicResizeToolBar(QToolBar):
     to fit available space (this is done by setting fixed size on the
     button instances).
 
-    .. note:: the class does not support `QWidgetAction`s, separators, etc.
+    .. note:: the class does not support `QWidgetAction`, separators, etc.
 
     """
 
