@@ -19,7 +19,7 @@ URL = "http://orange.biolab.si/"
 AUTHOR = "Bioinformatics Laboratory, FRI UL"
 AUTHOR_EMAIL = 'contact@orange.biolab.si'
 
-LICENSE = "GPLv2"
+LICENSE = "GPLv3"
 DOWNLOAD_URL = 'https://github.org/ales-erjavec/orange-canvas'
 PACKAGES = find_packages()
 
@@ -46,7 +46,7 @@ CLASSIFIERS = (
     "Programming Language :: Python",
     "Programming Language :: Python :: 2",
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering :: Visualization",
     "Topic :: Software Development :: Libraries :: Python Modules",
