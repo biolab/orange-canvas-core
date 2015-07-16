@@ -24,10 +24,6 @@ import pkg_resources
 from PyQt4.QtGui import QFont, QColor
 from PyQt4.QtCore import Qt, QDir, QSysInfo, QT_VERSION
 
-# PEP-0366 boilerplate
-if __name__ == "__main__" and __package__ is None:
-    __package__ = "orangecanvas"
-
 from .application.application import CanvasApplication
 from .application.canvasmain import CanvasMainWindow
 from .application.outputview import TextStream, ExceptHook
