@@ -30,15 +30,6 @@ PACKAGE_DATA = {
 
 INSTALL_REQUIRES = ("six",)
 
-if sys.version_info < (3, 2):
-    INSTALL_REQUIRES = INSTALL_REQUIRES + ("futures",)
-
-if sys.version_info < (3, 3):
-    INSTALL_REQUIRES = INSTALL_REQUIRES + ("contextlib2",)
-
-if sys.version_info < (3, ):
-    INSTALL_REQUIRES = INSTALL_REQUIRES + ("future",)
-
 
 CLASSIFIERS = (
     "Development Status :: 1 - Planning",
@@ -58,11 +49,11 @@ CLASSIFIERS = (
 EXTRAS_REQUIRE = {
     # ?? :python_version<="3.2" does not work (Invalid environment
     # marker error).
-    ':python_version=="2.7" or '
-    'python_version=="3.0" or '
-    'python_version=="3.1" or '
-    'python_version=="3.2" ': ["future", "futures", "contextlib2"],
-    ':python_version == "3.3"': ["future", "futures"]
+    ':python_version=="2.7"': ["future", "futures", "contextlib2"],
+    ':python_version=="3.0"': ["future", "futures", "contextlib2"],
+    ':python_version=="3.1"': ["future", "futures", "contextlib2"],
+    ':python_version=="3.2"': ["future", "futures", "contextlib2"],
+    ':python_version=="3.3"': ["contextlib2"]
 }
 
 if __name__ == "__main__":
