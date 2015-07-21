@@ -4,9 +4,7 @@ Widget meta description classes
 
 """
 
-import os
 import sys
-import warnings
 
 import six
 
@@ -81,13 +79,6 @@ class InputSignal(object):
         self.id = id
         self.doc = doc
 
-        if isinstance(flags, six.string_types):
-            # flags are stored as strings
-            warnings.warn("Passing 'flags' as string is deprecated, use "
-                          "integer constants instead",
-                          PendingDeprecationWarning)
-            flags = eval(flags)
-
         if not (flags & Single or flags & Multiple):
             flags += Single
 
@@ -141,13 +132,6 @@ class OutputSignal(object):
         self.type = type
         self.id = id
         self.doc = doc
-
-        if isinstance(flags, six.string_types):
-            # flags are stored as strings
-            warnings.warn("Passing 'flags' as string is deprecated, use "
-                          "integer constants instead",
-                          PendingDeprecationWarning)
-            flags = eval(flags)
 
         if not (flags & Single or flags & Multiple):
             flags += Single
