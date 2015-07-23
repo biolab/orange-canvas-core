@@ -671,7 +671,7 @@ def edit_links(scheme, source_node, sink_node, initial_links=None,
     """
     log.info("Constructing a Link Editor dialog.")
 
-    dlg = EditLinksDialog(parent)
+    dlg = EditLinksDialog(parent, windowTitle="Edit Links")
 
     # all SchemeLinks between the two nodes.
     links = scheme.find_links(source_node=source_node, sink_node=sink_node)
@@ -953,7 +953,7 @@ class EditNodeLinksAction(UserInteraction):
         """
         log.info("Constructing a Link Editor dialog.")
 
-        dlg = EditLinksDialog(self.document)
+        dlg = EditLinksDialog(self.document, windowTitle="Edit Links")
 
         links = self.scheme.find_links(source_node=self.source_node,
                                        sink_node=self.sink_node)
