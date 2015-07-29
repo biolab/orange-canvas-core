@@ -154,20 +154,33 @@ class SchemeEditWidget(QWidget):
         self.__setupActions()
         self.__setupUi()
 
+        # Edit menu for a main window menu bar.
         self.__editMenu = QMenu(self.tr("&Edit"), self)
         self.__editMenu.addAction(self.__undoAction)
         self.__editMenu.addAction(self.__redoAction)
         self.__editMenu.addSeparator()
+        self.__editMenu.addAction(self.__removeSelectedAction)
         self.__editMenu.addAction(self.__duplicateSelectedAction)
         self.__editMenu.addAction(self.__selectAllAction)
 
-        self.__widgetMenu = QMenu(self.tr("&Widget"), self)
+        # Widget context menu
+        self.__widgetMenu = QMenu(self.tr("Widget"), self)
         self.__widgetMenu.addAction(self.__openSelectedAction)
         self.__widgetMenu.addSeparator()
         self.__widgetMenu.addAction(self.__renameAction)
         self.__widgetMenu.addAction(self.__removeSelectedAction)
+        self.__widgetMenu.addAction(self.__duplicateSelectedAction)
         self.__widgetMenu.addSeparator()
         self.__widgetMenu.addAction(self.__helpAction)
+
+        # Widget menu for a main window menu bar.
+        self.__menuBarWidgetMenu = QMenu(self.tr("&Widget"), self)
+        self.__menuBarWidgetMenu.addAction(self.__openSelectedAction)
+        self.__menuBarWidgetMenu.addSeparator()
+        self.__menuBarWidgetMenu.addAction(self.__renameAction)
+        self.__menuBarWidgetMenu.addAction(self.__removeSelectedAction)
+        self.__menuBarWidgetMenu.addSeparator()
+        self.__menuBarWidgetMenu.addAction(self.__helpAction)
 
         self.__linkMenu = QMenu(self.tr("Link"), self)
         self.__linkMenu.addAction(self.__linkEnableAction)
@@ -488,7 +501,8 @@ class SchemeEditWidget(QWidget):
         Return a list of actions that can be inserted into a `QMenuBar`.
 
         """
-        return [self.__editMenu.menuAction(), self.__widgetMenu.menuAction()]
+        return [self.__editMenu.menuAction(),
+                self.__menuBarWidgetMenu.menuAction()]
 
     def isModified(self):
         """
