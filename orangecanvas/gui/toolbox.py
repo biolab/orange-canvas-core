@@ -1,7 +1,7 @@
 """
-==============
+===============
 Tool Box Widget
-==============
+===============
 
 A reimplementation of the :class:`QToolBox` widget that keeps all the tabs
 in a single :class:`QScrollArea` instance and can keep multiple open tabs.

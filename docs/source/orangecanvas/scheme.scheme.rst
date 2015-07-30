@@ -4,7 +4,7 @@
 Scheme (``scheme``)
 ===================
 
-.. automodule:: Orange.OrangeCanvas.scheme.scheme
+.. automodule:: orangecanvas.scheme.scheme
 
 .. autoclass:: Scheme
    :members:

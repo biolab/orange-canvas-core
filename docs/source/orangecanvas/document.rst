@@ -2,7 +2,7 @@
 Document (``document``)
 =======================
 
-.. automodule:: Orange.OrangeCanvas.document
+.. automodule:: orangecanvas.document
 
 
 .. toctree::

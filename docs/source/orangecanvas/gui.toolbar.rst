@@ -2,9 +2,9 @@
 Tool Bar (``toolbar``)
 ======================
 
-.. automodule:: Orange.OrangeCanvas.gui.toolbar
+.. automodule:: orangecanvas.gui.toolbar
 
-.. autoclass:: Orange.OrangeCanvas.gui.toolbar.DynamicResizeToolBar
+.. autoclass:: orangecanvas.gui.toolbar.DynamicResizeToolBar
    :members:
    :member-order: bysource
    :show-inheritance:

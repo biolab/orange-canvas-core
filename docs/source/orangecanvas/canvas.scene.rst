@@ -4,7 +4,7 @@
 Canvas Scene (``scene``)
 ========================
 
-.. automodule:: Orange.OrangeCanvas.canvas.scene
+.. automodule:: orangecanvas.canvas.scene
 
 
 .. autoclass:: CanvasScene

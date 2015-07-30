@@ -2,9 +2,9 @@
 Collapsible Dock Widget (``dock``)
 ==================================
 
-.. automodule:: Orange.OrangeCanvas.gui.dock
+.. automodule:: orangecanvas.gui.dock
 
-.. autoclass:: Orange.OrangeCanvas.gui.dock.CollapsibleDockWidget
+.. autoclass:: orangecanvas.gui.dock.CollapsibleDockWidget
    :members:
    :member-order: bysource
    :show-inheritance:

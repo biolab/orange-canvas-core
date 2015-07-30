@@ -2,9 +2,9 @@
 Drop Shadow Frame (``dropshadow``)
 ==================================
 
-.. automodule:: Orange.OrangeCanvas.gui.dropshadow
+.. automodule:: orangecanvas.gui.dropshadow
 
-.. autoclass:: Orange.OrangeCanvas.gui.dropshadow.DropShadowFrame
+.. autoclass:: orangecanvas.gui.dropshadow.DropShadowFrame
    :members:
    :member-order: bysource
    :show-inheritance:

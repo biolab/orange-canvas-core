@@ -2,7 +2,7 @@
 Scheme Editor (:mod:`schemeedit`)
 =================================
 
-.. automodule:: Orange.OrangeCanvas.document.schemeedit
+.. automodule:: orangecanvas.document.schemeedit
 
 
 .. autoclass:: SchemeEditWidget

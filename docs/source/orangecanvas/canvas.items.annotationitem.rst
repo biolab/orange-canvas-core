@@ -4,7 +4,7 @@
 Annotation Items (``annotationitem``)
 =====================================
 
-.. automodule:: Orange.OrangeCanvas.canvas.items.annotationitem
+.. automodule:: orangecanvas.canvas.items.annotationitem
 
 .. autoclass:: Annotation
    :members:

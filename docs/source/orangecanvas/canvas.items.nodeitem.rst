@@ -4,7 +4,7 @@
 Node Item (``nodeitem``)
 ========================
 
-.. automodule:: Orange.OrangeCanvas.canvas.items.nodeitem
+.. automodule:: orangecanvas.canvas.items.nodeitem
 
 
 .. autoclass:: NodeItem

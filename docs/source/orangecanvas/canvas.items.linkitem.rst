@@ -4,7 +4,7 @@
 Link Item (``linkitem``)
 ========================
 
-.. automodule:: Orange.OrangeCanvas.canvas.items.linkitem
+.. automodule:: orangecanvas.canvas.items.linkitem
 
 
 .. autoclass:: LinkItem

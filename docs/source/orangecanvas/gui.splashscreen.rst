@@ -2,9 +2,9 @@
 Splash Screen (``splashscreen``)
 ================================
 
-.. automodule:: Orange.OrangeCanvas.gui.splashscreen
+.. automodule:: orangecanvas.gui.splashscreen
 
-.. autoclass:: Orange.OrangeCanvas.gui.splashscreen.SplashScreen
+.. autoclass:: orangecanvas.gui.splashscreen.SplashScreen
    :members:
    :member-order: bysource
    :show-inheritance:
