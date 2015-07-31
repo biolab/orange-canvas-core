@@ -23,7 +23,7 @@ from PyQt4.QtCore import (
 
 from PyQt4.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
-from .utils import brush_darker
+from .utils import brush_darker, QWIDGETSIZE_MAX
 
 _ToolBoxPage = namedtuple(
     "_ToolBoxPage",
@@ -198,6 +198,46 @@ class _ToolBoxScrollArea(QScrollArea):
         return QScrollArea.eventFilter(self, obj, event)
 
 
+class _ToolBoxLayout(QVBoxLayout):
+    def __init__(self, *args, **kwargs):
+        self.__minimumSize = None
+        self.__maximumSize = None
+        QVBoxLayout.__init__(self, *args, **kwargs)
+
+    def minimumSize(self):
+        """Reimplemented from `QBoxLayout.minimimSize`."""
+        if self.__minimumSize is None:
+            msize = QVBoxLayout.minimumSize(self)
+            # Extend the minimum size by including the minimum width of
+            # hidden widgets (which QBoxLayout ignores), so the minimum
+            # width does not depend on the tab open/close state.
+            for i in range(self.count()):
+                item = self.itemAt(i)
+                if item.isEmpty() and item.widget() is not None:
+                    msize.setWidth(max(item.widget().minimumWidth(),
+                                       msize.width()))
+            self.__minimumSize = msize
+
+        return self.__minimumSize
+
+    def maximumSize(self):
+        """Reimplemented from `QBoxLayout.maximumSize`."""
+        msize = QVBoxLayout.maximumSize(self)
+        # Allow the contents to grow horizontally (expand within the
+        # containing scroll area - joining the tab buttons to the
+        # right edge), but have a suitable maximum height (displaying an
+        # empty area on the bottom if the contents are smaller then the
+        # viewport).
+        msize.setWidth(QWIDGETSIZE_MAX)
+        return msize
+
+    def invalidate(self):
+        """Reimplemented from `QVBoxLayout.invalidate`."""
+        self.__minimumSize = None
+        self.__maximumSize = None
+        QVBoxLayout.invalidate(self)
+
+
 class ToolBox(QFrame):
     """
     A tool box widget.
@@ -267,13 +307,11 @@ class ToolBox(QFrame):
         # The tabs/contents are placed in the layout inside this widget
         self.__contents = QWidget(self.__scrollArea,
                                   objectName="toolbox-contents")
-
-        # The layout where all the tab/pages are placed
-        self.__contentsLayout = QVBoxLayout()
+        self.__contentsLayout = _ToolBoxLayout(
+            sizeConstraint=_ToolBoxLayout.SetMinAndMaxSize,
+            spacing=0
+        )
         self.__contentsLayout.setContentsMargins(0, 0, 0, 0)
-        self.__contentsLayout.setSizeConstraint(QVBoxLayout.SetMinAndMaxSize)
-        self.__contentsLayout.setSpacing(0)
-
         self.__contents.setLayout(self.__contentsLayout)
 
         self.__scrollArea.setWidget(self.__contents)
@@ -447,7 +485,7 @@ class ToolBox(QFrame):
         button = ToolBoxTabButton(self, objectName="toolbox-tab-button")
         button.setDefaultAction(action)
         button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        button.setSizePolicy(QSizePolicy.Expanding,
+        button.setSizePolicy(QSizePolicy.Ignored,
                              QSizePolicy.Fixed)
 
         if self.__tabIconSize.isValid():
