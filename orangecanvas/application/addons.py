@@ -13,6 +13,8 @@ from collections import namedtuple, deque
 from xml.sax.saxutils import escape
 from distutils import version
 
+import pkg_resources
+
 try:
     import docutils.core
 except ImportError:
