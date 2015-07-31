@@ -1441,7 +1441,22 @@ class SchemeEditWidget(QWidget):
 
         item = self.scene().item_at(scenePos, items.NodeItem)
         if item is not None:
-            self.__widgetMenu.popup(globalPos)
+            node = self.scene().node_for_item(item)
+            actions = qunwrap(node.property("ext-menu-actions"))
+            if isinstance(actions, list) and \
+                    all(isinstance(item, QAction) for item in actions):
+                # The node has extra actions for the context menu.
+                # Copy the default context menu and append the extra actions.
+                menu = QMenu(self)
+                for a in self.__widgetMenu.actions():
+                    menu.addAction(a)
+                menu.addSeparator()
+                for a in actions:
+                    menu.addAction(a)
+                menu.setAttribute(Qt.WA_DeleteOnClose)
+            else:
+                menu = self.__widgetMenu
+            menu.popup(globalPos)
             return
 
         item = self.scene().item_at(scenePos, items.LinkItem,
