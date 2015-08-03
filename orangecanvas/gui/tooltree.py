@@ -30,7 +30,7 @@ class ToolTree(QWidget):
     hovered = Signal(QAction)
 
     def __init__(self, parent=None, **kwargs):
-        QTreeView.__init__(self, parent, **kwargs)
+        QWidget.__init__(self, parent, **kwargs)
         self.setSizePolicy(QSizePolicy.MinimumExpanding,
                            QSizePolicy.Expanding)
 
@@ -199,6 +199,9 @@ class FlattenedTreeItemModel(QAbstractProxyModel):
         self.__sourceColumn = 0
         self.__flatteningMode = 1
         self.__sourceRootIndex = QModelIndex()
+
+        self._source_key = {}
+        self._source_offset = {}
 
     def setSourceModel(self, model):
         self.beginResetModel()
