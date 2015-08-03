@@ -1,22 +1,24 @@
 """
-Orange canvas about dialog
+Application about dialog.
+-------------------------
+
 """
 
 import sys
-import pkg_resources
+from xml.sax.saxutils import escape
 
-from PyQt4.QtGui import QDialog, QDialogButtonBox, QVBoxLayout, QLabel
+from PyQt4.QtGui import (
+    QDialog, QDialogButtonBox, QVBoxLayout, QLabel, QApplication
+)
 from PyQt4.QtCore import Qt
 
 from .. import config
 
 ABOUT_TEMPLATE = """\
 <center>
-<h4>Orange</h4>
+<h4>{name}</h4>
 <p>Version: {version}</p>
-<p>(git revision: {git_revision})</p>
 </center>
-
 """
 
 
@@ -39,23 +41,19 @@ class AboutDialog(QDialog):
 
         layout.addWidget(label, Qt.AlignCenter)
 
-        try:
-            from Orange.version import version
-            from Orange.version import git_revision
-        except ImportError:
-            dist = pkg_resources.get_distribution("Orange")
-            version = dist.version
-            git_revision = "Unknown"
+        name = QApplication.applicationName()
+        version = QApplication.applicationVersion()
 
-        text = ABOUT_TEMPLATE.format(version=version,
-                                     git_revision=git_revision[:7])
-        # TODO: Also list all known add-on versions.
+        text = ABOUT_TEMPLATE.format(
+            name=escape(name),
+            version=escape(version),
+        )
+        # TODO: Also list all known add-on versions??.
         text_label = QLabel(text)
         layout.addWidget(text_label, Qt.AlignCenter)
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Close,
-                                   Qt.Horizontal,
-                                   self)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.Close, Qt.Horizontal, self)
         layout.addWidget(buttons)
         buttons.rejected.connect(self.accept)
         layout.setSizeConstraint(QVBoxLayout.SetFixedSize)
