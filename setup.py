@@ -11,7 +11,7 @@ except ImportError:
 from setuptools import setup, find_packages
 
 NAME = "Orange-Canvas-Core"
-VERSION = "0.0.5"
+VERSION = "0.0.6"
 DESCRIPTION = "Core component of Orange Canvas"
 LONG_DESCRIPTION = open("README.txt", "rt").read()
 
