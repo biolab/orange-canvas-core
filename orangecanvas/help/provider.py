@@ -47,7 +47,7 @@ class BaseInventoryProvider(HelpProvider):
         super(BaseInventoryProvider, self).__init__(parent)
         self.inventory = QUrl(inventory)
 
-        if not self.inventory.scheme():
+        if not self.inventory.scheme() and not self.inventory.isEmpty():
             self.inventory.setScheme("file")
 
         self._error = None
