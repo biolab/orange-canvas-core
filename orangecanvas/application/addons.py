@@ -6,7 +6,7 @@ import errno
 import shlex
 import subprocess
 import itertools
-import concurrent.futures
+import socket
 import xmlrpc.client
 
 from collections import namedtuple, deque
@@ -542,12 +542,26 @@ class AddonManagerDialog(QDialog):
         self.accept()
 
 
-def list_pypi_addons():
+class SafeTransport(xmlrpc.client.SafeTransport):
+    def __init__(self, use_datetime=0, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
+        super(SafeTransport, self).__init__(use_datetime)
+        self._timeout = timeout
+
+    def make_connection(self, *args, **kwargs):
+        conn = super(SafeTransport, self).make_connection(*args, **kwargs)
+        conn.timeout = self._timeout
+        return conn
+
+
+def pypi_search(spec, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
     """
-    List add-ons available on pypi.
+    Search package distributions available on PyPi using PyPiXMLRPC.
     """
-    pypi = xmlrpc.client.ServerProxy("http://pypi.python.org/pypi")
-    addons = pypi.search(config.default.addon_pypi_search_spec())
+    pypi = xmlrpc.client.ServerProxy(
+        "https://pypi.python.org/pypi",
+        transport=SafeTransport(timeout=timeout)
+    )
+    addons = pypi.search(spec)
 
     multicall = xmlrpc.client.MultiCall(pypi)
     for addon in addons:
@@ -575,6 +589,13 @@ def list_pypi_addons():
             )
 
     return packages
+
+
+def list_pypi_addons():
+    """
+    List add-ons available on pypi.
+    """
+    return pypi_search(config.default.addon_pypi_search_spec(), timeout=20)
 
 
 def list_installed_addons():
