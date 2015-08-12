@@ -39,6 +39,7 @@ from ..help.manager import get_dist_meta, trim
 from ..utils.qtcompat import qunwrap
 from .. import config
 
+#: An installable distribution from PyPi
 Installable = namedtuple(
     "Installable",
     ["name",
@@ -49,6 +50,7 @@ Installable = namedtuple(
      "release_urls"]
 )
 
+#: An source/wheel/egg release for a distribution
 ReleaseUrl = namedtuple(
     "ReleaseUrl",
     ["filename",
@@ -145,6 +147,8 @@ class AddonManagerWidget(QWidget):
     def __init__(self, parent=None, **kwargs):
         super(AddonManagerWidget, self).__init__(parent, **kwargs)
 
+        #: list of Available | Installed
+        self.__items = []
         self.setLayout(QVBoxLayout())
 
         self.__header = QLabel(
@@ -197,7 +201,7 @@ class AddonManagerWidget(QWidget):
         self.__details.setPalette(palette)
         self.layout().addWidget(self.__details)
 
-    def set_items(self, items):
+    def setItems(self, items):
         self.__items = items
         model = self.__model
         model.clear()
@@ -261,7 +265,7 @@ class AddonManagerWidget(QWidget):
                 QItemSelectionModel.Select | QItemSelectionModel.Rows
             )
 
-    def item_state(self):
+    def itemState(self):
         steps = []
         for i, item in enumerate(self.__items):
             modelitem = self.__model.item(i, 0)
@@ -316,16 +320,6 @@ class AddonManagerWidget(QWidget):
             item = self.__model.item(index, 1)
             item = qunwrap(item.data(Qt.UserRole))
             assert isinstance(item, (Installed, Available))
-#             if isinstance(item, Available):
-#                 self.__installed_label.setText("")
-#                 self.__available_label.setText(str(item.available.version))
-#             elif item.installable is not None:
-#                 self.__installed_label.setText(str(item.local.version))
-#                 self.__available_label.setText(str(item.available.version))
-#             else:
-#                 self.__installed_label.setText(str(item.local.version))
-#                 self.__available_label.setText("")
-
             text = self._detailed_text(item)
             self.__details.setText(text)
 
@@ -378,8 +372,6 @@ def method_queued(method, sig, conntype=Qt.QueuedConnection):
 
 
 class AddonManagerDialog(QDialog):
-    _packages = None
-
     def __init__(self, parent=None, **kwargs):
         super(AddonManagerDialog, self).__init__(parent, **kwargs)
         self.setLayout(QVBoxLayout())
@@ -396,17 +388,6 @@ class AddonManagerDialog(QDialog):
 
         self.layout().addWidget(buttons)
 
-        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-        if AddonManagerDialog._packages is None:
-            self._f_pypi_addons = self._executor.submit(list_pypi_addons)
-        else:
-            self._f_pypi_addons = concurrent.futures.Future()
-            self._f_pypi_addons.set_result(AddonManagerDialog._packages)
-
-        self._f_pypi_addons.add_done_callback(
-            method_queued(self._set_packages, (object,))
-        )
-
         self.__progress = QProgressDialog(
             self, Qt.Sheet,
             minimum=0, maximum=0,
@@ -414,94 +395,34 @@ class AddonManagerDialog(QDialog):
             sizeGripEnabled=False,
             windowTitle="Progress"
         )
+        self.__progress.canceled.connect(self.reject)
 
-        self.__progress.rejected.connect(self.reject)
+        # The installer thread
         self.__thread = None
+        # The installer object
         self.__installer = None
 
-    @Slot(object)
-    def _set_packages(self, f):
-        if self.__progress.isVisible():
-            self.__progress.close()
+    @Slot(list)
+    def setItems(self, items):
+        self.addonwidget.setItems(items)
 
-        try:
-            packages = f.result()
-        except (IOError, OSError) as err:
-            message_warning(
-                "Could not retrieve package list",
-                title="Error",
-                informative_text=str(err),
-                parent=self
-            )
-            packages = []
-        except Exception:
-            raise
-        else:
-            AddonManagerDialog._packages = packages
-
-        installed = list_installed_addons()
-        dists = {dist.project_name: dist for dist in installed}
-        packages = {pkg.name: pkg for pkg in packages}
-
-        # For every pypi available distribution not listed by
-        # list_installed_addons, check if it is actually already
-        # installed.
-        ws = pkg_resources.WorkingSet()
-        for pkg_name in set(packages.keys()).difference(set(dists.keys())):
-            try:
-                d = ws.find(pkg_resources.Requirement.parse(pkg_name))
-            except pkg_resources.VersionConflict:
-                pass
-            except ValueError:
-                # Requirements.parse error ?
-                pass
-            else:
-                if d is not None:
-                    dists[d.project_name] = d
-
-        project_names = unique(
-            itertools.chain(packages.keys(), dists.keys())
-        )
-
-        items = []
-        for name in project_names:
-            if name in dists and name in packages:
-                item = Installed(packages[name], dists[name])
-            elif name in dists:
-                item = Installed(None, dists[name])
-            elif name in packages:
-                item = Available(packages[name])
-            else:
-                assert False
-            items.append(item)
-
-        self.addonwidget.set_items(items)
-
-    def showEvent(self, event):
-        super(AddonManagerDialog, self).showEvent(event)
-
-        if not self._f_pypi_addons.done():
-            QTimer.singleShot(0, self.__progress.show)
+    def progressDialog(self):
+        return self.__progress
 
     def done(self, retcode):
         super(AddonManagerDialog, self).done(retcode)
-        self._f_pypi_addons.cancel()
-        self._executor.shutdown(wait=False)
         if self.__thread is not None:
             self.__thread.quit()
             self.__thread.wait(1000)
 
     def closeEvent(self, event):
         super(AddonManagerDialog, self).closeEvent(event)
-        self._f_pypi_addons.cancel()
-        self._executor.shutdown(wait=False)
-
         if self.__thread is not None:
             self.__thread.quit()
             self.__thread.wait(1000)
 
     def __accepted(self):
-        steps = self.addonwidget.item_state()
+        steps = self.addonwidget.itemState()
 
         if steps:
             # Move all uninstall steps to the front
@@ -602,6 +523,52 @@ def list_installed_addons():
     return [ep.dist for ep in config.default.addon_entry_points()]
 
 
+def installable_items(pypipackages, installed=[]):
+    """
+    Return a list of installable items.
+
+    Parameters
+    ----------
+    pypipackages : list of Installable
+    installed : list of pkg_resources.Distribution
+    """
+
+    dists = {dist.project_name: dist for dist in installed}
+    packages = {pkg.name: pkg for pkg in pypipackages}
+
+    # For every pypi available distribution not listed by
+    # `installed`, check if it is actually already installed.
+    ws = pkg_resources.WorkingSet()
+    for pkg_name in set(packages.keys()).difference(set(dists.keys())):
+        try:
+            d = ws.find(pkg_resources.Requirement.parse(pkg_name))
+        except pkg_resources.VersionConflict:
+            pass
+        except ValueError:
+            # Requirements.parse error ?
+            pass
+        else:
+            if d is not None:
+                dists[d.project_name] = d
+
+    project_names = unique(
+        itertools.chain(packages.keys(), dists.keys())
+    )
+
+    items = []
+    for name in project_names:
+        if name in dists and name in packages:
+            item = Installed(packages[name], dists[name])
+        elif name in dists:
+            item = Installed(None, dists[name])
+        elif name in packages:
+            item = Available(packages[name])
+        else:
+            assert False
+        items.append(item)
+    return items
+
+
 def unique(iterable):
     seen = set()
 
@@ -626,6 +593,7 @@ class Installer(QObject):
         QObject.__init__(self, parent)
         self.__interupt = False
         self.__queue = deque(steps)
+        self.__statusMessage = ""
 
     def start(self):
         QTimer.singleShot(0, self._next)
@@ -634,8 +602,9 @@ class Installer(QObject):
         self.__interupt = True
 
     def setStatusMessage(self, message):
-        self.__statusMessage = message
-        self.installStatusChanged.emit(message)
+        if self.__statusMessage != message:
+            self.__statusMessage = message
+            self.installStatusChanged.emit(message)
 
     @Slot()
     def _next(self):

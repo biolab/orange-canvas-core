@@ -7,6 +7,7 @@ import sys
 import logging
 import operator
 import io
+import concurrent.futures
 from functools import partial
 
 import pkg_resources
@@ -27,7 +28,8 @@ from PyQt4.QtNetwork import QNetworkDiskCache
 
 from PyQt4.QtWebKit import QWebView
 
-from PyQt4.QtCore import pyqtProperty as Property, pyqtSignal as Signal
+from PyQt4.QtCore import pyqtProperty as Property, pyqtSignal as Signal, \
+                         pyqtSlot as Slot
 
 # Compatibility with PyQt < v4.8.3
 from ..utils.qtcompat import QSettings, qunwrap
@@ -53,6 +55,8 @@ from ..document.quickmenu import SortFilterProxyModel
 from ..scheme.readwrite import scheme_load, sniff_version
 
 from . import welcomedialog
+from . import addons
+
 from ..preview import previewdialog, previewmodel
 
 from .. import config
@@ -178,7 +182,10 @@ class CanvasMainWindow(QMainWindow):
         self.__scheme_margins_enabled = True
         self.__document_title = "untitled"
         self.__first_show = True
-
+        self.__executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        # PyPi search results (Future)
+        self.__f_pypi_addons = None
+        self.__addon_items = None
         self.widget_registry = None
         # Proxy widget registry model
         self.__proxy_model = None
@@ -1529,10 +1536,72 @@ class CanvasMainWindow(QMainWindow):
             self.__update_from_settings()
 
     def open_addons(self):
-        from .addons import AddonManagerDialog
-        dlg = AddonManagerDialog(self, windowTitle=self.tr("Add-ons"))
+        """Open the add-on manager dialog.
+        """
+        if self.__f_pypi_addons is None:
+            self.__f_pypi_addons = self.__executor.submit(
+                addons.pypi_search,
+                config.default.addon_pypi_search_spec(),
+                timeout=20,
+            )
+
+        dlg = addons.AddonManagerDialog(
+            self, windowTitle=self.tr("Add-ons"), modal=True)
         dlg.setAttribute(Qt.WA_DeleteOnClose)
+
+        if self.__addon_items is not None:
+            pypi_distributions = self.__f_pypi_addons.result()
+            installed = [ep.dist for ep in config.default.addon_entry_points()]
+            items = addons.installable_items(pypi_distributions, installed)
+            self.__addon_items = items
+            dlg.setItems(items)
+        else:
+            # Use the dialog's own progress dialog
+            progress = dlg.progressDialog()
+            dlg.show()
+            progress.show()
+            progress.setLabelText(
+                self.tr("Retrieving package list")
+            )
+            self.__f_pypi_addons.add_done_callback(
+                addons.method_queued(self.__on_pypi_search_done, (object,))
+            )
+            close_dialog = addons.method_queued(dlg.close, ())
+
+            self.__f_pypi_addons.add_done_callback(
+                lambda f:
+                    close_dialog() if f.exception() else None)
+
+            self.__p_addon_items_available.connect(progress.hide)
+            self.__p_addon_items_available.connect(dlg.setItems)
+
         return dlg.exec_()
+
+    __p_addon_items_available = Signal(object)
+
+    @Slot(object)
+    def __on_pypi_search_done(self, f):
+        if f.exception():
+            exc = f.exception()
+            log.error("Error querying PyPi", exc_info=(type(exc), exc, None))
+
+            message_warning(
+                "Could not retrieve package list",
+                title="Error",
+                informative_text=str(exc),
+                parent=self
+            )
+
+            self.__f_pypi_addons = None
+            self.__addon_items = None
+            return
+
+        pypi_distributions = f.result()
+        installed = [ep.dist for ep in config.default.addon_entry_points()]
+        items = addons.installable_items(pypi_distributions, installed)
+
+        self.__addon_items = items
+        self.__p_addon_items_available.emit(items)
 
     def show_output_view(self):
         """Show a window with application output.
@@ -1694,7 +1763,7 @@ class CanvasMainWindow(QMainWindow):
         settings.endGroup()
 
         event.accept()
-
+        self.__executor.shutdown(wait=False)
         # Close any windows left.
         application = QApplication.instance()
         QTimer.singleShot(0, application.closeAllWindows)
