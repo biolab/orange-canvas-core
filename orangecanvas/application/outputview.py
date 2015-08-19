@@ -107,7 +107,7 @@ class OutputView(QWidget):
         self.write("".join(lines))
 
     def flush(self):
-        QCoreApplication.flush()
+        pass
 
     def writeWithFormat(self, string, charformat):
         self.__text.moveCursor(QTextCursor.End, QTextCursor.MoveAnchor)
@@ -296,7 +296,7 @@ class TextStream(QObject):
     def writelines(self, lines):
         self.stream.emit("".join(lines))
 
-    @queued_blocking
+    @queued
     def flush(self):
         self.flushed.emit()
 
