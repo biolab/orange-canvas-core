@@ -6,7 +6,7 @@ Scheme Workflow
 The :class:`Scheme` class defines a DAG (Directed Acyclic Graph) workflow.
 
 """
-
+import types
 from operator import itemgetter
 from collections import deque
 
@@ -91,7 +91,12 @@ class Scheme(QObject):
     # Signal emitted when the description of scheme changes.
     description_changed = Signal(six.text_type)
 
-    def __init__(self, parent=None, title=None, description=None):
+    #: Emitted when the associated runtime environment changes
+    #: runtime_env_changed(key: str, newvalue: Option[str],
+    #:                     oldvalue: Option[str])
+    runtime_env_changed = Signal(str, object, object)
+
+    def __init__(self, parent=None, title=None, description=None, env={}):
         QObject.__init__(self, parent)
 
         self.__title = title or ""
@@ -104,6 +109,7 @@ class Scheme(QObject):
         self.__nodes = []
         self.__links = []
         self.__loop_flags = Scheme.NoLoops
+        self.__env = dict(env)
 
     @property
     def nodes(self):
@@ -670,3 +676,28 @@ class Scheme(QObject):
             stream = open(stream, "rb")
         readwrite.scheme_load(self, stream)
 #         parse_scheme(self, stream)
+
+    def set_runtime_env(self, key, value):
+        """
+        Set a runtime environment variable `key` to `value`
+        """
+        oldvalue = self.__env.get(key, None)
+        if value != oldvalue:
+            self.__env[key] = value
+            self.runtime_env_changed.emit(key, value, oldvalue)
+
+    def get_runtime_env(self, key, default=None):
+        """
+        Return a runtime environment variable for `key`.
+        """
+        return self.__env.get(key, default)
+
+    def runtime_env(self):
+        """
+        Return (a view to) the full runtime environment.
+
+        The return value is a types.MappingProxyType of the
+        underlying environment dictionary. Changes to the env.
+        will be reflected in it.
+        """
+        return types.MappingProxyType(self.__env)
