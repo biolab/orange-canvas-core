@@ -5,6 +5,7 @@ Widget meta description classes
 """
 
 import sys
+import copy
 
 import six
 
@@ -95,6 +96,8 @@ class InputSignal(object):
                "handler={handler}, ...)")
         return fmt.format(type(self), **self.__dict__)
 
+    __repr__ = __str__
+
 
 def input_channel_from_args(args):
     if isinstance(args, tuple):
@@ -102,7 +105,7 @@ def input_channel_from_args(args):
     elif isinstance(args, dict):
         return InputSignal(**args)
     elif isinstance(args, InputSignal):
-        return args
+        return copy.copy(args)
     else:
         raise TypeError("tuple, dict or InputSignal expected "
                         "(got {0!r})".format(type(args)))
@@ -155,6 +158,8 @@ class OutputSignal(object):
                "...)")
         return fmt.format(type(self), **self.__dict__)
 
+    __repr__ = __str__
+
 
 def output_channel_from_args(args):
     if isinstance(args, tuple):
@@ -162,7 +167,7 @@ def output_channel_from_args(args):
     elif isinstance(args, dict):
         return OutputSignal(**args)
     elif isinstance(args, OutputSignal):
-        return args
+        return copy.copy(args)
     else:
         raise TypeError("tuple, dict or OutputSignal expected "
                         "(got {0!r})".format(type(args)))
