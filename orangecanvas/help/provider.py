@@ -237,14 +237,3 @@ class HtmlIndexProvider(BaseInventoryProvider):
             return self.inventory.resolved(QUrl(entry))
         else:
             raise KeyError()
-
-
-def qurl_query_items(url):
-    items = []
-    for key, value in url.queryItems():
-        items.append((six.text_type(key), six.text_type(value)))
-    return items
-
-
-def is_url_local(url):
-    return bool(QUrl(url).toLocalFile())

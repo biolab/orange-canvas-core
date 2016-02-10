@@ -14,11 +14,14 @@ from operator import itemgetter
 
 import pkg_resources
 
+import future.moves.urllib.parse
+from future.moves import urllib
+
 import six
 
 from . import provider
 
-from PyQt4.QtCore import QObject, QUrl, QDir
+from PyQt4.QtCore import QObject, QUrl, QDir, QT_VERSION
 
 log = logging.getLogger(__name__)
 
@@ -123,6 +126,21 @@ def qurl_query_items(url):
     for key, value in url.queryItems():
         items.append((six.text_type(key), six.text_type(value)))
     return items
+
+
+if QT_VERSION < 0x50000:
+    def qurl_query_items(url):
+        items = []
+        for key, value in url.queryItems():
+            items.append((six.text_type(key), six.text_type(value)))
+        return items
+else:
+    # QUrl has no queryItems
+    def qurl_query_items(url):
+        if not url.hasQuery():
+            return []
+        querystr = url.query()
+        return urllib.parse.parse_qsl(querystr)
 
 
 def get_help_provider_for_description(desc):
