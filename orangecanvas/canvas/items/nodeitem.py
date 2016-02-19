@@ -325,7 +325,6 @@ class NodeAnchorItem(GraphicsPathObject):
     """
 
     def __init__(self, parent, *args):
-        self.__boundingRect = None
         GraphicsPathObject.__init__(self, parent, *args)
         self.setAcceptHoverEvents(True)
         self.setPen(QPen(Qt.NoPen))
@@ -358,9 +357,6 @@ class NodeAnchorItem(GraphicsPathObject):
         self.__dottedStroke = None
         self.__shape = None
 
-        self.prepareGeometryChange()
-        self.__boundingRect = None
-
     def parentNodeItem(self):
         """
         Return a parent :class:`NodeItem` or ``None`` if this anchor's
@@ -373,9 +369,6 @@ class NodeAnchorItem(GraphicsPathObject):
         """
         Set the anchor's curve path as a :class:`QPainterPath`.
         """
-        self.prepareGeometryChange()
-        self.__boundingRect = None
-
         self.__anchorPath = path
         # Create a stroke of the path.
         stroke_path = QPainterPathStroker()
@@ -543,29 +536,17 @@ class NodeAnchorItem(GraphicsPathObject):
         else:
             return GraphicsPathObject.shape(self)
 
-    def boundingRect(self):
-        if self.__boundingRect is None:
-            self.__boundingRect = super(NodeAnchorItem, self).boundingRect() \
-                                  .adjusted(-5, -5, 5, 5)
-        return self.__boundingRect
-
     def hoverEnterEvent(self, event):
-        self.prepareGeometryChange()
-        self.__boundingRect = None
         self.shadow.setEnabled(True)
         return GraphicsPathObject.hoverEnterEvent(self, event)
 
     def hoverLeaveEvent(self, event):
-        self.prepareGeometryChange()
-        self.__boundingRect = None
         self.shadow.setEnabled(False)
         return GraphicsPathObject.hoverLeaveEvent(self, event)
 
     def __updatePositions(self):
         """Update anchor points positions.
         """
-        self.prepareGeometryChange()
-        self.__boundingRect = None
         for point, t in zip(self.__points, self.__pointPositions):
             pos = self.__anchorPath.pointAtPercent(t)
             point.setPos(pos)
