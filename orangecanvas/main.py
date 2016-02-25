@@ -13,6 +13,7 @@ import pickle
 import shlex
 import shutil
 import io
+import platform
 
 if sys.version_info < (3, 3):
     from contextlib2 import ExitStack
@@ -49,20 +50,23 @@ def running_in_ipython():
 
 
 def fix_osx_private_font():
-    """Temporary fixes for QTBUG-32789 an QTBUG-40833"""
-    if sys.platform == "darwin":
-        try:
-            if QSysInfo.MacintoshVersion > 11 and \
-                    QT_VERSION < 0x40807:
-                # Fix for Yosemite
-                QFont.insertSubstitution(".Helvetica Neue DeskInterface",
-                                         "Helvetica Neue")
-            if QSysInfo.MacintoshVersion > QSysInfo.MV_10_8 and \
-                    QT_VERSION < 0x40806:
-                # Fix for Mavericks
-                QFont.insertSubstitution(".Lucida Grande UI", "Lucida Grande")
-        except AttributeError:
-            pass
+    """Temporary fixes for QTBUG-32789, QTBUG-40833 and QTBUG-47206"""
+    if sys.platform == "darwin" and QT_VERSION < 0x50000:
+        release = platform.mac_ver()[0]
+        if not release:
+            return
+        release = release.split(".")[:2]
+        osx_release = (int(release[0]), int(release[1]))
+        if osx_release >= (10, 11):
+            # El Capitan (or later?)
+            QFont.insertSubstitution(".SF NS Text", "Helvetica Neue")
+        elif osx_release == (10, 10) and QT_VERSION < 0x40807:
+            # Yosemite
+            QFont.insertSubstitution(".Helvetica Neue DeskInterface",
+                                     "Helvetica Neue")
+        elif osx_release == (10, 9) and QT_VERSION < 0x40806:
+            # Mavericks
+            QFont.insertSubstitution(".Lucida Grande UI", "Lucida Grande")
 
 
 def fix_win_pythonw_std_stream():
