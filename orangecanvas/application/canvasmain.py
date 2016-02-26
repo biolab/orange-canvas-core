@@ -22,7 +22,7 @@ from PyQt4.QtGui import (
 )
 
 from PyQt4.QtCore import (
-    Qt, QObject, QEvent, QSize, QUrl, QTimer, QFile, QByteArray
+    Qt, QObject, QEvent, QSize, QUrl, QTimer, QFile, QByteArray, QT_VERSION
 )
 
 from PyQt4.QtNetwork import QNetworkDiskCache
@@ -578,6 +578,10 @@ class CanvasMainWindow(QMainWindow):
 
     def setup_menu(self):
         menu_bar = QMenuBar()
+        if sys.platform == "darwin" and QT_VERSION >= 0x50000:
+            self.__menu_glob = QMenuBar(None)
+
+        menu_bar = QMenuBar(self)
 
         # File menu
         file_menu = QMenu(self.tr("&File"), menu_bar)
