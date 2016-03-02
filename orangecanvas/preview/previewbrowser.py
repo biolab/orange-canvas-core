@@ -7,18 +7,16 @@ from xml.sax.saxutils import escape
 
 import six
 
-from PyQt4.QtGui import (
+from AnyQt.QtWidgets import (
     QWidget, QLabel, QListView, QAction, QVBoxLayout, QHBoxLayout, QSizePolicy,
     QStyleOption, QStylePainter
 )
-
-from PyQt4.QtSvg import QSvgWidget
-
-from PyQt4.QtCore import (
+from AnyQt.QtSvg import QSvgWidget
+from AnyQt.QtCore import (
     Qt, QSize, QByteArray, QModelIndex, QEvent
 )
 
-from PyQt4.QtCore import pyqtSignal as Signal
+from AnyQt.QtCore import pyqtSignal as Signal
 
 from ..utils import check_type, qtcompat
 from ..gui.dropshadow import DropShadowFrame

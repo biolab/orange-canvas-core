@@ -8,7 +8,7 @@ import logging
 
 import six
 
-from PyQt4.QtGui import QIcon
+from AnyQt.QtGui import QIcon
 
 log = logging.getLogger(__name__)
 
@@ -201,7 +201,7 @@ import unittest
 
 class TestIconLoader(unittest.TestCase):
     def setUp(self):
-        from PyQt4.QtGui import QApplication
+        from AnyQt.QtWidgets import QApplication
         self.app = QApplication([])
 
     def tearDown(self):

@@ -6,9 +6,8 @@ Scheme Annotations
 """
 import six
 
-from PyQt4.QtCore import QObject
-from PyQt4.QtCore import pyqtSignal as Signal
-from PyQt4.QtCore import pyqtProperty as Property
+from AnyQt.QtCore import QObject
+from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
 from ..utils import check_type
 

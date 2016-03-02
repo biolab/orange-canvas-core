@@ -3,14 +3,14 @@ Orange Canvas Welcome Dialog
 
 """
 
-from PyQt4.QtGui import (
+from AnyQt.QtWidgets import (
     QDialog, QWidget, QToolButton, QCheckBox, QAction,
-    QHBoxLayout, QVBoxLayout, QFont, QSizePolicy,
-    QPixmap, QIcon, QPainter, QColor, QBrush
+    QHBoxLayout, QVBoxLayout, QSizePolicy
 )
 
-from PyQt4.QtCore import Qt, QRect, QPoint
-from PyQt4.QtCore import pyqtSignal as Signal
+from AnyQt.QtGui import QFont, QIcon, QPixmap, QPainter, QColor, QBrush
+from AnyQt.QtCore import Qt, QRect, QPoint
+from AnyQt.QtCore import pyqtSignal as Signal
 
 from ..canvas.items.utils import radial_gradient
 from ..registry import NAMED_COLORS

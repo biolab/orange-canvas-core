@@ -14,15 +14,18 @@ from xml.sax.saxutils import escape
 
 import six
 
-from PyQt4.QtGui import QGraphicsScene, QPainter, QBrush, QColor, QFont, \
-                        QGraphicsItem, QGraphicsObject
 
-from PyQt4.QtCore import Qt, QPointF, QRectF, QSizeF, QLineF, QBuffer, \
+from AnyQt.QtWidgets import QGraphicsScene, QGraphicsItem, QGraphicsObject
+from AnyQt.QtGui import QPainter, QBrush, QColor, QFont
+from AnyQt.QtCore import Qt, QPointF, QRectF, QSizeF, QLineF, QBuffer, \
                          QEvent, QObject, QSignalMapper
 
-from PyQt4.QtCore import pyqtSignal as Signal
-from PyQt4.QtCore import PYQT_VERSION
-
+from AnyQt.QtCore import pyqtSignal as Signal
+try:
+    from AnyQt.QtCore import PYQT_VERSION
+    USE_PYQT = True
+except ImportError:
+    USE_PYQT, PYQT_VERSION = False, -1
 
 from .. import scheme
 
@@ -754,7 +757,7 @@ class CanvasScene(QGraphicsScene):
 
         return items[0] if items else None
 
-    if PYQT_VERSION < 0x040900:
+    if USE_PYQT and PYQT_VERSION < 0x040900:
         # For QGraphicsObject subclasses items, itemAt ... return a
         # QGraphicsItem wrapper instance and not the actual class instance.
         def itemAt(self, *args, **kwargs):
@@ -884,7 +887,7 @@ def grab_svg(scene):
     scene : :class:`CanvasScene`
 
     """
-    from PyQt4.QtSvg import QSvgGenerator
+    from AnyQt.QtSvg import QSvgGenerator
     svg_buffer = QBuffer()
     gen = QSvgGenerator()
     gen.setOutputDevice(svg_buffer)

@@ -4,17 +4,17 @@ Orange Canvas Tool Dock widget
 """
 import sys
 
-from PyQt4.QtGui import (
-    QWidget, QSplitter, QVBoxLayout, QTextEdit, QAction, QPalette, QBrush,
-    QSizePolicy, QApplication, QDrag
+from AnyQt.QtWidgets import (
+    QWidget, QSplitter, QVBoxLayout, QTextEdit, QAction, QSizePolicy,
+    QApplication,
 )
+from AnyQt.QtGui import QPalette, QBrush, QDrag
 
-from PyQt4.QtCore import (
+from AnyQt.QtCore import (
     Qt, QSize, QObject, QPropertyAnimation, QEvent, QRect, QPoint,
     QModelIndex, QPersistentModelIndex, QEventLoop, QMimeData
 )
-
-from PyQt4.QtCore import pyqtProperty as Property, pyqtSignal as Signal
+from AnyQt.QtCore import pyqtProperty as Property, pyqtSignal as Signal
 
 from ..gui.toolgrid import ToolGrid
 from ..gui.toolbar import DynamicResizeToolBar

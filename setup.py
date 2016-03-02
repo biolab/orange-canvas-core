@@ -30,7 +30,8 @@ PACKAGE_DATA = {
 
 INSTALL_REQUIRES = (
     "six",
-    "future"
+    "future",
+    "AnyQt",
 )
 
 

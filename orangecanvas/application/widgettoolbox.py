@@ -11,17 +11,17 @@ import logging
 
 import six
 
-from PyQt4.QtGui import (
-    QAbstractButton, QSizePolicy, QAction, QApplication, QDrag, QPalette,
-    QBrush, QIcon
+from AnyQt.QtWidgets import (
+    QAbstractButton, QSizePolicy, QAction, QApplication
 )
+from AnyQt.QtGui import QDrag, QPalette, QBrush, QIcon
 
-from PyQt4.QtCore import (
+from AnyQt.QtCore import (
     Qt, QObject, QModelIndex, QSize, QEvent, QMimeData, QByteArray,
     QDataStream, QIODevice
 )
 
-from PyQt4.QtCore import  pyqtSignal as Signal, pyqtProperty as Property
+from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
 from ..gui.toolbox import ToolBox
 from ..gui.toolgrid import ToolGrid

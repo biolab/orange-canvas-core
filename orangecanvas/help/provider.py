@@ -20,9 +20,9 @@ else:
 
 import six
 
-from PyQt4.QtCore import QObject, QUrl
+from AnyQt.QtCore import QObject, QUrl
 
-from PyQt4.QtNetwork import (
+from AnyQt.QtNetwork import (
     QNetworkAccessManager, QNetworkDiskCache, QNetworkRequest, QNetworkReply
 )
 

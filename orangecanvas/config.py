@@ -12,11 +12,16 @@ import itertools
 import pkg_resources
 import six
 
-from PyQt4.QtGui import (
-    QDesktopServices, QPainter, QFont, QFontMetrics, QColor, QPixmap, QIcon
+from AnyQt.QtGui import (
+    QPainter, QFont, QFontMetrics, QColor, QPixmap, QIcon
 )
 
-from PyQt4.QtCore import Qt, QCoreApplication, QPoint, QRect
+from AnyQt.QtCore import Qt, QCoreApplication, QPoint, QRect, QT_VERSION
+
+if QT_VERSION < 0x50000:
+    from AnyQt.QtGui import QDesktopServices
+else:
+    from AnyQt.QtCore import QStandardPaths
 
 from .utils.settings import Settings, config_slot
 
@@ -37,6 +42,19 @@ ADDONS_ENTRY = "orangecanvas.addon"
 ADDON_PYPI_SEARCH_SPEC = {"keywords": "orange add-on"}
 
 TUTORIALS_ENTRY = "orangecanvas.tutorials"
+
+if QT_VERSION < 0x50000:
+    def standard_location(type):
+        return QDesktopServices.storageLocation(type)
+    standard_location.DesktopLocation = QDesktopServices.DesktopLocation
+    standard_location.DataLocation = QDesktopServices.DataLocation
+    standard_location.CacheLocation = QDesktopServices.CacheLocation
+else:
+    def standard_location(type):
+        return QStandardPaths.writableLocation(type)
+    standard_location.DesktopLocation = QStandardPaths.DesktopLocation
+    standard_location.DataLocation = QStandardPaths.DataLocation
+    standard_location.CacheLocation = QStandardPaths.CacheLocation
 
 
 class default(object):
@@ -218,9 +236,8 @@ def data_dir():
 
     """
     init()
-#     return default.data_dir()
 
-    datadir = QDesktopServices.storageLocation(QDesktopServices.DataLocation)
+    datadir = standard_location(standard_location.DataLocation)
     datadir = six.text_type(datadir)
     version = six.text_type(QCoreApplication.applicationVersion())
     datadir = os.path.join(datadir, version)
@@ -236,7 +253,7 @@ def cache_dir():
     """
     init()
 
-    cachedir = QDesktopServices.storageLocation(QDesktopServices.CacheLocation)
+    cachedir = standard_location(standard_location.CacheLocation)
     cachedir = six.text_type(cachedir)
     version = six.text_type(QCoreApplication.applicationVersion())
     cachedir = os.path.join(cachedir, version)

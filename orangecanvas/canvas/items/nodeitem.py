@@ -10,16 +10,18 @@ from xml.sax.saxutils import escape
 
 import six
 
-from PyQt4.QtGui import (
+from AnyQt.QtWidgets import (
     QGraphicsItem, QGraphicsObject, QGraphicsTextItem,
-    QGraphicsDropShadowEffect, QGraphicsView,
-    QPen, QBrush, QColor, QPalette, QIcon, QStyle, QPainter,
-    QPainterPath, QPainterPathStroker, QGraphicsPathItem, QApplication
+    QGraphicsDropShadowEffect, QGraphicsView, QStyle, QGraphicsPathItem,
+    QApplication
 )
 
-from PyQt4.QtCore import Qt, QPointF, QRectF, QSize, QTimer, QPropertyAnimation
-from PyQt4.QtCore import pyqtSignal as Signal
-from PyQt4.QtCore import pyqtProperty as Property
+from AnyQt.QtGui import (
+    QPen, QBrush, QColor, QPalette, QIcon, QPainter, QPainterPath,
+    QPainterPathStroker
+)
+from AnyQt.QtCore import Qt, QPointF, QRectF, QSize, QTimer, QPropertyAnimation
+from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
 from .graphicspathobject import GraphicsPathObject
 from .utils import saturated, radial_gradient

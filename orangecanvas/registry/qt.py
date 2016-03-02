@@ -14,12 +14,10 @@ else:
 
 import six
 
-from PyQt4.QtGui import (
-    QStandardItemModel, QStandardItem, QColor, QBrush, QAction
-)
-
-from PyQt4.QtCore import QObject, Qt
-from PyQt4.QtCore import pyqtSignal as Signal
+from AnyQt.QtWidgets import QAction
+from AnyQt.QtGui import QStandardItemModel, QStandardItem, QColor, QBrush
+from AnyQt.QtCore import QObject, Qt
+from AnyQt.QtCore import pyqtSignal as Signal
 
 from .discovery import WidgetDiscovery
 from .description import WidgetDescription, CategoryDescription

@@ -11,9 +11,9 @@ import ast
 from collections import defaultdict
 from operator import add
 
-from PyQt4.QtCore import QObject, QEvent
+from AnyQt.QtCore import QObject, QEvent, QT_VERSION
 
-from PyQt4.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
+from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
 from .qtcompat import qunwrap
 
@@ -47,7 +47,10 @@ def find_notifier(obj, name):
                         name)
 
     notifier = prop_meta.notifySignal()
-    name = notifier.signature().split("(")[0]
+    if QT_VERSION < 0x50000:
+        name = notifier.signature().split("(")[0]
+    else:
+        name = bytes(notifier.methodSignature()).decode("utf-8").split("(")[0]
     return name
 
 

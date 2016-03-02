@@ -2,7 +2,7 @@ import logging
 
 import six
 
-from PyQt4.QtGui import QTreeView
+from AnyQt.QtWidgets import QTreeView
 
 from ...gui import test
 

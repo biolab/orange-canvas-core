@@ -14,9 +14,8 @@ import logging
 
 import six
 
-from PyQt4.QtCore import QObject, QCoreApplication
-from PyQt4.QtCore import pyqtSignal as Signal
-from PyQt4.QtCore import pyqtProperty as Property
+from AnyQt.QtCore import QObject, QCoreApplication
+from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
 from .node import SchemeNode
 from .link import SchemeLink, compatible_channels

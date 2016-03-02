@@ -1,5 +1,5 @@
 from __future__ import print_function
-from PyQt4.QtGui import QAction, QToolButton
+from AnyQt.QtWidgets import QAction, QToolButton
 
 from .. import test
 from ..toolgrid import ToolGrid

@@ -7,10 +7,10 @@ Application about dialog.
 import sys
 from xml.sax.saxutils import escape
 
-from PyQt4.QtGui import (
+from AnyQt.QtWidgets import (
     QDialog, QDialogButtonBox, QVBoxLayout, QLabel, QApplication
 )
-from PyQt4.QtCore import Qt
+from AnyQt.QtCore import Qt
 
 from .. import config
 

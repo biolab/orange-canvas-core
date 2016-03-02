@@ -9,7 +9,7 @@ PyQt4 compatibility utility functions.
 import six
 
 import sip
-import PyQt4.QtCore
+import AnyQt.QtCore
 
 # All known api names for compatibility with version of sip where
 # `getapi` is not available ( < v4.9)
@@ -28,15 +28,23 @@ def sip_getapi(name):
     else:
         raise ValueError("unknown API {0!r}".format(name))
 
+try:
+    HAS_QVARIANT = sip_getapi("QVariant") == 1 and \
+                   hasattr(AnyQt.QtCore, "QVariant")
+except ValueError:
+    HAS_QVARIANT = False
 
-HAS_QVARIANT = sip_getapi("QVariant") == 1
-HAS_QSTRING = sip_getapi("QString") == 1
+try:
+    HAS_QSTRING = sip_getapi("QString") == 1
+    from PyQt4.QtCore import QString as _QString
+except (ValueError, ImportError):
+    HAS_QSTRING = False
 
 if HAS_QVARIANT:
-    from PyQt4.QtCore import QVariant
+    from AnyQt.QtCore import QVariant
 
-from PyQt4.QtCore import QSettings, QByteArray
-from PyQt4.QtCore import PYQT_VERSION
+from AnyQt.QtCore import QSettings, QByteArray
+from AnyQt.QtCore import PYQT_VERSION
 
 #: QSettings.value has a `type` parameter
 QSETTINGS_HAS_TYPE = PYQT_VERSION >= 0x40803
@@ -62,7 +70,7 @@ def qunwrap(variant):
     """Unwrap a `variant` and return it's contents.
     """
     value = toPyObject(variant)
-    if HAS_QSTRING and isinstance(value, PyQt4.QtCore.QString):
+    if HAS_QSTRING and isinstance(value, _QString):
         return six.text_type(value)
     else:
         return value

@@ -4,8 +4,9 @@ Test for tooltree
 """
 from __future__ import print_function
 
-from PyQt4.QtGui import QStandardItemModel, QStandardItem, QAction
-from PyQt4.QtCore import Qt
+from AnyQt.QtWidgets import QAction
+from AnyQt.QtGui import QStandardItemModel, QStandardItem
+from AnyQt.QtCore import Qt
 
 from ..tooltree import ToolTree, FlattenedTreeItemModel
 

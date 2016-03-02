@@ -22,7 +22,7 @@ import six
 
 from . import provider
 
-from PyQt4.QtCore import QObject, QUrl, QDir, QT_VERSION
+from AnyQt.QtCore import QObject, QUrl, QDir, QT_VERSION
 
 log = logging.getLogger(__name__)
 

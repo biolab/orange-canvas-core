@@ -1,9 +1,10 @@
 from __future__ import print_function
-from PyQt4.QtGui import QStringListModel
-from PyQt4.QtCore import QPoint
+
+from AnyQt.QtWidgets import QAction
+from AnyQt.QtCore import QPoint, QStringListModel
 
 from ..quickmenu import QuickMenu, SuggestMenuPage, FlattenedTreeItemModel, \
-                        MenuPage, QAction
+                        MenuPage
 
 from ...gui.test import QAppTestCase
 from ...registry.qt import QtWidgetRegistry
