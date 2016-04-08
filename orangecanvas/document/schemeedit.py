@@ -383,6 +383,7 @@ class SchemeEditWidget(QWidget):
         layout.setSpacing(0)
 
         scene = CanvasScene()
+        scene.setItemIndexMethod(CanvasScene.NoIndex)
         self.__setupScene(scene)
 
         view = CanvasView(scene)
