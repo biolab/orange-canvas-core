@@ -655,6 +655,7 @@ class SchemeEditWidget(QWidget):
             self.__undoStack.clear()
 
             self.__scene = CanvasScene()
+            self.__scene.setItemIndexMethod(CanvasScene.NoIndex)
             self.__setupScene(self.__scene)
 
             self.__view.setScene(self.__scene)
