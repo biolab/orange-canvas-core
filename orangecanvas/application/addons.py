@@ -434,7 +434,7 @@ def method_queued(method, sig, conntype=Qt.QueuedConnection):
 
 class AddonManagerDialog(QDialog):
     def __init__(self, parent=None, **kwargs):
-        super(AddonManagerDialog, self).__init__(parent, **kwargs)
+        super(AddonManagerDialog, self).__init__(parent, acceptDrops=True, **kwargs)
         self.setLayout(QVBoxLayout())
 
         self.addonwidget = AddonManagerWidget()
@@ -577,8 +577,29 @@ class AddonManagerDialog(QDialog):
             self.__thread.quit()
             self.__thread.wait(1000)
 
-    def __accepted(self):
-        steps = self.addonwidget.itemState()
+    ADDON_EXTENSIONS = ('.zip', '.whl', '.tar.gz')
+
+    def dragEnterEvent(self, event):
+        urls = event.mimeData().urls()
+        if any(url.toLocalFile().endswith(self.ADDON_EXTENSIONS)
+               for url in urls):
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        """Allow dropping add-ons (zip or wheel archives) on this dialog to
+        install them"""
+        steps = []
+        for url in event.mimeData().urls():
+            path = url.toLocalFile()
+            if path.endswith(self.ADDON_EXTENSIONS):
+                steps.append((Install,
+                              Available(
+                                  Installable(path, '999', '', '', path, path))))
+        if steps:
+            self.__accepted(steps)
+
+    def __accepted(self, steps=None):
+        steps = steps or self.addonwidget.itemState()
 
         if steps:
             # Move all uninstall steps to the front
