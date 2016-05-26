@@ -50,7 +50,7 @@ from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
 from ..gui.utils import message_warning, message_information, \
                         message_critical as message_error
-from ..help.manager import get_dist_meta, trim
+from ..help.manager import get_dist_meta, trim, parse_meta
 from ..utils.qtcompat import qunwrap
 from .. import config
 
@@ -163,6 +163,33 @@ class TristateCheckItemDelegate(QStyledItemDelegate):
                 Qt.Unchecked if checkstate == Qt.Checked else Qt.Checked
 
         return model.setData(index, checkstate, Qt.CheckStateRole)
+
+
+def get_meta_from_archive(path):
+    """Return project name, version and summary extracted from
+    sdist or wheel metadata in a ZIP or tar.gz archive, or None if metadata
+    can't be found."""
+
+    def is_metadata(fname):
+        return fname.endswith(('PKG-INFO', 'METADATA'))
+
+    meta = None
+    if path.endswith(('.zip', '.whl')):
+        from zipfile import ZipFile
+        with ZipFile(path) as archive:
+            meta = next(filter(is_metadata, archive.namelist()), None)
+            if meta:
+                meta = archive.read(meta).decode('utf-8')
+    elif path.endswith(('.tar.gz', '.tgz')):
+        import tarfile
+        with tarfile.open(path) as archive:
+            meta = next(filter(is_metadata, archive.getnames()), None)
+            if meta:
+                meta = archive.extractfile(meta).read().decode('utf-8')
+    if meta:
+        meta = parse_meta(meta)
+        return [meta.get(key, '')
+                for key in ('Name', 'Version', 'Description', 'Summary')]
 
 
 class AddonManagerWidget(QWidget):
@@ -388,8 +415,8 @@ class AddonManagerWidget(QWidget):
         if isinstance(item, Installed):
             remote, dist = item
             if remote is None:
-                description = get_dist_meta(dist).get("Description")
-                description = description
+                meta = get_dist_meta(dist)
+                description = meta.get("Description") or meta.get('Summary')
             else:
                 description = remote.description
         else:
@@ -588,18 +615,31 @@ class AddonManagerDialog(QDialog):
     def dropEvent(self, event):
         """Allow dropping add-ons (zip or wheel archives) on this dialog to
         install them"""
-        steps = []
+        packages = []
+        names = []
         for url in event.mimeData().urls():
             path = url.toLocalFile()
             if path.endswith(self.ADDON_EXTENSIONS):
-                steps.append((Install,
-                              Available(
-                                  Installable(path, '999', '', '', path, path))))
-        if steps:
-            self.__accepted(steps)
+                name, vers, summary, descr = (get_meta_from_archive(path) or
+                                              (os.path.basename(path), '', '', ''))
+                names.append(name)
+                packages.append(
+                    Installable(name, vers, summary,
+                                descr or summary, path, [path]))
 
-    def __accepted(self, steps=None):
-        steps = steps or self.addonwidget.itemState()
+        for installable in packages:
+            self.addInstallable(installable)
+        items = self.addonwidget.items()
+        # lookup items for the new entries
+        new_items = [item for item in items if item.installable in packages]
+        state_new = [(Install, item) if isinstance(item, Available) else
+                     (Upgrade, item) for item in new_items]
+        state = self.addonwidget.itemState()
+        self.addonwidget.setItemState(state + state_new)
+        event.acceptProposedAction()
+
+    def __accepted(self):
+        steps = self.addonwidget.itemState()
 
         if steps:
             # Move all uninstall steps to the front
@@ -965,7 +1005,10 @@ class PipInstaller:
     def upgrade_no_deps(self, package):
         cmd = ["python", "-m", "pip", "install", "--upgrade", "--no-deps"]
         cmd.extend(self.arguments)
-        cmd.append(package.name)
+        if package.package_url.startswith("http://") or package.package_url.startswith("https://"):
+            cmd.append(package.name)
+        else:
+            cmd.append(package.package_url)
 
         run_command(cmd)
 
