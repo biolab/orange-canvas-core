@@ -20,8 +20,8 @@ import sys
 import logging
 import traceback
 import concurrent.futures
-
 from collections import namedtuple
+from future.moves.urllib.parse import urlencode
 
 import sip
 
@@ -466,8 +466,9 @@ class WidgetManager(QObject):
         except KeyError:
             pass
         else:
-            url = "help://search?id={0}".format(node.description.id)
-            event = QWhatsThisClickedEvent(url)
+            qualified_name = node.description.qualified_name
+            help_url = "help://search?" + urlencode({"id": qualified_name})
+            event = QWhatsThisClickedEvent(help_url)
             QCoreApplication.sendEvent(self.scheme(), event)
 
     def __on_activate_parent(self):
