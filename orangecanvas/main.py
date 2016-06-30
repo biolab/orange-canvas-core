@@ -67,17 +67,17 @@ def fix_osx_private_font():
 
 def fix_win_pythonw_std_stream():
     """
-    On windows when running without a console (using pythonw.exe) the
-    std[err|out] file descriptors are invalid and start throwing exceptions
-    when their buffer is flushed (`http://bugs.python.org/issue706263`_)
-
+    On windows when running without a console (using pythonw.exe without I/O
+    redirection) the std[err|out] file descriptors are invalid
+    (`http://bugs.python.org/issue706263`_). We `fix` this by setting the
+    stdout/stderr to `os.devnull`.
     """
     if sys.platform == "win32" and \
             os.path.basename(sys.executable) == "pythonw.exe":
-        if sys.stdout is not None and sys.stdout.fileno() < 0:
-            sys.stdout = open(os.devnull, "wb")
-        if sys.stdout is not None and sys.stderr.fileno() < 0:
-            sys.stderr = open(os.devnull, "wb")
+        if sys.stdout is None or sys.stdout.fileno() < 0:
+            sys.stdout = open(os.devnull, "w")
+        if sys.stderr is None or sys.stderr.fileno() < 0:
+            sys.stderr = open(os.devnull, "w")
 
 
 def main(argv=None):
