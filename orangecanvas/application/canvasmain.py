@@ -491,7 +491,7 @@ class CanvasMainWindow(QMainWindow):
                     objectName="tutorial-action",
                     toolTip=self.tr("Browse tutorials."),
                     triggered=self.tutorial_scheme,
-                    icon=canvas_icons("Tutorials.svg")
+                    icon=canvas_icons("Examples.svg")
                     )
 
         self.documentation_action = \
