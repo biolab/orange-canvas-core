@@ -35,6 +35,7 @@ INSTALL_REQUIRES = (
     "AnyQt",
     "docutils",
     "numpy",
+    "CommonMark",
 )
 
 
