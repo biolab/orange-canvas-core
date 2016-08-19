@@ -91,6 +91,29 @@ class GraphicsTextEdit(QGraphicsTextItem):
             painter.setPen(QPen(color))
             painter.drawText(brect, Qt.AlignTop | Qt.AlignLeft, text)
 
+    def hoverMoveEvent(self, event):
+        layout = self.document().documentLayout()
+        if layout.anchorAt(event.pos()):
+            self.setCursor(Qt.PointingHandCursor)
+        else:
+            self.unsetCursor()
+        super(GraphicsTextEdit, self).hoverMoveEvent(event)
+
+    def mousePressEvent(self, event):
+        flags = self.textInteractionFlags()
+        if flags & Qt.LinksAccessibleByMouse \
+                and not flags & Qt.TextSelectableByMouse \
+                and self.document().documentLayout().anchorAt(event.pos()):
+            # QGraphicsTextItem ignores the press event without
+            # Qt.TextSelectableByMouse flag set. This causes the
+            # corresponding mouse release to never get to this item
+            # and therefore no linkActivated/openUrl ...
+            super(GraphicsTextEdit, self).mousePressEvent(event)
+            if not event.isAccepted():
+                event.accept()
+        else:
+            super(GraphicsTextEdit, self).mousePressEvent(event)
+
 
 def render_plain(content):
     """
