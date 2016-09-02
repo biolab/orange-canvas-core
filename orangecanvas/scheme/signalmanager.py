@@ -20,7 +20,7 @@ from PyQt4.QtCore import QObject, QCoreApplication, QEvent
 from PyQt4.QtCore import pyqtSignal as Signal
 
 
-from .scheme import SchemeNode
+from .scheme import SchemeNode, SchemeLink
 from functools import reduce
 
 log = logging.getLogger(__name__)
@@ -185,6 +185,7 @@ class SignalManager(QObject):
 
     def link_added(self, link):
         # push all current source values to the sink
+        link.set_runtime_state(SchemeLink.Empty)
         if link.enabled:
             log.info("Link added (%s). Scheduling signal data update.", link)
             self._schedule(self.signals_on_link(link))
@@ -196,6 +197,7 @@ class SignalManager(QObject):
         # purge all values in sink's queue
         log.info("Link removed (%s). Scheduling signal data purge.", link)
         self.purge_link(link)
+        link.enabled_changed.disconnect(self.link_enabled_changed)
 
     def link_enabled_changed(self, enabled):
         if enabled:
@@ -223,7 +225,15 @@ class SignalManager(QObject):
         """
         node, channel = link.source_node, link.source_channel
 
-        return self._node_outputs[node][channel]
+        if node in self._node_outputs:
+            return self._node_outputs[node][channel]
+        else:
+            # if the the node was already removed it's tracked outputs in
+            # _node_outputs are cleared, however the final 'None' signal
+            # deliveries for the link are left in the _input_queue.
+            pending = [sig for sig in self._input_queue
+                       if sig.link is link]
+            return {sig.id: sig.value for sig in pending}
 
     def send(self, node, channel, value, id):
         """
@@ -259,6 +269,15 @@ class SignalManager(QObject):
         Schedule a list of :class:`_Signal` for delivery.
         """
         self._input_queue.extend(signals)
+
+        for link in {sig.link for sig in signals}:
+            # update the SchemeLink's runtime state flags
+            contents = self.link_contents(link)
+            if any(value is not None for value in contents.values()):
+                state = SchemeLink.Active
+            else:
+                state = SchemeLink.Empty
+            link.set_runtime_state(state | SchemeLink.Pending)
 
         if signals:
             self.updatesPending.emit()
@@ -311,7 +330,12 @@ class SignalManager(QObject):
 
         log.debug("Processing %r, sending %i signals.",
                   node.title, len(signals_in))
+        # Clear the link's pending flag.
+        for link in {sig.link for sig in signals_in}:
+            link.set_runtime_state(link.runtime_state() & ~SchemeLink.Pending)
 
+        assert ({sig.link for sig in self._input_queue}
+                .intersection({sig.link for sig in signals_in}) == set([]))
         self.processingStarted.emit()
         self.processingStarted[SchemeNode].emit(node)
         try:

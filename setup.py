@@ -52,11 +52,11 @@ CLASSIFIERS = (
 EXTRAS_REQUIRE = {
     # ?? :python_version<="3.2" does not work (Invalid environment
     # marker error).
-    ':python_version=="2.7"': ["futures", "contextlib2"],
-    ':python_version=="3.0"': ["futures", "contextlib2"],
-    ':python_version=="3.1"': ["futures", "contextlib2"],
-    ':python_version=="3.2"': ["futures", "contextlib2"],
-    ':python_version=="3.3"': ["contextlib2"]
+    ':python_version=="2.7"': ["futures", "contextlib2", "enum34"],
+    ':python_version=="3.0"': ["futures", "contextlib2", "enum34"],
+    ':python_version=="3.1"': ["futures", "contextlib2", "enum34"],
+    ':python_version=="3.2"': ["futures", "contextlib2", "enum34"],
+    ':python_version=="3.3"': ["contextlib2", "enum34"],
 }
 
 if __name__ == "__main__":
