@@ -41,14 +41,6 @@ from .registry import cache
 log = logging.getLogger(__name__)
 
 
-def running_in_ipython():
-    try:
-        __IPYTHON__
-        return True
-    except NameError:
-        return False
-
-
 def fix_osx_private_font():
     """Temporary fixes for QTBUG-32789, QTBUG-40833 and QTBUG-47206"""
     if sys.platform == "darwin" and QT_VERSION < 0x50000:
@@ -111,9 +103,6 @@ def main(argv=None):
     parser.add_option("-l", "--log-level",
                       help="Logging level (0, 1, 2, 3, 4)",
                       type="int", default=1)
-    parser.add_option("--no-redirect",
-                      action="store_true",
-                      help="Do not redirect stdout/err to canvas output view.")
     parser.add_option("--style",
                       help="QStyle to use",
                       type="str", default=None)
@@ -336,41 +325,20 @@ def main(argv=None):
                  open_requests[-1])
         canvas_window.load_scheme(open_requests[-1].toLocalFile())
 
-    stdout_redirect = \
-        settings.value("output/redirect-stdout", True, type=bool)
-
-    stderr_redirect = \
-        settings.value("output/redirect-stderr", True, type=bool)
-
-    # cmd line option overrides settings / no redirect is possible
-    # under ipython
-    if options.no_redirect or running_in_ipython():
-        stderr_redirect = stdout_redirect = False
-
+    # Tee stdout and stderr into Output dock
     output_view = canvas_window.output_view()
-
-    if stdout_redirect:
-        stdout = TextStream()
-        stdout.stream.connect(output_view.write)
-        if sys.stdout is not None:
-            # also connect to original fd
-            stdout.stream.connect(sys.stdout.write)
-    else:
-        stdout = sys.stdout
-
-    if stderr_redirect:
-        error_writer = output_view.formated(color=Qt.red)
-        stderr = TextStream()
-        stderr.stream.connect(error_writer.write)
-        if sys.stderr is not None:
-            # also connect to original fd
-            stderr.stream.connect(sys.stderr.write)
-    else:
-        stderr = sys.stderr
-
-    if stderr_redirect:
-        sys.excepthook = ExceptHook()
-        sys.excepthook.handledException.connect(output_view.parent().show)
+    stdout = TextStream()
+    stdout.stream.connect(output_view.write)
+    if sys.stdout:
+        stdout.stream.connect(sys.stdout.write)
+        stdout.flushed.connect(sys.stdout.flush)
+    stderr = TextStream()
+    error_writer = output_view.formated(color=Qt.red)
+    stderr.stream.connect(error_writer.write)
+    if sys.stderr:
+        stderr.stream.connect(sys.stderr.write)
+        stderr.flushed.connect(sys.stderr.flush)
+    sys.excepthook = ExceptHook(stream=stderr)
 
     with ExitStack() as stack:
         stack.enter_context(redirect_stdout(stdout))
