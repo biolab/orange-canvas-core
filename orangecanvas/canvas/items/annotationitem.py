@@ -48,10 +48,17 @@ class GraphicsTextEdit(QGraphicsTextItem):
     property (text displayed when no text is set).
 
     """
+    #: Signal emitted when editing operation starts (the item receives edit
+    #: focus)
+    editingStarted = Signal()
+    #: Signal emitted when editing operation ends (the item loses edit focus)
+    editingFinished = Signal()
+
     def __init__(self, *args, **kwargs):
         QGraphicsTextItem.__init__(self, *args, **kwargs)
         self.setAcceptHoverEvents(True)
         self.__placeholderText = ""
+        self.__editing = False  # text editing in progress
 
     def setPlaceholderText(self, text):
         """
@@ -113,6 +120,27 @@ class GraphicsTextEdit(QGraphicsTextItem):
                 event.accept()
         else:
             super(GraphicsTextEdit, self).mousePressEvent(event)
+
+    def setTextInteractionFlags(self, flags):
+        super(GraphicsTextEdit, self).setTextInteractionFlags(flags)
+        if self.hasFocus() and flags & Qt.TextEditable and not self.__editing:
+            self.__editing = True
+            self.editingStarted.emit()
+
+    def focusInEvent(self, event):
+        super(GraphicsTextEdit, self).focusInEvent(event)
+        if self.textInteractionFlags() & Qt.TextEditable and \
+                not self.__editing:
+            self.__editing = True
+            self.editingStarted.emit()
+
+    def focusOutEvent(self, event):
+        super(GraphicsTextEdit, self).focusOutEvent(event)
+        if self.__editing and \
+                event.reason() not in {Qt.ActiveWindowFocusReason,
+                                       Qt.PopupFocusReason}:
+            self.__editing = False
+            self.editingFinished.emit()
 
 
 def render_plain(content):
@@ -241,6 +269,7 @@ class TextAnnotation(Annotation):
         self.__textItem.setTabChangesFocus(True)
         self.__textItem.setTextInteractionFlags(self.__defaultInteractionFlags)
         self.__textItem.setFont(self.font())
+        self.__textItem.editingFinished.connect(self.__textEditingFinished)
 
         layout = self.__textItem.document().documentLayout()
         layout.documentSizeChanged.connect(self.__onDocumentSizeChanged)
@@ -374,9 +403,6 @@ class TextAnnotation(Annotation):
         self.__textItem.setPlainText(self.__content)
         self.__textItem.setTextInteractionFlags(self.__textInteractionFlags)
         self.__textItem.setFocus(Qt.MouseFocusReason)
-
-        # Install event filter to find out when the text item loses focus.
-        self.__textItem.installSceneEventFilter(self)
         self.__textItem.document().contentsChanged.connect(
             self.textEdited
         )
@@ -426,16 +452,8 @@ class TextAnnotation(Annotation):
         self.__updateFrame()
         QGraphicsWidget.resizeEvent(self, event)
 
-    def sceneEventFilter(self, obj, event):
-        if obj is self.__textItem and event.type() == QEvent.FocusOut and \
-            event.reason() not in [Qt.ActiveWindowFocusReason,
-                                   Qt.PopupFocusReason,
-                                   Qt.MenuBarFocusReason]:
-            # self.__textItem.focusOutEvent(event)
-            self.endEdit()
-            return True
-
-        return Annotation.sceneEventFilter(self, obj, event)
+    def __textEditingFinished(self):
+        self.endEdit()
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.ItemSelectedHasChanged:
