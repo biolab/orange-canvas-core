@@ -179,6 +179,9 @@ def main(argv=None):
         log.debug("Clearing widget settings")
         shutil.rmtree(config.widget_settings_dir(), ignore_errors=True)
 
+    if QT_VERSION >= 0x50600:
+        CanvasApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
+
     log.debug("Starting CanvasApplicaiton with argv = %r.", qt_argv)
     app = CanvasApplication(qt_argv)
 
