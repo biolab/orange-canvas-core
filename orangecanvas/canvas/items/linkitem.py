@@ -536,7 +536,8 @@ class LinkItem(QGraphicsObject):
         else:
             text = ""
 
-        self.linkTextItem.setPlainText(text)
+        self.linkTextItem.setHtml('<div align="center">{0}</div>'.format(text))
+        self.linkTextItem.document().setTextWidth(100)
 
         path = self.curveItem.curvePath()
         if not path.isEmpty():
