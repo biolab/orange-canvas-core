@@ -990,8 +990,8 @@ class CanvasMainWindow(QMainWindow):
         new_scheme.set_runtime_env("basedir", os.path.dirname(filename))
         errors = []
         try:
-            scheme_load(new_scheme, open(filename, "rb"),
-                        error_handler=errors.append)
+            with open(filename, "rb") as f:
+                scheme_load(new_scheme, f, error_handler=errors.append)
 
         except Exception:
             message_critical(
@@ -1092,7 +1092,8 @@ class CanvasMainWindow(QMainWindow):
         """
         if path and os.path.exists(path):
             try:
-                version = sniff_version(open(path, "rb"))
+                with open(path, "rb") as f:
+                    version = sniff_version(f)
             except (IOError, OSError):
                 log.error("Error opening '%s'", path, exc_info=True)
                 # The client should fail attempting to write.
