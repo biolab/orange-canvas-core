@@ -96,8 +96,9 @@ class Scheme(QObject):
     #:                     oldvalue: Option[str])
     runtime_env_changed = Signal(str, object, object)
 
-    def __init__(self, parent=None, title=None, description=None, env={}):
-        QObject.__init__(self, parent)
+    def __init__(self, parent=None, title=None, description=None, env={},
+                 **kwargs):
+        QObject.__init__(self, parent, **kwargs)
 
         self.__title = title or ""
         "Workflow title (empty string by default)."
