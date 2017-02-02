@@ -7,8 +7,7 @@ from AnyQt.QtWidgets import (
     QWidget, QMainWindow, QListView, QTextEdit, QToolButton,
     QHBoxLayout, QLabel
 )
-from AnyQt.QtCore import QStringListModel
-from AnyQt.QtCore import Qt
+from AnyQt.QtCore import Qt, QTimer, QStringListModel
 
 from .. import test
 from ..dock import CollapsibleDockWidget
@@ -33,16 +32,13 @@ class TestDock(test.QAppTestCase):
         dock.setExpandedWidget(label)
         dock.setCollapsedWidget(list_view)
         dock.setExpanded(True)
+        dock.setExpanded(False)
 
-        self.app.processEvents()
+        timer = QTimer(dock, interval=200)
+        timer.timeout.connect(lambda: dock.setExpanded(not dock.expanded()))
+        timer.start()
 
-        def toogle():
-            dock.setExpanded(not dock.expanded())
-            self.singleShot(2000, toogle)
-
-        toogle()
-
-        self.app.exec_()
+        # self.app.exec_()
 
     def test_dock_mainwinow(self):
         mw = QMainWindow()
@@ -59,10 +55,8 @@ class TestDock(test.QAppTestCase):
         mw.setCentralWidget(QTextEdit())
         mw.show()
 
-        def toogle():
-            dock.setExpanded(not dock.expanded())
-            self.singleShot(2000, toogle)
+        timer = QTimer(dock, interval=200)
+        timer.timeout.connect(lambda: dock.setExpanded(not dock.expanded()))
+        timer.start()
 
-        toogle()
-
-        self.app.exec_()
+        # self.app.exec_()

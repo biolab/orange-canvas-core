@@ -1,5 +1,7 @@
 import time
 
+from AnyQt.QtCore import QTimer
+
 from ..linkitem import LinkItem
 
 from .. import NodeItem, AnchorPoint
@@ -113,10 +115,10 @@ class TestLinkItem(TestItems):
 
         def advance():
             clock = time.clock()
-            link.setDynamic(clock > 3)
+            link.setDynamic(clock > 1)
             link.setDynamicEnabled(int(clock) % 2 == 0)
-            self.singleShot(0, advance)
 
-        advance()
-
+        timer = QTimer(link, interval=0)
+        timer.timeout.connect(advance)
+        timer.start()
         self.app.exec_()

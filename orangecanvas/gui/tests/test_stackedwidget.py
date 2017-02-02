@@ -3,6 +3,7 @@ Test for StackedWidget
 
 """
 from AnyQt.QtWidgets import QWidget, QLabel, QGroupBox, QListView, QVBoxLayout
+from AnyQt.QtCore import QTimer
 
 from .. import test
 from .. import stackedwidget
@@ -68,8 +69,11 @@ class TestStackedWidget(test.QAppTestCase):
 
         stack.transitionFinished.disconnect(self.app.exit)
 
-        self.singleShot(2000, lambda: stack.setCurrentIndex(0))
-        self.singleShot(4000, lambda: stack.setCurrentIndex(1))
-        self.singleShot(6000, lambda: stack.setCurrentIndex(2))
+        def toogle():
+            idx = stack.currentIndex()
+            stack.setCurrentIndex((idx + 1) % stack.count())
 
+        timer = QTimer(stack, interval=1000)
+        timer.timeout.connect(toogle)
+        timer.start()
         self.app.exec_()

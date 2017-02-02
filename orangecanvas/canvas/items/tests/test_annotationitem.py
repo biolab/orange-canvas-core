@@ -2,7 +2,7 @@ import math
 import time
 
 from AnyQt.QtGui import QColor
-from AnyQt.QtCore import Qt, QRectF, QLineF
+from AnyQt.QtCore import Qt, QRectF, QLineF, QTimer
 
 from ..annotationitem import TextAnnotation, ArrowAnnotation, ArrowItem
 
@@ -60,8 +60,8 @@ class TestAnnotationItem(TestItems):
             clock = time.clock() * 10
             item.setLineWidth(5 + math.sin(clock) * 5)
             item.setColor(QColor(Qt.red).lighter(100 + 30 * math.cos(clock)))
-            self.singleShot(0, advance)
 
-        advance()
-
+        timer = QTimer(item, interval=10)
+        timer.timeout.connect(advance)
+        timer.start()
         self.app.exec_()

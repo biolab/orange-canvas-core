@@ -1,7 +1,8 @@
 from __future__ import print_function
 
 from AnyQt.QtWidgets import QAction
-from AnyQt.QtCore import QPoint, QStringListModel
+from AnyQt.QtCore import QPoint, QStringListModel, QTimer
+from AnyQt.QtTest import QTest
 
 from ..quickmenu import QuickMenu, SuggestMenuPage, FlattenedTreeItemModel, \
                         MenuPage
@@ -72,9 +73,11 @@ class TestMenu(QAppTestCase):
         menu.setModel(registry.model())
         menu.show()
         menu.setFilterFixedString("o")
-        self.singleShot(2500, lambda: menu.setFilterFixedString("z"))
-        self.singleShot(5000, lambda: menu.setFilterFixedString("m"))
-        self.app.exec_()
+        QTest.qWait(10)
+        menu.setFilterFixedString("z")
+        QTest.qWait(10)
+        menu.setFilterFixedString("m")
+        QTest.qWait(10)
 
     def test_flattened_model(self):
         model = QStringListModel(["0", "1", "2", "3"])

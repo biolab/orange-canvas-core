@@ -1,3 +1,4 @@
+from AnyQt.QtCore import QTimer
 from ..framelesswindow import FramelessWindow
 
 from ..test import QAppTestCase
@@ -10,7 +11,8 @@ class TestFramelessWindow(QAppTestCase):
 
         def cycle():
             window.setRadius((window.radius() + 3) % 30)
-            self.singleShot(250, cycle)
 
-        cycle()
+        timer = QTimer(window, interval=250)
+        timer.timeout.connect(cycle)
+        timer.start()
         self.app.exec_()

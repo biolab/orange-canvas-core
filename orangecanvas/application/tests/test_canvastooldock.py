@@ -3,7 +3,7 @@ Test for canvas toolbox.
 """
 
 from AnyQt.QtWidgets import QWidget, QToolBar, QTextEdit, QSplitter
-from AnyQt.QtCore import Qt
+from AnyQt.QtCore import Qt, QTimer
 
 from ...registry import tests as registry_tests
 from ...registry.qt import QtWidgetRegistry
@@ -59,7 +59,7 @@ class TestCanvasDockWidget(test.QAppTestCase):
         w.addWidget(QWidget())
         text = QTextEdit()
         w.addWidget(text)
-        resizer = SplitterResizer(w)
+        resizer = SplitterResizer(parent=None)
         resizer.setSplitterAndWidget(w, text)
 
         def toogle():
@@ -67,10 +67,11 @@ class TestCanvasDockWidget(test.QAppTestCase):
                 resizer.open()
             else:
                 resizer.close()
-            self.singleShot(1000, toogle)
 
         w.show()
-        self.singleShot(0, toogle)
+        timer = QTimer(resizer, interval=1000)
+        timer.timeout.connect(toogle)
+        timer.start()
         self.app.exec_()
 
     def test_category_toolbar(self):

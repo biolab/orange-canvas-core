@@ -3,31 +3,26 @@ Tests for items
 """
 import sys
 import traceback
-import unittest
+
+from AnyQt.QtWidgets import QGraphicsScene, QGraphicsView
+from AnyQt.QtGui import QPainter
+
+from orangecanvas.gui.test import QAppTestCase
 
 
-class TestItems(unittest.TestCase):
+class TestItems(QAppTestCase):
     def setUp(self):
-        import logging
+        super(TestItems, self).setUp()
 
-        from AnyQt.QtWidgets import \
-            QApplication, QGraphicsScene, QGraphicsView
-        from AnyQt.QtGui import  QPainter
-        from AnyQt.QtCore import QTimer
-
-        logging.basicConfig()
-
-        self.app = QApplication([])
         self.scene = QGraphicsScene()
         self.view = QGraphicsView(self.scene)
         self.view.setRenderHints(
-            QPainter.Antialiasing | \
-            QPainter.SmoothPixmapTransform | \
+            QPainter.Antialiasing |
+            QPainter.SmoothPixmapTransform |
             QPainter.TextAntialiasing
-            )
+        )
         self.view.resize(500, 300)
         self.view.show()
-        QTimer.singleShot(10000, self.app.exit)
 
         def my_excepthook(etype, value, tb):
             sys.setrecursionlimit(1010)
@@ -35,7 +30,6 @@ class TestItems(unittest.TestCase):
 
         self._orig_excepthook = sys.excepthook
         sys.excepthook = my_excepthook
-        self.singleShot = QTimer.singleShot
 
     def tearDown(self):
         self.scene.clear()
@@ -44,5 +38,5 @@ class TestItems(unittest.TestCase):
         del self.scene
         del self.view
         self.app.processEvents()
-        del self.app
         sys.excepthook = self._orig_excepthook
+        super().tearDown()

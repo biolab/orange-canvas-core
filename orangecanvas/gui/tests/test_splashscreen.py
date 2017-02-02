@@ -7,7 +7,7 @@ from datetime import datetime
 import pkg_resources
 
 from AnyQt.QtGui import QPixmap
-from AnyQt.QtCore import Qt, QRect
+from AnyQt.QtCore import Qt, QRect, QTimer
 
 from ..splashscreen import SplashScreen
 
@@ -21,10 +21,10 @@ class TestSplashScreen(QAppTestCase):
                      config.__package__,
                      "icons/orange-splash-screen.png"
                  )
-
         w = SplashScreen()
         w.setPixmap(QPixmap(splash))
         w.setTextRect(QRect(100, 100, 400, 50))
+        w.show()
 
         def advance_time():
             now = datetime.now()
@@ -35,9 +35,8 @@ class TestSplashScreen(QAppTestCase):
             w.setTextRect(rect)
             self.assertEqual(w.textRect(), rect)
 
-            self.singleShot(1, advance_time)
+        timer = QTimer(w, interval=1)
+        timer.timeout.connect(advance_time)
+        timer.start()
 
-        advance_time()
-
-        w.show()
         self.app.exec_()

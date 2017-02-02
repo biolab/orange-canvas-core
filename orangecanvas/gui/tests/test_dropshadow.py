@@ -9,22 +9,13 @@ from AnyQt.QtWidgets import (
 )
 from AnyQt.QtGui import QColor
 
-from AnyQt.QtCore import Qt, QTimer
+from AnyQt.QtCore import Qt, QTimer, QPropertyAnimation
 from .. import dropshadow
 
 from .. import test
 
 
 class TestDropShadow(test.QAppTestCase):
-    def test_drop_shadow_old(self):
-        w = dropshadow._DropShadowWidget()
-        w.setContentsMargins(20, 20, 20, 20)
-        w.setLayout(QHBoxLayout())
-        w.layout().setContentsMargins(0, 0, 0, 0)
-        w.layout().addWidget(QListView())
-        w.show()
-        QTimer.singleShot(1500, lambda: w.setRadius(w.radius + 5))
-        self.app.exec_()
 
     def test(self):
         lv = QListView()
@@ -43,11 +34,17 @@ class TestDropShadow(test.QAppTestCase):
 
         mw.show()
 
-        self.app.processEvents()
-
-        self.singleShot(3000, lambda: f.setColor(Qt.red))
-        self.singleShot(4000, lambda: f.setRadius(30))
-        self.singleShot(5000, lambda: f.setRadius(40))
+        canim = QPropertyAnimation(
+            f, b"color_", f,
+            startValue=QColor(Qt.red), endValue=QColor(Qt.blue),
+            loopCount=-1, duration=2000
+        )
+        canim.start()
+        ranim = QPropertyAnimation(
+            f, b"radius_", f, startValue=30, endValue=40, loopCount=-1,
+            duration=3000
+        )
+        ranim.start()
         self.app.exec_()
 
     def test1(self):
@@ -75,10 +72,17 @@ class TestDropShadow(test.QAppTestCase):
         f.color = QColor(Qt.blue)
         w.show()
 
-        self.singleShot(3000, lambda: f.setColor(Qt.red))
-        self.singleShot(4000, lambda: f.setRadius(30))
-        self.singleShot(5000, lambda: f.setRadius(40))
-
+        canim = QPropertyAnimation(
+            f, b"color_", f,
+            startValue=QColor(Qt.red), endValue=QColor(Qt.blue),
+            loopCount=-1, duration=2000
+        )
+        canim.start()
+        ranim = QPropertyAnimation(
+            f, b"radius_", f, startValue=30, endValue=40, loopCount=-1,
+            duration=3000
+        )
+        ranim.start()
         self.app.exec_()
 
 

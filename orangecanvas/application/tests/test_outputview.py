@@ -6,7 +6,7 @@ from threading import current_thread
 
 import six
 
-from AnyQt.QtCore import Qt, QThread
+from AnyQt.QtCore import Qt, QThread, QTimer
 from ...gui.test import QAppTestCase
 
 from ..outputview import OutputView, TextStream, ExceptHook
@@ -40,10 +40,9 @@ class TestOutputView(QAppTestCase):
             text = six.text_type(output.toPlainText())
             self.assertLessEqual(len(text.splitlines()), 5)
 
-            self.singleShot(500, advance)
-
-        advance()
-
+        timer = QTimer(output, interval=500)
+        timer.timeout.connect(advance)
+        timer.start()
         self.app.exec_()
 
     def test_formated(self):

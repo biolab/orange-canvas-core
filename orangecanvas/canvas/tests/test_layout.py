@@ -1,5 +1,6 @@
 import time
 
+from AnyQt.QtCore import QTimer
 from AnyQt.QtWidgets import QGraphicsView
 from AnyQt.QtGui import QPainter, QPainterPath
 
@@ -67,10 +68,9 @@ class TestAnchorLayout(QAppTestCase):
             cons_item.setPos(path.pointAtPercent(t % 1.0))
             negate_item.setPos(path.pointAtPercent((t + 0.5) % 1.0))
 
-            self.singleShot(20, advance)
-
-        advance()
-
+        timer = QTimer(negate_item, interval=20)
+        timer.start()
+        timer.timeout.connect(advance)
         self.app.exec_()
 
     def widget_desc(self):
