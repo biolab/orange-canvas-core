@@ -49,7 +49,7 @@ def tutorials():
     for ep in tutorial_entry_points():
         tutorials = None
         try:
-            tutorials = ep.load()
+            tutorials = ep.resolve()
         except pkg_resources.DistributionNotFound as ex:
             log.warning("Could not load tutorials from %r (%r)",
                         ep.dist, ex)

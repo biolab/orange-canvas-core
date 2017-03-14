@@ -29,6 +29,7 @@ PACKAGE_DATA = {
 }
 
 INSTALL_REQUIRES = (
+    "setuptools>=11.3",
     "six",
     "future",
     "AnyQt",
