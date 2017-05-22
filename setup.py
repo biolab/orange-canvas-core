@@ -28,7 +28,10 @@ PACKAGE_DATA = {
     "orangecanvas.styles": ["*.qss", "orange/*.svg"],
 }
 
-INSTALL_REQUIRES = ("six",)
+INSTALL_REQUIRES = (
+    "six",
+    "future"
+)
 
 
 CLASSIFIERS = (
@@ -49,10 +52,10 @@ CLASSIFIERS = (
 EXTRAS_REQUIRE = {
     # ?? :python_version<="3.2" does not work (Invalid environment
     # marker error).
-    ':python_version=="2.7"': ["future", "futures", "contextlib2"],
-    ':python_version=="3.0"': ["future", "futures", "contextlib2"],
-    ':python_version=="3.1"': ["future", "futures", "contextlib2"],
-    ':python_version=="3.2"': ["future", "futures", "contextlib2"],
+    ':python_version=="2.7"': ["futures", "contextlib2"],
+    ':python_version=="3.0"': ["futures", "contextlib2"],
+    ':python_version=="3.1"': ["futures", "contextlib2"],
+    ':python_version=="3.2"': ["futures", "contextlib2"],
     ':python_version=="3.3"': ["contextlib2"]
 }
 
