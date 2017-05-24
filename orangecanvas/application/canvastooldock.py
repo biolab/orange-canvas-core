@@ -181,7 +181,7 @@ class SplitterResizer(QObject):
             self.__splitter.setSizes(sizes)
 
     def eventFilter(self, obj, event):
-        if obj is self.__widget and event.type() == QEvent.Resize and \
+        if event.type() == QEvent.Resize and obj is self.__widget and \
                 self.__animation.state() == QPropertyAnimation.Stopped:
             # Update the expanded state when the user opens/closes the widget
             # by dragging the splitter handle.
@@ -197,7 +197,7 @@ class SplitterResizer(QObject):
                 self.__action.setChecked(True)
                 self.__expanded = True
 
-        if obj is self.__splitter and event.type() == QEvent.Show and \
+        if event.type() == QEvent.Show and obj is self.__splitter and \
                 self.__updateOnShow:
             # Update the splitter state after receiving valid geometry
             self.__updateOnShow = False
