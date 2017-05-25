@@ -404,7 +404,7 @@ class AddonManagerDialog(QDialog):
         # The installer object
         self.__installer = None
 
-    @Slot(list)
+    @Slot(object)
     def setItems(self, items):
         self.addonwidget.setItems(items)
 
