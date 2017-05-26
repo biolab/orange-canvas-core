@@ -8,6 +8,7 @@ Scheme (``scheme``)
 
 .. autoclass:: Scheme
    :members:
+   :exclude-members: runtime_env_changed
    :member-order: bysource
    :show-inheritance:
 
@@ -42,6 +43,8 @@ Scheme (``scheme``)
    .. autoattribute:: annotation_removed(annotation)
 
       Signal emitted when a `annotation` is removed from the scheme.
+
+   .. autoattribute:: runtime_env_changed(key: str, newvalue: Optional[str], oldvalue: Optional[str])
 
 
 .. autoclass:: SchemeCycleError

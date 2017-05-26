@@ -90,9 +90,7 @@ class Scheme(QObject):
     # Signal emitted when the description of scheme changes.
     description_changed = Signal(six.text_type)
 
-    #: Emitted when the associated runtime environment changes
-    #: runtime_env_changed(key: str, newvalue: Option[str],
-    #:                     oldvalue: Option[str])
+    #: Signal emitted when the associated runtime environment changes
     runtime_env_changed = Signal(str, object, object)
 
     def __init__(self, parent=None, title=None, description=None, env={},
