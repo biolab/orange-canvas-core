@@ -33,6 +33,8 @@ INSTALL_REQUIRES = (
     "six",
     "future",
     "AnyQt",
+    "docutils",
+    "numpy",
 )
 
 
