@@ -390,14 +390,7 @@ class AddonManagerDialog(QDialog):
 
         self.layout().addWidget(buttons)
 
-        self.__progress = QProgressDialog(
-            self, Qt.Sheet,
-            minimum=0, maximum=0,
-            labelText=self.tr("Retrieving package list"),
-            sizeGripEnabled=False,
-            windowTitle="Progress"
-        )
-        self.__progress.canceled.connect(self.reject)
+        self.__progress = None  # type: QProgressDialog
 
         # The installer thread
         self.__thread = None
@@ -409,6 +402,18 @@ class AddonManagerDialog(QDialog):
         self.addonwidget.setItems(items)
 
     def progressDialog(self):
+        if self.__progress is None:
+            self.__progress = QProgressDialog(
+                self,
+                minimum=0, maximum=0,
+                labelText=self.tr("Retrieving package list"),
+                sizeGripEnabled=False,
+                windowTitle="Progress"
+            )
+            self.__progress.setWindowModality(Qt.WindowModal)
+            self.__progress.hide()
+            self.__progress.canceled.connect(self.reject)
+
         return self.__progress
 
     def done(self, retcode):
@@ -438,11 +443,12 @@ class AddonManagerDialog(QDialog):
             self.__installer.moveToThread(self.__thread)
             self.__installer.finished.connect(self.__on_installer_finished)
             self.__installer.error.connect(self.__on_installer_error)
-            self.__installer.installStatusChanged.connect(
-                self.__progress.setLabelText)
 
-            self.__progress.show()
-            self.__progress.setLabelText("Installing")
+            progress = self.progressDialog()
+
+            self.__installer.installStatusChanged.connect(progress.setLabelText)
+            progress.show()
+            progress.setLabelText("Installing")
 
             self.__installer.start()
 
