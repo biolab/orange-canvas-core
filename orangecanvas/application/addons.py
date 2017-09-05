@@ -850,6 +850,7 @@ class Installer(QObject):
         self.__queue = deque(steps)
         self.__statusMessage = ""
         self.pip = PipInstaller()
+        self.conda = CondaInstaller()
 
     def start(self):
         QTimer.singleShot(0, self._next)
@@ -870,14 +871,20 @@ class Installer(QObject):
             if command == Install:
                 self.setStatusMessage(
                     "Installing {}".format(pkg.installable.name))
+                if self.conda:
+                    self.conda.install(pkg.installable)
                 self.pip.install(pkg.installable)
             elif command == Upgrade:
                 self.setStatusMessage(
                     "Upgrading {}".format(pkg.installable.name))
+                if self.conda:
+                    self.conda.upgrade(pkg.installable)
                 self.pip.upgrade(pkg.installable)
             elif command == Uninstall:
                 self.setStatusMessage(
                     "Uninstalling {}".format(pkg.local.project_name))
+                if self.conda:
+                    self.conda.uninstall(pkg.local)
                 self.pip.uninstall(pkg.local)
         except CommandFailed as ex:
             self.error.emit(
@@ -897,7 +904,7 @@ class PipInstaller:
         self.user_install = user_install
 
     def install(self, pkg):
-        cmd = ["-m", "pip", "install"]
+        cmd = ["python", "-m", "pip", "install"]
         if self.user_install:
             cmd.append("--user")
         cmd.append(pkg.name)
@@ -911,7 +918,7 @@ class PipInstaller:
         self.install(package)
 
     def upgrade_no_deps(self, package):
-        cmd = ["-m", "pip", "install", "--upgrade", "--no-deps"]
+        cmd = ["python", "-m", "pip", "install", "--upgrade", "--no-deps"]
         if self.user_install:
             cmd.append("--user")
         cmd.append(package.name)
@@ -919,7 +926,7 @@ class PipInstaller:
         run_command(cmd)
 
     def uninstall(self, dist):
-        cmd = ["-m", "pip", "uninstall", "--yes", dist.project_name]
+        cmd = ["python", "-m", "pip", "uninstall", "--yes", dist.project_name]
         run_command(cmd)
 
         if self.user_install:
@@ -948,13 +955,40 @@ class PipInstaller:
                 os.unlink(match)
 
 
+class CondaInstaller:
+    def __init__(self):
+        executable = sys.executable
+        bin = os.path.dirname(executable)
+        conda = os.path.join(bin, "conda")
+        self.conda = conda if os.path.exists(conda) else None
+
+    def install(self, pkg):
+        cmd = ["conda", "install", "--yes", pkg.name]
+        run_command(cmd, raise_on_fail=False)
+
+    def upgrade(self, pkg):
+        cmd = ["conda", "upgrade", "--yes", pkg.name]
+        run_command(cmd, raise_on_fail=False)
+
+    def uninstall(self, dist):
+        cmd = ["conda", "uninstall", "--yes", dist.project_name]
+        run_command(cmd, raise_on_fail=False)
+
+    def __bool__(self):
+        return bool(self.conda)
+
+
 def run_command(command, raise_on_fail=True):
     """Run command in a subprocess.
 
     Return `process` return code and output once it completes.
     """
-    process = python_process(command, bufsize=-1, universal_newlines=True,
-                             env=_env_with_proxies())
+    log.info("Running %s", " ".join(command))
+
+    if command[0] == "python":
+        process = python_process(command[1:])
+    else:
+        process = create_process(command)
 
     output = []
     while process.poll() is None:
@@ -972,13 +1006,16 @@ def run_command(command, raise_on_fail=True):
         output.append(line)
         print(line, end="")
 
-    if raise_on_fail and process.returncode != 0:
-        raise CommandFailed(command, process.returncode, output)
+    if process.returncode != 0:
+        log.info("Command %s failed with %s",
+                 " ".join(command), process.returncode)
+        if raise_on_fail:
+            raise CommandFailed(command, process.returncode, output)
 
     return process.returncode, output
 
 
-def python_process(args, script_name=None, cwd=None, env=None, **kwargs):
+def python_process(args, script_name=None, **kwargs):
     """
     Run a `sys.executable` in a subprocess with `args`.
     """
@@ -1003,14 +1040,21 @@ def python_process(args, script_name=None, cwd=None, env=None, **kwargs):
     else:
         script = executable
 
-    process = subprocess.Popen(
+    return create_process(
         [script] + args,
-        executable=executable,
-        cwd=cwd,
-        env=env,
-        stderr=subprocess.STDOUT,
-        stdout=subprocess.PIPE,
-        **kwargs
+        executable=executable
     )
 
-    return process
+
+def create_process(cmd, executable=None, **kwargs):
+    return subprocess.Popen(
+        cmd,
+        executable=executable,
+        cwd=None,
+        env=_env_with_proxies(),
+        stderr=subprocess.STDOUT,
+        stdout=subprocess.PIPE,
+        bufsize=-1,
+        universal_newlines=True,
+        **kwargs
+    )
