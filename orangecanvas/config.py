@@ -245,6 +245,9 @@ spec = \
      ("help/open-in-external-browser", bool, False,
       "Open help in an external browser"),
 
+     ("add-ons/allow-conda-experimental", bool, False,
+      "Install add-ons with conda"),
+
      ("network/http-proxy", str, '', 'HTTP proxy.'),
 
      ("network/https-proxy", str, '', 'HTTPS proxy.'),

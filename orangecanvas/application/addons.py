@@ -42,7 +42,8 @@ from AnyQt.QtGui import (
 )
 from AnyQt.QtCore import (
     QSortFilterProxyModel, QItemSelectionModel,
-    Qt, QObject, QMetaObject, QEvent, QSize, QTimer, QThread, Q_ARG
+    Qt, QObject, QMetaObject, QEvent, QSize, QTimer, QThread, Q_ARG,
+    QSettings
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
@@ -957,7 +958,12 @@ class PipInstaller:
 
 class CondaInstaller:
     def __init__(self):
-        self.conda = self._find_conda()
+        enabled = QSettings().value('add-ons/allow-conda-experimental',
+                                    False, type=bool)
+        if enabled:
+            self.conda = self._find_conda()
+        else:
+            self.conda = None
 
     def _find_conda(self):
         executable = sys.executable

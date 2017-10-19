@@ -408,6 +408,24 @@ class UserSettingsDialog(QMainWindow):
 
         self.addTab(tab, "Categories")
 
+        # Add-ons Tab
+        tab = QWidget()
+        self.addTab(tab, self.tr("Add-ons"),
+                    toolTip="Settings related to add-on installation")
+
+        form = QFormLayout()
+        conda = QWidget(self, objectName="conda-group")
+        conda.setLayout(QVBoxLayout())
+        conda.layout().setContentsMargins(0, 0, 0, 0)
+
+        cb_conda_install = QCheckBox(self.tr("Install add-ons with conda"), self,
+                                     objectName="allow-conda-experimental")
+        self.bind(cb_conda_install, "checked", "add-ons/allow-conda-experimental")
+        conda.layout().addWidget(cb_conda_install)
+
+        form.addRow(self.tr("Conda"), conda)
+        tab.setLayout(form)
+
         # Network Tab
         tab = QWidget()
         self.addTab(tab, self.tr("Network"),
