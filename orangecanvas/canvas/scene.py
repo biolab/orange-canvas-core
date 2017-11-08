@@ -14,11 +14,12 @@ from xml.sax.saxutils import escape
 
 import six
 
-
-from AnyQt.QtWidgets import QGraphicsScene, QGraphicsItem, QGraphicsObject
-from AnyQt.QtGui import QPainter, QBrush, QColor, QFont
-from AnyQt.QtCore import Qt, QPointF, QRectF, QSizeF, QLineF, QBuffer, \
-                         QEvent, QObject, QSignalMapper, QT_VERSION
+from AnyQt.QtWidgets import QGraphicsScene, QGraphicsItem
+from AnyQt.QtGui import QPainter, QColor, QFont
+from AnyQt.QtCore import (
+    Qt, QPointF, QRectF, QSizeF, QLineF, QBuffer, QObject, QSignalMapper,
+    QT_VERSION
+)
 from AnyQt.QtSvg import QSvgGenerator
 from AnyQt.QtCore import pyqtSignal as Signal
 try:
@@ -916,7 +917,7 @@ def grab_svg(scene):
     painter = QPainter(gen)
 
     # Draw background.
-    painter.setBrush(QBrush(Qt.white))
+    painter.setBrush(scene.palette().base())
     painter.drawRect(target_rect)
 
     # Render the scene
