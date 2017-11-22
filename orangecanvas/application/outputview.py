@@ -211,10 +211,11 @@ class TextStream(QObject):
 
 
 class ExceptHook(QObject):
-    handledException = Signal()
+    # Signal emitted with the `sys.exc_info` tuple.
+    handledException = Signal(tuple)
 
-    def __init__(self, parent=None, stream=None):
-        QObject.__init__(self, parent)
+    def __init__(self, parent=None, stream=None, **kwargs):
+        super(ExceptHook, self).__init__(parent, **kwargs)
         self.stream = stream
 
     def __call__(self, exc_type, exc_value, tb):
@@ -230,5 +231,9 @@ class ExceptHook(QObject):
             text.insert(0, '{:-^79}\n'.format(' ' + header + ' '))
             text.append('-' * 79 + '\n')
             stream.writelines(text)
+            try:
+                stream.flush()
+            except Exception:
+                pass
 
-        self.handledException.emit()
+        self.handledException.emit((exc_type, exc_value, tb))
