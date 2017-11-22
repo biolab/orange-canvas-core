@@ -24,19 +24,10 @@ class TestItems(QAppTestCase):
         self.view.resize(500, 300)
         self.view.show()
 
-        def my_excepthook(etype, value, tb):
-            sys.setrecursionlimit(1010)
-            traceback.print_exception(etype, value, tb)
-
-        self._orig_excepthook = sys.excepthook
-        sys.excepthook = my_excepthook
-
     def tearDown(self):
         self.scene.clear()
         self.scene.deleteLater()
         self.view.deleteLater()
         del self.scene
         del self.view
-        self.app.processEvents()
-        sys.excepthook = self._orig_excepthook
-        super().tearDown()
+        super(TestItems, self).tearDown()

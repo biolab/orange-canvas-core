@@ -10,13 +10,20 @@ from ...gui.test import QAppTestCase
 
 class TestScene(QAppTestCase):
     def setUp(self):
-        QAppTestCase.setUp(self)
+        super(QAppTestCase, self).setUp()
         self.scene = CanvasScene()
         self.view = QGraphicsView(self.scene)
         self.view.setRenderHints(QPainter.Antialiasing |
                                  QPainter.TextAntialiasing)
         self.view.show()
         self.view.resize(400, 300)
+
+    def tearDown(self):
+        self.scene.clear()
+        self.view.deleteLater()
+        self.scene.deleteLater()
+        del self.view
+        del self.scene
 
     def test_scene(self):
         """Test basic scene functionality.

@@ -24,7 +24,7 @@ class QCoreAppTestCase(unittest.TestCase):
 
     def setUp(self):
         super(QCoreAppTestCase, self).setUp()
-        self._quittimer = QTimer(singleShot=True, interval=10000)
+        self._quittimer = QTimer(interval=1000)
         self._quittimer.timeout.connect(self.app.quit)
         self._quittimer.start()
 
@@ -38,19 +38,12 @@ class QCoreAppTestCase(unittest.TestCase):
     def tearDownClass(cls):
         gc.collect()
         cls.app = None
-
-    # def singleShot(self, *args):
-    #     QTimer.singleShot(*args)
+        super(QCoreAppTestCase, cls).tearDownClass()
 
 
 class QAppTestCase(QCoreAppTestCase):
     _AppClass = QApplication
 
     def tearDown(self):
-        if hasattr(self, "scene"):
-            self.scene.clear()
-            self.scene.deleteLater()
-            del self.scene
-
-    # def singleShot(self, *args):
-    #     QTimer.singleShot(*args)
+        QTest.qWait(10)
+        super(QAppTestCase, self).tearDown()
