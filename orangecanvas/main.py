@@ -14,6 +14,7 @@ import shlex
 import shutil
 import io
 import platform
+from urllib.request import getproxies
 
 if sys.version_info < (3, 3):
     from contextlib2 import ExitStack
@@ -138,6 +139,15 @@ def fix_win_pythonw_std_stream():
             sys.stderr = open(os.devnull, "w")
 
 
+def fix_set_proxy_env():
+    """
+    Set http_proxy/https_proxy environment variables (for requests, pip, ...)
+    from system settings on OS X and from registry on Windos. On unix, no-op.
+    """
+    for scheme, proxy in getproxies().items():
+        os.environ[scheme + '_proxy'] = proxy
+
+
 def main(argv=None):
     if argv is None:
         argv = sys.argv
@@ -197,8 +207,8 @@ def main(argv=None):
     # Try to fix fonts on OSX Mavericks/Yosemite, ...
     fix_osx_private_font()
 
-    # Try to fix macOS automatic window tabbing (Sierra and later)
-    fix_macos_nswindow_tabbing()
+    # Set http_proxy environment variable(s) for some clients
+    fix_set_proxy_env()
 
     # File handler should always be at least INFO level so we need
     # the application root level to be at least at INFO.
