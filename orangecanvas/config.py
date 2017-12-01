@@ -7,6 +7,8 @@ import os
 import sys
 import logging
 import pickle
+import warnings
+
 from distutils.version import LooseVersion
 
 import pkg_resources
@@ -152,6 +154,7 @@ def init():
     log.debug("Activating configuration for {}".format(default))
     init = lambda: None
 
+
 rc = {}
 
 
@@ -290,18 +293,18 @@ def widget_settings_dir():
 
 
 def open_config():
-    global rc
-    app_dir = data_dir()
-    filename = os.path.join(app_dir, "canvas-rc.pck")
-    if os.path.exists(filename):
-        with open(os.path.join(app_dir, "canvas-rc.pck"), "rb") as f:
-            rc.update(pickle.load(f))
+    warnings.warn(
+        "open_config was never used and will be removed in the future",
+        DeprecationWarning, stacklevel=2
+    )
+    return
 
 
 def save_config():
-    app_dir = data_dir()
-    with open(os.path.join(app_dir, "canvas-rc.pck"), "wb") as f:
-        pickle.dump(rc, f)
+    warnings.warn(
+        "save_config was never used and will be removed in the future",
+        DeprecationWarning, stacklevel=2
+    )
 
 
 def recent_schemes():
