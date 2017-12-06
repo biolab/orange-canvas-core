@@ -360,12 +360,15 @@ class CanvasMainWindow(QMainWindow):
             self._on_dock_location_changed
         )
 
-        self.output_dock = DockWidget(self.tr("Log"), self,
-                                      objectName="output-dock",
-                                      allowedAreas=Qt.BottomDockWidgetArea)
-        # Set widget before calling addDockWidget, otherwise the dock
-        # does not resize properly on first undock
+        self.output_dock = DockWidget(
+            self.tr("Log"), self, objectName="output-dock",
+            allowedAreas=Qt.BottomDockWidgetArea,
+            visible=self.show_output_action.isChecked(),
+        )
         self.output_dock.setWidget(OutputView())
+        self.output_dock.visibilityChanged[bool].connect(
+            self.show_output_action.setChecked
+        )
         self.addDockWidget(Qt.BottomDockWidgetArea, self.output_dock)
 
         self.help_dock = DockWidget(
