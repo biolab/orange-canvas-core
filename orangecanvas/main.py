@@ -273,6 +273,7 @@ def main(argv=None):
     QDir.addSearchPath("canvas_icons", os.path.join(dirpath, "icons"))
 
     canvas_window = CanvasMainWindow()
+    canvas_window.setAttribute(Qt.WA_DeleteOnClose)
     canvas_window.setWindowIcon(config.application_icon())
 
     if stylesheet_string is not None:
@@ -376,11 +377,12 @@ def main(argv=None):
             status = app.exec_()
         except BaseException:
             log.error("Error in main event loop.", exc_info=True)
+            status = 42
 
-    canvas_window.deleteLater()
+    del canvas_window
+
     app.processEvents()
     app.flush()
-    del canvas_window
 
     # Collect any cycles before deleting the QApplication instance
     gc.collect()
