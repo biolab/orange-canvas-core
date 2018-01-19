@@ -905,13 +905,9 @@ class Installer(QObject):
 
 
 class PipInstaller:
-    def __init__(self, user_install=False):
-        self.user_install = user_install
 
     def install(self, pkg):
         cmd = ["python", "-m", "pip", "install"]
-        if self.user_install:
-            cmd.append("--user")
         if pkg.package_url.startswith("http://"):
             cmd.append(pkg.name)
         else:
@@ -928,8 +924,6 @@ class PipInstaller:
 
     def upgrade_no_deps(self, package):
         cmd = ["python", "-m", "pip", "install", "--upgrade", "--no-deps"]
-        if self.user_install:
-            cmd.append("--user")
         cmd.append(package.name)
 
         run_command(cmd)
@@ -937,31 +931,6 @@ class PipInstaller:
     def uninstall(self, dist):
         cmd = ["python", "-m", "pip", "uninstall", "--yes", dist.project_name]
         run_command(cmd)
-
-        if self.user_install:
-            # Remove the package forcefully; pip doesn't (yet) uninstall
-            # --user packages (or any package outside sys.prefix?)-
-            # google: pip "Not uninstalling ?" "outside environment"
-            self.manual_uninstall(dist)
-
-    def manual_uninstall(self, dist):
-        install_path = os.path.join(
-            USER_SITE, re.sub('[^\w]', '_', dist.project_name))
-        pip_record = next(iglob(install_path + '*.dist-info/RECORD'),
-                          None)
-        if pip_record:
-            with open(pip_record) as f:
-                files = [line.rsplit(',', 2)[0] for line in f]
-        else:
-            files = [os.path.join(
-                USER_SITE, 'orangecontrib',
-                dist.project_name.split('-')[-1].lower()), ]
-        for match in itertools.chain(files, iglob(install_path + '*')):
-            print('rm -rf', match)
-            if os.path.isdir(match):
-                shutil.rmtree(match)
-            elif os.path.exists(match):
-                os.unlink(match)
 
 
 class CondaInstaller:
