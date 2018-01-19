@@ -1588,7 +1588,13 @@ class CanvasMainWindow(QMainWindow):
                 config.default.addon_pypi_search_spec(),
                 timeout=20,
             )
-
+        from .addons import have_install_permissions
+        if not have_install_permissions():
+            QMessageBox(QMessageBox.Warning,
+                        "Add-ons: insufficient permissions",
+                        "Insufficient permissions to install add-ons. Try starting Orange "
+                        "as a system administrator or install Orange in user folders.",
+                        parent=self).exec_()
         dlg = addons.AddonManagerDialog(
             self, windowTitle=self.tr("Add-ons"), modal=True)
         dlg.setAttribute(Qt.WA_DeleteOnClose)

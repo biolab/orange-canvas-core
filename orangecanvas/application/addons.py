@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import sys
+import sysconfig
 import os
 import logging
 import errno
@@ -809,6 +810,19 @@ def unique(iterable):
         return observed
 
     return (el for el in iterable if not observed(el))
+
+
+def have_install_permissions():
+    """Check if we can create a file in the site-packages folder.
+    This works on a Win7 miniconda install, where os.access did not. """
+    try:
+        fn = os.path.join(sysconfig.get_path("purelib"), "test_write_" + str(os.getpid()))
+        with open(fn, "w"):
+            pass
+        os.remove(fn)
+        return True
+    except PermissionError:
+        return False
 
 
 def _env_with_proxies():
