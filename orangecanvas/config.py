@@ -243,8 +243,13 @@ spec = \
      ("logging/dockable", bool, True, "Allow log window to be docked"),
 
      ("help/open-in-external-browser", bool, False,
-      "Open help in an external browser")
+      "Open help in an external browser"),
+
+     ("network/http-proxy", str, '', 'HTTP proxy.'),
+
+     ("network/https-proxy", str, '', 'HTTPS proxy.'),
      ]
+
 
 spec = [config_slot(*t) for t in spec]
 

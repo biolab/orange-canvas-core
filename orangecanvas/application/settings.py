@@ -18,7 +18,7 @@ from ..utils.propertybindings import (
 from AnyQt.QtWidgets import (
     QWidget, QMainWindow, QComboBox, QCheckBox, QListView, QTabWidget,
     QToolBar, QAction, QStackedWidget, QVBoxLayout, QHBoxLayout,
-    QFormLayout, QSizePolicy, QDialogButtonBox
+    QFormLayout, QSizePolicy, QDialogButtonBox, QLineEdit
 )
 from AnyQt.QtGui import QStandardItemModel, QStandardItem
 from AnyQt.QtCore import (
@@ -26,6 +26,11 @@ from AnyQt.QtCore import (
 )
 
 log = logging.getLogger(__name__)
+
+
+def refresh_proxies():
+    from orangecanvas.main import fix_set_proxy_env
+    fix_set_proxy_env()
 
 
 class UserDefaultsPropertyBinding(AbstractBoundProperty):
@@ -403,6 +408,20 @@ class UserSettingsDialog(QMainWindow):
 
         self.addTab(tab, "Categories")
 
+        # Network Tab
+        tab = QWidget()
+        self.addTab(tab, self.tr("Network"),
+                    toolTip="Settings related to networking")
+
+        form = QFormLayout()
+        line_edit_http_proxy = QLineEdit()
+        self.bind(line_edit_http_proxy, "text", "network/http-proxy")
+        form.addRow("HTTP proxy:", line_edit_http_proxy)
+        line_edit_https_proxy = QLineEdit()
+        self.bind(line_edit_https_proxy, "text", "network/https-proxy")
+        form.addRow("HTTPS proxy:", line_edit_https_proxy)
+        tab.setLayout(form)
+
         if self.__macUnified:
             # Need some sensible size otherwise mac unified toolbar 'takes'
             # the space that should be used for layout of the contents
@@ -471,6 +490,7 @@ class UserSettingsDialog(QMainWindow):
         self.show()
         status = self.__loop.exec_()
         self.__loop = None
+        refresh_proxies()
         return status
 
     def hideEvent(self, event):

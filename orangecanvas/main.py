@@ -139,13 +139,32 @@ def fix_win_pythonw_std_stream():
             sys.stderr = open(os.devnull, "w")
 
 
+default_proxies = None
+
+
 def fix_set_proxy_env():
     """
     Set http_proxy/https_proxy environment variables (for requests, pip, ...)
-    from system settings on OS X and from registry on Windos. On unix, no-op.
+    from user-specified settings or, if none, from system settings on OS X
+    and from registry on Windos.
     """
-    for scheme, proxy in getproxies().items():
-        os.environ[scheme + '_proxy'] = proxy
+    # save default proxies so that setting can be reset
+    global default_proxies
+    if default_proxies is None:
+        default_proxies = getproxies()  # can also read windows and macos settings
+
+    settings = QSettings()
+    proxies = getproxies()
+    for scheme in set(["http", "https"]) | set(proxies):
+        from_settings = settings.value("network/" + scheme + "-proxy", "", type=str)
+        from_default = default_proxies.get(scheme, "")
+        env_scheme = scheme + '_proxy'
+        if from_settings:
+            os.environ[env_scheme] = from_settings
+        elif from_default:
+            os.environ[env_scheme] = from_default  # crucial for windows/macos support
+        else:
+            os.environ.pop(env_scheme, "")
 
 
 def main(argv=None):
