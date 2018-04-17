@@ -34,7 +34,7 @@ from AnyQt.QtWidgets import (
     QWidget, QDialog, QLabel, QLineEdit, QTreeView, QHeaderView,
     QTextBrowser, QDialogButtonBox, QProgressDialog,
     QVBoxLayout, QStyle, QStyledItemDelegate, QStyleOptionViewItem,
-    QApplication, QPushButton, QFormLayout
+    QApplication, QPushButton, QFormLayout, QHBoxLayout
 )
 
 from AnyQt.QtGui import (
@@ -173,8 +173,9 @@ class AddonManagerWidget(QWidget):
         self.__search = QLineEdit(
             placeholderText=self.tr("Filter")
         )
-
-        self.layout().addWidget(self.__search)
+        self.tophlayout = topline = QHBoxLayout()
+        topline.addWidget(self.__search)
+        self.layout().addLayout(topline)
 
         self.__view = view = QTreeView(
             rootIsDecorated=False,
@@ -399,11 +400,11 @@ class AddonManagerDialog(QDialog):
 
         )
         addmore = QPushButton(
-            "Add more...", toolTip="Add an add-on not listed above",
+            "Add more...", toolTip="Add an add-on not listed below",
             autoDefault=False
         )
+        self.addonwidget.tophlayout.addWidget(addmore)
         addmore.clicked.connect(self.__run_add_package_dialog)
-        buttons.addButton(addmore, QDialogButtonBox.ActionRole)
 
         buttons.accepted.connect(self.__accepted)
         buttons.rejected.connect(self.reject)
