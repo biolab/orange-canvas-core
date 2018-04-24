@@ -220,8 +220,7 @@ class AddonManagerWidget(QWidget):
     def setItems(self, items):
         self.__items = items
         model = self.__model
-        model.clear()
-        model.setHorizontalHeaderLabels(["", "Name", "Version", "Action"])
+        model.setRowCount(0)
 
         for item in items:
             if isinstance(item, Installed):
@@ -251,9 +250,9 @@ class AddonManagerWidget(QWidget):
                 item1.setCheckState(Qt.Checked)
             else:
                 item1.setCheckState(Qt.Unchecked)
+            item1.setData(item, Qt.UserRole)
 
             item2 = QStandardItem(name)
-
             item2.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
             item2.setToolTip(summary)
             item2.setData(item, Qt.UserRole)
@@ -268,6 +267,8 @@ class AddonManagerWidget(QWidget):
             item4.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
 
             model.appendRow([item1, item2, item3, item4])
+
+        model.sort(1)
 
         self.__view.resizeColumnToContents(0)
         self.__view.setColumnWidth(
@@ -286,8 +287,9 @@ class AddonManagerWidget(QWidget):
 
     def itemState(self):
         steps = []
-        for i, item in enumerate(self.__items):
+        for i in range(self.__model.rowCount()):
             modelitem = self.__model.item(i, 0)
+            item = modelitem.data(Qt.UserRole)
             state = modelitem.checkState()
             if modelitem.flags() & Qt.ItemIsTristate and state == Qt.Checked:
                 steps.append((Upgrade, item))
@@ -312,7 +314,7 @@ class AddonManagerWidget(QWidget):
         for i in rows:
             modelitem = self.__model.item(i, 0)
             actionitem = self.__model.item(i, 3)
-            item = self.__items[i]
+            item = modelitem.data(Qt.UserRole)
 
             state = modelitem.checkState()
             flags = modelitem.flags()
