@@ -17,7 +17,7 @@ from collections import namedtuple, deque
 from xml.sax.saxutils import escape
 from distutils import version
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union, Tuple, NamedTuple
 
 import future.moves.urllib.request
 from future.moves import urllib
@@ -76,19 +76,27 @@ ReleaseUrl = namedtuple(
      ]
 )
 
-Available = namedtuple(
-    "Available",
-    ["installable"]
+#: An available package
+Available = NamedTuple(
+    "Available", (
+        ("installable", Installable),
+    )
+)
+#: An installed package. Does not need to have a corresponding installable
+#: entry (eg. only local or private distribution)
+Installed = NamedTuple(
+    "Installed", (
+        ("installable", Optional[Installable]),
+        ("local", pkg_resources.Distribution)
+    )
 )
 
-Installed = namedtuple(
-    "Installed",
-    ["installable",
-     "local"]
-)
+#: An installable item/slot
+Item = Union[Available, Installed]
 
 
 def is_updatable(item):
+    # type: (Item) -> bool
     if isinstance(item, Available):
         return False
     elif item.installable is None:
@@ -218,6 +226,7 @@ class AddonManagerWidget(QWidget):
         self.layout().addWidget(self.__details)
 
     def setItems(self, items):
+        # type: (List[Item]) -> None
         self.__items = items
         model = self.__model
         model.setRowCount(0)
@@ -283,9 +292,11 @@ class AddonManagerWidget(QWidget):
             )
 
     def items(self):
+        # type: () -> List[Item]
         return list(self.__items)
 
     def itemState(self):
+        # type: () -> List['Action']
         steps = []
         for i in range(self.__model.rowCount()):
             modelitem = self.__model.item(i, 0)
@@ -299,6 +310,37 @@ class AddonManagerWidget(QWidget):
                 steps.append((Uninstall, item))
 
         return steps
+
+    def setItemState(self, steps):
+        # type: (List['Action']) -> None
+        model = self.__model
+        if model.rowCount() == 0:
+            return
+
+        for row in range(model.rowCount()):
+            modelitem = model.item(row, 0)  # type: QStandardItem
+            item = modelitem.data(Qt.UserRole)  # type: Item
+            # Find the action command in the steps list for the item
+            cmd = -1
+            for cmd_, item_ in steps:
+                if item == item_:
+                    cmd = cmd_
+                    break
+            if isinstance(item, Available):
+                modelitem.setCheckState(
+                    Qt.Checked if cmd == Install else Qt.Unchecked
+                )
+            elif isinstance(item, Installed):
+                if cmd == Upgrade:
+                    modelitem.setCheckState(Qt.Checked)
+                elif cmd == Uninstall:
+                    modelitem.setCheckState(Qt.Unchecked)
+                elif is_updatable(item):
+                    modelitem.setCheckState(Qt.PartiallyChecked)
+                else:
+                    modelitem.setCheckState(Qt.Checked)
+            else:
+                assert False
 
     def __selected_row(self):
         indices = self.__view.selectedIndexes()
@@ -423,15 +465,20 @@ class AddonManagerDialog(QDialog):
 
     @Slot(object)
     def setItems(self, items):
+        # type: (List[Item]) -> None
         self.addonwidget.setItems(items)
 
     @Slot(object)
     def addInstallable(self, installable):
+        # type: (Installable) -> None
         items = self.addonwidget.items()
-        if installable.name in {item.installable.name for item in items}:
+        if installable.name in {item.installable.name for item in items
+                                if item.installable is not None}:
             return
         new = installable_items([installable], list_installed_addons())
+        state = self.addonwidget.itemState()
         self.addonwidget.setItems(items + new)
+        self.addonwidget.setItemState(state)  # restore state
 
     def __run_add_package_dialog(self):
         dlg = QDialog(self, windowTitle="Add add-on by name")
@@ -527,7 +574,6 @@ class AddonManagerDialog(QDialog):
         if self.__thread is not None:
             self.__thread.quit()
             self.__thread.wait(1000)
-
 
     def __accepted(self):
         steps = self.addonwidget.itemState()
@@ -779,6 +825,8 @@ def _env_with_proxies():
 
 
 Install, Upgrade, Uninstall = 1, 2, 3
+
+Action = Tuple[int, Item]
 
 
 class Installer(QObject):
