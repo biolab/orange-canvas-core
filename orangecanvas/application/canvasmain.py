@@ -615,6 +615,14 @@ class CanvasMainWindow(QMainWindow):
         self.toogle_margins_action.toggled.connect(
             self.set_scheme_margins_enabled)
 
+        self.float_widgets_on_top_action = \
+            QAction(self.tr("Float Widgets on Top"), self,
+                    checkable=True,
+                    toolTip=self.tr("Widgets are always displayed above other windows."))
+        self.float_widgets_on_top_action.toggled.connect(
+            self.set_float_widgets_on_top_enabled)
+
+
     def setup_menu(self):
         menu_bar = QMenuBar()
         if sys.platform == "darwin" and QT_VERSION >= 0x50000:
@@ -693,6 +701,7 @@ class CanvasMainWindow(QMainWindow):
         self.view_menu.addSeparator()
 
         self.view_menu.addAction(self.toogle_margins_action)
+        self.view_menu.addAction(self.float_widgets_on_top_action)
         menu_bar.addMenu(self.view_menu)
 
         # Options menu
@@ -756,6 +765,10 @@ class CanvasMainWindow(QMainWindow):
 
         self.canvas_tool_dock.setQuickHelpVisible(
             settings.value("quick-help/visible", True, type=bool)
+        )
+
+        self.float_widgets_on_top_action.setChecked(
+            settings.value("widgets-float-on-top", False, type=bool)
         )
 
         self.__update_from_settings()
@@ -1586,6 +1599,14 @@ class CanvasMainWindow(QMainWindow):
             self.__p_addon_items_available.connect(dlg.setItems)
 
         return dlg.exec_()
+
+    def set_float_widgets_on_top_enabled(self, enabled):
+        wm = self.current_document().scheme().widget_manager
+
+        settings = QSettings()
+        settings.setValue("mainwindow/widgets-float-on-top", bool(enabled))
+        wm.show_widgets_on_top_changed()
+
 
     __p_addon_items_available = Signal(object)
 
