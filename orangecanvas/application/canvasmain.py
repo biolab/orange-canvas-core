@@ -1602,11 +1602,7 @@ class CanvasMainWindow(QMainWindow):
 
     def set_float_widgets_on_top_enabled(self, enabled):
         wm = self.current_document().scheme().widget_manager
-
-        settings = QSettings()
-        settings.setValue("mainwindow/widgets-float-on-top", bool(enabled))
-        wm.show_widgets_on_top_changed()
-
+        wm.set_float_widgets_on_top(enabled)
 
     __p_addon_items_available = Signal(object)
 
@@ -1790,6 +1786,8 @@ class CanvasMainWindow(QMainWindow):
 
         settings.setValue("quick-help/visible",
                           self.canvas_tool_dock.quickHelpVisible())
+        settings.setValue("widgets-float-on-top",
+                          self.float_widgets_on_top_action.isChecked())
 
         settings.endGroup()
         self.help_dock.close()
@@ -1934,6 +1932,11 @@ class CanvasMainWindow(QMainWindow):
         self.num_recent_schemes = settings.value("num-recent-schemes",
                                                  defaultValue=15,
                                                  type=int)
+
+        float_widgets_on_top = settings.value("widgets-float-on-top",
+                                              defaultValue=False,
+                                              type=bool)
+        self.set_float_widgets_on_top_enabled(float_widgets_on_top)
 
         settings.endGroup()
         settings.beginGroup("quickmenu")
