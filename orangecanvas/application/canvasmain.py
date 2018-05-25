@@ -616,7 +616,7 @@ class CanvasMainWindow(QMainWindow):
             self.set_scheme_margins_enabled)
 
         self.float_widgets_on_top_action = \
-            QAction(self.tr("Float Widgets on Top"), self,
+            QAction(self.tr("Display Widgets on Top"), self,
                     checkable=True,
                     toolTip=self.tr("Widgets are always displayed above other windows."))
         self.float_widgets_on_top_action.toggled.connect(
