@@ -5,11 +5,12 @@ Scheme save/load routines.
 import sys
 import warnings
 import base64
+import binascii
 import itertools
 
 from xml.etree.ElementTree import TreeBuilder, Element, ElementTree, parse
 
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from itertools import chain, count
 
 import pickle
@@ -20,6 +21,8 @@ import ast
 from ast import literal_eval
 
 import logging
+
+from typing import NamedTuple, Dict, Tuple, List, Union, Any
 
 import six
 
@@ -319,7 +322,7 @@ def parse_scheme_v_2_0(etree, scheme, error_handler, widget_registry=None,
 def parse_scheme_v_1_0(etree, scheme, error_handler, widget_registry=None,
                        allow_pickle_data=False):
     """
-    ElementTree Instance of an old .ows scheme format.
+    ElementTree Instance of an old .ows scheme format (Orange < 2.7).
     """
     if widget_registry is None:
         widget_registry = global_registry()
@@ -400,38 +403,82 @@ def parse_scheme_v_1_0(etree, scheme, error_handler, widget_registry=None,
 
 
 # Intermediate scheme representation
-_scheme = namedtuple(
-    "_scheme",
-    ["title", "version", "description", "nodes", "links", "annotations"])
+_scheme = NamedTuple(
+    "_scheme", [
+        ("title", str),
+        ("version", str),
+        ("description", str),
+        ("nodes", 'List[_node]'),
+        ("links", 'List[_link]'),
+        ("annotations", 'List[_annotation]'),
+        ("session_state", '_session_data')
+    ]
+)
 
-_node = namedtuple(
-    "_node",
-    ["id", "title", "name", "position", "project_name", "qualified_name",
-     "version", "data"])
+_node = NamedTuple(
+    "_node", [
+        ("id", str),
+        ("title", str),
+        ("name", str),
+        ("position", 'Tuple[float, float]'),
+        ("project_name", str),
+        ("qualified_name", str),
+        ("version", str),
+        ("data", '_data')
+    ]
+)
 
-_data = namedtuple(
-    "_data",
-    ["format", "data"])
+_data = NamedTuple(
+    "_data", [
+        ("format", str),
+        ("data", bytes)
+    ]
+)
 
-_link = namedtuple(
-    "_link",
-    ["id", "source_node_id", "sink_node_id", "source_channel", "sink_channel",
-     "enabled"])
+_link = NamedTuple(
+    "_link", [
+        ("id", str),
+        ("source_node_id", str),
+        ("sink_node_id", str),
+        ("source_channel", str),
+        ("sink_channel", str),
+        ("enabled", bool),
+    ]
+)
 
-_annotation = namedtuple(
-    "_annotation",
-    ["id", "type", "params"])
+_annotation = NamedTuple(
+    "_annotation", [
+        ("id", str),
+        ("type", str),
+        ("params", Union['_text_params', '_arrow_params']),
+    ]
+)
 
-_text_params = namedtuple(
-    "_text_params",
-    ["geometry", "text", "font", "content_type"])
+_text_params = NamedTuple(
+    "_text_params", [
+        ("geometry", str),
+        ("text", str),
+        ("font", Dict[str, Any]),
+        ("content_type", str),
+    ]
+)
 
-_arrow_params = namedtuple(
-    "_arrow_params",
-    ["geometry", "color"])
+_arrow_params = NamedTuple(
+    "_arrow_params", [
+        ("geometry", str),
+        ("color", str),
+    ])
+
+
+_session_data = NamedTuple(
+    "_session_data", [
+        ("groups", List[Tuple[str, List[Tuple[str, bytes]]]])
+    ]
+)
 
 
 def parse_ows_etree_v_2_0(tree):
+    # type: (ElementTree) -> _scheme
     scheme = tree.getroot()
     nodes, links, annotations = [], [], []
 
@@ -502,7 +549,27 @@ def parse_ows_etree_v_2_0(tree):
                 type="arrow",
                 params=_arrow_params((start, end), color)
             )
+        else:
+            log.warn("Unknown annotation '%s'. Skipping.", annot.tag)
+            continue
         annotations.append(annotation)
+
+    window_presets = []
+    for window_group in tree.findall("session_state/window_groups/group"):
+        name = window_group.get("name")  # type: str
+        state = []
+        for state_ in window_group.findall("window_state"):
+            node_id = state_.get("node_id")  # type: str
+            try:
+                data = base64.decodebytes(state_.text.encode("ascii"))
+            except binascii.Error:
+                data = b''
+            except UnicodeDecodeError:
+                data = b''
+            state.append((node_id, data))
+        window_presets.append((name, state))
+
+    session_state = _session_data(window_presets)
 
     return _scheme(
         version=scheme.get("version"),
@@ -510,7 +577,8 @@ def parse_ows_etree_v_2_0(tree):
         description=scheme.get("description"),
         nodes=nodes,
         links=links,
-        annotations=annotations
+        annotations=annotations,
+        session_state=session_state,
     )
 
 
@@ -567,10 +635,12 @@ def parse_ows_etree_v_1_0(tree):
                       enabled=enabled)
             )
     return _scheme(title="", description="", version="1.0",
-                   nodes=nodes, links=links, annotations=[])
+                   nodes=nodes, links=links, annotations=[],
+                   session_state=_session_data([]))
 
 
 def parse_ows_stream(stream):
+    # type: (...) -> _scheme
     doc = parse(stream)
     scheme_el = doc.getroot()
     version = scheme_el.get("version", None)
@@ -662,7 +732,7 @@ def resolve_replaced(scheme_desc, registry):
 
 
 def scheme_load(scheme, stream, registry=None, error_handler=None):
-    desc = parse_ows_stream(stream)
+    desc = parse_ows_stream(stream)  # type: _scheme
 
     if registry is None:
         registry = global_registry()
@@ -738,6 +808,7 @@ def scheme_load(scheme, stream, registry=None, error_handler=None):
 
         else:
             log.warning("Ignoring unknown annotation type: %r", annot_d.type)
+            continue
         annotations.append(annot)
 
     for node in nodes:
@@ -749,6 +820,14 @@ def scheme_load(scheme, stream, registry=None, error_handler=None):
     for annot in annotations:
         scheme.add_annotation(annot)
 
+    if desc.session_state.groups:
+        # resolve node_id -> node
+        groups = []
+        for name, state in desc.session_state.groups:
+            state = [(nodes_by_id[node_id], data)
+                     for node_id, data in state if node_id in nodes_by_id]
+            groups.append((name, state))
+        scheme.setProperty("_presets", groups)
     return scheme
 
 
@@ -761,10 +840,10 @@ def scheme_to_etree(scheme, data_format="literal", pickle_fallback=False):
                              "title": scheme.title or "",
                              "description": scheme.description or ""})
 
-    ## Nodes
+    # Nodes
     node_ids = defaultdict(lambda c=itertools.count(): next(c))
     builder.start("nodes", {})
-    for node in scheme.nodes:
+    for node in scheme.nodes:  # type: SchemeNode
         desc = node.description
         attrs = {"id": str(node_ids[node]),
                  "name": desc.name,
@@ -784,7 +863,7 @@ def scheme_to_etree(scheme, data_format="literal", pickle_fallback=False):
 
     builder.end("nodes")
 
-    ## Links
+    # Links
     link_ids = defaultdict(lambda c=itertools.count(): next(c))
     builder.start("links", {})
     for link in scheme.links:
@@ -804,7 +883,7 @@ def scheme_to_etree(scheme, data_format="literal", pickle_fallback=False):
 
     builder.end("links")
 
-    ## Annotations
+    # Annotations
     annotation_ids = defaultdict(lambda c=itertools.count(): next(c))
     builder.start("annotations", {})
     for annotation in scheme.annotations:
@@ -862,6 +941,20 @@ def scheme_to_etree(scheme, data_format="literal", pickle_fallback=False):
                 builder.end("properties")
 
     builder.end("node_properties")
+    builder.start("session_state", {})
+    builder.start("window_groups", {})
+
+    for name, state in scheme.property("_presets") or []:
+        builder.start("group", {"name": name})
+        for node, data in state:
+            if node not in node_ids:
+                continue
+            builder.start("window_state", {"node_id": str(node_ids[node])})
+            builder.data(base64.encodebytes(data).decode("ascii"))
+            builder.end("window_state")
+        builder.end("group")
+    builder.end("window_group")
+    builder.end("session_state")
     builder.end("scheme")
     root = builder.close()
     tree = ElementTree(root)
