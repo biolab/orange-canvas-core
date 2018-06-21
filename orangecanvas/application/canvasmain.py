@@ -1077,6 +1077,9 @@ class CanvasMainWindow(QMainWindow):
             scheme_doc_widget.setPath(filename)
 
             self.add_recent_scheme(new_scheme.title, filename)
+            if not self.freeze_action.isChecked():
+                # activate the default window group.
+                scheme_doc_widget.activateDefaultWindowGroup()
             return QDialog.Accepted
         else:
             return QDialog.Rejected
