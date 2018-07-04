@@ -298,6 +298,10 @@ class SuggestMenuPage(MenuPage):
         filter_proxy = self.view().model()
         filter_proxy.setFilterFunc(func)
 
+    def setSortingFunc(self, func):
+        filter_proxy = self.view().model()
+        filter_proxy.setSortingFunc(func)
+
 
 class SortFilterProxyModel(QSortFilterProxyModel):
     """
@@ -309,6 +313,7 @@ class SortFilterProxyModel(QSortFilterProxyModel):
         QSortFilterProxyModel.__init__(self, parent)
 
         self.__filterFunc = None
+        self.__order = None
 
     def setFilterFunc(self, func):
         """
@@ -345,6 +350,14 @@ class SortFilterProxyModel(QSortFilterProxyModel):
             return self.__filterFunc(index)
         else:
             return accepted
+
+    def setSortingFunc(self, func):
+        self.__sortingFunc = func
+
+    def lessThan(self, left, right):
+        model = self.sourceModel()
+        # TODO
+        return self.__sortingFunc(left, right)
 
 
 class SearchWidget(LineEdit):
@@ -880,6 +893,7 @@ class QuickMenu(FramelessWindow):
         self.setWindowFlags(Qt.Popup)
 
         self.__filterFunc = None
+        self.__ordering = None
 
         self.__setupUi()
 
@@ -1101,6 +1115,11 @@ class QuickMenu(FramelessWindow):
         page.hovered.disconnect(self.hovered)
         page.view().removeEventFilter(self)
         self.__pages.removePage(row)
+
+    def setOrdering(self, suggestions):
+        if self.__ordering != suggestions:
+            self.__ordering = suggestions
+            #TODO
 
     def setFilterFunc(self, func):
         """
