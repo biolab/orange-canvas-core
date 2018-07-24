@@ -29,6 +29,8 @@ from AnyQt.QtCore import (
     QSettings, QStandardPaths, QAbstractItemModel, QT_VERSION
 )
 
+from ..document.usagestatistics import UsageStatistics
+
 try:
     from AnyQt.QtWebEngineWidgets import QWebEngineView
 except ImportError:
@@ -882,6 +884,7 @@ class CanvasMainWindow(QMainWindow):
         if isinstance(widget_desc, WidgetDescription):
             scheme_widget = self.current_document()
             if scheme_widget:
+                scheme_widget.usageStatistics().set_node_type(UsageStatistics.NodeAddClick)
                 scheme_widget.createNewNode(widget_desc)
 
     def on_quick_category_action(self, action):
@@ -1832,6 +1835,8 @@ class CanvasMainWindow(QMainWindow):
                 # Reject the event
                 event.ignore()
                 return
+
+        document.usageStatistics().write_statistics()
 
         old_scheme = document.scheme()
 
