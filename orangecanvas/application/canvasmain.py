@@ -29,8 +29,6 @@ from AnyQt.QtCore import (
     QSettings, QStandardPaths, QAbstractItemModel, QT_VERSION
 )
 
-from ..document.usagestatistics import UsageStatistics
-
 try:
     from AnyQt.QtWebEngineWidgets import QWebEngineView
 except ImportError:
@@ -53,6 +51,7 @@ from ..gui.quickhelp import QuickHelpTipEvent
 from ..gui.utils import message_critical, message_question, \
                         message_warning, message_information
 
+from ..document.usagestatistics import UsageStatistics
 from ..help import HelpManager
 
 from .canvastooldock import CanvasToolDock, QuickCategoryToolbar, \
