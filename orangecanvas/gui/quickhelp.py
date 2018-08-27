@@ -21,6 +21,7 @@ class QuickHelp(QTextBrowser):
 
         self.__text = ""
         self.__permanentText = ""
+        self.__defaultText = ""
 
         self.__timer = QTimer(self, timeout=self.__on_timeout,
                               singleShot=True)
@@ -59,6 +60,17 @@ class QuickHelp(QTextBrowser):
             self.__update()
             self.textChanged.emit()
 
+    def setDefaultText(self, text):
+        """
+        Set default help text. The text is overriden by normal and permanent help messages,
+        but is show again after such messages are cleared.
+
+        """
+        if self.__defaultText != text:
+            self.__defaultText = text
+            self.__update()
+            self.textChanged.emit()
+
     def currentText(self):
         """
         Return the current shown text.
@@ -68,8 +80,10 @@ class QuickHelp(QTextBrowser):
     def __update(self):
         if self.__text:
             self.setHtml(self.__text)
-        else:
+        elif self.__permanentText:
             self.setHtml(self.__permanentText)
+        else:
+            self.setHtml(self.__defaultText)
 
     def __on_timeout(self):
         if self.__text:
