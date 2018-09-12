@@ -39,7 +39,7 @@ WIDGETS_ENTRY = "orangecanvas.widgets"
 #: Entry point by which add-ons register with pkg_resources.
 ADDONS_ENTRY = "orangecanvas.addon"
 #: Parameters for searching add-on packages in PyPi using xmlrpc api.
-ADDON_PYPI_SEARCH_SPEC = {"keywords": "orange add-on"}
+ADDON_PYPI_SEARCH_SPEC = {"keywords": ["orange", "add-on"]}
 
 TUTORIALS_ENTRY = "orangecanvas.tutorials"
 

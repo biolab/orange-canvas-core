@@ -2,20 +2,27 @@ from __future__ import print_function
 
 import sys
 import os
+import logging
 import errno
 import shlex
 import subprocess
 import itertools
 import socket
 import xmlrpc.client
+import json
+import traceback
+import concurrent.futures
 
 from collections import namedtuple, deque
 from xml.sax.saxutils import escape
 from distutils import version
 
+from typing import List, Dict, Any, Optional
+
 import future.moves.urllib.request
 from future.moves import urllib
 
+import requests
 import pkg_resources
 
 try:
@@ -27,7 +34,7 @@ from AnyQt.QtWidgets import (
     QWidget, QDialog, QLabel, QLineEdit, QTreeView, QHeaderView,
     QTextBrowser, QDialogButtonBox, QProgressDialog,
     QVBoxLayout, QStyle, QStyledItemDelegate, QStyleOptionViewItem,
-    QApplication
+    QApplication, QPushButton, QFormLayout
 )
 
 from AnyQt.QtGui import (
@@ -44,6 +51,8 @@ from ..gui.utils import message_warning, message_information, \
 from ..help.manager import get_dist_meta, trim
 from ..utils.qtcompat import qunwrap
 from .. import config
+
+log = logging.getLogger(__name__)
 
 #: An installable distribution from PyPi
 Installable = namedtuple(
@@ -271,6 +280,9 @@ class AddonManagerWidget(QWidget):
                 QItemSelectionModel.Select | QItemSelectionModel.Rows
             )
 
+    def items(self):
+        return list(self.__items)
+
     def itemState(self):
         steps = []
         for i, item in enumerate(self.__items):
@@ -383,12 +395,21 @@ class AddonManagerDialog(QDialog):
         self.layout().addWidget(self.addonwidget)
         buttons = QDialogButtonBox(
             orientation=Qt.Horizontal,
-            standardButtons=QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+            standardButtons=QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
+
         )
+        addmore = QPushButton(
+            "Add more...", toolTip="Add an add-on not listed above",
+            autoDefault=False
+        )
+        addmore.clicked.connect(self.__run_add_package_dialog)
+        buttons.addButton(addmore, QDialogButtonBox.ActionRole)
+
         buttons.accepted.connect(self.__accepted)
         buttons.rejected.connect(self.reject)
 
         self.layout().addWidget(buttons)
+        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
         self.__progress = None  # type: QProgressDialog
 
@@ -400,6 +421,82 @@ class AddonManagerDialog(QDialog):
     @Slot(object)
     def setItems(self, items):
         self.addonwidget.setItems(items)
+
+    @Slot(object)
+    def addInstallable(self, installable):
+        items = self.addonwidget.items()
+        if installable.name in {item.installable.name for item in items}:
+            return
+        new = installable_items([installable], list_installed_addons())
+        self.addonwidget.setItems(items + new)
+
+    def __run_add_package_dialog(self):
+        dlg = QDialog(self, windowTitle="Add add-on by name")
+        dlg.setAttribute(Qt.WA_DeleteOnClose)
+
+        vlayout = QVBoxLayout()
+        form = QFormLayout()
+        form.setContentsMargins(0, 0, 0, 0)
+        nameentry = QLineEdit(
+            placeholderText="Package name",
+            toolTip="Enter a package name as displayed on "
+                    "PyPI (capitalization is not important)")
+        nameentry.setMinimumWidth(250)
+        form.addRow("Name:", nameentry)
+        vlayout.addLayout(form)
+        buttons = QDialogButtonBox(
+            standardButtons=QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        )
+        okb = buttons.button(QDialogButtonBox.Ok)
+        okb.setEnabled(False)
+        okb.setText("Add")
+
+        def changed(name):
+            okb.setEnabled(bool(name))
+        nameentry.textChanged.connect(changed)
+        vlayout.addWidget(buttons)
+        vlayout.setSizeConstraint(QVBoxLayout.SetFixedSize)
+        dlg.setLayout(vlayout)
+        f = None
+
+        def query():
+            nonlocal f
+            name = nameentry.text()
+            f = self._executor.submit(pypi_json_query_project_meta, [name])
+            okb.setDisabled(True)
+
+            def ondone(f):
+                error_text = ""
+                error_details = ""
+                try:
+                    pkgs = f.result()
+                except Exception:
+                    log.error("Query error:", exc_info=True)
+                    error_text = "Failed to query package index"
+                    error_details = traceback.format_exc()
+                    pkg = None
+                else:
+                    pkg = pkgs[0]
+                    if pkg is None:
+                        error_text = "'{}' not was not found".format(name)
+                if pkg:
+                    pkg = installable_from_json_response(pkg)
+                    method_queued(self.addInstallable, (object,))(pkg)
+                    method_queued(dlg.accept, ())()
+                else:
+                    method_queued(self.__show_error_for_query, (str, str)) \
+                        (error_text, error_details)
+                    method_queued(dlg.reject, ())()
+
+            f.add_done_callback(ondone)
+
+        buttons.accepted.connect(query)
+        buttons.rejected.connect(dlg.reject)
+        dlg.exec_()
+
+    @Slot(str, str)
+    def __show_error_for_query(self, text, error_details):
+        message_error(text, title="Error", details=error_details)
 
     def progressDialog(self):
         if self.__progress is None:
@@ -427,6 +524,7 @@ class AddonManagerDialog(QDialog):
         if self.__thread is not None:
             self.__thread.quit()
             self.__thread.wait(1000)
+
 
     def __accepted(self):
         steps = self.addonwidget.itemState()
@@ -482,42 +580,117 @@ class SafeTransport(xmlrpc.client.SafeTransport):
         return conn
 
 
+PYPI_API_JSON = "https://pypi.org/pypi/{name}/json"
+PYPI_API_XMLRPC = "https://pypi.org/pypi"
+
+
 def pypi_search(spec, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
     """
     Search package distributions available on PyPi using PyPiXMLRPC.
     """
     pypi = xmlrpc.client.ServerProxy(
-        "https://pypi.python.org/pypi",
+        PYPI_API_XMLRPC,
         transport=SafeTransport(timeout=timeout)
     )
-    addons = pypi.search(spec)
+    # pypi search
+    spec = {key: [v] if isinstance(v, str) else v
+            for key, v in spec.items()}
+    _spec = {}
+    for key, values in spec.items():
+        if isinstance(values, str):
+            _spec[key] = values
+        elif key == "keywords" and len(values) > 1:
+            _spec[key] = [values[0]]
+        else:
+            _spec[key] = values
+    addons = pypi.search(_spec, 'and')
+    addons = [item["name"] for item in addons if "name" in item]
+    metas_ = pypi_json_query_project_meta(addons)
 
-    multicall = xmlrpc.client.MultiCall(pypi)
-    for addon in addons:
-        name, version = addon["name"], addon["version"]
-        multicall.release_data(name, version)
-        multicall.release_urls(name, version)
+    # post filter on multiple keywords
+    def matches(meta, spec):
+        # type: (Dict[str, Any], Dict[str, List[str]]) -> bool
+        def match_list(meta, query):
+            # type: (List[str], List[str]) -> bool
+            meta = {s.casefold() for s in meta}
+            return all(q.casefold() in meta for q in query)
 
-    results = list(multicall())
-    release_data = results[::2]
-    release_urls = results[1::2]
-    packages = []
-    for release, urls in zip(release_data, release_urls):
-        if release and urls:
-            # ignore releases without actual source/wheel/egg files,
-            # or with empty metadata (deleted from PyPi?).
-            urls = [ReleaseUrl(url["filename"], url["url"],
-                               url["size"], url["python_version"],
-                               url["packagetype"])
-                    for url in urls]
-            packages.append(
-                Installable(release["name"], release["version"],
-                            release["summary"], release["description"],
-                            release["package_url"],
-                            urls)
-            )
+        def match_string(meta, query):
+            # type: (str, List[str]) -> bool
+            meta = meta.casefold()
+            return all(q.casefold() in meta for q in query)
 
-    return packages
+        for key, query in spec.items():
+            value = meta.get(key, None)
+            if isinstance(value, str) and not match_string(value, query):
+                return False
+            elif isinstance(value, list) and not match_list(value, query):
+                return False
+        return True
+
+    metas = []
+    for meta in metas_:
+        if meta is not None:
+            if matches(meta["info"], spec):
+                metas.append(meta)
+    return [installable_from_json_response(m) for m in metas]
+
+
+def pypi_json_query_project_meta(projects, session=None):
+    # type: (List[str], Optional[requests.Session]) -> List[Optional[dict]]
+    """
+    Parameters
+    ----------
+    projects : List[str]
+        List of project names to query
+    session : Optional[requests.Session]
+    """
+    if session is None:
+        session = requests.Session()
+
+    rval = []
+    for name in projects:
+        r = session.get(PYPI_API_JSON.format(name=name))
+        if r.status_code != 200:
+            rval.append(None)
+        else:
+            try:
+                meta = r.json()
+            except json.JSONDecodeError:
+                rval.append(None)
+            else:
+                try:
+                    # sanity check
+                    installable_from_json_response(meta)
+                except (TypeError, KeyError):
+                    rval.append(None)
+                else:
+                    rval.append(meta)
+    return rval
+
+
+def installable_from_json_response(meta):
+    # type: (dict) -> Installable
+    """
+    Extract relevant project meta data from a PyPiJSONRPC response
+
+    Parameters
+    ----------
+    meta : dict
+        JSON response decoded into python native dict.
+
+    Returns
+    -------
+    installable : Installable
+    """
+    info = meta["info"]
+    name = info["name"]
+    version = info.get("version", "0")
+    summary = info.get("summary", "")
+    description = info.get("description", "")
+    package_url = info.get("package_url", "")
+
+    return Installable(name, version, summary, description, package_url, [])
 
 
 def list_pypi_addons():
