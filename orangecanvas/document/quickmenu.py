@@ -289,7 +289,6 @@ class SuggestMenuPage(MenuPage):
         """
         proxy = self.__proxy()
         proxy.setFilterFixedString(pattern)
-        # usage.set_last_search_query(str(pattern.pattern()))
         self.ensureCurrent()
 
     def setFilterRegExp(self, pattern):
@@ -314,7 +313,6 @@ class SuggestMenuPage(MenuPage):
         """
         filter_proxy = self.__proxy()
         filter_proxy.setFilterWildCard(pattern)
-        # usage.set_last_search_query(str(pattern.pattern()))
         self.ensureCurrent()
 
     def setFilterFunc(self, func):
