@@ -475,13 +475,23 @@ class SchemeEditWidget(QWidget):
         """
         Return a list of actions that can be inserted into a toolbar.
         At the moment these are:
-
+            - 'Zoom in' action
+            - 'Zoom out' action
+            - 'Zoom Reset' action
             - 'Clean up' action (align to grid)
             - 'New text annotation' action (with a size menu)
             - 'New arrow annotation' action (with a color menu)
 
         """
-        return [self.__cleanUpAction,
+        view = self.__view
+        zoomin = view.findChild(QAction, "action-zoom-in")
+        zoomout = view.findChild(QAction, "action-zoom-out")
+        zoomreset = view.findChild(QAction, "action-zoom-reset")
+        assert zoomin and zoomout and zoomreset
+        return [zoomin,
+                zoomout,
+                zoomreset,
+                self.__cleanUpAction,
                 self.__newTextAnnotationAction,
                 self.__newArrowAnnotationAction]
 

@@ -318,17 +318,22 @@ class CanvasMainWindow(QMainWindow):
 
         tool_actions = self.current_document().toolbarActions()
 
-        (self.canvas_align_to_grid_action,
+        (self.zoom_in_action, self.zoom_out_action, self.zoom_reset_action,
+         self.canvas_align_to_grid_action,
          self.canvas_text_action, self.canvas_arrow_action,) = tool_actions
 
         self.canvas_align_to_grid_action.setIcon(canvas_icons("Grid.svg"))
         self.canvas_text_action.setIcon(canvas_icons("Text Size.svg"))
         self.canvas_arrow_action.setIcon(canvas_icons("Arrow.svg"))
 
-        dock_actions = [self.show_properties_action] + \
-                       tool_actions + \
-                       [self.freeze_action,
-                        self.dock_help_action]
+        dock_actions = [
+            self.show_properties_action,
+            self.canvas_align_to_grid_action,
+            self.canvas_text_action,
+            self.canvas_arrow_action,
+            self.freeze_action,
+            self.dock_help_action
+        ]
 
         # Tool bar in the collapsed dock state (has the same actions as
         # the tool bar in the CanvasToolDock
@@ -564,22 +569,6 @@ class CanvasMainWindow(QMainWindow):
                     triggered=lambda checked: self.output_dock.setVisible(
                         checked),
                     )
-
-        self.zoom_in_action = \
-            QAction(self.tr("Zoom in"), self,
-                    triggered=self.zoom_in,
-                    shortcut=QKeySequence(Qt.ControlModifier | Qt.Key_Plus))
-
-        self.zoom_out_action = \
-            QAction(self.tr("Zoom out"), self,
-                    triggered=self.zoom_out,
-                    shortcut=QKeySequence(Qt.ControlModifier | Qt.Key_Minus))
-
-        self.zoom_reset_action = \
-            QAction(self.tr("Reset Zoom"), self,
-                    triggered=self.zoom_reset,
-                    shortcut=QKeySequence(Qt.ControlModifier | Qt.Key_0))
-
 
         if sys.platform == "darwin":
             # Actions for native Mac OSX look and feel.
@@ -1896,15 +1885,6 @@ class CanvasMainWindow(QMainWindow):
                 self.showNormal()
             else:
                 self.showMaximized()
-
-    def zoom_in(self):
-        self.scheme_widget.view().change_zoom(1)
-
-    def zoom_out(self):
-        self.scheme_widget.view().change_zoom(-1)
-
-    def zoom_reset(self):
-        self.scheme_widget.view().reset_zoom()
 
     def sizeHint(self):
         """

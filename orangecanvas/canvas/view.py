@@ -2,12 +2,11 @@
 Canvas Graphics View
 """
 import logging
-from math import copysign
 
-from AnyQt.QtWidgets import QGraphicsView
-from AnyQt.QtGui import QCursor, QIcon, QTransform, QWheelEvent
-from AnyQt.QtCore import QT_VERSION, Qt, QRect, QSize, QRectF, QPoint, QTimer
-
+from AnyQt.QtWidgets import QGraphicsView, QAction
+from AnyQt.QtGui import QCursor, QIcon, QKeySequence, QTransform, QWheelEvent
+from AnyQt.QtCore import Qt, QRect, QSize, QRectF, QPoint, QTimer, Property
+from AnyQt.QtCore import pyqtSignal as Signal
 log = logging.getLogger(__name__)
 
 
@@ -26,7 +25,27 @@ class CanvasView(QGraphicsView):
         self.__autoScrollTimer = QTimer(self)
         self.__autoScrollTimer.timeout.connect(self.__autoScrollAdvance)
 
-        self.__scale = 10
+        # scale factor accumulating partial increments from wheel events
+        self.__zoomLevel = 100
+        # effective scale level(rounded to whole integers)
+        self.__effectiveZoomLevel = 100
+
+        self.__zoomInAction = QAction(
+            self.tr("Zoom in"), self, objectName="action-zoom-in",
+            shortcut=QKeySequence.ZoomIn,
+            triggered=self.zoomIn,
+        )
+
+        self.__zoomOutAction = QAction(
+            self.tr("Zoom out"), self, objectName="action-zoom-out",
+            shortcut=QKeySequence.ZoomOut,
+            triggered=self.zoomOut
+        )
+        self.__zoomResetAction = QAction(
+            self.tr("Reset Zoom"), self, objectName="action-zoom-reset",
+            triggered=self.zoomReset,
+            shortcut=QKeySequence(Qt.ControlModifier | Qt.Key_0)
+        )
 
     def setScene(self, scene):
         QGraphicsView.setScene(self, scene)
@@ -66,32 +85,60 @@ class CanvasView(QGraphicsView):
 
         return QGraphicsView.mouseReleaseEvent(self, event)
 
-    def reset_zoom(self):
-        self.__set_zoom(10)
-
-    def change_zoom(self, delta):
-        self.__set_zoom(self.__scale + delta)
-
-    def __set_zoom(self, scale):
-        self.__scale = min(15, max(scale, 3))
-        transform = QTransform()
-        transform.scale(self.__scale / 10, self.__scale / 10)
-        self.setTransform(transform)
-
     def wheelEvent(self, event: QWheelEvent):
-        # use mouse position as anchor while zooming
-        self.setTransformationAnchor(2)
+        # type: () -> None
         if event.modifiers() & Qt.ControlModifier \
                 and event.buttons() == Qt.NoButton:
             delta = event.angleDelta().y()
-            if QT_VERSION >= 0x050500 \
-                    and event.source() != Qt.MouseEventNotSynthesized \
-                    and abs(delta) < 50:
-                self.change_zoom(delta / 10)
-            else:
-                self.change_zoom(copysign(1, delta))
+            # use mouse position as anchor while zooming
+            anchor = self.transformationAnchor()
+            self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
+            self.__setZoomLevel(self.__zoomLevel + 10 * delta / 120)
+            self.setTransformationAnchor(anchor)
+            event.accept()
         else:
             super().wheelEvent(event)
+
+    def zoomIn(self):
+        self.__setZoomLevel(self.__zoomLevel + 10)
+
+    def zoomOut(self):
+        self.__setZoomLevel(self.__zoomLevel - 10)
+
+    def zoomReset(self):
+        """
+        Reset the zoom level.
+        """
+        self.__setZoomLevel(100)
+
+    def zoomLevel(self):
+        # type: () -> float
+        """
+        Return the current zoom level.
+
+        Level is expressed in percentages; 100 is unscaled, 50 is half size, ...
+        """
+        return self.__effectiveZoomLevel
+
+    def setZoomLevel(self, level):
+        self.__setZoomLevel(level)
+
+    def __setZoomLevel(self, scale):
+        self.__zoomLevel = max(30, min(scale, 300))
+        scale = round(self.__zoomLevel)
+        self.__zoomOutAction.setEnabled(scale != 30)
+        self.__zoomInAction.setEnabled(scale != 300)
+        if self.__effectiveZoomLevel != scale:
+            self.__effectiveZoomLevel = scale
+            transform = QTransform()
+            transform.scale(scale / 100, scale / 100)
+            self.setTransform(transform)
+            self.zoomLevelChanged.emit(scale)
+
+    zoomLevelChanged = Signal(float)
+    zoomLevel_ = Property(
+        float, zoomLevel, setZoomLevel, notify=zoomLevelChanged
+    )
 
     def __shouldAutoScroll(self, pos):
         if self.__autoScroll:
