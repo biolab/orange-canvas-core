@@ -35,7 +35,7 @@ INSTALL_REQUIRES = (
     "AnyQt",
     "docutils",
     "numpy",
-    "CommonMark",
+    "commonmark",
 )
 
 
@@ -64,6 +64,12 @@ EXTRAS_REQUIRE = {
     ':python_version=="3.3"': ["contextlib2", "enum34"],
 }
 
+PROJECT_URLS = {
+    "Bug Reports": "https://github.com/ales-erjavec/orange-canvas/issues",
+    "Source": "https://github.com/ales-erjavec/orange-canvas/",
+    "Documentation": "https://pythonhosted.org/Orange-Canvas-Core/",
+}
+
 if __name__ == "__main__":
     setup(name=NAME,
           version=VERSION,
@@ -76,4 +82,6 @@ if __name__ == "__main__":
           packages=PACKAGES,
           package_data=PACKAGE_DATA,
           install_requires=INSTALL_REQUIRES,
-          extras_require=EXTRAS_REQUIRE,)
+          extras_require=EXTRAS_REQUIRE,
+          project_urls=PROJECT_URLS,
+          )
