@@ -5,7 +5,6 @@ from xml.sax.saxutils import escape
 
 import six
 import docutils.core
-import CommonMark
 
 from AnyQt.QtWidgets import (
     QGraphicsItem, QGraphicsPathItem, QGraphicsWidget, QGraphicsTextItem,
@@ -188,7 +187,14 @@ def render_markdown(content):
     -------
     html : str
     """
-    return CommonMark.commonmark(content)
+    # commonmark >= 0.8.1; but only optionally. Many other packages may pin it
+    # to <0.8 due to breaking changes.
+    try:
+        import commonmark
+    except ImportError:
+        return '<div style="color: red;">' + render_plain(content) + "</div>"
+    else:
+        return commonmark.commonmark(content)
 
 
 def render_rst(content):
