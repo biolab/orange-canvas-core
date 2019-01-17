@@ -71,14 +71,12 @@ from ..help import HelpManager
 
 from .canvastooldock import CanvasToolDock, QuickCategoryToolbar, \
                             CategoryPopupMenu, popup_position_from_source
-from .widgettoolbox import item_text, qvariant_to_object
 from .aboutdialog import AboutDialog
 from .schemeinfo import SchemeInfoDialog
 from .outputview import OutputView, TextStream
 from .settings import UserSettingsDialog, category_state
 from ..document.schemeedit import SchemeEditWidget
-from ..document.quickmenu import SortFilterProxyModel
-
+from ..gui.itemmodels import FilterProxyModel
 from ..scheme.readwrite import scheme_load
 
 from . import welcomedialog
@@ -810,7 +808,7 @@ class CanvasMainWindow(QMainWindow):
         self.widget_registry = widget_registry
 
         # Restore category hidden/sort order state
-        proxy = SortFilterProxyModel(self)
+        proxy = FilterProxyModel(self)
         proxy.setSourceModel(widget_registry.model())
         self.__proxy_model = proxy
         self.__update_registry_filters()
@@ -2001,8 +1999,12 @@ class CanvasMainWindow(QMainWindow):
         for cat in self.widget_registry.categories():
             visible, _ = category_state(cat, settings)
             visible_state[cat.name] = visible
-        self.__proxy_model.setFilterFunc(
-            category_filter_function(visible_state))
+
+        self.__proxy_model.setFilters([
+            FilterProxyModel.Filter(
+                0, qt.QtWidgetRegistry.CATEGORY_DESC_ROLE,
+                category_filter_function(visible_state))
+        ])
 
 
 def updated_flags(flags, mask, state):
@@ -2036,20 +2038,11 @@ from ..registry import qt
 
 
 def category_filter_function(state):
-    def category_filter(index):
-        if index.parent().isValid():
+    def category_filter(desc):
+        if not isinstance(desc, qt.CategoryDescription):
             # Is not a category item
             return True
-
-        # Get the default visibility state
-        desc = index.data(qt.QtWidgetRegistry.CATEGORY_DESC_ROLE)
-        desc = qvariant_to_object(desc)
-        if isinstance(desc, qt.CategoryDescription):
-            visible = not desc.hidden
-        else:
-            visible = True
-        category = item_text(index)
-        return state.get(category, visible)
+        return state.get(desc.name, not desc.hidden)
     return category_filter
 
 
