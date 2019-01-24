@@ -88,6 +88,11 @@ class SignalManager(QObject):
         self.__update_timer = QTimer(self, interval=100, singleShot=True)
         self.__update_timer.timeout.connect(self.__process_next)
 
+        scheme.node_added.connect(self.on_node_added)
+        scheme.node_removed.connect(self.on_node_removed)
+        scheme.link_added.connect(self.link_added)
+        scheme.link_removed.connect(self.link_removed)
+
     def _can_process(self):
         """
         Return a bool indicating if the manger can enter the main
