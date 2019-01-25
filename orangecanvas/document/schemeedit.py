@@ -14,7 +14,7 @@ import copy
 
 from operator import attrgetter
 
-from typing import List
+from typing import List, Optional
 
 if sys.version_info < (3, ):
     from urllib import urlencode
@@ -55,6 +55,7 @@ from ..scheme import (
     scheme, signalmanager, Scheme, SchemeNode, SchemeLink,
     BaseSchemeAnnotation, WorkflowEvent
 )
+from ..scheme.widgetmanager import WidgetManager
 from ..canvas.scene import CanvasScene
 from ..canvas.view import CanvasView
 from ..canvas import items
@@ -134,6 +135,7 @@ class SchemeEditWidget(QWidget):
         self.__modified = False
         self.__registry = None
         self.__scheme = None
+        self.__widgetManager = None  # type: Optional[WidgetManager]
         self.__path = u""
         self.__quickMenuTriggers = SchemeEditWidget.SpaceKey | \
                                    SchemeEditWidget.DoubleClicked
@@ -694,6 +696,7 @@ class SchemeEditWidget(QWidget):
                 if sm:
                     sm.stateChanged.disconnect(
                         self.__signalManagerStateChanged)
+                self.__widgetManager = None
 
             self.__scheme = scheme
             self.__suggestions.set_scheme(self)
@@ -707,6 +710,7 @@ class SchemeEditWidget(QWidget):
                 sm = scheme.findChild(signalmanager.SignalManager)
                 if sm:
                     sm.stateChanged.connect(self.__signalManagerStateChanged)
+                self.__widgetManager = getattr(scheme, "widget_manager", None)
             else:
                 self.__cleanProperties = []
 
@@ -1864,8 +1868,11 @@ class SchemeEditWidget(QWidget):
 
     def __saveWindowGroup(self):
         # Run a 'Save Window Group' dialog
-        workflow = self.__scheme  # type: widgetsscheme.WidgetsScheme
-        state = workflow.widget_manager.save_window_state()
+        workflow = self.__scheme  # type: Scheme
+        manager = self.__widgetManager
+        if manager is None:
+            return
+        state = manager.save_window_state()
         presets = workflow.window_group_presets()
         items = [g.name for g in presets]
         default = [i for i, g in enumerate(presets) if g.default]
@@ -1938,8 +1945,9 @@ class SchemeEditWidget(QWidget):
     def __activateWindowGroup(self, action):
         # type: (QAction) -> None
         data = action.data()  # type: Scheme.WindowGroup
-        workflow = self.__scheme
-        workflow.widget_manager.activate_window_group(data)
+        wm = self.__widgetManager
+        if wm is not None:
+            wm.activate_window_group(data)
 
     def __clearWindowGroups(self):
         workflow = self.__scheme  # type: Scheme
@@ -1967,9 +1975,9 @@ class SchemeEditWidget(QWidget):
 
     def __raiseToFont(self):
         # Raise current visible widgets to front
-        wf = self.__scheme
-        if wf is not None and hasattr(wf, "widget_manager"):
-            wf.widget_manager.raise_widgets_to_front()
+        wm = self.__widgetManager
+        if wm is not None:
+            wm.raise_widgets_to_front()
 
     def activateDefaultWindowGroup(self):
         # type: () -> bool
@@ -1985,6 +1993,13 @@ class SchemeEditWidget(QWidget):
                 action.trigger()
                 return True
         return False
+
+    def widgetManager(self):
+        # type: () -> Optional[WidgetManager]
+        """
+        Return the widget manager.
+        """
+        return self.__widgetManager
 
 
 class SaveWindowGroup(QDialog):

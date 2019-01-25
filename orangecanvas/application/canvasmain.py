@@ -1625,7 +1625,7 @@ class CanvasMainWindow(QMainWindow):
         if self.float_widgets_on_top_action.isChecked() != enabled:
             self.float_widgets_on_top_action.setChecked(enabled)
 
-        wm = getattr(self.current_document().scheme(), "widget_manager", None)
+        wm = self.current_document().widgetManager()
         if wm is not None:
             wm.set_float_widgets_on_top(enabled)
 
