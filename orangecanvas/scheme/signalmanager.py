@@ -15,8 +15,9 @@ import warnings
 from collections import namedtuple, defaultdict, deque
 from operator import attrgetter
 from functools import partial
+from typing import Any, List, NamedTuple
 
-from AnyQt.QtCore import QObject, QCoreApplication, QEvent, QTimer
+from AnyQt.QtCore import QObject, QTimer
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
 
@@ -26,11 +27,12 @@ from functools import reduce
 log = logging.getLogger(__name__)
 
 
-_Signal = namedtuple(
-    "_Signal",
-    ["link",     # link on which the signal is sent
-     "value",    # signal value
-     "id"])      # signal id
+_Signal = NamedTuple(
+    "_Signal", [
+        ("link", SchemeLink),    # link on which the signal is sent
+        ("value", Any),          # signal value
+        ("id", Any),             # signal id
+    ])
 
 
 is_enabled = attrgetter("enabled")
@@ -74,7 +76,7 @@ class SignalManager(QObject):
     def __init__(self, scheme):
         assert(scheme)
         QObject.__init__(self, scheme)
-        self._input_queue = []
+        self._input_queue = []  # type: List[_Signal]
 
         # mapping a node to it's current outputs
         # {node: {channel: {id: signal_value}}}
@@ -349,6 +351,23 @@ class SignalManager(QObject):
         for link in {sig.link for sig in signals_in}:
             link.set_runtime_state(link.runtime_state() & ~SchemeLink.Pending)
 
+        # Process dynamic signals; Update the link's dynamic_enabled flag if
+        # the value is valid; replace values that do not type check with
+        # `None`
+        def process_dynamic(signals):
+            # type: (List[_Signal]) -> List[_Signal]
+            res = []
+            for sig in signals:
+                # Check and update the dynamic link state
+                link = sig.link
+                if sig.link.is_dynamic():
+                    link.dynamic_enabled = can_enable_dynamic(link, sig.value)
+                    if not link.dynamic_enabled:
+                        # Send None instead
+                        sig = _Signal(link, None, sig.id)
+                res.append(sig)
+            return res
+        signals_in = process_dynamic(signals_in)
         assert ({sig.link for sig in self._input_queue}
                 .intersection({sig.link for sig in signals_in}) == set([]))
         self.processingStarted.emit()
