@@ -342,7 +342,7 @@ class SortFilterProxyModel(QSortFilterProxyModel):
         index = flat_model.index(row, self.filterKeyColumn(), parent)
         description = flat_model.data(index, role=QtWidgetRegistry.WIDGET_DESC_ROLE)
         name = description.name
-        keywords = description.keywords
+        keywords = description.keywords or []
 
         # match name and keywords
         accepted = False
