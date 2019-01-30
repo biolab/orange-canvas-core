@@ -487,9 +487,9 @@ class CanvasMainWindow(QMainWindow):
                     )
 
         self.tutorials_action = \
-            QAction(self.tr("Tutorials"), self,
+            QAction(self.tr("Example Workflows"), self,
                     objectName="tutorial-action",
-                    toolTip=self.tr("Browse tutorials."),
+                    toolTip=self.tr("Browse example workflows."),
                     triggered=self.tutorial_scheme,
                     icon=canvas_icons("Examples.svg")
                     )
@@ -1394,10 +1394,9 @@ class CanvasMainWindow(QMainWindow):
         items = [previewmodel.PreviewItem(path=t.abspath()) for t in tutors]
         model = previewmodel.PreviewModel(items=items)
         dialog = previewdialog.PreviewDialog(self)
-        title = self.tr("Tutorials")
+        title = self.tr("Example Workflows")
         dialog.setWindowTitle(title)
         template = ('<h3 style="font-size: 26px">\n'
-                    #'<img height="26" src="canvas_icons:Tutorials.svg">\n'
                     '{0}\n'
                     '</h3>')
 
@@ -1470,7 +1469,7 @@ class CanvasMainWindow(QMainWindow):
                     )
 
         tutorials_action = \
-            QAction(self.tr("Tutorial"), dialog,
+            QAction(self.tr("Example Workflows"), dialog,
                     objectName="welcome-tutorial-action",
                     toolTip=self.tr("Browse tutorial workflows."),
                     triggered=tutorial,
