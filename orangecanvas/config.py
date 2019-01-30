@@ -138,6 +138,22 @@ class default(object):
         from . import scheme
         return scheme.Scheme(*args, **kwargs)
 
+    #: Standard application urls. If defined to a valid url appropriate actions
+    #: are defined in various contexts
+
+    APPLICATION_URLS = {
+        #: Submit a bug report action in the Help menu
+        "Bug Report": None,
+        #: A url quick tour/getting started url
+        "Quick Start": None,
+        #: An url to the full documentation
+        "Documentation": None,
+        #: Video screencast/tutorials
+        "Screencasts": None,
+        #: Used for 'Submit Feedback' action in the help menu
+        "Feedback": None,
+    }  # type: Dict[str, Optional[str]]
+
 
 def init():
     """
