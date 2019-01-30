@@ -2,10 +2,11 @@
 Orange Canvas Welcome Dialog
 
 """
+from xml.sax.saxutils import escape
 
 from AnyQt.QtWidgets import (
     QDialog, QWidget, QToolButton, QCheckBox, QAction,
-    QHBoxLayout, QVBoxLayout, QSizePolicy
+    QHBoxLayout, QVBoxLayout, QSizePolicy, QLabel
 )
 
 from AnyQt.QtGui import QFont, QIcon, QPixmap, QPainter, QColor, QBrush
@@ -84,11 +85,20 @@ class WelcomeDialog(QDialog):
     triggered = Signal(QAction)
 
     def __init__(self, *args, **kwargs):
-        QDialog.__init__(self, *args, **kwargs)
+        showAtStartup = kwargs.pop("showAtStartup", True)
+        feedbackUrl = kwargs.pop("feedbackUrl", "")
+        super(WelcomeDialog, self).__init__(*args, **kwargs)
 
         self.__triggeredAction = None
+        self.__showAtStartupCheck = None
+        self.__mainLayout = None
+        self.__feedbackUrl = None
+        self.__feedbackLabel = None
 
         self.setupUi()
+
+        self.setFeedbackUrl(feedbackUrl)
+        self.setShowAtStartup(showAtStartup)
 
     def setupUi(self):
         self.setLayout(QVBoxLayout())
@@ -110,14 +120,21 @@ class WelcomeDialog(QDialog):
         bottom_bar.setSizePolicy(QSizePolicy.MinimumExpanding,
                                  QSizePolicy.Maximum)
 
-        check = QCheckBox(self.tr("Show at startup"), bottom_bar)
-        check.setChecked(False)
+        self.__showAtStartupCheck = QCheckBox(
+            self.tr("Show at startup"), bottom_bar, checked=False
+        )
+        self.__feedbackLabel = QLabel(
+            textInteractionFlags=Qt.TextBrowserInteraction,
+            openExternalLinks=True,
+            visible=False,
+        )
 
-        self.__showAtStartupCheck = check
-
-        bottom_bar_layout.addWidget(check, alignment=Qt.AlignVCenter | \
-                                    Qt.AlignLeft)
-
+        bottom_bar_layout.addWidget(
+            self.__showAtStartupCheck, alignment=Qt.AlignVCenter | Qt.AlignLeft
+        )
+        bottom_bar_layout.addWidget(
+            self.__feedbackLabel, alignment=Qt.AlignVCenter | Qt.AlignRight
+        )
         self.layout().addWidget(bottom_bar, alignment=Qt.AlignBottom,
                                 stretch=1)
 
@@ -136,6 +153,21 @@ class WelcomeDialog(QDialog):
         Return the 'Show at startup' check box state.
         """
         return self.__showAtStartupCheck.isChecked()
+
+    def setFeedbackUrl(self, url):
+        # type: (str) -> None
+        """
+        Set an 'feedback' url. When set a link is displayed in the bottom row.
+        """
+        self.__feedbackUrl = url
+        if url:
+            text = self.tr("Help us improve!")
+            self.__feedbackLabel.setText(
+                '<a href="{url}">{text}</a>'.format(url=url, text=escape(text))
+            )
+        else:
+            self.__feedbackLabel.setText("")
+        self.__feedbackLabel.setVisible(bool(url))
 
     def addRow(self, actions, background="light-orange"):
         """Add a row with `actions`.
