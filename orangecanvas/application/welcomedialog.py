@@ -9,7 +9,9 @@ from AnyQt.QtWidgets import (
     QHBoxLayout, QVBoxLayout, QSizePolicy, QLabel
 )
 
-from AnyQt.QtGui import QFont, QIcon, QPixmap, QPainter, QColor, QBrush
+from AnyQt.QtGui import (
+    QFont, QIcon, QPixmap, QPainter, QColor, QBrush, QActionEvent
+)
 from AnyQt.QtCore import Qt, QRect, QSize, QPoint
 from AnyQt.QtCore import pyqtSignal as Signal
 
@@ -45,9 +47,7 @@ def decorate_welcome_icon(icon, background_color):
     return welcome_icon
 
 
-WELCOME_WIDGET_BUTTON_STYLE = \
-"""
-
+WELCOME_WIDGET_BUTTON_STYLE = """
 WelcomeActionButton {
     border: none;
     icon-size: 75px;
@@ -65,16 +65,17 @@ WelcomeActionButton:focus {
                                       stop: 0 #dadbde, stop: 1 #f6f7fa);
     border-radius: 10px;
 }
-
 """
 
 
 class WelcomeActionButton(QToolButton):
-    def __init__(self, parent=None):
-        QToolButton.__init__(self, parent)
-
-    def paintEvent(self, event):
-        QToolButton.paintEvent(self, event)
+    def actionEvent(self, event):
+        # type: (QActionEvent) -> None
+        super().actionEvent(event)
+        if event.type() == QActionEvent.ActionChanged \
+                and event.action() is self.defaultAction():
+            # The base does not update self visibility for defaultAction.
+            self.setVisible(event.action().isVisible())
 
 
 class WelcomeDialog(QDialog):
@@ -215,6 +216,7 @@ class WelcomeDialog(QDialog):
         button.setToolTip(action.toolTip())
         button.setFixedSize(100, 100)
         button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        button.setVisible(action.isVisible())
         font = QFont(button.font())
         font.setPointSize(13)
         button.setFont(font)
