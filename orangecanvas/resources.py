@@ -151,7 +151,7 @@ import glob
 
 
 class icon_loader(resource_loader):
-    DEFAULT_ICON = "icons/default-category.svg"
+    DEFAULT_ICON = "icons/default-widget.svg"
 
     def match(self, path):
         if resource_loader.match(self, path):
