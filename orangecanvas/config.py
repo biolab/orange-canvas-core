@@ -17,7 +17,9 @@ from AnyQt.QtGui import (
     QPainter, QFont, QFontMetrics, QColor, QPixmap, QIcon
 )
 
-from AnyQt.QtCore import Qt, QCoreApplication, QPoint, QRect, QT_VERSION
+from AnyQt.QtCore import (
+    Qt, QCoreApplication, QPoint, QRect, QSettings, QT_VERSION
+)
 
 if QT_VERSION < 0x50000:
     from AnyQt.QtGui import QDesktopServices
@@ -25,9 +27,6 @@ else:
     from AnyQt.QtCore import QStandardPaths
 
 from .utils.settings import Settings, config_slot
-
-# Import QSettings from qtcompat module (compatibility with PyQt < 4.8.3
-from .utils.qtcompat import QSettings
 
 log = logging.getLogger(__name__)
 
@@ -50,12 +49,14 @@ if QT_VERSION < 0x50000:
     standard_location.DesktopLocation = QDesktopServices.DesktopLocation
     standard_location.DataLocation = QDesktopServices.DataLocation
     standard_location.CacheLocation = QDesktopServices.CacheLocation
+    standard_location.DocumentsLocation = QDesktopServices.DocumentsLocation
 else:
     def standard_location(type):
         return QStandardPaths.writableLocation(type)
     standard_location.DesktopLocation = QStandardPaths.DesktopLocation
     standard_location.DataLocation = QStandardPaths.DataLocation
     standard_location.CacheLocation = QStandardPaths.CacheLocation
+    standard_location.DocumentsLocation = QStandardPaths.DocumentsLocation
 
 
 class default(object):
