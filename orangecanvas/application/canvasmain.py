@@ -1151,10 +1151,11 @@ class CanvasMainWindow(QMainWindow):
         manager = getattr(new_scheme, "signal_manager", None)
         if self.freeze_action.isChecked() and manager is not None:
             manager.pause()
-
-        new_scheme.widget_manager.set_float_widgets_on_top(
-            self.float_widgets_on_top_action.isChecked()
-        )
+        wm = getattr(new_scheme, "widget_manager", None)
+        if wm is not None:
+            wm.set_float_widgets_on_top(
+                self.float_widgets_on_top_action.isChecked()
+            )
         scheme_doc.setScheme(new_scheme)
 
         # Send a close event to the Scheme, it is responsible for
@@ -1623,8 +1624,9 @@ class CanvasMainWindow(QMainWindow):
         if self.float_widgets_on_top_action.isChecked() != enabled:
             self.float_widgets_on_top_action.setChecked(enabled)
 
-        wm = self.current_document().scheme().widget_manager
-        wm.set_float_widgets_on_top(enabled)
+        wm = getattr(self.current_document().scheme(), "widget_manager", None)
+        if wm is not None:
+            wm.set_float_widgets_on_top(enabled)
 
     __p_addon_items_available = Signal(object)
 

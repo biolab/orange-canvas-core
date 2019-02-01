@@ -1968,7 +1968,7 @@ class SchemeEditWidget(QWidget):
     def __raiseToFont(self):
         # Raise current visible widgets to front
         wf = self.__scheme
-        if wf is not None:
+        if wf is not None and hasattr(wf, "widget_manager"):
             wf.widget_manager.raise_widgets_to_front()
 
     def activateDefaultWindowGroup(self):
