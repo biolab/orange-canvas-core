@@ -123,8 +123,10 @@ class SchemeEditWidget(QWidget):
         self.__modified = False
         self.__registry = None
         self.__scheme = None
+
         self.__widgetManager = None  # type: Optional[WidgetManager]
-        self.__path = u""
+        self.__path = ""
+
         self.__quickMenuTriggers = SchemeEditWidget.SpaceKey | \
                                    SchemeEditWidget.DoubleClicked
         self.__emptyClickButtons = 0

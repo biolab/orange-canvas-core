@@ -27,7 +27,7 @@ NO_PREVIEW_SVG = """
 
 
 # Default description template
-DESCRIPTION_TEMPLATE = u"""
+DESCRIPTION_TEMPLATE = """
 <h3 class=item-heading>{name}</h3>
 <p class=item-description>
 {description}

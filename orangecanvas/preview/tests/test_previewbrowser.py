@@ -21,7 +21,7 @@ svg2 = pkg_resources.resource_string(config.__package__,
 
 def construct_test_preview_model():
     items = [
-        ("Name1", "A preview item 1", svg1.decode("utf-8"), u"~/bla", ),
+        ("Name1", "A preview item 1", svg1.decode("utf-8"), "~/bla", ),
         ("Name2", "A preview item 2" + "long text" * 5,
          svg2.decode("utf-8"), "~/item")
     ]
