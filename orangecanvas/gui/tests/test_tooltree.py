@@ -2,8 +2,6 @@
 Test for tooltree
 
 """
-from __future__ import print_function
-
 from AnyQt.QtWidgets import QAction
 from AnyQt.QtGui import QStandardItemModel, QStandardItem
 from AnyQt.QtCore import Qt

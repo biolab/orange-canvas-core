@@ -1,4 +1,3 @@
-from __future__ import print_function
 from AnyQt.QtWidgets import QAction, QToolButton
 
 from .. import test

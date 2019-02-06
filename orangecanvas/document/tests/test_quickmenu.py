@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 from AnyQt.QtWidgets import QAction
 from AnyQt.QtCore import QPoint, QStringListModel, QTimer
 from AnyQt.QtTest import QTest

@@ -2,8 +2,6 @@
 Unittests for PrewiewBrowser widget.
 
 """
-from __future__ import print_function
-
 from ...gui import test
 
 from ..previewbrowser import PreviewBrowser

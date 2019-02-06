@@ -2,8 +2,6 @@
 A custom toolbar with linear uniform size layout.
 
 """
-from __future__ import division
-
 import logging
 
 from AnyQt.QtWidgets import QToolBar
