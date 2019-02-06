@@ -1,13 +1,4 @@
 #! /usr/bin/env python
-
-import sys
-
-try:
-    import setuptools
-except ImportError:
-    import ez_setup
-    ez_setup.use_setuptools()
-
 from setuptools import setup, find_packages
 
 NAME = "Orange-Canvas-Core"
@@ -29,38 +20,29 @@ PACKAGE_DATA = {
 }
 
 INSTALL_REQUIRES = (
-    "setuptools>=11.3",
-    "future",
+    "setuptools",
     "AnyQt",
     "docutils",
     "numpy",
     "commonmark",
+    "pip",
 )
 
 
 CLASSIFIERS = (
     "Development Status :: 1 - Planning",
     "Environment :: X11 Applications :: Qt",
-    "Programming Language :: Python",
-    "Programming Language :: Python :: 2",
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering :: Visualization",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Intended Audience :: Education",
-    "Intended Audience :: Science/Research",
     "Intended Audience :: Developers",
 )
 
 EXTRAS_REQUIRE = {
-    # ?? :python_version<="3.2" does not work (Invalid environment
-    # marker error).
-    ':python_version=="2.7"': ["futures", "contextlib2", "enum34"],
-    ':python_version=="3.0"': ["futures", "contextlib2", "enum34"],
-    ':python_version=="3.1"': ["futures", "contextlib2", "enum34"],
-    ':python_version=="3.2"': ["futures", "contextlib2", "enum34"],
-    ':python_version=="3.3"': ["contextlib2", "enum34"],
+    ':python_version=="3.4"': ["typing"]
 }
 
 PROJECT_URLS = {
@@ -69,18 +51,22 @@ PROJECT_URLS = {
     "Documentation": "https://pythonhosted.org/Orange-Canvas-Core/",
 }
 
+PYTHON_REQUIRES = ">=3.4"
+
 if __name__ == "__main__":
-    setup(name=NAME,
-          version=VERSION,
-          description=DESCRIPTION,
-          long_description=LONG_DESCRIPTION,
-          url=URL,
-          author=AUTHOR,
-          author_email=AUTHOR_EMAIL,
-          license=LICENSE,
-          packages=PACKAGES,
-          package_data=PACKAGE_DATA,
-          install_requires=INSTALL_REQUIRES,
-          extras_require=EXTRAS_REQUIRE,
-          project_urls=PROJECT_URLS,
-          )
+    setup(
+        name=NAME,
+        version=VERSION,
+        description=DESCRIPTION,
+        long_description=LONG_DESCRIPTION,
+        url=URL,
+        author=AUTHOR,
+        author_email=AUTHOR_EMAIL,
+        license=LICENSE,
+        packages=PACKAGES,
+        package_data=PACKAGE_DATA,
+        install_requires=INSTALL_REQUIRES,
+        extras_require=EXTRAS_REQUIRE,
+        project_urls=PROJECT_URLS,
+        python_requires=PYTHON_REQUIRES,
+    )
