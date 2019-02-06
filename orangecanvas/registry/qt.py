@@ -2,17 +2,10 @@
 Qt Model classes for widget registry.
 
 """
-import sys
 import bisect
 
 from xml.sax.saxutils import escape
-
-if sys.version_info < (3,):
-    from urllib import urlencode
-else:
-    from urllib.parse import urlencode
-
-import six
+from urllib.parse import urlencode
 
 from AnyQt.QtWidgets import QAction
 from AnyQt.QtGui import QStandardItemModel, QStandardItem, QColor, QBrush
@@ -132,7 +125,7 @@ class QtWidgetRegistry(QObject, WidgetRegistry):
     def item_for_widget(self, widget):
         """Return the QStandardItem for the widget.
         """
-        if isinstance(widget, six.string_types):
+        if isinstance(widget, str):
             widget = self.widget(widget)
         cat = self.category(widget.category)
         cat_ind = self.categories().index(cat)

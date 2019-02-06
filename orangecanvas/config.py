@@ -11,7 +11,6 @@ import warnings
 from distutils.version import LooseVersion
 
 import pkg_resources
-import six
 
 from AnyQt.QtGui import (
     QPainter, QFont, QFontMetrics, QColor, QPixmap, QIcon
@@ -32,7 +31,6 @@ log = logging.getLogger(__name__)
 
 __version__ = "0.0"
 
-# from . import __version__
 
 #: Entry point by which widgets are registered.
 WIDGETS_ENTRY = "orangecanvas.widgets"
@@ -181,7 +179,7 @@ spec = \
      ("startup/show-welcome-screen", bool, True,
       "Show Welcome screen at startup"),
 
-     ("stylesheet", six.text_type, "orange",
+     ("stylesheet", str, "orange",
       "QSS stylesheet to use"),
 
      ("schemeinfo/show-at-new-scheme", bool, True,
@@ -264,8 +262,8 @@ def data_dir():
     init()
 
     datadir = standard_location(standard_location.DataLocation)
-    datadir = six.text_type(datadir)
-    version = six.text_type(QCoreApplication.applicationVersion())
+    datadir = datadir
+    version = QCoreApplication.applicationVersion()
     datadir = os.path.join(datadir, version)
     if not os.path.exists(datadir):
         os.makedirs(datadir)
@@ -280,8 +278,8 @@ def cache_dir():
     init()
 
     cachedir = standard_location(standard_location.CacheLocation)
-    cachedir = six.text_type(cachedir)
-    version = six.text_type(QCoreApplication.applicationVersion())
+    cachedir = cachedir
+    version = QCoreApplication.applicationVersion()
     cachedir = os.path.join(cachedir, version)
     if not os.path.exists(cachedir):
         os.makedirs(cachedir)

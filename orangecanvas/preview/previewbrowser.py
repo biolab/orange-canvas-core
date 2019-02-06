@@ -5,8 +5,6 @@ Preview Browser Widget.
 
 from xml.sax.saxutils import escape
 
-import six
-
 from AnyQt.QtWidgets import (
     QWidget, QLabel, QListView, QAction, QVBoxLayout, QHBoxLayout, QSizePolicy,
     QStyleOption, QStylePainter
@@ -110,9 +108,8 @@ class TextLabel(QWidget):
     def setText(self, text):
         """Set the `text` string to display.
         """
-        check_type(text, six.string_types)
         if self.__text != text:
-            self.__text = six.text_type(text)
+            self.__text = text
             self.__update()
 
     def text(self):
@@ -342,25 +339,25 @@ class PreviewBrowser(QWidget):
         else:
             description = qtcompat.qunwrap(index.data(Qt.WhatsThisRole))
             if description:
-                description = six.text_type(description)
+                description = description
             else:
-                description = u"No description."
+                description = "No description."
 
             description = escape(description)
             description = description.replace("\n", "<br/>")
 
             name = qtcompat.qunwrap(index.data(Qt.DisplayRole))
             if name:
-                name = six.text_type(name)
+                name = name
             else:
                 name = "Untitled"
 
             name = escape(name)
             path = qtcompat.qunwrap(index.data(Qt.StatusTipRole))
-            path = six.text_type(path)
+            path = str(path)
 
             svg = qtcompat.qunwrap(index.data(previewmodel.ThumbnailSVGRole))
-            svg = six.text_type(svg)
+            svg = str(svg)
 
         desc_text = self.__template.format(description=description, name=name)
 

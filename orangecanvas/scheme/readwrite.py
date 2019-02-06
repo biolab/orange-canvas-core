@@ -24,8 +24,6 @@ import logging
 
 from typing import NamedTuple, Dict, Tuple, List, Union, Any
 
-import six
-
 from . import SchemeNode, SchemeLink
 from .annotations import SchemeTextAnnotation, SchemeArrowAnnotation
 from .errors import IncompatibleChannelTypeError
@@ -552,7 +550,7 @@ def scheme_to_etree(scheme, data_format="literal", pickle_fallback=False):
                           "font-size": font.get("size", None)})
             attrs = [(key, value) for key, value in attrs.items()
                      if value is not None]
-            attrs = dict((key, six.text_type(value)) for key, value in attrs)
+            attrs = dict((key, str(value)) for key, value in attrs)
             data = annotation.content
         elif isinstance(annotation, SchemeArrowAnnotation):
             tag = "arrow"
@@ -668,14 +666,6 @@ def indent(element, level=0, indent="\t"):
     return indent_(element, level, True)
 
 
-if six.PY3:
-    _encodebytes = base64.encodebytes
-    _decodebytes = base64.decodebytes
-else:
-    _encodebytes = base64.encodestring
-    _decodebytes = base64.decodestring
-
-
 def dumps(obj, format="literal", prettyprint=False, pickle_fallback=False):
     """
     Serialize `obj` using `format` ('json' or 'literal') and return its
@@ -709,14 +699,14 @@ def dumps(obj, format="literal", prettyprint=False, pickle_fallback=False):
                         exc_info=True)
 
     elif format == "pickle":
-        return _encodebytes(pickle.dumps(obj)).decode('ascii'), "pickle"
+        return base64.encodebytes(pickle.dumps(obj)).decode('ascii'), "pickle"
 
     else:
         raise ValueError("Unsupported format %r" % format)
 
     if pickle_fallback:
         log.warning("Using pickle fallback")
-        return _encodebytes(pickle.dumps(obj)).decode('ascii'), "pickle"
+        return base64.encodebytes(pickle.dumps(obj)).decode('ascii'), "pickle"
     else:
         raise Exception("Something strange happened.")
 
@@ -727,7 +717,7 @@ def loads(string, format):
     elif format == "json":
         return json.loads(string)
     elif format == "pickle":
-        return pickle.loads(_decodebytes(string.encode('ascii')))
+        return pickle.loads(base64.decodebytes(string.encode('ascii')))
     else:
         raise ValueError("Unknown format")
 
@@ -741,7 +731,7 @@ def literal_dumps(obj, prettyprint=False, indent=4):
     NoneType = type(None)
 
     def check(obj):
-        if type(obj) in [int, float, bool, NoneType, bytes, six.text_type]:
+        if type(obj) in [int, float, bool, NoneType, bytes, str]:
             return True
 
         if id(obj) in memo:
@@ -755,7 +745,7 @@ def literal_dumps(obj, prettyprint=False, indent=4):
             return all(map(check, chain(obj.keys(), obj.values())))
         else:
             raise TypeError("{0} can not be serialized as a python "
-                             "literal".format(type(obj)))
+                            "literal".format(type(obj)))
 
     check(obj)
 

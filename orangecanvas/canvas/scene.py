@@ -12,8 +12,6 @@ from operator import attrgetter
 
 from xml.sax.saxutils import escape
 
-import six
-
 from AnyQt.QtWidgets import QGraphicsScene, QGraphicsItem
 from AnyQt.QtGui import QPainter, QColor, QFont
 from AnyQt.QtCore import (
@@ -452,7 +450,7 @@ class CanvasScene(QGraphicsScene):
         item.setSinkItem(sink_item)
 
         def channel_name(channel):
-            if isinstance(channel, six.string_types):
+            if isinstance(channel, str):
                 return channel
             else:
                 return channel.name

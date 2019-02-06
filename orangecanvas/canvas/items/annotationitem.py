@@ -3,7 +3,6 @@ import logging
 from collections import OrderedDict
 from xml.sax.saxutils import escape
 
-import six
 import docutils.core
 
 from AnyQt.QtWidgets import (
@@ -75,9 +74,9 @@ class GraphicsTextEdit(QGraphicsTextItem):
         """
         Return the placeholder text.
         """
-        return six.text_type(self.__placeholderText)
+        return self.__placeholderText
 
-    placeholderText_ = Property(six.text_type, placeholderText, setPlaceholderText,
+    placeholderText_ = Property(str, placeholderText, setPlaceholderText,
                                 doc="Placeholder text")
 
     def paint(self, painter, option, widget=None):

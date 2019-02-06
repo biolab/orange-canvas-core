@@ -4,8 +4,6 @@ import sys
 import warnings
 import traceback
 
-import six
-
 from AnyQt.QtWidgets import QWidget, QPlainTextEdit, QVBoxLayout, QSizePolicy
 from AnyQt.QtGui import (
     QTextCursor, QTextCharFormat, QFont, QTextOption, QFontDatabase
@@ -229,7 +227,7 @@ class formater(Formatter):
 
 
 class TextStream(QObject):
-    stream = Signal(six.text_type)
+    stream = Signal(str)
     flushed = Signal()
 
     def __init__(self, parent=None, **kwargs):

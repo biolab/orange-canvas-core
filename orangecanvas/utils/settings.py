@@ -11,8 +11,6 @@ import logging
 
 from collections import namedtuple, MutableMapping
 
-import six
-
 from AnyQt.QtCore import QObject, QEvent, QCoreApplication, QSettings
 from AnyQt.QtCore import pyqtSignal as Signal
 
@@ -74,17 +72,10 @@ class SettingChangedEvent(QEvent):
 def qt_to_mapped_type(value):
     """
     Try to convert a Qt value to the corresponding python mapped type
-    (i.e. QString to unicode, etc.).
+    (i.e. QString to str, etc.).
 
     """
     return value
-
-    if isinstance(value, QString):
-        return six.text_type(value)
-    elif isinstance(value, QChar):
-        return str(value)
-    else:
-        return value
 
 
 class QABCMeta(_QObjectType, abc.ABCMeta):
@@ -97,13 +88,14 @@ class _pickledvalue(object):
     def __init__(self, value):
         self.value = value
 
-class Settings(six.with_metaclass(QABCMeta, QObject, MutableMapping)):
+
+class Settings(QObject, MutableMapping, metaclass=QABCMeta):
     """
     A `dict` like interface to a QSettings store.
     """
-    valueChanged = Signal(six.text_type, object)
-    valueAdded = Signal(six.text_type, object)
-    keyRemoved = Signal(six.text_type)
+    valueChanged = Signal(str, object)
+    valueAdded = Signal(str, object)
+    keyRemoved = Signal(str)
 
     def __init__(self, parent=None, defaults=(), path=None, store=None):
         QObject.__init__(self, parent)
@@ -220,7 +212,7 @@ class Settings(six.with_metaclass(QABCMeta, QObject, MutableMapping)):
         """
         Set the setting for key.
         """
-        if not isinstance(key, six.string_types):
+        if not isinstance(key, str):
             raise TypeError(key)
 
         fullkey = self.__key(key)
@@ -259,8 +251,7 @@ class Settings(six.with_metaclass(QABCMeta, QObject, MutableMapping)):
     def __iter__(self):
         """Return an iterator over over all keys.
         """
-        keys = list(map(six.text_type, self.__store.allKeys())) + \
-               list(self.__defaults.keys())
+        keys = self.__store.allKeys() + list(self.__defaults.keys())
 
         if self.__path:
             path = self.__path + "/"

@@ -1,7 +1,5 @@
 from collections import Callable
 
-import six
-
 from AnyQt.QtWidgets import QTextBrowser
 from AnyQt.QtGui import QStatusTipEvent, QWhatsThisClickedEvent
 from AnyQt.QtCore import QObject, QCoreApplication, QEvent, QTimer, QUrl
@@ -35,7 +33,7 @@ class QuickHelp(QTextBrowser):
 
         """
         if self.__text != text:
-            self.__text = six.text_type(text)
+            self.__text = text
             self.__update()
             self.textChanged.emit()
 

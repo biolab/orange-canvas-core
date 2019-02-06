@@ -9,7 +9,6 @@ A tool box with a tool grid for each category.
 
 import logging
 
-import six
 
 from AnyQt.QtWidgets import (
     QAbstractButton, QSizePolicy, QAction, QApplication
@@ -55,7 +54,7 @@ def qvariant_to_string(variant):
     if val is None:
         return ""
     else:
-        return six.text_type(val)
+        return str(val)
 
 
 def qvariant_to_icon(variant):

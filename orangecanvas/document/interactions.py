@@ -16,9 +16,6 @@ All interactions are subclasses of :class:`UserInteraction`.
 import logging
 from functools import reduce
 
-import six
-
-
 from AnyQt.QtWidgets import QApplication, QGraphicsRectItem, QUndoCommand
 from AnyQt.QtGui import QPen, QBrush, QColor, QFontMetrics
 from AnyQt.QtCore import (
@@ -1184,7 +1181,7 @@ class NewTextAnnotation(UserInteraction):
         Create a new TextAnnotation at with `rect` as the geometry.
         """
         annot = scheme.SchemeTextAnnotation(rect_to_tuple(rect))
-        font = {"family": six.text_type(self.font.family()),
+        font = {"family": self.font.family(),
                 "size": self.font.pixelSize()}
         annot.set_font(font)
 

@@ -4,8 +4,6 @@ A widget containing a grid of clickable actions/buttons.
 """
 from collections import namedtuple, deque
 
-import six
-
 from AnyQt.QtWidgets import (
     QFrame, QAction, QToolButton, QGridLayout,  QSizePolicy,
     QStyleOptionToolButton, QStylePainter, QStyle
@@ -45,7 +43,7 @@ class _ToolGridButton(QToolButton):
 
     def __textLayout(self):
         fm = QFontMetrics(self.font())
-        text = six.text_type(self.defaultAction().text())
+        text = self.defaultAction().text()
         words = deque(text.split())
 
         lines = []
@@ -75,7 +73,7 @@ class _ToolGridButton(QToolButton):
                     # Warning: hardcoded max lines
                     curr_line = fm.elidedText(line_extended, Qt.ElideRight,
                                               width)
-                    curr_line = six.text_type(curr_line)
+                    curr_line = curr_line
                 else:
                     # Put the word back
                     words.appendleft(w)

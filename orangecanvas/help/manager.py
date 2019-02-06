@@ -7,18 +7,13 @@ import string
 import itertools
 import logging
 import email
+import urllib.parse
 
 from distutils.version import StrictVersion
-
 from operator import itemgetter
 from sysconfig import get_path
 
 import pkg_resources
-
-import future.moves.urllib.parse
-from future.moves import urllib
-
-import six
 
 from . import provider
 
@@ -125,7 +120,7 @@ def get_by_id(registry, descriptor_id):
 def qurl_query_items(url):
     items = []
     for key, value in url.queryItems():
-        items.append((six.text_type(key), six.text_type(value)))
+        items.append((key, value))
     return items
 
 
@@ -133,7 +128,7 @@ if QT_VERSION < 0x50000:
     def qurl_query_items(url):
         items = []
         for key, value in url.queryItems():
-            items.append((six.text_type(key), six.text_type(value)))
+            items.append((key, value))
         return items
 else:
     # QUrl has no queryItems

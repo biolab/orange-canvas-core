@@ -6,8 +6,6 @@ Scheme Node
 """
 from typing import Optional, Dict, Any
 
-import six
-
 from AnyQt.QtCore import QObject
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
@@ -110,14 +108,14 @@ class SchemeNode(QObject):
                          (name, self.description.name))
 
     #: The title of the node has changed
-    title_changed = Signal(six.text_type)
+    title_changed = Signal(str)
 
     def set_title(self, title):
         """
         Set the node title.
         """
         if self.__title != title:
-            self.__title = six.text_type(title)
+            self.__title = title
             self.title_changed.emit(self.__title)
 
     def title(self):
@@ -126,7 +124,7 @@ class SchemeNode(QObject):
         """
         return self.__title
 
-    title = Property(six.text_type, fset=set_title, fget=title)
+    title = Property(str, fset=set_title, fget=title)
 
     #: Position of the node in the scheme has changed
     position_changed = Signal(tuple)
@@ -197,7 +195,7 @@ class SchemeNode(QObject):
                         fget=tool_tip)
 
     #: The node's status tip has changes
-    status_message_changed = Signal(six.text_type)
+    status_message_changed = Signal(str)
 
     def set_status_message(self, text):
         if self.__status_message != text:
@@ -248,7 +246,7 @@ class SchemeNode(QObject):
         return self.__state_messages.values()
 
     def __str__(self):
-        return u"SchemeNode(description_id=%s, title=%r, ...)" % \
+        return "SchemeNode(description_id=%r, title=%r, ...)" % \
                 (str(self.description.id), self.title)
 
     def __repr__(self):

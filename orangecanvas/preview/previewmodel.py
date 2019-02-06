@@ -3,8 +3,6 @@ Preview item model.
 """
 
 import logging
-import six
-
 
 from AnyQt.QtWidgets import QApplication, QStyleOption
 from AnyQt.QtGui import (
@@ -65,7 +63,7 @@ class PreviewModel(QStandardItemModel):
                     scanner.scan_update(item)
                 except Exception:
                     log.error("An unexpected error occurred while "
-                              "scanning %r.", six.text_type(item.text()),
+                              "scanning '%s'.", item.text(),
                               exc_info=True)
                     item.setEnabled(False)
                 yield
@@ -141,13 +139,13 @@ class PreviewItem(QStandardItem):
         desc = qunwrap(self.data(DescriptionRole))
 
         if desc is not None:
-            return six.text_type(desc)
+            return str(desc)
 
         whatsthis = qunwrap(self.data(Qt.WhatsThisRole))
-        if whatsthis:
-            return six.text_type(whatsthis)
+        if whatsthis is not None:
+            return str(whatsthis)
         else:
-            return u""
+            return ""
 
     def setDescription(self, description):
         self.setData(description, DescriptionRole)
@@ -160,9 +158,9 @@ class PreviewItem(QStandardItem):
         """
         thumb = qunwrap(self.data(ThumbnailSVGRole))
         if thumb is not None:
-            return six.text_type(thumb)
+            return str(thumb)
         else:
-            return u""
+            return ""
 
     def setThumbnail(self, thumbnail):
         """Set the thumbnail SVG contents as a string.
@@ -177,7 +175,7 @@ class PreviewItem(QStandardItem):
     def path(self):
         """Return the path item data.
         """
-        return six.text_type(qunwrap(self.data(PathRole)))
+        return str(qunwrap(self.data(PathRole)))
 
     def setPath(self, path):
         """Set the path data of the item.

@@ -17,8 +17,6 @@ import pkgutil
 from collections import namedtuple
 import pkg_resources
 
-import six
-
 from .description import (
     WidgetDescription, CategoryDescription,
     WidgetSpecificationError, CategorySpecificationError
@@ -52,7 +50,7 @@ def default_category_for_module(module):
     for a `module`.
 
     """
-    if isinstance(module, six.string_types):
+    if isinstance(module, str):
         module = __import__(module, fromlist=[""])
     name = module.__name__.rsplit(".", 1)[-1]
     qualified_name = module.__name__
@@ -81,7 +79,7 @@ class WidgetDiscovery(object):
         to retrieve the iterator using `pkg_resources.iter_entry_points`.
 
         """
-        if isinstance(entry_points_iter, six.string_types):
+        if isinstance(entry_points_iter, str):
             entry_points_iter = \
                 pkg_resources.iter_entry_points(entry_points_iter)
 
@@ -293,7 +291,7 @@ class WidgetDiscovery(object):
         """
         Return a widget description from a module.
         """
-        if isinstance(module, six.string_types):
+        if isinstance(module, str):
             module = __import__(module, fromlist=[""])
 
         desc = None
@@ -501,7 +499,7 @@ def asmodule(module):
     """
     if isinstance(module, types.ModuleType):
         return module
-    elif isinstance(module, six.string_types):
+    elif isinstance(module, str):
         return __import__(module, fromlist=[""])
     else:
         raise TypeError(type(module))

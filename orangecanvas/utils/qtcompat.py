@@ -6,8 +6,6 @@ PyQt4 compatibility utility functions.
              module.
 
 """
-import six
-
 import sip
 import AnyQt.QtCore
 
@@ -71,7 +69,7 @@ def qunwrap(variant):
     """
     value = toPyObject(variant)
     if HAS_QSTRING and isinstance(value, _QString):
-        return six.text_type(value)
+        return str(value)
     else:
         return value
 
@@ -101,13 +99,12 @@ def qvariant_to_py(variant, py_type):
         return _check_error(variant.toInt())
     elif py_type == bytes:
         return bytes(variant.toByteArray())
-    elif py_type == six.text_type:
-        return six.text_type(variant.toString())
+    elif py_type == str:
+        return str(variant.toString())
     elif py_type == QByteArray:
         return variant.toByteArray()
-
     else:
-        raise TypeError("Unsuported type {0!s}".format(py_type))
+        raise TypeError("Unsupported type {0!s}".format(py_type))
 
 
 if not QSETTINGS_HAS_TYPE:

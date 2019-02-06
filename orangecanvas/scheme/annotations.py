@@ -4,8 +4,6 @@ Scheme Annotations
 ==================
 
 """
-import six
-
 from AnyQt.QtCore import QObject
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
@@ -25,7 +23,7 @@ class SchemeArrowAnnotation(BaseSchemeAnnotation):
     An arrow annotation in the scheme.
     """
 
-    color_changed = Signal(six.text_type)
+    color_changed = Signal(str)
 
     def __init__(self, start_pos, end_pos, color="red", anchor=None,
                  parent=None):
@@ -84,8 +82,6 @@ class SchemeArrowAnnotation(BaseSchemeAnnotation):
         names).
 
         """
-        check_type(color, six.string_types)
-        color = six.text_type(color)
         if self.__color != color:
             self.__color = color
             self.color_changed.emit(color)
@@ -96,7 +92,7 @@ class SchemeArrowAnnotation(BaseSchemeAnnotation):
         """
         return self.__color
 
-    color = Property(six.text_type, fget=color, fset=set_color)
+    color = Property(str, fget=color, fset=set_color)
 
 
 class SchemeTextAnnotation(BaseSchemeAnnotation):
@@ -108,7 +104,7 @@ class SchemeTextAnnotation(BaseSchemeAnnotation):
     content_changed = Signal(str, str)
 
     # Signal emitted when the annotation text changes.
-    text_changed = Signal(six.text_type)
+    text_changed = Signal(str)
 
     # Signal emitted when the annotation text font changes.
     font_changed = Signal(dict)
@@ -160,8 +156,6 @@ class SchemeTextAnnotation(BaseSchemeAnnotation):
 
         Same as `set_content(text, "text/plain")`
         """
-        check_type(text, six.string_types)
-        text = six.text_type(text)
         self.set_content(text, "text/plain")
 
     def text(self):
@@ -233,4 +227,4 @@ class SchemeTextAnnotation(BaseSchemeAnnotation):
         """
         return dict(self.__font)
 
-    font = Property(six.text_type, fget=font, fset=set_font)
+    font = Property(str, fget=font, fset=set_font)

@@ -7,8 +7,6 @@ Widget meta description classes
 import sys
 import copy
 
-import six
-
 # Exceptions
 
 
@@ -295,7 +293,7 @@ class WidgetDescription(object):
             as a string (qualified import name).
 
         """
-        if isinstance(module, six.string_types):
+        if isinstance(module, str):
             module = __import__(module, fromlist=[""])
 
         module_name = module.__name__.rsplit(".", 1)[-1]
@@ -453,7 +451,7 @@ class CategoryDescription(object):
             A package containing the category.
 
         """
-        if isinstance(package, six.string_types):
+        if isinstance(package, str):
             package = __import__(package, fromlist=[""])
         package_name = package.__name__
         qualified_name = package_name

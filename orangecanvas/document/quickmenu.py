@@ -13,8 +13,6 @@ import logging
 
 from collections import namedtuple, Callable
 
-import six
-
 import numpy
 
 from AnyQt.QtWidgets import (
@@ -98,8 +96,7 @@ class MenuPage(ToolTree):
         """
         return self.__title
 
-    title_ = Property(six.text_type, fget=title, fset=setTitle,
-                      doc="Title of the page.")
+    title_ = Property(str, fget=title, fset=setTitle, doc="Title of the page.")
 
     def setIcon(self, icon):
         """
@@ -1051,7 +1048,7 @@ class QuickMenu(FramelessWindow):
             # bar at the top.
             view.setAttribute(Qt.WA_MacShowFocusRect, False)
 
-        name = six.text_type(index.data(Qt.DisplayRole))
+        name = str(index.data(Qt.DisplayRole))
         page.setTitle(name)
 
         icon = qtcompat.qunwrap(index.data(Qt.DecorationRole))

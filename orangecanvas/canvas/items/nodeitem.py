@@ -12,8 +12,6 @@ from xml.sax.saxutils import escape
 
 from typing import Dict, Any
 
-import six
-
 from AnyQt.QtWidgets import (
     QGraphicsItem, QGraphicsObject, QGraphicsTextItem, QGraphicsWidget,
     QGraphicsDropShadowEffect, QStyle, QGraphicsPathItem,
@@ -976,7 +974,7 @@ class NodeItem(QGraphicsWidget):
         """
         return self.__title
 
-    title_ = Property(six.text_type, fget=title, fset=setTitle,
+    title_ = Property(str, fget=title, fset=setTitle,
                       doc="Node title text.")
 
     def setFont(self, font):
@@ -1062,7 +1060,7 @@ class NodeItem(QGraphicsWidget):
 
         """
         if self.__statusMessage != message:
-            self.__statusMessage = six.text_type(message)
+            self.__statusMessage = message
             self.__updateTitleText()
 
     def statusMessage(self):
