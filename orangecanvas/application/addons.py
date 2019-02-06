@@ -12,15 +12,13 @@ import xmlrpc.client
 import json
 import traceback
 import concurrent.futures
+import urllib.request
 
 from collections import namedtuple, deque
 from xml.sax.saxutils import escape
 from distutils import version
 
 from typing import List, Dict, Any, Optional, Union, Tuple, NamedTuple
-
-import future.moves.urllib.request
-from future.moves import urllib
 
 import requests
 import pkg_resources
