@@ -14,11 +14,7 @@ import shlex
 import shutil
 import io
 import platform
-
-if sys.version_info < (3, 3):
-    from contextlib2 import ExitStack
-else:
-    from contextlib import ExitStack
+from contextlib import ExitStack
 
 import pkg_resources
 
