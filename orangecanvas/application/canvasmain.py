@@ -90,16 +90,6 @@ from . import tutorials
 
 log = logging.getLogger(__name__)
 
-# TODO: Orange Version in the base link
-
-BASE_LINK = "http://orange.biolab.si/"
-
-LINKS = \
-    {"start-using": BASE_LINK + "start-using/",
-     "tutorial": BASE_LINK + "tutorial/",
-     "reference": BASE_LINK + "doc/"
-     }
-
 
 def canvas_icons(name):
     """Return the named canvas icon.
@@ -478,13 +468,46 @@ class CanvasMainWindow(QMainWindow):
                     triggered=self.welcome_dialog,
                     )
 
+        def open_url_for(name):
+            url = config.default.APPLICATION_URLS.get(name)
+            if url is not None:
+                QDesktopServices.openUrl(QUrl(url))
+
+        def has_url_for(name):
+            url = config.default.APPLICATION_URLS.get(name)
+            return url is not None and QUrl(url).isValid()
+
+        def config_url_action(action, role):
+            # type: (QAction, str) -> None
+            enabled = has_url_for(role)
+            action.setVisible(enabled)
+            action.setEnabled(enabled)
+            if enabled:
+                action.triggered.connect(lambda: open_url_for(role))
+
         self.get_started_action = \
             QAction(self.tr("Get Started"), self,
                     objectName="get-started-action",
                     toolTip=self.tr("View a 'Get Started' introduction."),
-                    triggered=self.get_started,
-                    icon=canvas_icons("Get Started.svg")
+                    icon=canvas_icons("Documentation.svg")
                     )
+        config_url_action(self.get_started_action, "Quick Start")
+
+        self.get_started_screencasts_action = QAction(
+            self.tr("Video tutorials"), self,
+            objectName="get-started-screencast-action",
+            toolTip=self.tr("View video tutorials"),
+            icon=canvas_icons("YouTube.svg"),
+        )
+        config_url_action(self.get_started_screencasts_action, "Screencasts")
+
+        self.documentation_action = QAction(
+            self.tr("Documentation"), self,
+            objectName="documentation-action",
+            toolTip=self.tr("View reference documentation."),
+            icon=canvas_icons("Documentation.svg"),
+        )
+        config_url_action(self.documentation_action, "Documentation")
 
         self.tutorials_action = \
             QAction(self.tr("Example Workflows"), self,
@@ -492,14 +515,6 @@ class CanvasMainWindow(QMainWindow):
                     toolTip=self.tr("Browse example workflows."),
                     triggered=self.tutorial_scheme,
                     icon=canvas_icons("Examples.svg")
-                    )
-
-        self.documentation_action = \
-            QAction(self.tr("Documentation"), self,
-                    objectName="documentation-action",
-                    toolTip=self.tr("View reference documentation."),
-                    triggered=self.documentation,
-                    icon=canvas_icons("Documentation.svg")
                     )
 
         self.about_action = \
@@ -1324,24 +1339,6 @@ class CanvasMainWindow(QMainWindow):
             )
             return False
 
-    def get_started(self, *args):
-        """Show getting started video
-        """
-        url = QUrl(LINKS["start-using"])
-        QDesktopServices.openUrl(url)
-
-    def tutorial(self, *args):
-        """Show tutorial.
-        """
-        url = QUrl(LINKS["tutorial"])
-        QDesktopServices.openUrl(url)
-
-    def documentation(self, *args):
-        """Show reference documentation.
-        """
-        url = QUrl(LINKS["start-using"])
-        QDesktopServices.openUrl(url)
-
     def recent_scheme(self):
         """
         Browse recent schemes.
@@ -1417,9 +1414,12 @@ class CanvasMainWindow(QMainWindow):
     def welcome_dialog(self):
         """Show a modal welcome dialog for Orange Canvas.
         """
-
-        dialog = welcomedialog.WelcomeDialog(self)
-        dialog.setWindowTitle(self.tr("Welcome to Orange Data Mining"))
+        dialog = welcomedialog.WelcomeDialog(
+            self, windowTitle=self.tr("Welcome to Orange Data Mining")
+        )
+        feedback = config.default.APPLICATION_URLS.get("Feedback", "")
+        if feedback:
+            dialog.setFeedbackUrl(feedback)
 
         def new_scheme():
             if not self.is_transient():
@@ -1469,15 +1469,17 @@ class CanvasMainWindow(QMainWindow):
                     )
 
         tutorials_action = \
-            QAction(self.tr("Example Workflows"), dialog,
+            QAction(self.tr("Examples"), dialog,
                     objectName="welcome-tutorial-action",
                     toolTip=self.tr("Browse tutorial workflows."),
                     triggered=tutorial,
-                    icon=canvas_icons("Tutorials.svg")
+                    icon=canvas_icons("Examples.svg")
                     )
 
         bottom_row = [self.get_started_action, tutorials_action,
                       self.documentation_action]
+        if self.get_started_screencasts_action.isEnabled():
+            bottom_row.insert(0, self.get_started_screencasts_action)
 
         self.new_action.triggered.connect(dialog.accept)
         top_row = [new_action, open_action, recent_action]
@@ -1886,7 +1888,7 @@ class CanvasMainWindow(QMainWindow):
                 if target == "examples":
                     self.tutorial_scheme()
                 elif target == "tutorials":
-                    self.tutorial()
+                    self.get_started_screencasts_action.trigger()
                 elif target == "welcome":
                     self.welcome_dialog()
                 else:
