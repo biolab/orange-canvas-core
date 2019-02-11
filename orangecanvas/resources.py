@@ -2,13 +2,10 @@
 Orange Canvas Resource Loader
 
 """
-
 import os
-import logging
+import glob
 
 from AnyQt.QtGui import QIcon
-
-log = logging.getLogger(__name__)
 
 
 def package_dirname(package):
@@ -145,8 +142,6 @@ class resource_loader(object):
         else:
             raise IOError(2, "Cannot find %r" % name)
 
-import glob
-
 
 class icon_loader(resource_loader):
     DEFAULT_ICON = "icons/default-widget.svg"
@@ -216,47 +211,6 @@ class TestIconLoader(unittest.TestCase):
         self.assertTrue(os.path.isfile(path))
         icon = loader.get(":icons/CanvasIcon.png")
         self.assertTrue(not icon.isNull())
-
-    def test_from_desc(self):
-        from .registry.description import (
-            WidgetDescription, CategoryDescription
-        )
-
-        desc = WidgetDescription.from_module(
-            "Orange.OrangeWidgets.Data.OWFile"
-        )
-
-        loader = icon_loader.from_description(desc)
-        path = loader.find(desc.icon)
-        self.assertTrue(os.path.isfile(path))
-        icon = loader.get(desc.icon)
-        self.assertTrue(not icon.isNull())
-
-        desc = CategoryDescription.from_package("Orange.OrangeWidgets.Data")
-        loader = icon_loader.from_description(desc)
-        path = loader.find("icons/file.svg")
-        self.assertTrue(os.path.isfile(path))
-        icon = loader.get("icons/file.svg")
-        self.assertTrue(not icon.isNull())
-
-    def test_package_reflection(self):
-        from Orange.OrangeWidgets.Data import OWFile
-        from Orange.OrangeWidgets import Data
-        package_name = Data.__name__
-        p1 = package("Orange.OrangeWidgets.Data.OWFile.OWFile")
-        self.assertEqual(p1, package_name)
-
-        p2 = package("Orange.OrangeWidgets.Data.OWFile")
-        self.assertEqual(p2, package_name)
-
-        p3 = package("Orange.OrangeWidgets.Data")
-        self.assertEqual(p3, package_name)
-
-        p4 = package(OWFile.__name__)
-        self.assertEqual(p4, package_name)
-
-        dirname = package_dirname(package_name)
-        self.assertEqual(dirname, os.path.dirname(Data.__file__))
 
 
 if __name__ == "__main__":
