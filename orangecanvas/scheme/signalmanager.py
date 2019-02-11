@@ -1,38 +1,66 @@
 """
-Signal Manager
-==============
+=================================
+SignalManager (``signalmanager``)
+=================================
 
 A SignalManager instance handles the runtime signal propagation between
-widgets in a scheme.
-
+widgets in a scheme workflow.
 
 """
 
 import logging
 import itertools
 import warnings
+import enum
 
-from collections import namedtuple, defaultdict, deque
+from collections import defaultdict, deque
 from operator import attrgetter
-from functools import partial
-from typing import Any, List, NamedTuple
+from functools import partial, reduce
+
+import typing
+from typing import Any, List, Tuple, NamedTuple, Iterable, Callable
 
 from AnyQt.QtCore import QObject, QTimer
-from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
+from AnyQt.QtCore import pyqtSignal, pyqtSlot as Slot
+
+from ..registry import OutputSignal
+from .scheme import Scheme, SchemeNode, SchemeLink
 
 
-from .scheme import SchemeNode, SchemeLink
-from functools import reduce
+if typing.TYPE_CHECKING:
+    T = typing.TypeVar("T")
+    V = typing.TypeVar("V")
+    K = typing.TypeVar("K")
+    H = typing.TypeVar("H", bound=typing.Hashable)
 
 log = logging.getLogger(__name__)
 
 
-_Signal = NamedTuple(
-    "_Signal", [
-        ("link", SchemeLink),    # link on which the signal is sent
-        ("value", Any),          # signal value
-        ("id", Any),             # signal id
-    ])
+class Signal(
+    NamedTuple(
+        "Signal", (
+            ("link", SchemeLink),
+            ("value", Any),
+            ("id", Any),
+        ))
+):
+    """
+    A signal sent via a link between two nodes.
+
+    Attributes
+    ----------
+    link : SchemeLink
+        The link on which the signal is sent
+    value : Any
+        The signal value
+    id : Any
+        A signal id used to (optionally) differentiate multiple signals
+        (`Multiple` is in `link.sink_channel.flags`)
+
+    See also
+    --------
+    InputSignal.flags, OutputSignal.flags
+    """
 
 
 is_enabled = attrgetter("enabled")
@@ -42,41 +70,71 @@ MAX_CONCURRENT = 1
 
 class SignalManager(QObject):
     """
-    Handle all runtime signal propagation for a :clas:`Scheme` instance.
+    Handle all runtime signal propagation for a :class:`Scheme` instance.
     The scheme must be passed to the constructor and will become the parent
     of this object. Furthermore this should happen before any items
     (nodes, links) are added to the scheme.
-
     """
-    Running, Stoped, Paused, Error = range(4)
-    """SignalManger state flags."""
+    class State(enum.IntEnum):
+        """
+        SignalManager state flags.
 
-    Waiting, Processing = range(2)
-    """SignalManager runtime state flags."""
+        .. seealso:: :func:`SignalManager.state()`
+        """
+        #: The manager is running, i.e. it propagates signals
+        Running = 0
+        #: The manager is stopped. It does not track node ouput changes,
+        #: and does not deliver signals to dependent nodes
+        Stopped = 1
+        #: The manager is paused. It still tracks node output changes, but
+        #: does not deliver new signals to dependent nodes. The pending signals
+        #: will be delivered once it enters Running state again
+        Paused = 2
 
-    stateChanged = Signal(int)
-    """Emitted when the state of the signal manager changes."""
+    #: The manager is running, i.e. it propagates signals
+    Running = State.Running
+    #: The manager is stopped. It does not track node ouput changes,
+    #: and does not deliver signals to dependent nodes
+    Stopped = State.Stopped
+    #: The manager is paused. It still tracks node output changes, but
+    #: does not deliver new signals to dependent nodes. The pending signals
+    #: will be delivered once it enters Running state again
+    Paused = Stopped.Paused
 
-    updatesPending = Signal()
-    """Emitted when signals are added to the queue."""
+    # unused; back-compatibility
+    Error = 3
 
-    processingStarted = Signal([], [SchemeNode])
-    """Emitted right before a `SchemeNode` instance has its inputs
-    updated.
-    """
+    class RuntimeState(enum.IntEnum):
+        """
+        SignalManager runtime state.
 
-    processingFinished = Signal([], [SchemeNode])
-    """Emitted right after a `SchemeNode` instance has had its inputs
-    updated.
-    """
+        See Also
+        --------
+        SignalManager.runtime_state
+        """
+        #: Waiting, idle state. The signal queue is empty
+        Waiting = 0
+        #: ...
+        Processing = 1
 
-    runtimeStateChanged = Signal(int)
-    """Emitted when `SignalManager`'s runtime state changes."""
+    Waiting = RuntimeState.Waiting
+    Processing = RuntimeState.Processing
+
+    #: Emitted when the state of the signal manager changes.
+    stateChanged = pyqtSignal(int)
+    #: Emitted when signals are added to the queue.
+    updatesPending = pyqtSignal()
+    #: Emitted right before a `SchemeNode` instance has its inputs updated.
+    processingStarted = pyqtSignal([], [SchemeNode])
+    #: Emitted right after a `SchemeNode` instance has had its inputs updated.
+    processingFinished = pyqtSignal([], [SchemeNode])
+    #: Emitted when `SignalManager`'s runtime state changes.
+    runtimeStateChanged = pyqtSignal(int)
 
     def __init__(self, scheme):
-        assert(scheme)
-        QObject.__init__(self, scheme)
-        self._input_queue = []  # type: List[_Signal]
+        assert scheme
+        super().__init__(scheme)
+        self._input_queue = []  # type: List[Signal]
 
         # mapping a node to it's current outputs
         # {node: {channel: {id: signal_value}}}
@@ -101,7 +159,7 @@ class SignalManager(QObject):
         processing loop.
 
         """
-        return self.__state not in [SignalManager.Error, SignalManager.Stoped]
+        return self.__state not in [SignalManager.Error, SignalManager.Stopped]
 
     def scheme(self):
         """
@@ -113,9 +171,10 @@ class SignalManager(QObject):
         """
         Start the update loop.
 
-        .. note:: The updates will not happen until the control reaches
-                  the Qt event loop.
-
+        Note
+        ----
+        The updates will not happen until the control reaches the Qt event
+        loop.
         """
         if self.__state != SignalManager.Running:
             self.__state = SignalManager.Running
@@ -126,20 +185,20 @@ class SignalManager(QObject):
         """
         Stop the update loop.
 
-        .. note:: If the `SignalManager` is currently in `process_queues` it
-                  will still update all current pending signals, but will not
-                  re-enter until `start()` is called again
-
+        Note
+        ----
+        If the `SignalManager` is currently in `process_queues` it will
+        still update all current pending signals, but will not re-enter
+        until `start()` is called again.
         """
-        if self.__state != SignalManager.Stoped:
-            self.__state = SignalManager.Stoped
-            self.stateChanged.emit(SignalManager.Stoped)
+        if self.__state != SignalManager.Stopped:
+            self.__state = SignalManager.Stopped
+            self.stateChanged.emit(SignalManager.Stopped)
             self.__update_timer.stop()
 
     def pause(self):
         """
-        Pause the updates.
-
+        Pause the delivery of signals.
         """
         if self.__state != SignalManager.Paused:
             self.__state = SignalManager.Paused
@@ -147,18 +206,30 @@ class SignalManager(QObject):
             self.__update_timer.stop()
 
     def resume(self):
+        """
+        Resume the delivery of signals.
+        """
         if self.__state == SignalManager.Paused:
             self.__state = SignalManager.Running
             self.stateChanged.emit(self.__state)
             self._update()
 
     def step(self):
+        """
+        Deliver signals to a single node (only applicable while the `state()`
+        is `Paused`).
+        """
         if self.__state == SignalManager.Paused:
             self.process_queued()
 
     def state(self):
+        # type: () -> State
         """
         Return the current state.
+
+        Return
+        ------
+        state : State
         """
         return self.__state
 
@@ -167,13 +238,13 @@ class SignalManager(QObject):
         Set the runtime state.
 
         Should only be called by `SignalManager` implementations.
-
         """
         if self.__runtime_state != state:
             self.__runtime_state = state
             self.runtimeStateChanged.emit(self.__runtime_state)
 
     def runtime_state(self):
+        # type: () -> RuntimeState
         """
         Return the runtime state. This can be `SignalManager.Waiting`
         or `SignalManager.Processing`.
@@ -219,16 +290,16 @@ class SignalManager(QObject):
             self._schedule(self.signals_on_link(link))
 
     def signals_on_link(self, link):
+        # type: (SchemeLink) -> List[Signal]
         """
-        Return _Signal instances representing the current values
+        Return :class:`Signal` instances representing the current values
         present on the link.
-
         """
         items = self.link_contents(link)
         signals = []
 
         for key, value in items.items():
-            signals.append(_Signal(link, value, key))
+            signals.append(Signal(link, value, key))
 
         return signals
 
@@ -249,7 +320,22 @@ class SignalManager(QObject):
             return {sig.id: sig.value for sig in pending}
 
     def send(self, node, channel, value, id):
+        # type: (SchemeNode, OutputSignal, Any, Any) -> None
         """
+        Send the `value` with `id` on an output `channel` from node.
+
+        Schedule the signal delivery to all dependent nodes
+
+        Parameters
+        ----------
+        node : SchemeNode
+            The originating node.
+        channel : OutputSignal
+            The nodes output on which the value is sent.
+        value : Any
+            The value to send,
+        id : Any
+            Signal id.
         """
         log.debug("%r sending %r (id: %r) on channel %r",
                   node.title, type(value), id, channel.name)
@@ -263,7 +349,7 @@ class SignalManager(QObject):
 
         signals = []
         for link in links:
-            signals.append(_Signal(link, value, id))
+            signals.append(Signal(link, value, id))
 
         self._schedule(signals)
 
@@ -273,13 +359,13 @@ class SignalManager(QObject):
         """
         contents = self.link_contents(link)
         ids = contents.keys()
-        signals = [_Signal(link, None, id) for id in ids]
+        signals = [Signal(link, None, id) for id in ids]
 
         self._schedule(signals)
 
     def _schedule(self, signals):
         """
-        Schedule a list of :class:`_Signal` for delivery.
+        Schedule a list of :class:`Signal` for delivery.
         """
         self._input_queue.extend(signals)
 
@@ -351,11 +437,13 @@ class SignalManager(QObject):
         for link in {sig.link for sig in signals_in}:
             link.set_runtime_state(link.runtime_state() & ~SchemeLink.Pending)
 
-        # Process dynamic signals; Update the link's dynamic_enabled flag if
-        # the value is valid; replace values that do not type check with
-        # `None`
         def process_dynamic(signals):
-            # type: (List[_Signal]) -> List[_Signal]
+            # type: (List[Signal]) -> List[Signal]
+            """
+            Process dynamic signals; Update the link's dynamic_enabled flag if
+            the value is valid; replace values that do not type check with
+            `None`
+            """
             res = []
             for sig in signals:
                 # Check and update the dynamic link state
@@ -364,7 +452,7 @@ class SignalManager(QObject):
                     link.dynamic_enabled = can_enable_dynamic(link, sig.value)
                     if not link.dynamic_enabled:
                         # Send None instead
-                        sig = _Signal(link, None, sig.id)
+                        sig = Signal(link, None, sig.id)
                 res.append(sig)
             return res
         signals_in = process_dynamic(signals_in)
@@ -379,34 +467,62 @@ class SignalManager(QObject):
             self.processingFinished[SchemeNode].emit(node)
 
     def compress_signals(self, signals):
+        # type: (List[Signal]) -> List[Signal]
         """
-        Compress a list of :class:`_Signal` instances to be delivered.
+        Compress a list of :class:`Signal` instances to be delivered.
+
+        Before the signal values are delivered to the sink node they can be
+        optionally `compressed`, i.e. values can be merged or dropped
+        depending on the execution semantics.
+
+        The input list is in the order that the signals were enqueued.
 
         The base implementation returns the list unmodified.
 
+        Parameters
+        ----------
+        signals : List[Signal]
+
+        Return
+        ------
+        signals : List[Signal]
         """
         return signals
 
     def send_to_node(self, node, signals):
+        # type: (SchemeNode, List[Signal]) -> None
         """
         Abstract. Reimplement in subclass.
 
-        Send/notify the :class:`SchemeNode` instance (or whatever
-        object/instance it is a representation of) that it has new inputs
-        as represented by the signals list (list of :class:`_Signal`).
+        Send/notify the `node` instance (or whatever object/instance it is a
+        representation of) that it has new inputs as represented by the
+        `signals` list).
 
+        Parameters
+        ----------
+        node : SchemeNode
+        signals : List[Signal]
         """
         raise NotImplementedError
 
     def is_pending(self, node):
+        # type: (SchemeNode) -> bool
         """
         Is `node` (class:`SchemeNode`) scheduled for processing (i.e.
         it has incoming pending signals).
 
+        Parameters
+        ----------
+        node : SchemeNode
+
+        Returns
+        -------
+        pending : bool
         """
         return node in [signal.link.sink_node for signal in self._input_queue]
 
     def pending_nodes(self):
+        # type: () -> List[SchemeNode]
         """
         Return a list of pending nodes.
 
@@ -420,6 +536,7 @@ class SignalManager(QObject):
         return list(unique(sig.link.sink_node for sig in self._input_queue))
 
     def pending_input_signals(self, node):
+        # type: (SchemeNode) -> List[Signal]
         """
         Return a list of pending input signals for node.
         """
@@ -427,6 +544,7 @@ class SignalManager(QObject):
                 if node is signal.link.sink_node]
 
     def remove_pending_signals(self, node):
+        # type: (SchemeNode) -> None
         """
         Remove pending signals for `node`.
         """
@@ -450,18 +568,18 @@ class SignalManager(QObject):
         """
         Return a list of nodes on the update front, i.e. nodes scheduled for
         an update that have no ancestor which is either itself scheduled
-        for update or is in a blocking state)
+        for update or is in a blocking state).
 
-        .. note::
-            The node's ancestors are only computed over enabled links.
-
+        Note
+        ----
+        The node's ancestors are only computed over enabled links.
         """
         scheme = self.scheme()
 
         def expand(node):
-            return [link.sink_node for
-                link in scheme.find_links(source_node=node) if
-                link.enabled]
+            return [link.sink_node
+                    for link in scheme.find_links(source_node=node)
+                    if link.enabled]
 
         components = strongly_connected_components(scheme.nodes, expand)
         node_scc = {node: scc for scc in components for node in scc}
@@ -549,8 +667,21 @@ def can_enable_dynamic(link, value):
 
 
 def compress_signals(signals):
+    # type: (List[Signal]) -> List[Signal]
     """
-    Compress a list of signals.
+    Compress a list of signals by dropping 'stale' signals.
+
+    Only the latest signal value on a link is preserved except when one of
+    the signals on the link had `None` value in which case the None signal
+    is preserved (by historical convention this meant a reset of the input
+    for pending nodes).
+
+    So for instance if a link had: `1, 2, None, 3` scheduled then the
+    list would be compressed to `None, 3`
+
+    See Also
+    --------
+    SignalManager.compress_signals
     """
     groups = group_by_all(reversed(signals),
                           key=lambda sig: (sig.link, sig.id))
@@ -562,7 +693,7 @@ def compress_signals(signals):
     for (link, id), signals_grouped in groups:
         if len(signals_grouped) > 1 and has_none(signals_grouped[1:]):
             signals.append(signals_grouped[0])
-            signals.append(_Signal(link, None, id))
+            signals.append(Signal(link, None, id))
         else:
             signals.append(signals_grouped[0])
 
@@ -570,13 +701,14 @@ def compress_signals(signals):
 
 
 def dependent_nodes(scheme, node):
+    # type: (Scheme, SchemeNode) -> List[SchemeNode]
     """
     Return a list of all nodes (in breadth first order) in `scheme` that
     are dependent on `node`,
 
-    .. note::
-        This does not include nodes only reachable by disables links.
-
+    Note
+    ----
+    This does not include nodes only reachable by disables links.
     """
     def expand(node):
         return [link.sink_node
@@ -590,6 +722,7 @@ def dependent_nodes(scheme, node):
 
 
 def traverse_bf(start, expand):
+    # type: (T, Callable[[T], Iterable[T]]) -> Iterable[T]
     queue = deque([start])
     visited = set()
     while queue:
@@ -601,6 +734,7 @@ def traverse_bf(start, expand):
 
 
 def group_by_all(sequence, key=None):
+    # type: (Iterable[V], Callable[[V], K]) -> List[Tuple[K, List[V]]]
     order_seen = []
     groups = {}
     for item in sequence:
@@ -618,17 +752,21 @@ def group_by_all(sequence, key=None):
 
 
 def unique(iterable):
+    # type: (Iterable[H]) -> Iterable[H]
     """
     Return unique elements of `iterable` while preserving their order.
+
     Parameters
     ----------
     iterable : Iterable[Hashable]
+
     Returns
     -------
     unique : Iterable
         Unique elements from `iterable`.
     """
     seen = set()
+
     def observed(el):
         observed = el in seen
         seen.add(el)

@@ -16,3 +16,4 @@ Scheme (``scheme``)
    scheme.annotation
    scheme.readwrite
    scheme.widgetmanager
+   scheme.signalmanager
