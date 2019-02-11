@@ -18,7 +18,7 @@ from operator import attrgetter
 from functools import partial, reduce
 
 import typing
-from typing import Any, List, Tuple, NamedTuple, Iterable, Callable
+from typing import Any, Optional, List, Tuple, NamedTuple, Iterable, Callable
 
 from AnyQt.QtCore import QObject, QTimer
 from AnyQt.QtCore import pyqtSignal, pyqtSlot as Slot
@@ -131,14 +131,13 @@ class SignalManager(QObject):
     #: Emitted when `SignalManager`'s runtime state changes.
     runtimeStateChanged = pyqtSignal(int)
 
-    def __init__(self, scheme):
-        assert scheme
-        super().__init__(scheme)
-        self._input_queue = []  # type: List[Signal]
+    def __init__(self, parent=None, **kwargs):
+        super().__init__(parent, **kwargs)
+        self.__workflow = None  # type: Optional[Workflow]
+        self.__input_queue = []  # type: List[Signal]
 
         # mapping a node to it's current outputs
-        # {node: {channel: {id: signal_value}}}
-        self._node_outputs = {}
+        self.__node_outputs = {}  # type: Dict[Node, Dict[OutputSignal, Dict[Any, Any]]]
 
         self.__state = SignalManager.Running
         self.__runtime_state = SignalManager.Waiting
@@ -148,10 +147,8 @@ class SignalManager(QObject):
         self.__update_timer = QTimer(self, interval=100, singleShot=True)
         self.__update_timer.timeout.connect(self.__process_next)
 
-        scheme.node_added.connect(self.on_node_added)
-        scheme.node_removed.connect(self.on_node_removed)
-        scheme.link_added.connect(self.link_added)
-        scheme.link_removed.connect(self.link_removed)
+        if isinstance(parent, Scheme):
+            self.set_workflow(parent)
 
     def _can_process(self):
         """
@@ -161,11 +158,40 @@ class SignalManager(QObject):
         """
         return self.__state not in [SignalManager.Error, SignalManager.Stopped]
 
-    def scheme(self):
+    def workflow(self):
         """
-        Return the parent class:`Scheme` instance.
+        Return the :class:`Scheme` instance.
         """
-        return self.parent()
+        return self.__workflow
+    #: Alias
+    scheme = workflow
+
+    def set_workflow(self, workflow):
+        if workflow is self.__workflow:
+            return
+
+        if self.__workflow is not None:
+            self.__workflow.node_added.disconnect(self.on_node_added)
+            self.__workflow.node_removed.disconnect(self.on_node_removed)
+            self.__workflow.link_added.disconnect(self.link_added)
+            self.__workflow.link_removed.disconnect(self.link_removed)
+            self.__workflow.removeEventFilter(self)
+            self.__node_outputs = {}
+            self.__input_queue = []
+
+        self.__workflow = workflow
+
+        if workflow is not None:
+            workflow.node_added.connect(self.on_node_added)
+            workflow.node_removed.connect(self.on_node_removed)
+            workflow.link_added.connect(self.link_added)
+            workflow.link_removed.connect(self.link_removed)
+            for node in workflow.nodes:
+                self.__node_outputs[node] = defaultdict(dict)
+            workflow.installEventFilter(self)
+
+    def has_pending(self):
+        return bool(self.__input_queue)
 
     def start(self):
         """
@@ -258,20 +284,19 @@ class SignalManager(QObject):
         # NOTE: This does not remove output signals for this node. In
         # particular the final 'None' will be delivered to the sink
         # nodes even after the source node is no longer in the scheme.
-        log.info("Node %r removed. Removing pending signals.",
-                 node.title)
+        log.info("Removing pending signals for '%s'.", node.title)
         self.remove_pending_signals(node)
 
-        del self._node_outputs[node]
+        del self.__node_outputs[node]
 
     def on_node_added(self, node):
-        self._node_outputs[node] = defaultdict(dict)
+        self.__node_outputs[node] = defaultdict(dict)
 
     def link_added(self, link):
         # push all current source values to the sink
         link.set_runtime_state(SchemeLink.Empty)
         if link.enabled:
-            log.info("Link added (%s). Scheduling signal data update.", link)
+            log.info("Scheduling signal data update for '%s'.", link)
             self._schedule(self.signals_on_link(link))
             self._update()
 
@@ -279,7 +304,7 @@ class SignalManager(QObject):
 
     def link_removed(self, link):
         # purge all values in sink's queue
-        log.info("Link removed (%s). Scheduling signal data purge.", link)
+        log.info("Scheduling signal data purge (%s).", link)
         self.purge_link(link)
         link.enabled_changed.disconnect(self.link_enabled_changed)
 
@@ -309,13 +334,13 @@ class SignalManager(QObject):
         """
         node, channel = link.source_node, link.source_channel
 
-        if node in self._node_outputs:
-            return self._node_outputs[node][channel]
+        if node in self.__node_outputs:
+            return self.__node_outputs[node][channel]
         else:
-            # if the the node was already removed it's tracked outputs in
-            # _node_outputs are cleared, however the final 'None' signal
+            # if the the node was already removed its tracked outputs in
+            # __node_outputs are cleared, however the final 'None' signal
             # deliveries for the link are left in the _input_queue.
-            pending = [sig for sig in self._input_queue
+            pending = [sig for sig in self.__input_queue
                        if sig.link is link]
             return {sig.id: sig.value for sig in pending}
 
@@ -342,7 +367,7 @@ class SignalManager(QObject):
 
         scheme = self.scheme()
 
-        self._node_outputs[node][channel][id] = value
+        self.__node_outputs[node][channel][id] = value
 
         links = scheme.find_links(source_node=node, source_channel=channel)
         links = filter(is_enabled, links)
@@ -367,7 +392,7 @@ class SignalManager(QObject):
         """
         Schedule a list of :class:`Signal` for delivery.
         """
-        self._input_queue.extend(signals)
+        self.__input_queue.extend(signals)
 
         for link in {sig.link for sig in signals}:
             # update the SchemeLink's runtime state flags
@@ -456,7 +481,7 @@ class SignalManager(QObject):
                 res.append(sig)
             return res
         signals_in = process_dynamic(signals_in)
-        assert ({sig.link for sig in self._input_queue}
+        assert ({sig.link for sig in self.__input_queue}
                 .intersection({sig.link for sig in signals_in}) == set([]))
         self.processingStarted.emit()
         self.processingStarted[SchemeNode].emit(node)
@@ -519,7 +544,7 @@ class SignalManager(QObject):
         -------
         pending : bool
         """
-        return node in [signal.link.sink_node for signal in self._input_queue]
+        return node in [signal.link.sink_node for signal in self.__input_queue]
 
     def pending_nodes(self):
         # type: () -> List[SchemeNode]
@@ -533,14 +558,14 @@ class SignalManager(QObject):
         -------
         nodes : List[SchemeNode]
         """
-        return list(unique(sig.link.sink_node for sig in self._input_queue))
+        return list(unique(sig.link.sink_node for sig in self.__input_queue))
 
     def pending_input_signals(self, node):
         # type: (SchemeNode) -> List[Signal]
         """
         Return a list of pending input signals for node.
         """
-        return [signal for signal in self._input_queue
+        return [signal for signal in self.__input_queue
                 if node is signal.link.sink_node]
 
     def remove_pending_signals(self, node):
@@ -550,7 +575,7 @@ class SignalManager(QObject):
         """
         for signal in self.pending_input_signals(node):
             try:
-                self._input_queue.remove(signal)
+                self.__input_queue.remove(signal)
             except ValueError:
                 pass
 
@@ -634,9 +659,9 @@ class SignalManager(QObject):
         nbusy = len(self.blocking_nodes())
         log.info("'UpdateRequest' event, queued signals: %i, nbusy: %i "
                  "(MAX_CONCURRENT: %i)",
-                 len(self._input_queue), nbusy, MAX_CONCURRENT)
+                 len(self.__input_queue), nbusy, MAX_CONCURRENT)
 
-        if self._input_queue and nbusy < MAX_CONCURRENT:
+        if self.__input_queue and nbusy < MAX_CONCURRENT:
             self.process_queued()
 
         if self.__reschedule and self.__state == SignalManager.Running:
