@@ -1,2 +1,2 @@
-include LICENSE.txt README.txt ez_setup.py
+include LICENSE.txt README.txt
 recursive-include docs *.*
