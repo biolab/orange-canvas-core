@@ -1,0 +1,10 @@
+version: 2
+
+python:
+   version: 3.6
+   install:
+      - requirements: docs/requirements-rtd.txt
+      - method: pip
+        path: .
+
+   system_packages: true

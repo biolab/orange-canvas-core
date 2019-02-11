@@ -1,0 +1,5 @@
+--only-binary PyQt5,numpy
+
+numpy
+PyQt5~=5.9.2
+AnyQt
