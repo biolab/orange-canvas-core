@@ -216,6 +216,9 @@ class WidgetManager(QObject):
         else:
             item.widget = w
             self.__item_for_widget[w] = item
+
+        self.__set_float_on_top_flag(w)
+
         w.installEventFilter(self.__activation_monitor)
         # send all the post creation notification events
         workflow = self.__workflow
