@@ -86,7 +86,6 @@ class CanvasView(QGraphicsView):
         return QGraphicsView.mouseReleaseEvent(self, event)
 
     def wheelEvent(self, event: QWheelEvent):
-        # type: () -> None
         if event.modifiers() & Qt.ControlModifier \
                 and event.buttons() == Qt.NoButton:
             delta = event.angleDelta().y()
