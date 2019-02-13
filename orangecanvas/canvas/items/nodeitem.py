@@ -6,7 +6,11 @@ Node Item
 """
 import string
 
+from operator import attrgetter
+from itertools import groupby
 from xml.sax.saxutils import escape
+
+from typing import Dict, Any
 
 import six
 
@@ -812,7 +816,7 @@ class NodeItem(QGraphicsWidget):
         self.__error = None
         self.__warning = None
         self.__info = None
-
+        self.__messages = {}  # type: Dict[Any, UserMessage]
         self.__anchorLayout = None
         self.__animationEnabled = False
 
@@ -1075,14 +1079,8 @@ class NodeItem(QGraphicsWidget):
             the icon and `message.contents` is used as a tool tip.
 
         """
-        # TODO: Group messages by message_id not by severity
-        # and deprecate set[Error|Warning|Error]Message
-        if message.severity == UserMessage.Info:
-            self.setInfoMessage(message.contents)
-        elif message.severity == UserMessage.Warning:
-            self.setWarningMessage(message.contents)
-        elif message.severity == UserMessage.Error:
-            self.setErrorMessage(message.contents)
+        self.__messages[message.message_id] = message
+        self.__updateMessages()
 
     def setErrorMessage(self, message):
         if self.__error != message:
@@ -1237,8 +1235,16 @@ class NodeItem(QGraphicsWidget):
         """
         items = [self.errorItem, self.warningItem, self.infoItem]
 
-        messages = [self.__error, self.__warning, self.__info]
-        for message, item in zip(messages, items):
+        messages = list(self.__messages.values()) + [
+            UserMessage(self.__error, UserMessage.Error),
+            UserMessage(self.__warning, UserMessage.Warning),
+            UserMessage(self.__info, UserMessage.Info),
+        ]
+        key = attrgetter("severity")
+        messages = groupby(sorted(messages, key=key, reverse=True), key=key)
+
+        for (_, message_g), item in zip(messages, items):
+            message = "<br/>".join(m.contents for m in message_g if m.contents)
             item.setVisible(bool(message))
             item.setToolTip(message or "")
 
