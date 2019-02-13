@@ -709,25 +709,6 @@ class Scheme(QObject):
         """
         return types.MappingProxyType(self.__env)
 
-    def widget_for_node(self, node):
-        # type: (SchemeNode) -> Optional[QWidget]
-        return None
-
-    def save_widget_geometry_for_node(self, node):
-        # type: (SchemeNode) -> bytes
-        """
-        Save and return the current geometry and state for node
-
-        Parameters
-        ----------
-        node : Scheme
-        """
-        return b''
-
-    def restore_widget_geometry_for_node(self, node, state):
-        # type: (SchemeNode, bytes) -> bool
-        return False
-
     class WindowGroup(types.SimpleNamespace):
         name = ...     # type: str
         default = ...  # type: bool
