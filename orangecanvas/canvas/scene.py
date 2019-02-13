@@ -20,17 +20,10 @@ from AnyQt.QtCore import (
 )
 from AnyQt.QtSvg import QSvgGenerator
 from AnyQt.QtCore import pyqtSignal as Signal
-try:
-    from AnyQt.QtCore import PYQT_VERSION
-    USE_PYQT = True
-except ImportError:
-    USE_PYQT, PYQT_VERSION = False, -1
 
 from .. import scheme
-
 from . import items
 from .layout import AnchorLayout
-from .items.utils import toGraphicsObjectIfPossible
 
 log = logging.getLogger(__name__)
 
@@ -753,33 +746,6 @@ class CanvasScene(QGraphicsScene):
             items = [i for i in items if isinstance(i, type_or_tuple)]
 
         return items[0] if items else None
-
-    if USE_PYQT and PYQT_VERSION < 0x040900:
-        # For QGraphicsObject subclasses items, itemAt ... return a
-        # QGraphicsItem wrapper instance and not the actual class instance.
-        def itemAt(self, *args, **kwargs):
-            item = QGraphicsScene.itemAt(self, *args, **kwargs)
-            return toGraphicsObjectIfPossible(item)
-
-        def items(self, *args, **kwargs):
-            items = QGraphicsScene.items(self, *args, **kwargs)
-            return list(map(toGraphicsObjectIfPossible, items))
-
-        def selectedItems(self, *args, **kwargs):
-            return list(map(toGraphicsObjectIfPossible,
-                            QGraphicsScene.selectedItems(self, *args, **kwargs)))
-
-        def collidingItems(self, *args, **kwargs):
-            return list(map(toGraphicsObjectIfPossible,
-                            QGraphicsScene.collidingItems(self, *args, **kwargs)))
-
-        def focusItem(self, *args, **kwargs):
-            item = QGraphicsScene.focusItem(self, *args, **kwargs)
-            return toGraphicsObjectIfPossible(item)
-
-        def mouseGrabberItem(self, *args, **kwargs):
-            item = QGraphicsScene.mouseGrabberItem(self, *args, **kwargs)
-            return toGraphicsObjectIfPossible(item)
 
     def mousePressEvent(self, event):
         if self.user_interaction_handler and \
