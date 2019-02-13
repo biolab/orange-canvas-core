@@ -33,7 +33,7 @@ class SplitterResizer(QObject):
     An object able to control the size of a widget in a QSplitter instance.
     """
     def __init__(self, parent=None):
-        QObject.__init__(self, parent)
+        super().__init__(parent)
         self.__splitter = None
         self.__widget = None
         self.__updateOnShow = True  # Need __update on next show event
@@ -202,7 +202,7 @@ class SplitterResizer(QObject):
             # Update the splitter state after receiving valid geometry
             self.__updateOnShow = False
             self.__update()
-        return QObject.eventFilter(self, obj, event)
+        return super().eventFilter(obj, event)
 
 
 class QuickHelpWidget(QuickHelp):
@@ -211,7 +211,7 @@ class QuickHelpWidget(QuickHelp):
         with a continuous animation.
 
         """
-        hint = QTextEdit.minimumSizeHint(self)
+        hint = super().minimumSizeHint()
         return QSize(hint.width(), 0)
 
 
@@ -221,7 +221,7 @@ class CanvasToolDock(QWidget):
 
     """
     def __init__(self, parent=None, **kwargs):
-        QWidget.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
 
         self.__setupUi()
 
@@ -277,8 +277,8 @@ class QuickCategoryToolbar(ToolGrid):
     """A toolbar with category buttons.
     """
     def __init__(self, parent=None, buttonSize=None, iconSize=None):
-        ToolGrid.__init__(self, parent, 1, buttonSize, iconSize,
-                          Qt.ToolButtonIconOnly)
+        super().__init__(parent, 1, buttonSize, iconSize,
+                         Qt.ToolButtonIconOnly)
         self.__model = None
 
     def setColumnCount(self, count):
@@ -320,7 +320,7 @@ class QuickCategoryToolbar(ToolGrid):
     def createButtonForAction(self, action):
         """Create a button for the action.
         """
-        button = ToolGrid.createButtonForAction(self, action)
+        button = super().createButtonForAction(action)
 
         item = qunwrap(action.data())  # QPersistentModelIndex
         assert isinstance(item, QPersistentModelIndex)
@@ -374,7 +374,7 @@ class CategoryPopupMenu(FramelessWindow):
     hovered = Signal(QAction)
 
     def __init__(self, parent=None, **kwargs):
-        FramelessWindow.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.setWindowFlags(self.windowFlags() | Qt.Popup)
 
         layout = QVBoxLayout()
@@ -437,7 +437,7 @@ class CategoryPopupMenu(FramelessWindow):
         if self.__loop is not None:
             self.__loop.exit(0)
 
-        return FramelessWindow.hideEvent(self, event)
+        return super().hideEvent(event)
 
     def __onTriggered(self, action):
         self.__action = action
@@ -479,7 +479,7 @@ class ItemViewDragStartEventListener(QObject):
     dragStarted = Signal(QModelIndex)
 
     def __init__(self, parent=None):
-        QObject.__init__(self, parent)
+        super().__init__(parent)
         self._pos = None
         self._index = None
 
@@ -509,7 +509,7 @@ class ItemViewDragStartEventListener(QObject):
 
                 self.dragStarted.emit(index)
 
-        return QObject.eventFilter(self, view, event)
+        return super().eventFilter(view, event)
 
 
 class ToolTipEventFilter(QObject):
@@ -517,7 +517,7 @@ class ToolTipEventFilter(QObject):
         if event.type() == QEvent.ToolTip:
             return True
 
-        return QObject.eventFilter(self, receiver, event)
+        return super().eventFilter(receiver, event)
 
 
 def widget_popup_geometry(pos, widget):

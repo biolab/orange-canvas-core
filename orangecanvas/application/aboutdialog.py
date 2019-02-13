@@ -24,7 +24,7 @@ ABOUT_TEMPLATE = """\
 
 class AboutDialog(QDialog):
     def __init__(self, parent=None, **kwargs):
-        QDialog.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
 
         if sys.platform == "darwin":
             self.setAttribute(Qt.WA_MacSmallSize, True)

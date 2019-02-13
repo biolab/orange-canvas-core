@@ -30,7 +30,7 @@ class ToolTree(QWidget):
     hovered = Signal(QAction)
 
     def __init__(self, parent=None, **kwargs):
-        QWidget.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.setSizePolicy(QSizePolicy.MinimumExpanding,
                            QSizePolicy.Expanding)
 
@@ -177,12 +177,12 @@ class ToolTree(QWidget):
                     self.__view.activated.emit(index)
                 return True
 
-        return QWidget.eventFilter(self, obj, event)
+        return super().eventFilter(obj, event)
 
 
 class ToolTreeItemDelegate(QStyledItemDelegate):
     def paint(self, painter, option, index):
-        QStyledItemDelegate.paint(self, painter, option, index)
+        super().paint(painter, option, index)
 
 
 class FlattenedTreeItemModel(QAbstractProxyModel):
@@ -195,7 +195,7 @@ class FlattenedTreeItemModel(QAbstractProxyModel):
     LeavesOnly = 4
 
     def __init__(self, parent=None):
-        QAbstractProxyModel.__init__(self, parent)
+        super().__init__(parent)
         self.__sourceColumn = 0
         self.__flatteningMode = 1
         self.__sourceRootIndex = QModelIndex()
@@ -214,7 +214,7 @@ class FlattenedTreeItemModel(QAbstractProxyModel):
             curr_model.rowsRemoved.disconnect(self._sourceRowsRemoved)
             curr_model.rowsMoved.disconnect(self._sourceRowsMoved)
 
-        QAbstractProxyModel.setSourceModel(self, model)
+        super().setSourceModel(model)
         self._updateRowMapping()
 
         model.dataChanged.connect(self._sourceDataChanged)
@@ -301,7 +301,7 @@ class FlattenedTreeItemModel(QAbstractProxyModel):
             return 1
 
     def flags(self, index):
-        flags = QAbstractProxyModel.flags(self, index)
+        flags = super().flags(index)
         if self.__flatteningMode == self.InternalNodesDisabled:
             sourceIndex = self.mapToSource(index)
             sourceModel = self.sourceModel()

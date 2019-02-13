@@ -14,7 +14,7 @@ from ...registry import tests as registry_tests
 class TestUserSettings(test.QAppTestCase):
     def setUp(self):
         logging.basicConfig()
-        test.QAppTestCase.setUp(self)
+        super().setUp()
 
     def test(self):
         registry.set_global_registry(registry_tests.small_testing_registry())

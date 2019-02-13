@@ -14,7 +14,7 @@ from ...gui import test
 class TestUserSettings(test.QAppTestCase):
     def setUp(self):
         logging.basicConfig()
-        test.QAppTestCase.setUp(self)
+        super().setUp()
 
     def test_settings(self):
         spec = [config_slot("foo", bool, True, "foo doc"),

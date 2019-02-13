@@ -10,7 +10,7 @@ from ....registry.tests import small_testing_registry
 
 class TestNodeItem(TestItems):
     def setUp(self):
-        TestItems.setUp(self)
+        super().setUp()
         self.reg = small_testing_registry()
 
         self.const_desc = self.reg.category("Constants")

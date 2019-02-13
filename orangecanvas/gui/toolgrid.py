@@ -27,18 +27,17 @@ _ToolGridSlot = namedtuple(
 
 class _ToolGridButton(QToolButton):
     def __init__(self, *args, **kwargs):
-        QToolButton.__init__(self, *args, **kwargs)
-
+        super().__init__(*args, **kwargs)
         self.__text = ""
 
     def actionEvent(self, event):
-        QToolButton.actionEvent(self, event)
+        super().actionEvent(event)
         if event.type() == QEvent.ActionChanged or \
                 event.type() == QEvent.ActionAdded:
             self.__textLayout()
 
     def resizeEvent(self, event):
-        QToolButton.resizeEvent(self, event)
+        super().resizeEvent(event)
         self.__textLayout()
 
     def __textLayout(self):
@@ -133,7 +132,7 @@ class ToolGrid(QFrame):
 
     def __init__(self, parent=None, columns=4, buttonSize=None,
                  iconSize=None, toolButtonStyle=Qt.ToolButtonTextUnderIcon):
-        QFrame.__init__(self, parent)
+        super().__init__(parent)
 
         if buttonSize is not None:
             buttonSize = QSize(buttonSize)
@@ -248,7 +247,7 @@ class ToolGrid(QFrame):
 
             before = actions[before]
 
-        return QFrame.insertAction(self, before, action)
+        return super().insertAction(before, action)
 
     def setActions(self, actions):
         """
@@ -290,7 +289,7 @@ class ToolGrid(QFrame):
         return len(self.__gridSlots)
 
     def actionEvent(self, event):
-        QFrame.actionEvent(self, event)
+        super().actionEvent(event)
 
         if event.type() == QEvent.ActionAdded:
             # Note: the action is already in the self.actions() list.
@@ -401,7 +400,7 @@ class ToolGrid(QFrame):
                     return True
         elif etype == QEvent.HoverEnter and obj.parent() is self:
             self.__onButtonEnter(obj)
-        return QFrame.eventFilter(self, obj, event)
+        return super().eventFilter(obj, event)
 
     def __focusMove(self, focus, key):
         assert(focus is self.focusWidget())

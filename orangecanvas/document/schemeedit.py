@@ -62,7 +62,7 @@ class GraphicsSceneFocusEventListener(QGraphicsObject):
     itemFocusedOut = Signal(object)
 
     def __init__(self, parent=None):
-        QGraphicsObject.__init__(self, parent)
+        super().__init__(parent)
         self.setFlag(QGraphicsItem.ItemHasNoContents)
 
     def sceneEventFilter(self, obj, event):
@@ -78,7 +78,7 @@ class GraphicsSceneFocusEventListener(QGraphicsObject):
                 self.itemFocusedOut.emit(obj)
             return True
 
-        return QGraphicsObject.sceneEventFilter(self, obj, event)
+        return super().sceneEventFilter(obj, event)
 
     def boundingRect(self):
         return QRectF()
@@ -118,7 +118,7 @@ class SchemeEditWidget(QWidget):
      AnyKey) = [0, 1, 2, 4, 8]
 
     def __init__(self, parent=None, ):
-        QWidget.__init__(self, parent)
+        super().__init__(parent)
 
         self.__modified = False
         self.__registry = None
@@ -1088,7 +1088,7 @@ class SchemeEditWidget(QWidget):
             if self.__scene is not None:
                 self.__scene.setPalette(self.palette())
 
-        QWidget.changeEvent(self, event)
+        super().changeEvent(event)
 
     def eventFilter(self, obj, event):
         # Filter the scene's drag/drop events.
@@ -1167,7 +1167,7 @@ class SchemeEditWidget(QWidget):
                 self.window().activateWindow()
                 self.window().raise_()
 
-        return QWidget.eventFilter(self, obj, event)
+        return super().eventFilter(obj, event)
 
     def sceneMousePressEvent(self, event):
         scene = self.__scene

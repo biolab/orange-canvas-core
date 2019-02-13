@@ -60,7 +60,7 @@ class DropShadowFrame(QWidget):
     """
     def __init__(self, parent=None, color=QColor(), radius=5,
                  **kwargs):
-        QWidget.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         self.setAttribute(Qt.WA_NoChildEventsForParent, True)
         self.setFocusPolicy(Qt.NoFocus)
@@ -184,7 +184,7 @@ class DropShadowFrame(QWidget):
             self.show()
         elif etype == QEvent.Hide:
             self.hide()
-        return QWidget.eventFilter(self, obj, event)
+        return super().eventFilter(obj, event)
 
     def __updateGeometry(self):
         """

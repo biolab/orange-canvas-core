@@ -47,7 +47,7 @@ class PreviewModel(QStandardItemModel):
     """
 
     def __init__(self, parent=None, items=None):
-        QStandardItemModel.__init__(self, parent)
+        super().__init__(parent)
 
         if items is not None:
             self.insertColumn(0, items)
@@ -88,7 +88,7 @@ class PreviewItem(QStandardItem):
     """
     def __init__(self, name=None, description=None, thumbnail=None,
                  icon=None, path=None):
-        QStandardItem.__init__(self)
+        super().__init__()
 
         self.__name = ""
 
@@ -191,7 +191,7 @@ class PreviewItem(QStandardItem):
 class SvgIconEngine(QIconEngine):
     def __init__(self, contents):
         # type: (bytes) -> None
-        super(QIconEngine, self).__init__()
+        super().__init__()
         self.__contents = contents
         self.__generator = QSvgRenderer(contents)
 

@@ -54,7 +54,7 @@ class SettingChangedEvent(QEvent):
         """
         Initialize the event instance
         """
-        QEvent.__init__(self, etype)
+        super().__init__(etype)
         self.__key = key
         self.__value = value
         self.__oldValue = oldValue
@@ -98,7 +98,7 @@ class Settings(QObject, MutableMapping, metaclass=QABCMeta):
     keyRemoved = Signal(str)
 
     def __init__(self, parent=None, defaults=(), path=None, store=None):
-        QObject.__init__(self, parent)
+        super().__init__(parent)
 
         if store is None:
             store = QSettings()
@@ -321,10 +321,10 @@ class Settings(QObject, MutableMapping, metaclass=QABCMeta):
         """
         Return a list over of all values in the settings.
         """
-        return MutableMapping.values(self)
+        return super().values(self)
 
     def customEvent(self, event):
-        QObject.customEvent(self, event)
+        super().customEvent(event)
 
         if isinstance(event, SettingChangedEvent):
             if event.type() == SettingChangedEvent.SettingChanged:

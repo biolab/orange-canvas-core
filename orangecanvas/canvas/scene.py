@@ -69,7 +69,7 @@ class CanvasScene(QGraphicsScene):
     link_item_hovered = Signal(object)
 
     def __init__(self, *args, **kwargs):
-        QGraphicsScene.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.scheme = None
         self.registry = None
@@ -763,45 +763,44 @@ class CanvasScene(QGraphicsScene):
                 self.clearSelection()
                 shape_item.setSelected(True)
 
-        return QGraphicsScene.mousePressEvent(self, event)
+        return super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
         if self.user_interaction_handler and \
                 self.user_interaction_handler.mouseMoveEvent(event):
             return
 
-        return QGraphicsScene.mouseMoveEvent(self, event)
+        super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
         if self.user_interaction_handler and \
                 self.user_interaction_handler.mouseReleaseEvent(event):
             return
-        return QGraphicsScene.mouseReleaseEvent(self, event)
+        super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event):
         if self.user_interaction_handler and \
                 self.user_interaction_handler.mouseDoubleClickEvent(event):
             return
-
-        return QGraphicsScene.mouseDoubleClickEvent(self, event)
+        super().mouseDoubleClickEvent(event)
 
     def keyPressEvent(self, event):
         if self.user_interaction_handler and \
                 self.user_interaction_handler.keyPressEvent(event):
             return
-        return QGraphicsScene.keyPressEvent(self, event)
+        super().keyPressEvent(event)
 
     def keyReleaseEvent(self, event):
         if self.user_interaction_handler and \
                 self.user_interaction_handler.keyReleaseEvent(event):
             return
-        return QGraphicsScene.keyReleaseEvent(self, event)
+        super().keyReleaseEvent(event)
 
     def contextMenuEvent(self, event):
         if self.user_interaction_handler and \
                 self.user_interaction_handler.contextMenuEvent(event):
             return
-        super(CanvasScene, self).contextMenuEvent(event)
+        super().contextMenuEvent(event)
 
     def set_user_interaction_handler(self, handler):
         if self.user_interaction_handler and \
@@ -842,7 +841,7 @@ if QT_VERSION >= 0x50900 and \
             if metric == QSvgGenerator.PdmDevicePixelRatioScaled:
                 return int(1 * QSvgGenerator.devicePixelRatioFScale())
             else:
-                return super(QSvgGenerator, self).metric(metric)
+                return super().metric(metric)
 
 
 def grab_svg(scene):

@@ -106,7 +106,7 @@ class FakeToolBar(QToolBar):
 
     """
     def __init__(self, *args, **kwargs):
-        QToolBar.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.setFloatable(False)
         self.setMovable(False)
 
@@ -121,7 +121,7 @@ class FakeToolBar(QToolBar):
 
 class DockWidget(QDockWidget):
     def __init__(self, *args, **kwargs):
-        super(DockWidget, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         shortcuts = [
             QKeySequence(QKeySequence.Close),
             QKeySequence(QKeySequence(Qt.Key_Escape)),
@@ -1873,7 +1873,7 @@ class CanvasMainWindow(QMainWindow):
 
             return True
 
-        return QMainWindow.event(self, event)
+        return super().event(event)
 
     def show_help(self, url):
         """
@@ -1916,7 +1916,7 @@ class CanvasMainWindow(QMainWindow):
         """
         Reimplemented from QMainWindow.sizeHint
         """
-        hint = QMainWindow.sizeHint(self)
+        hint = super().sizeHint()
         return hint.expandedTo(QSize(1024, 720))
 
     def __update_from_settings(self):
@@ -2068,7 +2068,7 @@ class UrlDropEventFilter(QObject):
                 self.urlDropped.emit(url)
                 return True
 
-        return QObject.eventFilter(self, obj, event)
+        return super().eventFilter(obj, event)
 
 
 class RecentItem(SimpleNamespace):

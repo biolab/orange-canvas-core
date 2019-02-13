@@ -25,7 +25,7 @@ def composition(f, g):
 
 class AnchorLayout(QGraphicsObject):
     def __init__(self, parent=None, **kwargs):
-        QGraphicsObject.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.setFlag(QGraphicsObject.ItemHasNoContents)
 
         self.__layoutPending = False
@@ -132,7 +132,7 @@ class AnchorLayout(QGraphicsObject):
             self.activate()
             return True
 
-        return QGraphicsObject.event(self, event)
+        return super().event(event)
 
 
 def angle(point1, point2):

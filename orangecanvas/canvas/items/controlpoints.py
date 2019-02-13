@@ -22,7 +22,7 @@ class ControlPoint(GraphicsPathObject):
     BottomLeft = Bottom | Left
 
     def __init__(self, parent=None, anchor=0, **kwargs):
-        GraphicsPathObject.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.setFlag(QGraphicsItem.ItemSendsGeometryChanges, False)
         self.setAcceptedMouseButtons(Qt.LeftButton)
 
@@ -53,7 +53,7 @@ class ControlPoint(GraphicsPathObject):
             self.setFlag(QGraphicsItem.ItemSendsGeometryChanges, True)
             event.accept()
         else:
-            GraphicsPathObject.mousePressEvent(self, event)
+            super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -61,7 +61,7 @@ class ControlPoint(GraphicsPathObject):
             self.setFlag(QGraphicsItem.ItemSendsGeometryChanges, False)
             event.accept()
         else:
-            GraphicsPathObject.mouseReleaseEvent(self, event)
+            super().mouseReleaseEvent(event)
 
     def mouseMoveEvent(self, event):
         if event.buttons() & Qt.LeftButton:
@@ -75,7 +75,7 @@ class ControlPoint(GraphicsPathObject):
             self.setPos(self.__initialPosition + current - down)
             event.accept()
         else:
-            GraphicsPathObject.mouseMoveEvent(self, event)
+            super().mouseMoveEvent(event)
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.ItemPositionChange:
@@ -83,7 +83,7 @@ class ControlPoint(GraphicsPathObject):
             newpos = self.constrain(pos)
             return qtcompat.qwrap(newpos)
 
-        return GraphicsPathObject.itemChange(self, change, value)
+        return super().itemChange(change, value)
 
     def hasConstraint(self):
         return self.__constraintFunc is not None or self.__constraint != 0
@@ -125,7 +125,7 @@ class ControlPointRect(QGraphicsObject):
     rectEdited = Signal(QRectF)
 
     def __init__(self, parent=None, rect=None, constraints=0, **kwargs):
-        QGraphicsObject.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.setFlag(QGraphicsItem.ItemHasNoContents)
         self.setFlag(QGraphicsItem.ItemIsFocusable)
 
@@ -224,8 +224,7 @@ class ControlPointRect(QGraphicsObject):
     def itemChange(self, change, value):
         if change == QGraphicsItem.ItemSceneHasChanged and self.scene():
             self.__installFilter()
-
-        return QGraphicsObject.itemChange(self, change, value)
+        return super().itemChange(change, value)
 
     def sceneEventFilter(self, obj, event):
         obj = toGraphicsObjectIfPossible(obj)
@@ -238,7 +237,7 @@ class ControlPointRect(QGraphicsObject):
             elif etype == QEvent.GraphicsSceneMouseRelease and \
                     event.button() == Qt.LeftButton:
                 self.__setActiveControl(None)
-        return QGraphicsObject.sceneEventFilter(self, obj, event)
+        return super().sceneEventFilter(obj, event)
 
     def __installFilter(self):
         # Install filters on the control points.
@@ -321,7 +320,7 @@ class ControlPointLine(QGraphicsObject):
     lineEdited = Signal(QLineF)
 
     def __init__(self, parent=None, **kwargs):
-        QGraphicsObject.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.setFlag(QGraphicsItem.ItemHasNoContents)
         self.setFlag(QGraphicsItem.ItemIsFocusable)
 
@@ -367,7 +366,7 @@ class ControlPointLine(QGraphicsObject):
         if change == QGraphicsItem.ItemSceneHasChanged:
             if self.scene():
                 self.__installFilter()
-        return QGraphicsObject.itemChange(self, change, value)
+        return super().itemChange(change, value)
 
     def sceneEventFilter(self, obj, event):
         obj = toGraphicsObjectIfPossible(obj)
@@ -377,7 +376,7 @@ class ControlPointLine(QGraphicsObject):
                 self.__setActiveControl(obj)
             elif etype == QEvent.GraphicsSceneMouseRelease:
                 self.__setActiveControl(None)
-        return QGraphicsObject.sceneEventFilter(self, obj, event)
+        return super().sceneEventFilter(obj, event)
 
     def __pointsLayout(self):
         self.__points[0].setPos(self.__line.p1())

@@ -57,7 +57,7 @@ class SchemeNode(QObject):
 
     def __init__(self, description, title=None, position=None,
                  properties=None, parent=None):
-        QObject.__init__(self, parent)
+        super().__init__(parent)
         self.description = description
 
         if title is None:

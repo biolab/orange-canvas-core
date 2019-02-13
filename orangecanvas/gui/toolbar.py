@@ -19,23 +19,19 @@ class DynamicResizeToolBar(QToolBar):
     .. note:: the class does not support `QWidgetAction`, separators, etc.
 
     """
-
-    def __init__(self, parent=None, *args, **kwargs):
-        QToolBar.__init__(self, *args, **kwargs)
-
     def resizeEvent(self, event):
-        QToolBar.resizeEvent(self, event)
+        super().resizeEvent(event)
         size = event.size()
         self.__layout(size)
 
     def actionEvent(self, event):
-        QToolBar.actionEvent(self, event)
+        super().actionEvent(event)
         if event.type() == QEvent.ActionAdded or \
                 event.type() == QEvent.ActionRemoved:
             self.__layout(self.size())
 
     def sizeHint(self):
-        hint = QToolBar.sizeHint(self)
+        hint = super().sizeHint()
         width, height = hint.width(), hint.height()
         dx1, dy1, dw1, dh1 = self.getContentsMargins()
         dx2, dy2, dw2, dh2 = self.layout().getContentsMargins()

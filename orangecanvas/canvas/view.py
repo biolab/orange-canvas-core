@@ -15,7 +15,7 @@ class CanvasView(QGraphicsView):
     """
 
     def __init__(self, *args):
-        QGraphicsView.__init__(self, *args)
+        super().__init__(*args)
         self.setAlignment(Qt.AlignTop | Qt.AlignLeft)
 
         self.__backgroundIcon = QIcon()
@@ -48,7 +48,7 @@ class CanvasView(QGraphicsView):
         )
 
     def setScene(self, scene):
-        QGraphicsView.setScene(self, scene)
+        super().setScene(scene)
         self._ensureSceneRect(scene)
 
     def _ensureSceneRect(self, scene):
@@ -69,21 +69,19 @@ class CanvasView(QGraphicsView):
         return self.__autoScroll
 
     def mousePressEvent(self, event):
-        QGraphicsView.mousePressEvent(self, event)
+        super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
         if event.buttons() & Qt.LeftButton:
             if not self.__autoScrollTimer.isActive() and \
                     self.__shouldAutoScroll(event.pos()):
                 self.__startAutoScroll()
-
-        QGraphicsView.mouseMoveEvent(self, event)
+        super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
         if event.button() & Qt.LeftButton:
             self.__stopAutoScroll()
-
-        return QGraphicsView.mouseReleaseEvent(self, event)
+        return super().mouseReleaseEvent(event)
 
     def wheelEvent(self, event: QWheelEvent):
         if event.modifiers() & Qt.ControlModifier \
@@ -204,7 +202,7 @@ class CanvasView(QGraphicsView):
         return QIcon(self.__backgroundIcon)
 
     def drawBackground(self, painter, rect):
-        QGraphicsView.drawBackground(self, painter, rect)
+        super().drawBackground(painter, rect)
 
         if not self.__backgroundIcon.isNull():
             painter.setClipRect(rect)

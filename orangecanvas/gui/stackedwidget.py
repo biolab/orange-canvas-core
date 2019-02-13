@@ -58,7 +58,7 @@ class StackLayout(QStackedLayout):
     """
     def __init__(self, parent=None):
         self.__rect = QRect()
-        QStackedLayout.__init__(self, parent)
+        super().__init__(parent)
         self.currentChanged.connect(self._onCurrentChanged)
 
     def sizeHint(self):
@@ -70,21 +70,21 @@ class StackLayout(QStackedLayout):
                               current.maximumSize())
             return hint
         else:
-            return QStackedLayout.sizeHint(self)
+            return super().sizeHint()
 
     def minimumSize(self):
         current = self.currentWidget()
         if current:
             return current.minimumSize()
         else:
-            return QStackedLayout.minimumSize(self)
+            return super().minimumSize()
 
     def maximumSize(self):
         current = self.currentWidget()
         if current:
             return current.maximumSize()
         else:
-            return QStackedLayout.maximumSize(self)
+            return super().maximumSize()
 
     def geometry(self):
         # Reimplemented due to QTBUG-47107.
@@ -99,7 +99,7 @@ class StackLayout(QStackedLayout):
 
         self.__rect = QRect(rect)
 
-        QStackedLayout.setGeometry(self, rect)
+        super().setGeometry(rect)
 
         for i in range(self.count()):
             w = self.widget(i)
@@ -129,7 +129,7 @@ class AnimatedStackedWidget(QFrame):
     transitionFinished = Signal()
 
     def __init__(self, parent=None, animationEnabled=True):
-        QFrame.__init__(self, parent)
+        super().__init__(parent)
         self.__animationEnabled = animationEnabled
 
         layout = StackLayout()
@@ -263,7 +263,7 @@ class AnimatedStackedWidget(QFrame):
         return self.__currentIndex
 
     def sizeHint(self):
-        hint = QFrame.sizeHint(self)
+        hint = super().sizeHint()
         if hint.isEmpty():
             hint = QSize(0, 0)
         return hint
@@ -301,7 +301,7 @@ class CrossFadePixmapWidget(QWidget):
     A widget for cross fading between two pixmaps.
     """
     def __init__(self, parent=None, pixmap1=None, pixmap2=None):
-        QWidget.__init__(self, parent)
+        super().__init__(parent)
         self.setPixmap(pixmap1)
         self.setPixmap2(pixmap2)
         self.blendingFactor_ = 0.0
@@ -348,7 +348,7 @@ class CrossFadePixmapWidget(QWidget):
             size2 = self.pixmap2.size()
             return size1 + self.blendingFactor_ * (size2 - size1)
         else:
-            return QWidget.sizeHint(self)
+            return super().sizeHint()
 
     def paintEvent(self, event):
         """

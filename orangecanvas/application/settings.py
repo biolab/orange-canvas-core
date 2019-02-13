@@ -35,7 +35,7 @@ class UserDefaultsPropertyBinding(AbstractBoundProperty):
 
     """
     def __init__(self, obj, propertyName, parent=None):
-        AbstractBoundProperty.__init__(self, obj, propertyName, parent)
+        super().__init__(obj, propertyName, parent)
 
         obj.installEventFilter(self)
 
@@ -50,7 +50,7 @@ class UserDefaultsPropertyBinding(AbstractBoundProperty):
                 event.key() == self.propertyName:
             self.notifyChanged()
 
-        return AbstractBoundProperty.eventFilter(self, obj, event)
+        return super().eventFilter(obj, event)
 
 
 class UserSettingsModel(QAbstractItemModel):
@@ -60,7 +60,7 @@ class UserSettingsModel(QAbstractItemModel):
 
     """
     def __init__(self, parent=None, settings=None):
-        QAbstractItemModel.__init__(self, parent)
+        super().__init__(parent)
 
         self.__settings = settings
         self.__headers = ["Name", "Status", "Type", "Value"]
@@ -103,7 +103,7 @@ class UserSettingsModel(QAbstractItemModel):
             if role == Qt.DisplayRole:
                 return self.__headers[section]
 
-        return QAbstractItemModel.headerData(self, section, orientation, role)
+        return super().headerData(section, orientation, role)
 
     def data(self, index, role=Qt.DisplayRole):
         if self._valid(index):
@@ -187,7 +187,7 @@ class UserSettingsDialog(QMainWindow):
     MAC_UNIFIED = True
 
     def __init__(self, parent=None, **kwargs):
-        QMainWindow.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.setWindowFlags(Qt.Dialog)
         self.setWindowModality(Qt.ApplicationModal)
 
@@ -474,7 +474,7 @@ class UserSettingsDialog(QMainWindow):
         return status
 
     def hideEvent(self, event):
-        QMainWindow.hideEvent(self, event)
+        super().hideEvent(self, event)
         if self.__loop is not None:
             self.__loop.exit(0)
             self.__loop = None

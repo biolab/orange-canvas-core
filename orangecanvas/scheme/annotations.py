@@ -27,7 +27,7 @@ class SchemeArrowAnnotation(BaseSchemeAnnotation):
 
     def __init__(self, start_pos, end_pos, color="red", anchor=None,
                  parent=None):
-        BaseSchemeAnnotation.__init__(self, parent)
+        super().__init__(parent)
         self.__start_pos = start_pos
         self.__end_pos = end_pos
         self.__color = color
@@ -111,7 +111,7 @@ class SchemeTextAnnotation(BaseSchemeAnnotation):
 
     def __init__(self, rect, text="", content_type="text/plain", font=None,
                  anchor=None, parent=None):
-        BaseSchemeAnnotation.__init__(self, parent)
+        super().__init__(parent)
         self.__rect = rect
         self.__content = text
         self.__content_type = content_type

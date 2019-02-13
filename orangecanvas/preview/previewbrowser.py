@@ -46,7 +46,7 @@ class LinearIconView(QListView):
     horizontal line layout.
     """
     def __init__(self, *args, **kwargs):
-        QListView.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.setViewMode(QListView.IconMode)
         self.setWrapping(False)
@@ -82,12 +82,12 @@ class LinearIconView(QListView):
 
     def updateGeometries(self):
         """Reimplemented"""
-        QListView.updateGeometries(self)
+        super().updateGeometries()
         self.updateGeometry()
 
     def dataChanged(self, topLeft, bottomRight, roles=[]):
         """Reimplemented"""
-        QListView.dataChanged(self, topLeft, bottomRight)
+        super().dataChanged(topLeft, bottomRight)
         self.updateGeometry()
 
 
@@ -95,7 +95,7 @@ class TextLabel(QWidget):
     """A plain text label widget with support for elided text.
     """
     def __init__(self, *args, **kwargs):
-        QWidget.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.setSizePolicy(QSizePolicy.Expanding,
                            QSizePolicy.Preferred)
@@ -162,7 +162,7 @@ class TextLabel(QWidget):
         if event.type() == QEvent.FontChange:
             self.__update()
 
-        return QWidget.changeEvent(self, event)
+        return super().changeEvent(event)
 
     def __update(self):
         self.__sizeHint = None
@@ -180,7 +180,7 @@ class PreviewBrowser(QWidget):
     activated = Signal(int)
 
     def __init__(self, *args):
-        QWidget.__init__(self, *args)
+        super().__init__(*args)
         self.__model = None
         self.__currentIndex = -1
         self.__template = DESCRIPTION_TEMPLATE

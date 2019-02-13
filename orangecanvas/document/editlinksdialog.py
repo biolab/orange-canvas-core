@@ -49,7 +49,7 @@ class EditLinksDialog(QDialog):
 
     """
     def __init__(self, *args, **kwargs):
-        QDialog.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.setModal(True)
 
@@ -149,7 +149,7 @@ class LinksEditScene(QGraphicsScene):
     A :class:`QGraphicsScene` used by the :class:`LinkEditWidget`.
     """
     def __init__(self, *args, **kwargs):
-        QGraphicsScene.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.editWidget = LinksEditWidget()
         self.addItem(self.editWidget)
@@ -170,7 +170,7 @@ class LinksEditWidget(QGraphicsWidget):
     A Graphics Widget for editing the links between two nodes.
     """
     def __init__(self, *args, **kwargs):
-        QGraphicsWidget.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.setAcceptedMouseButtons(Qt.LeftButton | Qt.RightButton)
 
         self.source = None
@@ -268,7 +268,7 @@ class LinksEditWidget(QGraphicsWidget):
                 event.accept()
                 return
 
-        QGraphicsWidget.mousePressEvent(self, event)
+        super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
         if event.buttons() & Qt.LeftButton:
@@ -316,7 +316,7 @@ class LinksEditWidget(QGraphicsWidget):
 
                 self.__tmpLine.setLine(line)
 
-        QGraphicsWidget.mouseMoveEvent(self, event)
+        super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.LeftButton and self.__tmpLine:
@@ -346,7 +346,7 @@ class LinksEditWidget(QGraphicsWidget):
             self.__tmpLine = None
             self.__dragStartItem = None
 
-        QGraphicsWidget.mouseReleaseEvent(self, event)
+        super().mouseReleaseEvent(event)
 
     def addLink(self, output, input):
         """
@@ -472,7 +472,7 @@ class LinksEditWidget(QGraphicsWidget):
         # AnchorHover hover over anchor before hovering over line
         class AnchorHover(QGraphicsRectItem):
             def __init__(self, anchor, parent=None):
-                QGraphicsRectItem.__init__(self, parent=parent)
+                super().__init__(parent=parent)
                 self.setAcceptHoverEvents(True)
 
                 self.anchor = anchor
@@ -534,7 +534,7 @@ class EditLinksNode(QGraphicsWidget):
 
     def __init__(self, parent=None, direction=Qt.LeftToRight,
                  node=None, icon=None, iconSize=None, **args):
-        QGraphicsWidget.__init__(self, parent, **args)
+        super().__init__(parent, **args)
         self.setAcceptedMouseButtons(Qt.NoButton)
         self.__direction = direction
 
@@ -700,8 +700,7 @@ class GraphicsItemLayoutItem(QGraphicsLayoutItem):
 
     def __init__(self, parent=None, item=None, ):
         self.__item = None
-
-        QGraphicsLayoutItem.__init__(self, parent, isLayout=False)
+        super().__init__(parent, isLayout=False)
 
         self.setOwnedByLayout(True)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
@@ -719,13 +718,13 @@ class GraphicsItemLayoutItem(QGraphicsLayoutItem):
         if self.__item:
             self.__item.setPos(rect.topLeft())
 
-        QGraphicsLayoutItem.setGeometry(self, rect)
+        super().setGeometry(rect)
 
     def sizeHint(self, which, constraint):
         if self.__item:
             return self.__item.boundingRect().size()
         else:
-            return QGraphicsLayoutItem.sizeHint(self, which, constraint)
+            return super().sizeHint(which, constraint)
 
 
 class ChannelAnchor(QGraphicsRectItem):
@@ -733,7 +732,7 @@ class ChannelAnchor(QGraphicsRectItem):
     A rectangular Channel Anchor indicator.
     """
     def __init__(self, parent=None, channel=None, rect=None, **kwargs):
-        QGraphicsRectItem.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self.setAcceptedMouseButtons(Qt.NoButton)
         self.__channel = None
 
@@ -770,14 +769,14 @@ class ChannelAnchor(QGraphicsRectItem):
         return self.__channel
 
     def setEnabled(self, enabled):
-        QGraphicsRectItem.setEnabled(self, enabled)
+        super().setEnabled(enabled)
         if enabled:
             self.setBrush(self.enabledBrush)
         else:
             self.setBrush(self.disabledBrush)
 
     def paint(self, painter, option, widget=None):
-        QGraphicsRectItem.paint(self, painter, option, widget)
+        super().paint(painter, option, widget)
         # if disabled, draw X over box
         if not self.isEnabled():
             painter.drawLine(self.rect().topLeft(), self.rect().bottomRight())
@@ -785,11 +784,11 @@ class ChannelAnchor(QGraphicsRectItem):
 
     def hoverEnterEvent(self, event):
         self.setPen(self.__hover_pen)
-        QGraphicsRectItem.hoverEnterEvent(self, event)
+        super().hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event):
         self.setPen(self.__default_pen)
-        QGraphicsRectItem.hoverLeaveEvent(self, event)
+        super().hoverLeaveEvent(event)
 
 
 class GraphicsTextWidget(QGraphicsWidget):
@@ -798,7 +797,7 @@ class GraphicsTextWidget(QGraphicsWidget):
     """
 
     def __init__(self, parent=None, textItem=None):
-        QGraphicsLayoutItem.__init__(self, parent)
+        super().__init__(parent)
         if textItem is None:
             textItem = QGraphicsTextItem()
 
@@ -822,10 +821,10 @@ class GraphicsTextWidget(QGraphicsWidget):
                 sh = doc.size()
             return sh
         else:
-            return QGraphicsWidget.sizeHint(self, which, constraint)
+            return super().sizeHint(which, constraint)
 
     def setGeometry(self, rect):
-        QGraphicsWidget.setGeometry(self, rect)
+        super().setGeometry(rect)
         self.__textItem.setTextWidth(rect.width())
 
     def setPlainText(self, text):
@@ -867,7 +866,7 @@ class LinkLineItem(QGraphicsLineItem):
     """
 
     def __init__(self, parent=None):
-        QGraphicsLineItem.__init__(self, parent)
+        super().__init__(parent)
         self.setAcceptHoverEvents(True)
 
         self.__shape = None
@@ -899,7 +898,7 @@ class LinkLineItem(QGraphicsLineItem):
 
     def shape(self):
         if self.__shape is None:
-            return QGraphicsLineItem.shape(self)
+            return super().shape()
         return self.__shape
 
     def hoverEnterEvent(self, event):
@@ -907,11 +906,11 @@ class LinkLineItem(QGraphicsLineItem):
         self.__shadow.setEnabled(True)
         self.setPen(self.__hover_pen)
         self.setZValue(1.0)
-        QGraphicsLineItem.hoverEnterEvent(self, event)
+        super().hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event):
         self.prepareGeometryChange()
         self.__shadow.setEnabled(False)
         self.setPen(self.__default_pen)
         self.setZValue(0.0)
-        QGraphicsLineItem.hoverLeaveEvent(self, event)
+        super().hoverLeaveEvent(event)

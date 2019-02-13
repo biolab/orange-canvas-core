@@ -83,7 +83,7 @@ class NodeBodyItem(GraphicsPathObject):
     The central part (body) of the `NodeItem`.
     """
     def __init__(self, parent=None):
-        GraphicsPathObject.__init__(self, parent)
+        super().__init__(parent)
         assert(isinstance(parent, NodeItem))
 
         self.__processingState = 0
@@ -184,12 +184,12 @@ class NodeBodyItem(GraphicsPathObject):
     def hoverEnterEvent(self, event):
         self.__hover = True
         self.__updateShadowState()
-        return GraphicsPathObject.hoverEnterEvent(self, event)
+        return super().hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event):
         self.__hover = False
         self.__updateShadowState()
-        return GraphicsPathObject.hoverLeaveEvent(self, event)
+        return super().hoverLeaveEvent(event)
 
     def paint(self, painter, option, widget):
         """
@@ -199,7 +199,7 @@ class NodeBodyItem(GraphicsPathObject):
         if option.state & QStyle.State_Selected:
             # Prevent the default bounding rect selection indicator.
             option.state = option.state ^ QStyle.State_Selected
-        GraphicsPathObject.paint(self, painter, option, widget)
+        super().paint(painter, option, widget)
         if self.__progress >= 0:
             # Draw the progress meter over the shape.
             # Set the clip to shape so the meter does not overflow the shape.
@@ -299,7 +299,7 @@ class AnchorPoint(QGraphicsObject):
     anchorDirectionChanged = Signal(QPointF)
 
     def __init__(self, *args):
-        QGraphicsObject.__init__(self, *args)
+        super().__init__(*args)
         self.setFlag(QGraphicsItem.ItemSendsScenePositionChanges, True)
         self.setFlag(QGraphicsItem.ItemHasNoContents, True)
 
@@ -328,7 +328,7 @@ class AnchorPoint(QGraphicsObject):
     def itemChange(self, change, value):
         if change == QGraphicsItem.ItemScenePositionHasChanged:
             self.scenePositionChanged.emit(qtcompat.qunwrap(value))
-        return QGraphicsObject.itemChange(self, change, value)
+        return super().itemChange(change, value)
 
     def boundingRect(self,):
         return QRectF()
@@ -340,7 +340,7 @@ class NodeAnchorItem(GraphicsPathObject):
     """
 
     def __init__(self, parent, *args):
-        GraphicsPathObject.__init__(self, parent, *args)
+        super().__init__(parent, *args)
         self.setAcceptHoverEvents(True)
         self.setPen(QPen(Qt.NoPen))
         self.normalBrush = QBrush(QColor("#CDD5D9"))
@@ -549,15 +549,15 @@ class NodeAnchorItem(GraphicsPathObject):
         if self.__shape is not None:
             return self.__shape
         else:
-            return GraphicsPathObject.shape(self)
+            return super().shape()
 
     def hoverEnterEvent(self, event):
         self.shadow.setEnabled(True)
-        return GraphicsPathObject.hoverEnterEvent(self, event)
+        return super().hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event):
         self.shadow.setEnabled(False)
-        return GraphicsPathObject.hoverLeaveEvent(self, event)
+        return super().hoverLeaveEvent(event)
 
     def __updatePositions(self):
         """Update anchor points positions.
@@ -596,7 +596,7 @@ class GraphicsIconItem(QGraphicsItem):
     A graphics item displaying an :class:`QIcon`.
     """
     def __init__(self, parent=None, icon=None, iconSize=None, **kwargs):
-        QGraphicsItem.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.setFlag(QGraphicsItem.ItemUsesExtendedStyleOption, True)
 
         if icon is None:
@@ -682,7 +682,7 @@ class GraphicsIconItem(QGraphicsItem):
 
 class NameTextItem(QGraphicsTextItem):
     def __init__(self, *args, **kwargs):
-        super(NameTextItem, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.__selected = False
         self.__palette = None
         self.__content = ""
@@ -705,7 +705,7 @@ class NameTextItem(QGraphicsTextItem):
 
             painter.restore()
 
-        super(NameTextItem, self).paint(painter, option, widget)
+        super().paint(painter, option, widget)
 
     def _blocks(self, doc):
         block = doc.begin()
@@ -751,7 +751,7 @@ class NameTextItem(QGraphicsTextItem):
     def setHtml(self, contents):
         if contents != self.__content:
             self.__content = contents
-            super(NameTextItem, self).setHtml(contents)
+            super().setHtml(contents)
 
 
 class NodeItem(QGraphicsWidget):

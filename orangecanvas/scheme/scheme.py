@@ -94,7 +94,7 @@ class Scheme(QObject):
 
     def __init__(self, parent=None, title=None, description=None, env={},
                  **kwargs):
-        QObject.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
 
         self.__title = title or ""
         "Workflow title (empty string by default)."

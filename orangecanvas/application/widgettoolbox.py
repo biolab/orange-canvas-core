@@ -88,7 +88,7 @@ class WidgetToolGrid(ToolGrid):
 
     """
     def __init__(self, *args, **kwargs):
-        ToolGrid.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.__model = None
         self.__rootIndex = None
@@ -155,7 +155,7 @@ class WidgetToolGrid(ToolGrid):
     def actionEvent(self, event):
         if event.type() == QEvent.ActionAdded:
             # Creates and inserts the button instance.
-            ToolGrid.actionEvent(self, event)
+            super().actionEvent(event)
 
             button = self.buttonForAction(event.action())
             button.installEventFilter(self.__dragListener)
@@ -167,10 +167,10 @@ class WidgetToolGrid(ToolGrid):
             button.removeEventFilter(self.__statusTipPromoter)
 
             # Removes the button
-            ToolGrid.actionEvent(self, event)
+            super().actionEvent(event)
             return
         else:
-            ToolGrid.actionEvent(self, event)
+            super().actionEvent(event)
 
     def __initFromModel(self, model, rootIndex):
         """
@@ -243,7 +243,7 @@ class DragStartEventListener(QObject):
     """A drag operation started on a button."""
 
     def __init__(self, parent=None, **kwargs):
-        QObject.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.button = None
         self.buttonDownObj = None
         self.buttonDownPos = None
@@ -270,7 +270,7 @@ class DragStartEventListener(QObject):
                 self.buttonDownObj = None
                 return True  # Already handled
 
-        return QObject.eventFilter(self, obj, event)
+        return super().eventFilter(obj, event)
 
 
 class WidgetToolBox(ToolBox):
@@ -284,7 +284,7 @@ class WidgetToolBox(ToolBox):
     hovered = Signal(QAction)
 
     def __init__(self, parent=None):
-        ToolBox.__init__(self, parent)
+        super().__init__(parent)
         self.__model = None
         self.__iconSize = QSize(25, 25)
         self.__buttonSize = QSize(50, 50)

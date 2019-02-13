@@ -73,6 +73,7 @@ class SignalManager(QObject):
     SignalManager handles the runtime signal propagation for a :class:`.Scheme`
     instance.
 
+<<<<<<< HEAD
     Note
     ----
     If a scheme instance is passed as a parent to the constructor it is also

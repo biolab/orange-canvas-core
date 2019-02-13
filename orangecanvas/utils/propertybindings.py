@@ -63,7 +63,7 @@ class AbstractBoundProperty(QObject):
     """Emited when the property changes"""
 
     def __init__(self, obj, propertyName, parent=None):
-        QObject.__init__(self, parent)
+        super().__init__(parent)
 
         self.obj = obj
         self.propertyName = propertyName
@@ -138,6 +138,8 @@ class AbstractBoundProperty(QObject):
 
 class PropertyBindingExpr(AbstractBoundProperty):
     def __init__(self, expression, globals={}, locals={}, parent=None):
+        # skip the AbstractBoundProperty's __init__. Despite its name it is
+        # not an abstract.
         QObject.__init__(self, parent)
 
         self.ast = ast.parse(expression, mode="eval")
@@ -191,7 +193,7 @@ class PropertyBinding(AbstractBoundProperty):
 
     """
     def __init__(self, obj, propertyName, notifier=None, parent=None):
-        AbstractBoundProperty.__init__(self, obj, propertyName, parent)
+        super().__init__(obj, propertyName, parent)
 
         if notifier is None:
             notifier = find_notifier(obj, propertyName)
@@ -206,15 +208,14 @@ class PropertyBinding(AbstractBoundProperty):
 
     def _on_destroyed(self):
         self.notifierSignal = None
-
-        AbstractBoundProperty._on_destroyed(self)
+        super()._on_destroyed()
 
     def reset(self):
         meta_prop = find_meta_property(self, self.obj, self.propertyName)
         if meta_prop.isResetable():
             meta_prop.reset(self.obj)
         else:
-            return AbstractBoundProperty.reset(self)
+            return super().reset()
 
 
 class DynamicPropertyBinding(AbstractBoundProperty):
@@ -222,7 +223,7 @@ class DynamicPropertyBinding(AbstractBoundProperty):
     A Property binding of a QObject's dynamic property.
     """
     def __init__(self, obj, propertyName, parent=None):
-        AbstractBoundProperty.__init__(self, obj, propertyName, parent)
+        super().__init__(obj, propertyName, parent)
 
         obj.installEventFilter(self)
 
@@ -231,7 +232,7 @@ class DynamicPropertyBinding(AbstractBoundProperty):
             if event.propertyName() == self.propertyName:
                 self.notifyChanged()
 
-        return AbstractBoundProperty.eventFilter(self, obj, event)
+        return super().eventFilter(obj, event)
 
 
 class BindingManager(QObject):
@@ -242,7 +243,7 @@ class BindingManager(QObject):
     Default = 0 if sys.platform == "darwin" else 1
 
     def __init__(self, parent=None, submitPolicy=Default):
-        QObject.__init__(self, parent)
+        super().__init__(parent)
         self._bindings = defaultdict(list)
         self._modified = set()
         self.__submitPolicy = submitPolicy

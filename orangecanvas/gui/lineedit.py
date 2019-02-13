@@ -26,7 +26,7 @@ class LineEditButton(QToolButton):
     A button in the :class:`LineEdit`.
     """
     def __init__(self, parent=None, flat=True, **kwargs):
-        QToolButton.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
 
         self.__flat = flat
 
@@ -48,7 +48,7 @@ class LineEditButton(QToolButton):
             p = QStylePainter(self)
             p.drawControl(QStyle.CE_ToolButtonLabel, opt)
         else:
-            QToolButton.paintEvent(self, event)
+            super().paintEvent(event)
 
 
 class LineEdit(QLineEdit):
@@ -70,7 +70,7 @@ class LineEdit(QLineEdit):
     rightTriggered = Signal()
 
     def __init__(self, parent=None, **kwargs):
-        QLineEdit.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.__actions = [None, None]
 
     def setAction(self, action, position=LeftPosition):
@@ -155,7 +155,7 @@ class LineEdit(QLineEdit):
             raise ValueError("Invalid position")
 
     def resizeEvent(self, event):
-        QLineEdit.resizeEvent(self, event)
+        super().resizeEvent(event)
         self.__layoutActions()
 
     def __layoutActions(self):

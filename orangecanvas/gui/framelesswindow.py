@@ -17,7 +17,7 @@ class FramelessWindow(QWidget):
 
     """
     def __init__(self, parent=None, **kwargs):
-        QWidget.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint)
 
         self.__radius = 6
@@ -46,7 +46,7 @@ class FramelessWindow(QWidget):
                        doc="Window border radius")
 
     def resizeEvent(self, event):
-        QWidget.resizeEvent(self, event)
+        super().resizeEvent(event)
         if not self.__isTransparencySupported:
             self.__updateMask()
 

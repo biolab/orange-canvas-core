@@ -14,7 +14,7 @@ from ...registry.tests import small_testing_registry
 
 class TestAnchorLayout(QAppTestCase):
     def setUp(self):
-        super(TestAnchorLayout, self).setUp()
+        super().setUp()
         self.scene = CanvasScene()
         self.view = QGraphicsView(self.scene)
         self.view.setRenderHint(QPainter.Antialiasing)
@@ -27,7 +27,7 @@ class TestAnchorLayout(QAppTestCase):
         self.scene.deleteLater()
         del self.scene
         del self.view
-        super(TestAnchorLayout, self).tearDown()
+        super().tearDown()
 
     def test_layout(self):
         one_desc, negate_desc, cons_desc = self.widget_desc()

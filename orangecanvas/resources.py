@@ -147,7 +147,7 @@ class icon_loader(resource_loader):
     DEFAULT_ICON = "icons/default-widget.svg"
 
     def match(self, path):
-        if resource_loader.match(self, path):
+        if super().match(path):
             return True
         return self.is_icon_glob(path)
 

@@ -18,7 +18,7 @@ class PreviewDialog(QDialog):
 
     def __init__(self, parent=None, flags=Qt.WindowFlags(0),
                  model=None, **kwargs):
-        QDialog.__init__(self, parent, flags, **kwargs)
+        super().__init__(parent, flags, **kwargs)
 
         self.__setupUi()
         if model is not None:

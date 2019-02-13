@@ -78,7 +78,7 @@ class UserInteraction(QObject):
     canceled = Signal([], [int])
 
     def __init__(self, document, parent=None, deleteOnEnd=True):
-        QObject.__init__(self, parent)
+        super().__init__(parent)
         self.document = document
         self.scene = document.scene()
         self.scheme = document.scheme()
@@ -228,7 +228,7 @@ class NewLinkAction(UserInteraction):
     FROM_SINK = 2
 
     def __init__(self, document, *args, **kwargs):
-        UserInteraction.__init__(self, document, *args, **kwargs)
+        super().__init__(document, *args, **kwargs)
         self.source_item = None
         self.sink_item = None
         self.from_item = None
@@ -649,11 +649,11 @@ class NewLinkAction(UserInteraction):
         self.macro = None
         helpevent = QuickHelpTipEvent("", "")
         QCoreApplication.postEvent(self.document, helpevent)
-        UserInteraction.end(self)
+        super().end()
 
     def cancel(self, reason=UserInteraction.OtherReason):
         self.cleanup()
-        UserInteraction.cancel(self, reason)
+        super().cancel(reason)
 
     def cleanup(self):
         """
@@ -818,7 +818,7 @@ class RectangleSelectionAction(UserInteraction):
     Select items in the scene using a Rectangle selection
     """
     def __init__(self, document, *args, **kwargs):
-        UserInteraction.__init__(self, document, *args, **kwargs)
+        super().__init__(document, *args, **kwargs)
         # The initial selection at drag start
         self.initial_selection = None
         # Selection when last updated in a mouseMoveEvent
@@ -928,7 +928,7 @@ class RectangleSelectionAction(UserInteraction):
         self.rect_item.hide()
         if self.rect_item.scene() is not None:
             self.scene.removeItem(self.rect_item)
-        UserInteraction.end(self)
+        super().end()
 
     def viewport_rect(self):
         """
@@ -965,7 +965,7 @@ class EditNodeLinksAction(UserInteraction):
 
     """
     def __init__(self, document, source_node, sink_node, *args, **kwargs):
-        UserInteraction.__init__(self, document, *args, **kwargs)
+        super().__init__(document, *args, **kwargs)
         self.source_node = source_node
         self.sink_node = sink_node
 
@@ -1051,7 +1051,7 @@ class NewArrowAnnotation(UserInteraction):
     Create a new arrow annotation handler.
     """
     def __init__(self, document, *args, **kwargs):
-        UserInteraction.__init__(self, document, *args, **kwargs)
+        super().__init__(document, *args, **kwargs)
         self.down_pos = None
         self.arrow_item = None
         self.annotation = None
@@ -1070,7 +1070,7 @@ class NewArrowAnnotation(UserInteraction):
         )
         QCoreApplication.postEvent(self.document, helpevent)
 
-        UserInteraction.start(self)
+        super().start()
 
     def setColor(self, color):
         """
@@ -1135,7 +1135,7 @@ class NewArrowAnnotation(UserInteraction):
         helpevent = QuickHelpTipEvent("", "")
         QCoreApplication.postEvent(self.document, helpevent)
 
-        UserInteraction.end(self)
+        super().end()
 
 
 def rect_to_tuple(rect):
@@ -1150,7 +1150,7 @@ class NewTextAnnotation(UserInteraction):
     A New Text Annotation interaction handler
     """
     def __init__(self, document, *args, **kwargs):
-        UserInteraction.__init__(self, document, *args, **kwargs)
+        super().__init__(document, *args, **kwargs)
         self.down_pos = None
         self.annotation_item = None
         self.annotation = None
@@ -1174,7 +1174,7 @@ class NewTextAnnotation(UserInteraction):
         )
         QCoreApplication.postEvent(self.document, helpevent)
 
-        UserInteraction.start(self)
+        super().start()
 
     def createNewAnnotation(self, rect):
         """
@@ -1274,7 +1274,7 @@ class NewTextAnnotation(UserInteraction):
         helpevent = QuickHelpTipEvent("", "")
         QCoreApplication.postEvent(self.document, helpevent)
 
-        UserInteraction.end(self)
+        super().end()
 
 
 class ResizeTextAnnotation(UserInteraction):
@@ -1282,7 +1282,7 @@ class ResizeTextAnnotation(UserInteraction):
     Resize a Text Annotation interaction handler.
     """
     def __init__(self, document, *args, **kwargs):
-        UserInteraction.__init__(self, document, *args, **kwargs)
+        super().__init__(document, *args, **kwargs)
         self.item = None
         self.annotation = None
         self.control = None
@@ -1297,7 +1297,7 @@ class ResizeTextAnnotation(UserInteraction):
                 self.editItem(item)
                 return False
 
-        return UserInteraction.mousePressEvent(self, event)
+        return super().mousePressEvent(event)
 
     def editItem(self, item):
         annotation = self.scene.annotation_for_item(item)
@@ -1349,8 +1349,7 @@ class ResizeTextAnnotation(UserInteraction):
         log.debug("ResizeTextAnnotation.cancel(%s)", reason)
         if self.item is not None and self.savedRect is not None:
             self.item.setGeometry(self.savedRect)
-
-        UserInteraction.cancel(self, reason)
+        super().cancel(reason)
 
     def end(self):
         if self.control is not None:
@@ -1363,7 +1362,7 @@ class ResizeTextAnnotation(UserInteraction):
         self.annotation = None
         self.control = None
 
-        UserInteraction.end(self)
+        super().end()
 
 
 class ResizeArrowAnnotation(UserInteraction):
@@ -1371,7 +1370,7 @@ class ResizeArrowAnnotation(UserInteraction):
     Resize an Arrow Annotation interaction handler.
     """
     def __init__(self, document, *args, **kwargs):
-        UserInteraction.__init__(self, document, *args, **kwargs)
+        super().__init__(document, *args, **kwargs)
         self.item = None
         self.annotation = None
         self.control = None
@@ -1385,7 +1384,7 @@ class ResizeArrowAnnotation(UserInteraction):
                 self.editItem(item)
                 return False
 
-        return UserInteraction.mousePressEvent(self, event)
+        return super().mousePressEvent(event)
 
     def editItem(self, item):
         annotation = self.scene.annotation_for_item(item)
@@ -1447,7 +1446,7 @@ class ResizeArrowAnnotation(UserInteraction):
         if self.item is not None and self.savedLine is not None:
             self.item.setLine(self.savedLine)
 
-        UserInteraction.cancel(self, reason)
+        super().cancel(reason)
 
     def end(self):
         if self.control is not None:
@@ -1460,4 +1459,4 @@ class ResizeArrowAnnotation(UserInteraction):
         self.item = None
         self.annotation = None
 
-        UserInteraction.end(self)
+        super().end()

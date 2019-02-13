@@ -15,7 +15,7 @@ class GraphicsPathObject(QGraphicsObject):
     positionChanged = Signal([], ["QPointF"])
 
     def __init__(self, parent=None, **kwargs):
-        QGraphicsObject.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.setFlag(QGraphicsObject.ItemSendsGeometryChanges)
 
         self.__path = QPainterPath()
@@ -101,7 +101,7 @@ class GraphicsPathObject(QGraphicsObject):
             self.positionChanged.emit()
             self.positionChanged[QPointF].emit(pos)
 
-        return QGraphicsObject.itemChange(self, change, value)
+        return super().itemChange(change, value)
 
 
 def shapeFromPath(path, pen):

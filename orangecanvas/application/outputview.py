@@ -248,7 +248,7 @@ class ExceptHook(QObject):
     handledException = Signal(tuple)
 
     def __init__(self, parent=None, stream=None, **kwargs):
-        super(ExceptHook, self).__init__(parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.stream = stream
 
     def __call__(self, exc_type, exc_value, tb):

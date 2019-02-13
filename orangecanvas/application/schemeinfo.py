@@ -18,7 +18,7 @@ class SchemeInfoEdit(QWidget):
     """Scheme info editor widget.
     """
     def __init__(self, *args, **kwargs):
-        QWidget.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.scheme = None
         self.__setupUi()
 
@@ -83,7 +83,7 @@ class SchemeInfoEdit(QWidget):
 
 class SchemeInfoDialog(QDialog):
     def __init__(self, *args, **kwargs):
-        QDialog.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.scheme = None
         self.__autoCommit = True
 

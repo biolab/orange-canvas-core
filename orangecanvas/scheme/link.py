@@ -98,7 +98,7 @@ class SchemeLink(QObject):
     def __init__(self, source_node, source_channel,
                  sink_node, sink_channel, enabled=True, properties=None,
                  parent=None):
-        QObject.__init__(self, parent)
+        super().__init__(parent)
         self.source_node = source_node
 
         if isinstance(source_channel, str):
