@@ -187,31 +187,3 @@ class icon_loader(resource_loader):
 
     def load(self, name):
         return self.get(name)
-
-
-import unittest
-
-
-class TestIconLoader(unittest.TestCase):
-    def setUp(self):
-        from AnyQt.QtWidgets import QApplication
-        self.app = QApplication([])
-
-    def tearDown(self):
-        self.app.exit()
-        del self.app
-
-    def test_loader(self):
-        loader = icon_loader()
-        self.assertEqual(loader.search_paths(), DEFAULT_SEARCH_PATHS)
-        icon = loader.get("icons/CanvasIcon.png")
-        self.assertTrue(not icon.isNull())
-
-        path = loader.find(":icons/CanvasIcon.png")
-        self.assertTrue(os.path.isfile(path))
-        icon = loader.get(":icons/CanvasIcon.png")
-        self.assertTrue(not icon.isNull())
-
-
-if __name__ == "__main__":
-    unittest.main()
