@@ -22,9 +22,8 @@ from AnyQt.QtGui import (
     QPalette, QPen, QPainter, QIcon, QColor, QPainterPathStroker
 )
 from AnyQt.QtCore import (
-    Qt, QObject, QSize, QSizeF, QPointF, QRectF, QT_VERSION,
+    Qt, QObject, QSize, QSizeF, QPointF, QRectF
 )
-from AnyQt.QtCore import pyqtSignal as Signal
 
 from ..scheme import compatible_channels
 from ..registry import InputSignal, OutputSignal
@@ -522,13 +521,6 @@ class LinksEditWidget(QGraphicsWidget):
         else:
             anchor.setToolTip("No compatible output channel.")
         anchor.setEnabled(False)
-
-    if QT_VERSION < 0x40700:
-        geometryChanged = Signal()
-
-        def setGeometry(self, rect):
-            QGraphicsWidget.setGeometry(self, rect)
-            self.geometryChanged.emit()
 
 
 class EditLinksNode(QGraphicsWidget):
