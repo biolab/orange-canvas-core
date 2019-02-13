@@ -16,13 +16,13 @@ class TestUserSettings(test.QAppTestCase):
         logging.basicConfig()
         test.QAppTestCase.setUp(self)
 
-#     def test(self):
-#         registry.set_global_registry(registry_tests.small_testing_registry())
-#         settings = UserSettingsDialog()
-#         settings.show()
-#
-#         self.app.exec_()
-#         registry.set_global_registry(None)
+    def test(self):
+        registry.set_global_registry(registry_tests.small_testing_registry())
+        settings = UserSettingsDialog()
+        settings.show()
+
+        self.app.exec_()
+        registry.set_global_registry(None)
 
     def test_settings_model(self):
         store = QSettings(QSettings.IniFormat, QSettings.UserScope,
