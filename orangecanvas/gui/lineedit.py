@@ -7,8 +7,7 @@ from AnyQt.QtWidgets import (
     QLineEdit, QToolButton, QStyleOptionToolButton, QStylePainter,
     QStyle, QAction
 )
-from AnyQt.QtGui import QPalette, QFontMetrics
-from AnyQt.QtCore import Qt, QSize, QRect, QT_VERSION
+from AnyQt.QtCore import Qt, QSize, QRect
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
 
@@ -158,36 +157,6 @@ class LineEdit(QLineEdit):
     def resizeEvent(self, event):
         QLineEdit.resizeEvent(self, event)
         self.__layoutActions()
-
-    if QT_VERSION < 0x40700:
-        # Qt 4.6 does not yet have placeholder text
-        def setPlaceholderText(self, text):
-            self.__placeholderText = text
-            self.update()
-
-        def placeholderText(self):
-            try:
-                return self.__placeholderText
-            except AttributeError:
-                return ""
-
-        def paintEvent(self, event):
-            QLineEdit.paintEvent(self, event)
-            if not self.text() and self.placeholderText() and \
-                    not self.hasFocus():
-                p = QStylePainter(self)
-                font = self.font()
-                metrics = QFontMetrics(font)
-                p.setFont(font)
-                color = self.palette().color(QPalette.Mid)
-                p.setPen(color)
-                left, top, right, bottom = self.getTextMargins()
-                contents = self.contentsRect()
-                contents = contents.adjusted(left, top, -right, -bottom)
-                text = metrics.elidedText(self.placeholderText(),
-                                          Qt.ElideMiddle,
-                                          contents.width())
-                p.drawText(contents, Qt.AlignLeft | Qt.AlignVCenter, text)
 
     def __layoutActions(self):
         left, right = self.__actions
