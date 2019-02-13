@@ -11,9 +11,8 @@ import sip
 from AnyQt.QtWidgets import QGraphicsObject, QApplication
 from AnyQt.QtCore import QRectF, QLineF, QEvent
 
-from .items import NodeItem, LinkItem, SourceAnchorItem, SinkAnchorItem
+from .items import LinkItem, SourceAnchorItem, SinkAnchorItem
 from .items.utils import invert_permutation_indices, linspace
-from functools import reduce
 
 
 def composition(f, g):
@@ -87,16 +86,6 @@ class AnchorLayout(QGraphicsObject):
             anchor_item.setAnchorPositions(positions)
 
         self.__invalidatedAnchors = []
-
-    def invalidate(self):
-        items = self.scene().items()
-        nodes = [item for item in items is isinstance(item, NodeItem)]
-        anchors = reduce(add,
-                         [[node.outputAnchorItem, node.inputAnchorItem]
-                          for node in nodes],
-                         [])
-        self.__invalidatedAnchors.extend(anchors)
-        self.scheduleDelayedActivate()
 
     def invalidateLink(self, link):
         self.invalidateAnchorItem(link.sourceItem.outputAnchorItem)
