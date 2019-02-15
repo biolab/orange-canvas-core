@@ -634,15 +634,9 @@ def scheme_to_ows_stream(scheme, stream, pretty=False, pickle_fallback=False):
     """
     tree = scheme_to_etree(scheme, data_format="literal",
                            pickle_fallback=pickle_fallback)
-
     if pretty:
         indent(tree.getroot(), 0)
-
-    if sys.version_info < (2, 7):
-        # in Python 2.6 the write does not have xml_declaration parameter.
-        tree.write(stream, encoding="utf-8")
-    else:
-        tree.write(stream, encoding="utf-8", xml_declaration=True)
+    tree.write(stream, encoding="utf-8", xml_declaration=True)
 
 
 def indent(element, level=0, indent="\t"):
