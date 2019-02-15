@@ -4,6 +4,8 @@ Scheme Node
 ===========
 
 """
+from typing import Optional, Dict, Any
+
 import six
 
 from AnyQt.QtCore import QObject
@@ -14,22 +16,22 @@ class UserMessage(object):
     """
     A user message that should be displayed in a scheme view.
 
-    Paramaters
+    Parameters
     ----------
     contents : str
         Message text.
     severity : int
         Message severity.
-    message_id : A hashable object
+    message_id : str
         Message id.
     data : dict
         A dictionary with optional extra data.
-
     """
     #: Severity flags
     Info, Warning, Error = 1, 2, 3
 
     def __init__(self, contents, severity=Info, message_id=None, data={}):
+        # type: (str, int, str, Dict[str, Any]) -> None
         self.contents = contents
         self.severity = severity
         self.message_id = message_id
@@ -212,12 +214,32 @@ class SchemeNode(QObject):
         """
         Set a message to be displayed by a scheme view for this node.
         """
-        if message.message_id in self.__state_messages and \
-                not message.contents:
-            del self.__state_messages[message.message_id]
-
         self.__state_messages[message.message_id] = message
         self.state_message_changed.emit(message)
+
+    def clear_state_message(self, message_id):
+        # type: (str) -> None
+        """
+        Clear (remove) a message with `message_id`.
+
+        :attr:`state_message_changed` signal will be emitted with a empty
+        message for the `message_id`.
+        """
+        if message_id in self.__state_messages:
+            # emit an empty message
+            m = self.__state_messages[message_id]
+            m = UserMessage("", m.severity, m.message_id)
+            self.__state_messages[message_id] = m
+            self.state_message_changed.emit(m)
+            del self.__state_messages[message_id]
+
+    def state_message(self, message_id):
+        # type: (str) -> Optional[UserMessage]
+        """
+        Return a message with `message_id` or None if a message with that
+        id does not exist.
+        """
+        return self.__state_messages.get(message_id, None)
 
     def state_messages(self):
         """
