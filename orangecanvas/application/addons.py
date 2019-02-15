@@ -34,8 +34,9 @@ import docutils.utils
 from AnyQt.QtWidgets import (
     QWidget, QDialog, QLabel, QLineEdit, QTreeView, QHeaderView,
     QTextBrowser, QDialogButtonBox, QProgressDialog, QVBoxLayout,
-    QPushButton, QFormLayout, QHBoxLayout,
-    QStyledItemDelegate, QStyle, QApplication, QStyleOptionViewItem)
+    QPushButton, QFormLayout, QHBoxLayout, QMessageBox,
+    QStyledItemDelegate, QStyle, QApplication, QStyleOptionViewItem
+)
 from AnyQt.QtGui import (
     QStandardItemModel, QStandardItem, QPalette, QTextOption,
     QDropEvent, QDragEnterEvent
@@ -48,8 +49,7 @@ from AnyQt.QtCore import (
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
 from orangecanvas.utils import unique, name_lookup
-from ..gui.utils import message_warning, message_information, \
-                        message_critical as message_error
+from ..gui.utils import message_warning, message_critical as message_error
 from ..help.manager import get_dist_meta, trim, parse_meta
 
 from .. import config
@@ -949,10 +949,25 @@ class AddonManagerDialog(QDialog):
         if self.__progress is not None:
             self.__progress.close()
             self.__progress = None
-        message_information(
-            "Please restart the application for changes to take effect.",
-            parent=self)
-        self.accept()
+
+        def message_restart(parent):
+            icon = QMessageBox.Information
+            buttons = QMessageBox.Ok | QMessageBox.Cancel
+            title = 'Information'
+            text = 'A restart of the application is necessary for the ' \
+                   'changes to take effect.'
+
+            msg_box = QMessageBox(icon, title, text, buttons, parent)
+            msg_box.setDefaultButton(QMessageBox.Ok)
+            msg_box.button(QMessageBox.Ok).setText('Restart now')
+            msg_box.button(QMessageBox.Cancel).setText('Restart later')
+            return msg_box.exec_()
+
+        if QMessageBox.Ok == message_restart(self):
+            self.accept()
+            self.parent().close()
+        else:
+            self.reject()
 
 
 class SafeTransport(xmlrpc.client.SafeTransport):
