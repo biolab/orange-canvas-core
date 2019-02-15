@@ -196,7 +196,8 @@ class SchemeEditWidget(QWidget):
         self.__cleanUpAction = QAction(
             self.tr("Clean Up"), self,
             objectName="cleanup-action",
-            toolTip=self.tr("Align widget to a grid."),
+            shortcut=QKeySequence("Shift+A"),
+            toolTip=self.tr("Align widgets to a grid. (Shift+A)"),
             triggered=self.alignToGrid,
         )
 
