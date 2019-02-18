@@ -321,6 +321,8 @@ class WidgetManager(QObject):
         """
         Activate the widget for node (show and raise above other)
         """
+        if widget.windowState() == Qt.WindowMinimized:
+            widget.showNormal()
         widget.setVisible(True)
         widget.raise_()
         widget.activateWindow()
