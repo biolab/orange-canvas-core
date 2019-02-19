@@ -20,7 +20,7 @@ from functools import partial, reduce
 import typing
 from typing import Any, Optional, List, Tuple, NamedTuple, Iterable, Callable
 
-from AnyQt.QtCore import QObject, QTimer
+from AnyQt.QtCore import QObject, QTimer, QEvent
 from AnyQt.QtCore import pyqtSignal, pyqtSlot as Slot
 
 from ..registry import OutputSignal
@@ -682,6 +682,38 @@ class SignalManager(QObject):
         if self.__state == SignalManager.Running and \
                 not self.__update_timer.isActive():
             self.__update_timer.start()
+
+    def eventFilter(self, receiver, event):
+        """
+        Reimplemented.
+        """
+        if event.type() == QEvent.DeferredDelete \
+                and receiver is self.__workflow:
+            # ?? This is really, probably, mostly, likely not needed. Should
+            # just raise error from __process_next.
+            state = self.runtime_state()
+            if state == SignalManager.Processing:
+                log.critical(
+                    "The workflow model %r received a deferred delete request "
+                    "while performing an input update. "
+                    "Deferring a 'DeferredDelete' event for the workflow "
+                    "until SignalManager exits the current update step.",
+                    self.__workflow
+                )
+                warnings.warn(
+                    "The workflow model received a deferred delete request "
+                    "while updating inputs. In the future this will raise "
+                    "a RuntimeError", _FutureRuntimeWarning,
+                )
+                event.setAccepted(False)
+                self.processingFinished.connect(self.__workflow.deleteLater)
+                self.stop()
+                return True
+        return super().eventFilter(receiver, event)
+
+
+class _FutureRuntimeWarning(FutureWarning, RuntimeWarning):
+    pass
 
 
 def can_enable_dynamic(link, value):
