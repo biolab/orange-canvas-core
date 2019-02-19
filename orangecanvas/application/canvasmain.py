@@ -1770,8 +1770,6 @@ class CanvasMainWindow(QMainWindow):
 
         old_scheme.deleteLater()
 
-        config.save_config()
-
         geometry = self.saveGeometry()
         state = self.saveState(version=self.SETTINGS_VERSION)
         settings = QSettings()

@@ -300,6 +300,10 @@ def widget_settings_dir():
     """
     Return the widget settings directory.
     """
+    warnings.warn(
+        "'widget_settings_dir' is deprecated.",
+        DeprecationWarning, stacklevel=2
+    )
     return os.path.join(data_dir(), 'widgets')
 
 
