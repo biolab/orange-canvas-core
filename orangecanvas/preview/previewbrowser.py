@@ -16,7 +16,6 @@ from AnyQt.QtCore import (
 
 from AnyQt.QtCore import pyqtSignal as Signal
 
-from ..utils import check_type, qtcompat
 from ..gui.dropshadow import DropShadowFrame
 from . import previewmodel
 
@@ -337,7 +336,7 @@ class PreviewBrowser(QWidget):
             path = ""
             svg = NO_PREVIEW_SVG
         else:
-            description = qtcompat.qunwrap(index.data(Qt.WhatsThisRole))
+            description = index.data(Qt.WhatsThisRole)
             if description:
                 description = description
             else:
@@ -346,18 +345,15 @@ class PreviewBrowser(QWidget):
             description = escape(description)
             description = description.replace("\n", "<br/>")
 
-            name = qtcompat.qunwrap(index.data(Qt.DisplayRole))
+            name = index.data(Qt.DisplayRole)
             if name:
                 name = name
             else:
                 name = "Untitled"
 
             name = escape(name)
-            path = qtcompat.qunwrap(index.data(Qt.StatusTipRole))
-            path = str(path)
-
-            svg = qtcompat.qunwrap(index.data(previewmodel.ThumbnailSVGRole))
-            svg = str(svg)
+            path = str(index.data(Qt.StatusTipRole))
+            svg = str(index.data(previewmodel.ThumbnailSVGRole))
 
         desc_text = self.__template.format(description=description, name=name)
 

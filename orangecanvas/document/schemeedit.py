@@ -50,7 +50,6 @@ from ..canvas import items
 from . import interactions
 from . import commands
 from . import quickmenu
-from ..utils.qtcompat import qunwrap
 
 log = logging.getLogger(__name__)
 
@@ -1360,7 +1359,7 @@ class SchemeEditWidget(QWidget):
         item = self.scene().item_at(scenePos, items.NodeItem)
         if item is not None:
             node = self.scene().node_for_item(item)
-            actions = qunwrap(node.property("ext-menu-actions"))
+            actions = node.property("ext-menu-actions")
             if isinstance(actions, list) and \
                     all(isinstance(item, QAction) for item in actions) and \
                             len(self.selectedNodes()) == 1:
@@ -1580,7 +1579,7 @@ class SchemeEditWidget(QWidget):
         else:
             handler = interactions.NewArrowAnnotation(self)
             checked = self.__arrowColorActionGroup.checkedAction()
-            handler.setColor(qunwrap(checked.data()))
+            handler.setColor(checked.data())
 
             handler.ended.connect(action.toggle)
 
@@ -1631,7 +1630,7 @@ class SchemeEditWidget(QWidget):
             # Update the preferred color on the interaction handler
             handler = self.__scene.user_interaction_handler
             if isinstance(handler, interactions.NewArrowAnnotation):
-                handler.setColor(qunwrap(action.data()))
+                handler.setColor(action.data())
 
     def __onRenameAction(self):
         """

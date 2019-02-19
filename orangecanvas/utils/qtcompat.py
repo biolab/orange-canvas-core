@@ -1,7 +1,6 @@
 """
 """
 import warnings
-
 from AnyQt.QtCore import QSettings
 
 QSettings = QSettings

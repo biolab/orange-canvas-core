@@ -27,7 +27,6 @@ from ..gui.toolgrid import ToolGrid
 from ..gui.quickhelp import StatusTipPromoter
 from ..gui.utils import create_gradient
 from ..registry.qt import QtWidgetRegistry
-from ..utils import qtcompat
 
 
 log = logging.getLogger(__name__)
@@ -49,36 +48,27 @@ def iter_index(model, index):
         yield model.index(row, 0, index)
 
 
-def qvariant_to_string(variant):
-    val = qtcompat.qunwrap(variant)
-    if val is None:
+def item_text(index):
+    value = index.data(Qt.DisplayRole)
+    if value is None:
         return ""
     else:
-        return str(val)
+        return str(value)
 
 
-def qvariant_to_icon(variant):
-    value = qtcompat.qunwrap(variant)
+def item_icon(index):
+    value = index.data(Qt.DecorationRole)
     if isinstance(value, QIcon):
         return value
     else:
         return QIcon()
 
 
-def qvariant_to_object(variant):
-    return qtcompat.qunwrap(variant)
-
-
-def item_text(index):
-    return qvariant_to_string(index.data(Qt.DisplayRole))
-
-
-def item_icon(index):
-    return qvariant_to_icon(index.data(Qt.DecorationRole))
-
-
 def item_tooltip(index):
-    return qvariant_to_string(index.data(Qt.DisplayRole))
+    value = index.data(Qt.ToolTipRole)
+    if isinstance(value, str):
+        return value
+    return item_text(index)
 
 
 class WidgetToolGrid(ToolGrid):
@@ -183,7 +173,7 @@ class WidgetToolGrid(ToolGrid):
         """
         Insert a widget action from `item` (`QModelIndex`) at `index`.
         """
-        value = qtcompat.qunwrap(item.data(self.__actionRole))
+        value = item.data(self.__actionRole)
         if isinstance(value, QAction):
             action = value
         else:
@@ -220,7 +210,7 @@ class WidgetToolGrid(ToolGrid):
         Start a drag from button
         """
         action = button.defaultAction()
-        desc = qtcompat.qunwrap(action.data())  # Widget Description
+        desc = action.data()  # Widget Description
         icon = action.icon()
         drag_data = QMimeData()
         drag_data.setData(
@@ -415,11 +405,11 @@ class WidgetToolBox(ToolBox):
         # Set the 'highlight' color if applicable
         highlight = None
         highlight_foreground = None
-        highlight = qtcompat.qunwrap(item.data(Qt.BackgroundRole))
+        highlight = item.data(Qt.BackgroundRole)
         if highlight is not None:
             highlight = item.background()
-        elif qtcompat.qunwrap(item.data(QtWidgetRegistry.BACKGROUND_ROLE)) is not None:
-            highlight = qtcompat.qunwrap(item.data(QtWidgetRegistry.BACKGROUND_ROLE))
+        elif item.data(QtWidgetRegistry.BACKGROUND_ROLE) is not None:
+            highlight = item.data(QtWidgetRegistry.BACKGROUND_ROLE)
 
         if isinstance(highlight, QBrush) and highlight.style() != Qt.NoBrush:
             if not highlight.gradient():

@@ -12,7 +12,6 @@ from ...registry.qt import QtWidgetRegistry
 from ...registry.tests import small_testing_registry
 
 from ..test import QAppTestCase
-from ...utils.qtcompat import qunwrap
 
 
 class TestToolTree(QAppTestCase):
@@ -81,10 +80,10 @@ class TestToolTree(QAppTestCase):
         item.setText("New text")
 
         self.assertTrue(len(changed) == 1)
-        self.assertEqual(str(qunwrap(changed[-1][0].data(Qt.DisplayRole))),
-                        "New text")
+        self.assertEqual(changed[-1][0].data(Qt.DisplayRole),
+                         "New text")
 
-        self.assertEqual(str(qunwrap(model.data(model.index(1)))), "New text")
+        self.assertEqual(model.data(model.index(1)), "New text")
 
         model.setFlatteningMode(FlattenedTreeItemModel.InternalNodesDisabled)
 

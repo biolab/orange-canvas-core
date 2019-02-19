@@ -19,7 +19,7 @@ from contextlib import ExitStack
 import pkg_resources
 
 from AnyQt.QtGui import QFont, QColor, QPalette
-from AnyQt.QtCore import Qt, QDir, QT_VERSION
+from AnyQt.QtCore import Qt, QDir, QSettings, QT_VERSION
 
 import AnyQt.importhooks
 
@@ -34,7 +34,6 @@ from .application.outputview import TextStream, ExceptHook
 from . import utils, config
 from .gui.splashscreen import SplashScreen
 from .utils.redirect import redirect_stdout, redirect_stderr
-from .utils.qtcompat import QSettings
 
 from .registry import qt
 from .registry import WidgetRegistry, set_global_registry

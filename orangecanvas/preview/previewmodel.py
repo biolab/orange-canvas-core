@@ -13,7 +13,6 @@ from AnyQt.QtSvg import QSvgRenderer
 from AnyQt.QtCore import Qt, QTimer, QRectF, QRect, QSize
 
 from . import scanner
-from ..utils.qtcompat import qunwrap
 
 log = logging.getLogger(__name__)
 
@@ -136,12 +135,12 @@ class PreviewItem(QStandardItem):
         return the string for `WhatsThisRole`.
 
         """
-        desc = qunwrap(self.data(DescriptionRole))
+        desc = self.data(DescriptionRole)
 
         if desc is not None:
             return str(desc)
 
-        whatsthis = qunwrap(self.data(Qt.WhatsThisRole))
+        whatsthis = self.data(Qt.WhatsThisRole)
         if whatsthis is not None:
             return str(whatsthis)
         else:
@@ -156,7 +155,7 @@ class PreviewItem(QStandardItem):
 
         This is stored as `ThumbnailSVGRole`
         """
-        thumb = qunwrap(self.data(ThumbnailSVGRole))
+        thumb = self.data(ThumbnailSVGRole)
         if thumb is not None:
             return str(thumb)
         else:
@@ -175,7 +174,7 @@ class PreviewItem(QStandardItem):
     def path(self):
         """Return the path item data.
         """
-        return str(qunwrap(self.data(PathRole)))
+        return str(self.data(PathRole))
 
     def setPath(self, path):
         """Set the path data of the item.

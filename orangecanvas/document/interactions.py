@@ -32,7 +32,6 @@ from ..canvas.items import controlpoints
 from ..gui.quickhelp import QuickHelpTipEvent
 from . import commands
 from .editlinksdialog import EditLinksDialog
-from ..utils.qtcompat import qunwrap
 
 log = logging.getLogger(__name__)
 
@@ -473,7 +472,7 @@ class NewLinkAction(UserInteraction):
         menu.setSortingFunc(sort)
 
         def filter(index):
-            desc = qunwrap(index.data(QtWidgetRegistry.WIDGET_DESC_ROLE))
+            desc = index.data(QtWidgetRegistry.WIDGET_DESC_ROLE)
             if isinstance(desc, WidgetDescription):
                 return is_compatible(from_desc, desc)
             else:
@@ -486,8 +485,8 @@ class NewLinkAction(UserInteraction):
             menu.setFilterFunc(None)
 
         if action:
-            item = qunwrap(action.property("item"))
-            desc = qunwrap(item.data(QtWidgetRegistry.WIDGET_DESC_ROLE))
+            item = action.property("item")
+            desc = item.data(QtWidgetRegistry.WIDGET_DESC_ROLE)
             pos = event.scenePos()
             # a new widget should be placed so that the connection
             # stays as it was
@@ -801,8 +800,8 @@ class NewNodeAction(UserInteraction):
 
         action = menu.exec_(pos, search_text)
         if action:
-            item = qunwrap(action.property("item"))
-            desc = qunwrap(item.data(QtWidgetRegistry.WIDGET_DESC_ROLE))
+            item = action.property("item")
+            desc = item.data(QtWidgetRegistry.WIDGET_DESC_ROLE)
             # Get the scene position
             view = self.document.view()
             pos = view.mapToScene(view.mapFromGlobal(pos))

@@ -1,12 +1,12 @@
 import logging
 
+from AnyQt.QtCore import QSettings
 from AnyQt.QtWidgets import QTreeView
 
 from ...gui import test
 
 from ..settings import UserSettingsDialog, UserSettingsModel
 from ...utils.settings import Settings, config_slot
-from ...utils.qtcompat import QSettings
 from ... import registry
 from ...registry import tests as registry_tests
 

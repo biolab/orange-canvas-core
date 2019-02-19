@@ -23,9 +23,7 @@ from ..gui.framelesswindow import FramelessWindow
 from ..document.quickmenu import MenuPage
 from ..document.quickmenu import create_css_gradient
 from .widgettoolbox import WidgetToolBox, iter_index, item_text, item_icon, item_tooltip
-
 from ..registry.qt import QtWidgetRegistry
-from ..utils.qtcompat import qunwrap
 
 
 class SplitterResizer(QObject):
@@ -322,12 +320,12 @@ class QuickCategoryToolbar(ToolGrid):
         """
         button = super().createButtonForAction(action)
 
-        item = qunwrap(action.data())  # QPersistentModelIndex
+        item = action.data()  # QPersistentModelIndex
         assert isinstance(item, QPersistentModelIndex)
 
-        brush = qunwrap(item.data(Qt.BackgroundRole))
+        brush = item.data(Qt.BackgroundRole)
         if not isinstance(brush, QBrush):
-            brush = qunwrap(item.data(QtWidgetRegistry.BACKGROUND_ROLE))
+            brush = item.data(QtWidgetRegistry.BACKGROUND_ROLE)
             if not isinstance(brush, QBrush):
                 brush = self.palette().brush(QPalette.Button)
 
@@ -448,8 +446,8 @@ class CategoryPopupMenu(FramelessWindow):
             self.__loop.exit(0)
 
     def __onDragStarted(self, index):
-        desc = qunwrap(index.data(QtWidgetRegistry.WIDGET_DESC_ROLE))
-        icon = qunwrap(index.data(Qt.DecorationRole))
+        desc = index.data(QtWidgetRegistry.WIDGET_DESC_ROLE)
+        icon = index.data(Qt.DecorationRole)
 
         drag_data = QMimeData()
         drag_data.setData(

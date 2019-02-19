@@ -18,7 +18,6 @@ from AnyQt.QtGui import QStandardItemModel
 from AnyQt.QtCore import Qt, QEvent, QModelIndex, QAbstractProxyModel
 from AnyQt.QtCore import pyqtSignal as Signal
 
-from ..utils import qtcompat
 log = logging.getLogger(__name__)
 
 
@@ -124,7 +123,7 @@ class ToolTree(QWidget):
         return self.__actionRole
 
     def __actionForIndex(self, index):
-        val = qtcompat.qunwrap(index.data(self.__actionRole))
+        val = index.data(self.__actionRole)
         if isinstance(val, QAction):
             return val
         else:

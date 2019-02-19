@@ -9,7 +9,6 @@ from collections import namedtuple
 
 from .. import config
 from ..utils.settings import SettingChangedEvent
-from ..utils.qtcompat import QSettings, qunwrap
 
 from ..utils.propertybindings import (
     AbstractBoundProperty, PropertyBinding, BindingManager
@@ -22,7 +21,7 @@ from AnyQt.QtWidgets import (
 )
 from AnyQt.QtGui import QStandardItemModel, QStandardItem
 from AnyQt.QtCore import (
-    Qt, QEventLoop, QAbstractItemModel, QModelIndex
+    Qt, QEventLoop, QAbstractItemModel, QModelIndex, QSettings
 )
 
 log = logging.getLogger(__name__)
@@ -135,7 +134,6 @@ class UserSettingsModel(QAbstractItemModel):
     def setData(self, index, value, role=Qt.EditRole):
         if self._valid(index) and index.column() == 3:
             key = self._keyFromIndex(index)
-            value = qunwrap(value)
             try:
                 self.__settings[key] = value
             except (TypeError, ValueError) as ex:
@@ -480,7 +478,7 @@ class UserSettingsDialog(QMainWindow):
             self.__loop = None
 
     def __macOnToolBarAction(self, action):
-        index = qunwrap(action.data())
+        index = action.data()
         self.stack.setCurrentIndex(index)
 
 

@@ -33,7 +33,6 @@ from ..gui.framelesswindow import FramelessWindow
 from ..gui.lineedit import LineEdit
 from ..gui.tooltree import ToolTree, FlattenedTreeItemModel
 from ..gui.utils import StyledWidget_paintEvent, create_css_gradient
-from ..utils import qtcompat
 from ..registry.qt import QtWidgetRegistry
 
 from ..resources import icon_loader
@@ -868,8 +867,7 @@ class PagedMenu(QWidget):
         return self.__tab.button(index)
 
 
-def qvariant_to_qbrush(variant):
-    value = qtcompat.qunwrap(variant)
+def as_qbrush(value):
     if isinstance(value, QBrush):
         return value
     else:
@@ -1053,11 +1051,11 @@ class QuickMenu(FramelessWindow):
         name = str(index.data(Qt.DisplayRole))
         page.setTitle(name)
 
-        icon = qtcompat.qunwrap(index.data(Qt.DecorationRole))
+        icon = index.data(Qt.DecorationRole)
         if isinstance(icon, QIcon):
             page.setIcon(icon)
 
-        page.setToolTip(qtcompat.qunwrap(index.data(Qt.ToolTipRole)))
+        page.setToolTip(index.data(Qt.ToolTipRole))
         return page
 
     def __clear(self):
@@ -1094,8 +1092,7 @@ class QuickMenu(FramelessWindow):
                 # Note: the tab buttons are offest by 1 (to accommodate
                 # the Suggest Page).
                 button = self.__pages.tabButton(row + 1)
-                brush = index.data(QtWidgetRegistry.BACKGROUND_ROLE)
-                brush = qvariant_to_qbrush(brush)
+                brush = as_qbrush(index.data(QtWidgetRegistry.BACKGROUND_ROLE))
                 if brush is not None:
                     base_color = brush.color()
                     button.setStyleSheet(
@@ -1123,8 +1120,7 @@ class QuickMenu(FramelessWindow):
 
         i = self.insertPage(row, page.title(), page)
 
-        brush = index.data(QtWidgetRegistry.BACKGROUND_ROLE)
-        brush = qvariant_to_qbrush(brush)
+        brush = as_qbrush(index.data(QtWidgetRegistry.BACKGROUND_ROLE))
         if brush is not None:
             base_color = brush.color()
             button = self.__pages.tabButton(i)

@@ -6,7 +6,6 @@ from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
 from .graphicspathobject import GraphicsPathObject
 from .utils import toGraphicsObjectIfPossible
-from ...utils import qtcompat
 
 
 class ControlPoint(GraphicsPathObject):
@@ -79,10 +78,7 @@ class ControlPoint(GraphicsPathObject):
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.ItemPositionChange:
-            pos = qtcompat.qunwrap(value)
-            newpos = self.constrain(pos)
-            return qtcompat.qwrap(newpos)
-
+            return self.constrain(value)
         return super().itemChange(change, value)
 
     def hasConstraint(self):

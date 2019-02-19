@@ -34,7 +34,6 @@ from ...scheme.node import UserMessage
 from ...registry import NAMED_COLORS
 from ...resources import icon_loader
 from .utils import uniform_linear_layout
-from ...utils import qtcompat
 
 
 def create_palette(light_color, color):
@@ -327,7 +326,7 @@ class AnchorPoint(QGraphicsObject):
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.ItemScenePositionHasChanged:
-            self.scenePositionChanged.emit(qtcompat.qunwrap(value))
+            self.scenePositionChanged.emit(value)
         return super().itemChange(change, value)
 
     def boundingRect(self,):
@@ -1296,10 +1295,9 @@ class NodeItem(QGraphicsWidget):
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.ItemSelectedChange:
-            selected = bool(qtcompat.qunwrap(value))
-            self.shapeItem.setSelected(selected)
-            self.captionTextItem.setSelectionState(selected)
-            self.backgroundItem.setVisible(selected)
+            self.shapeItem.setSelected(value)
+            self.captionTextItem.setSelectionState(value)
+            self.backgroundItem.setVisible(value)
         elif change == QGraphicsItem.ItemPositionHasChanged:
             self.positionChanged.emit()
 

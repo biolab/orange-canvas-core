@@ -16,10 +16,6 @@ from AnyQt.QtCore import pyqtSignal as Signal
 
 _QObjectType = type(QObject)
 
-from . import toPyObject
-
-# Import QSettings from qtcompat module (compatibility with PyQt < 4.8.3
-from .qtcompat import QSettings
 
 log = logging.getLogger(__name__)
 
@@ -158,13 +154,13 @@ class Settings(QObject, MutableMapping, metaclass=QABCMeta):
         typesafe = value_type is not None
 
         if value_type is None:
-            value = toPyObject(self.__store.value(fullkey))
+            value = self.__store.value(fullkey)
         else:
             try:
                 value = self.__store.value(fullkey, type=value_type)
             except TypeError:
                 # In case the value was pickled in a type unsafe mode
-                value = toPyObject(self.__store.value(fullkey))
+                value = self.__store.value(fullkey)
                 typesafe = False
 
         if not typesafe:

@@ -45,7 +45,6 @@ from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 from ..gui.utils import message_warning, message_information, \
                         message_critical as message_error
 from ..help.manager import get_dist_meta, trim
-from ..utils.qtcompat import qunwrap
 from .. import config
 
 log = logging.getLogger(__name__)
@@ -373,7 +372,7 @@ class AddonManagerWidget(QWidget):
             self.__details.setText("")
         else:
             item = self.__model.item(index, 1)
-            item = qunwrap(item.data(Qt.UserRole))
+            item = item.data(Qt.UserRole)
             assert isinstance(item, (Installed, Available))
             text = self._detailed_text(item)
             self.__details.setText(text)

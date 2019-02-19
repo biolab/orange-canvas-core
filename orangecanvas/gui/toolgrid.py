@@ -13,7 +13,6 @@ from AnyQt.QtCore import Qt, QObject, QSize, QEvent, QSignalMapper
 from AnyQt.QtCore import pyqtSignal as Signal
 
 from . import utils
-from ..utils import qtcompat
 
 _ToolGridSlot = namedtuple(
     "_ToolGridSlot",
@@ -279,7 +278,7 @@ class ToolGrid(QFrame):
             button.setIconSize(self.__iconSize)
 
         button.setToolButtonStyle(self.__toolButtonStyle)
-        button.setProperty("tool-grid-button", qtcompat.qwrap(True))
+        button.setProperty("tool-grid-button", True)
         return button
 
     def count(self):
