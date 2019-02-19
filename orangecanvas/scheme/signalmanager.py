@@ -70,10 +70,13 @@ MAX_CONCURRENT = 1
 
 class SignalManager(QObject):
     """
-    Handle all runtime signal propagation for a :class:`Scheme` instance.
-    The scheme must be passed to the constructor and will become the parent
-    of this object. Furthermore this should happen before any items
-    (nodes, links) are added to the scheme.
+    SignalManager handles the runtime signal propagation for a :class:`.Scheme`
+    instance.
+
+    Note
+    ----
+    If a scheme instance is passed as a parent to the constructor it is also
+    set as the workflow model.
     """
     class State(enum.IntEnum):
         """
@@ -133,10 +136,10 @@ class SignalManager(QObject):
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
-        self.__workflow = None  # type: Optional[Workflow]
+        self.__workflow = None  # type: Optional[Scheme]
         self.__input_queue = []  # type: List[Signal]
 
-        # mapping a node to it's current outputs
+        # mapping a node to its current outputs
         self.__node_outputs = {}  # type: Dict[Node, Dict[OutputSignal, Dict[Any, Any]]]
 
         self.__state = SignalManager.Running
@@ -159,6 +162,7 @@ class SignalManager(QObject):
         return self.__state not in [SignalManager.Error, SignalManager.Stopped]
 
     def workflow(self):
+        # type: () -> Scheme
         """
         Return the :class:`Scheme` instance.
         """
@@ -167,6 +171,14 @@ class SignalManager(QObject):
     scheme = workflow
 
     def set_workflow(self, workflow):
+        # type: (Scheme) -> None
+        """
+        Set the workflow model.
+
+        Parameters
+        ----------
+        workflow : Scheme
+        """
         if workflow is self.__workflow:
             return
 
@@ -191,6 +203,9 @@ class SignalManager(QObject):
             workflow.installEventFilter(self)
 
     def has_pending(self):
+        """
+        Does the manager have any signals to deliver?
+        """
         return bool(self.__input_queue)
 
     def start(self):
@@ -580,6 +595,7 @@ class SignalManager(QObject):
                 pass
 
     def blocking_nodes(self):
+        # type: () -> List[SchemeNode]
         """
         Return a list of nodes in a blocking state.
         """
@@ -587,9 +603,21 @@ class SignalManager(QObject):
         return [node for node in scheme.nodes if self.is_blocking(node)]
 
     def is_blocking(self, node):
+        # type: (SchemeNode) -> bool
+        """
+        Is the node in `blocking` state.
+
+        Is it currently in a state where will produce new outputs and
+        therefore no signals should be delivered to dependent nodes until
+        it does so.
+
+        The default implementation returns False.
+        """
+        # TODO: this needs a different name
         return False
 
     def node_update_front(self):
+        # type: () -> List[SchemeNode]
         """
         Return a list of nodes on the update front, i.e. nodes scheduled for
         an update that have no ancestor which is either itself scheduled
@@ -646,10 +674,9 @@ class SignalManager(QObject):
             return
 
         if self.__runtime_state == SignalManager.Processing:
-            # This happens if someone calls QCoreApplication.processEvents
-            # from the signal handlers.
-            # A `__process_next` must be rescheduled when exiting
-            # process_queued.
+            # This happens if QCoreApplication.processEvents is called from
+            # the input handlers. A `__process_next` must be rescheduled when
+            # exiting process_queued.
             log.warning("Received 'UpdateRequest' while in 'process_queued'. "
                         "An update will be re-scheduled when exiting the "
                         "current update.")
@@ -780,6 +807,16 @@ def dependent_nodes(scheme, node):
 
 def traverse_bf(start, expand):
     # type: (T, Callable[[T], Iterable[T]]) -> Iterable[T]
+    """
+    Breadth first traversal of a DAG starting from `start`.
+
+    Parameters
+    ----------
+    start : T
+        A starting node
+    expand : (T) -> Iterable[T]
+        A function returning children of a node.
+    """
     queue = deque([start])
     visited = set()
     while queue:
