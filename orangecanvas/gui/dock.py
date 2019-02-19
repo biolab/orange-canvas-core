@@ -6,51 +6,49 @@ Collapsible Dock Widget
 A dock widget that can be a collapsed/expanded.
 
 """
-
-import logging
+from typing import Optional, Any
 
 from AnyQt.QtWidgets import (
-    QDockWidget, QAbstractButton, QSizePolicy, QStyle, QWIDGETSIZE_MAX
+    QDockWidget, QAbstractButton, QSizePolicy, QStyle, QWidget, QWIDGETSIZE_MAX
 )
 from AnyQt.QtGui import QIcon, QTransform
-from AnyQt.QtCore import Qt, QEvent
+from AnyQt.QtCore import Qt, QEvent, QObject
 from AnyQt.QtCore import pyqtProperty as Property, pyqtSignal as Signal
 
 from .stackedwidget import AnimatedStackedWidget
-
-log = logging.getLogger(__name__)
 
 
 class CollapsibleDockWidget(QDockWidget):
     """
     This :class:`QDockWidget` subclass overrides the `close` header
-    button to instead collapse to a smaller size. The contents contents
-    to show when in each state can be set using the ``setExpandedWidget``
-    and ``setCollapsedWidget``.
+    button to instead collapse to a smaller size. The contents to show
+    when in each state can be set using the :func:`setExpandedWidget`
+    and :func:`setCollapsedWidget`.
 
-    .. note:: Do  not use the base class ``QDockWidget.setWidget`` method
-              to set the docks contents. Use set[Expanded|Collapsed]Widget
-              instead.
-
+    Note
+    ----
+    Do not use the base class :func:`QDockWidget.setWidget` method to
+    set the dock contents. Use :func:`setExpandedWidget` and
+    :func:`setCollapsedWidget` instead.
     """
 
     #: Emitted when the dock widget's expanded state changes.
     expandedChanged = Signal(bool)
 
     def __init__(self, *args, **kwargs):
+        # type: (Any, Any) -> None
         super().__init__(*args, **kwargs)
 
-        self.__expandedWidget = None
-        self.__collapsedWidget = None
+        self.__expandedWidget = None   # type: Optional[QWidget]
+        self.__collapsedWidget = None  # type: Optional[QWidget]
         self.__expanded = True
 
         self.__trueMinimumWidth = -1
 
-        self.setFeatures(QDockWidget.DockWidgetClosable | \
+        self.setFeatures(QDockWidget.DockWidgetClosable |
                          QDockWidget.DockWidgetMovable)
         self.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
 
-        self.featuresChanged.connect(self.__onFeaturesChanged)
         self.dockLocationChanged.connect(self.__onDockLocationChanged)
 
         # Use the toolbar horizontal extension button icon as the default
@@ -68,10 +66,10 @@ class CollapsibleDockWidget(QDockWidget):
 
         self.__iconRight = QIcon(icon)
         self.__iconLeft = QIcon(icon_rev)
-
+        # Find the close button an install an event filter or close event
         close = self.findChild(QAbstractButton,
                                name="qt_dockwidget_closebutton")
-
+        assert close is not None
         close.installEventFilter(self)
         self.__closeButton = close
 
@@ -79,35 +77,30 @@ class CollapsibleDockWidget(QDockWidget):
 
         self.__stack.setSizePolicy(QSizePolicy.Fixed,
                                    QSizePolicy.Expanding)
-
-        self.__stack.transitionStarted.connect(self.__onTransitionStarted)
-        self.__stack.transitionFinished.connect(self.__onTransitionFinished)
-
         super().setWidget(self.__stack)
 
         self.__closeButton.setIcon(self.__iconLeft)
 
     def setExpanded(self, state):
+        # type: (bool) -> None
         """
         Set the widgets `expanded` state.
         """
         if self.__expanded != state:
             self.__expanded = state
             if state and self.__expandedWidget is not None:
-                log.debug("Dock expanding.")
                 self.__stack.setCurrentWidget(self.__expandedWidget)
             elif not state and self.__collapsedWidget is not None:
-                log.debug("Dock collapsing.")
                 self.__stack.setCurrentWidget(self.__collapsedWidget)
             self.__fixIcon()
 
             self.expandedChanged.emit(state)
 
     def expanded(self):
+        # type: () -> bool
         """
         Is the dock widget in expanded state. If `True` the
         ``expandedWidget`` will be shown, and ``collapsedWidget`` otherwise.
-
         """
         return self.__expanded
 
@@ -120,6 +113,7 @@ class CollapsibleDockWidget(QDockWidget):
               )
 
     def setExpandedWidget(self, widget):
+        # type: (QWidget) -> None
         """
         Set the widget with contents to show while expanded.
         """
@@ -137,14 +131,15 @@ class CollapsibleDockWidget(QDockWidget):
             self.updateGeometry()
 
     def expandedWidget(self):
+        # type: () -> Optional[QWidget]
         """
         Return the widget previously set with ``setExpandedWidget``,
         or ``None`` if no widget has been set.
-
         """
         return self.__expandedWidget
 
     def setCollapsedWidget(self, widget):
+        # type: (QWidget) -> None
         """
         Set the widget with contents to show while collapsed.
         """
@@ -162,28 +157,23 @@ class CollapsibleDockWidget(QDockWidget):
             self.updateGeometry()
 
     def collapsedWidget(self):
+        # type: () -> Optional[QWidget]
         """
         Return the widget previously set with ``setCollapsedWidget``,
         or ``None`` if no widget has been set.
-
         """
         return self.__collapsedWidget
 
     def setAnimationEnabled(self, animationEnabled):
-        """
-        Enable/disable the transition animation.
-        """
         self.__stack.setAnimationEnabled(animationEnabled)
 
     def animationEnabled(self):
-        """
-        Is transition animation enabled.
-        """
         return self.__stack.animationEnabled()
 
     def currentWidget(self):
+        # type: () -> Optional[QWidget]
         """
-        Return the current shown widget depending on the `expanded` state.
+        Return the current shown widget depending on the `expanded` state
         """
         if self.__expanded:
             return self.__expandedWidget
@@ -191,18 +181,22 @@ class CollapsibleDockWidget(QDockWidget):
             return self.__collapsedWidget
 
     def expand(self):
+        # type: () -> None
         """
         Expand the dock (same as ``setExpanded(True)``)
         """
         self.setExpanded(True)
 
     def collapse(self):
+        # type: () -> None
         """
         Collapse the dock (same as ``setExpanded(False)``)
         """
         self.setExpanded(False)
 
     def eventFilter(self, obj, event):
+        # type: (QObject, QEvent) -> bool
+        """Reimplemented."""
         if obj is self.__closeButton:
             etype = event.type()
             if etype == QEvent.MouseButtonPress:
@@ -217,14 +211,14 @@ class CollapsibleDockWidget(QDockWidget):
         return super().eventFilter(obj, event)
 
     def event(self, event):
+        # type: (QEvent) -> bool
+        """Reimplemented."""
         if event.type() == QEvent.LayoutRequest:
             self.__fixMinimumWidth()
         return super().event(event)
 
-    def __onFeaturesChanged(self, features):
-        pass
-
     def __onDockLocationChanged(self, area):
+        # type: (Qt.DockWidgetArea) -> None
         if area == Qt.LeftDockWidgetArea:
             self.setLayoutDirection(Qt.LeftToRight)
         else:
@@ -233,14 +227,8 @@ class CollapsibleDockWidget(QDockWidget):
         self.__stack.setLayoutDirection(self.parentWidget().layoutDirection())
         self.__fixIcon()
 
-    def __onTransitionStarted(self):
-        log.debug("Dock transition started.")
-
-    def __onTransitionFinished(self):
-        log.debug("Dock transition finished (new width %i)",
-                  self.size().width())
-
     def __fixMinimumWidth(self):
+        # type: () -> None
         # A workaround for forcing the QDockWidget layout to disregard the
         # default minimumSize which can be to wide for us (overriding the
         # minimumSizeHint or setting the minimum size directly does not
@@ -252,16 +240,11 @@ class CollapsibleDockWidget(QDockWidget):
 
             if width < self.minimumSizeHint().width():
                 if not self.__hasFixedWidth():
-                    log.debug("Overriding default minimum size "
-                              "(setFixedWidth(%i))", width)
                     self.__trueMinimumWidth = self.minimumSizeHint().width()
                 self.setFixedWidth(width)
             else:
                 if self.__hasFixedWidth():
                     if width >= self.__trueMinimumWidth:
-                        # Unset the fixed size.
-                        log.debug("Restoring default minimum size "
-                                  "(setFixedWidth(%i))", QWIDGETSIZE_MAX)
                         self.__trueMinimumWidth = -1
                         self.setFixedWidth(QWIDGETSIZE_MAX)
                         self.updateGeometry()
@@ -269,9 +252,11 @@ class CollapsibleDockWidget(QDockWidget):
                         self.setFixedWidth(width)
 
     def __hasFixedWidth(self):
+        # type: () -> bool
         return self.__trueMinimumWidth >= 0
 
     def __fixIcon(self):
+        # type: () -> None
         """Fix the dock close icon.
         """
         direction = self.layoutDirection()
