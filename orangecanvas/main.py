@@ -43,26 +43,6 @@ from .registry import cache
 log = logging.getLogger(__name__)
 
 
-def fix_osx_private_font():
-    """Temporary fixes for QTBUG-32789, QTBUG-40833 and QTBUG-47206"""
-    if sys.platform == "darwin" and QT_VERSION < 0x50000:
-        release = platform.mac_ver()[0]
-        if not release:
-            return
-        release = release.split(".")[:2]
-        osx_release = (int(release[0]), int(release[1]))
-        if osx_release >= (10, 11):
-            # El Capitan (or later?)
-            QFont.insertSubstitution(".SF NS Text", "Helvetica Neue")
-        elif osx_release == (10, 10) and QT_VERSION < 0x40807:
-            # Yosemite
-            QFont.insertSubstitution(".Helvetica Neue DeskInterface",
-                                     "Helvetica Neue")
-        elif osx_release == (10, 9) and QT_VERSION < 0x40806:
-            # Mavericks
-            QFont.insertSubstitution(".Lucida Grande UI", "Lucida Grande")
-
-
 def fix_macos_nswindow_tabbing():
     """
     Disable automatic NSWindow tabbing on macOS Sierra and higher.
@@ -189,9 +169,6 @@ def main(argv=None):
     # Fix streams before configuring logging (otherwise it will store
     # and write to the old file descriptors)
     fix_win_pythonw_std_stream()
-
-    # Try to fix fonts on OSX Mavericks/Yosemite, ...
-    fix_osx_private_font()
 
     # Try to fix macOS automatic window tabbing (Sierra and later)
     fix_macos_nswindow_tabbing()

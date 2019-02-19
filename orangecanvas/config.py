@@ -17,13 +17,8 @@ from AnyQt.QtGui import (
 )
 
 from AnyQt.QtCore import (
-    Qt, QCoreApplication, QPoint, QRect, QSettings, QT_VERSION
+    Qt, QCoreApplication, QPoint, QRect, QSettings, QStandardPaths
 )
-
-if QT_VERSION < 0x50000:
-    from AnyQt.QtGui import QDesktopServices
-else:
-    from AnyQt.QtCore import QStandardPaths
 
 from .utils.settings import Settings, config_slot
 
@@ -41,20 +36,19 @@ ADDON_PYPI_SEARCH_SPEC = {"keywords": ["orange", "add-on"]}
 
 TUTORIALS_ENTRY = "orangecanvas.tutorials"
 
-if QT_VERSION < 0x50000:
-    def standard_location(type):
-        return QDesktopServices.storageLocation(type)
-    standard_location.DesktopLocation = QDesktopServices.DesktopLocation
-    standard_location.DataLocation = QDesktopServices.DataLocation
-    standard_location.CacheLocation = QDesktopServices.CacheLocation
-    standard_location.DocumentsLocation = QDesktopServices.DocumentsLocation
-else:
-    def standard_location(type):
-        return QStandardPaths.writableLocation(type)
-    standard_location.DesktopLocation = QStandardPaths.DesktopLocation
-    standard_location.DataLocation = QStandardPaths.DataLocation
-    standard_location.CacheLocation = QStandardPaths.CacheLocation
-    standard_location.DocumentsLocation = QStandardPaths.DocumentsLocation
+
+def standard_location(type):
+    warnings.warn(
+        "Use QStandardPaths.writableLocation", DeprecationWarning,
+        stacklevel=2
+    )
+    return QStandardPaths.writableLocation(type)
+
+
+standard_location.DesktopLocation = QStandardPaths.DesktopLocation
+standard_location.DataLocation = QStandardPaths.DataLocation
+standard_location.CacheLocation = QStandardPaths.CacheLocation
+standard_location.DocumentsLocation = QStandardPaths.DocumentsLocation
 
 
 class default(object):

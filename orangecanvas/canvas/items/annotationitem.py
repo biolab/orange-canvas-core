@@ -14,7 +14,7 @@ from AnyQt.QtGui import (
     QPalette
 )
 from AnyQt.QtCore import (
-    Qt, QPointF, QSizeF, QRectF, QLineF, QEvent, QMetaObject, QT_VERSION
+    Qt, QPointF, QSizeF, QRectF, QLineF, QEvent, QMetaObject
 )
 from AnyQt.QtCore import (
     pyqtSignal as Signal, pyqtProperty as Property, pyqtSlot as Slot
@@ -30,15 +30,6 @@ class Annotation(QGraphicsWidget):
     """
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
-
-    if QT_VERSION < 0x40700:
-        geometryChanged = Signal()
-        def setGeometry(self, rect):
-            super().setGeometry(rect)
-            self.geometryChanged.emit()
-    else:
-        def setGeometry(self, rect):
-            super().setGeometry(rect)
 
 
 class GraphicsTextEdit(QGraphicsTextItem):

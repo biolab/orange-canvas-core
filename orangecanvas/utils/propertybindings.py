@@ -9,9 +9,10 @@ import sys
 import ast
 
 from collections import defaultdict
+from functools import reduce
 from operator import add
 
-from AnyQt.QtCore import QObject, QEvent, QT_VERSION
+from AnyQt.QtCore import QObject, QEvent, QMetaProperty
 
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
@@ -19,6 +20,7 @@ from .qtcompat import qunwrap
 
 
 def find_meta_property(obj, name):
+    # type: (QObject, str) -> QMetaProperty
     """
     Return a named (`name`) `QMetaProperty` of a `QObject` instance `obj`.
     If a property by taht name does not exist raise an AttributeError.
@@ -37,9 +39,6 @@ def find_notifier(obj, name):
     """
     Return the notifier signal name (`str`) for the property of
     `object` (instance of `QObject`).
-
-    .. todo: Should it return a QMetaMethod instead?
-
     """
     prop_meta = find_meta_property(obj, name)
     if not prop_meta.hasNotifySignal():
@@ -47,10 +46,7 @@ def find_notifier(obj, name):
                         name)
 
     notifier = prop_meta.notifySignal()
-    if QT_VERSION < 0x50000:
-        name = notifier.signature().split("(")[0]
-    else:
-        name = bytes(notifier.methodSignature()).decode("utf-8").split("(")[0]
+    name = bytes(notifier.methodSignature()).decode("utf-8").split("(")[0]
     return name
 
 
