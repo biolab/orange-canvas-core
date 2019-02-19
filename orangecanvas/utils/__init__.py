@@ -1,11 +1,7 @@
-import sys
+import warnings
+from functools import reduce
 
-from .qtcompat import sip_getapi, toPyObject
-
-if sys.version_info < (3, ):
-    _builtins_name = "__builtin__"
-else:
-    _builtins_name = "builtins"
+from .qtcompat import toPyObject
 
 
 def dotted_getattr(obj, name):
@@ -19,7 +15,7 @@ def qualified_name(obj):
     """
     Return a qualified name for `obj` (type or function).
     """
-    if obj.__name__ == _builtins_name:
+    if obj.__name__ == "builtins":
         return obj.__name__
     else:
         return "%s.%s" % (obj.__module__, obj.__name__)
@@ -30,7 +26,7 @@ def name_lookup(qualified_name):
     Return the object referenced by a qualified name (dotted name).
     """
     if "." not in qualified_name:
-        qualified_name = _builtins_name + "." + qualified_name
+        qualified_name = "builtins." + qualified_name
 
     module_name, class_name = qualified_name.rsplit(".", 1)
     module = __import__(module_name, fromlist=[class_name])

@@ -3,11 +3,9 @@ Tests for settings utility module.
 
 """
 import logging
-import tempfile
 
 from AnyQt.QtCore import QSettings
 from ..settings import Settings, config_slot
-
 from ...gui import test
 
 
@@ -101,20 +99,3 @@ class TestUserSettings(test.QAppTestCase):
         settings.clear()
         self.assertSetEqual(set(settings.keys()),
                             set(["foo", "bar", "foobar/foo"]))
-
-    def test_qsettings_type(self):
-        """
-        Test if QSettings as exported by qtcompat has the 'type' parameter.
-        """
-        with tempfile.NamedTemporaryFile("w+b", suffix=".ini",
-                                         delete=False) as f:
-            settings = QSettings(f.name, QSettings.IniFormat)
-            settings.setValue("bar", "foo")
-
-            self.assertEqual(settings.value("bar", type=str), "foo")
-            settings.setValue("frob", 4)
-
-            del settings
-            settings = QSettings(f.name, QSettings.IniFormat)
-            self.assertEqual(settings.value("bar", type=str), "foo")
-            self.assertEqual(settings.value("frob", type=int), 4)
