@@ -1161,16 +1161,21 @@ class CanvasMainWindow(QMainWindow):
         The old scheme will be deleted.
         """
         self.__is_transient = False
+        freeze = self.freeze_action.isChecked()
         scheme_doc = self.current_document()
         old_scheme = scheme_doc.scheme()
         manager = getattr(new_scheme, "signal_manager", None)
-        if self.freeze_action.isChecked() and manager is not None:
+        if freeze and manager is not None:
             manager.pause()
         wm = getattr(new_scheme, "widget_manager", None)
         if wm is not None:
             wm.set_float_widgets_on_top(
                 self.float_widgets_on_top_action.isChecked()
             )
+            wm.set_creation_policy(
+                wm.OnDemand if freeze else wm.Normal
+            )
+
         scheme_doc.setScheme(new_scheme)
 
         # Send a close event to the Scheme, it is responsible for
@@ -1546,6 +1551,11 @@ class CanvasMainWindow(QMainWindow):
                 manager.pause()
             else:
                 manager.resume()
+        wm = getattr(scheme, "widget_manager", None)
+        if wm is not None:
+            wm.set_creation_policy(
+                wm.OnDemand if freeze else wm.Normal
+            )
 
     def remove_selected(self):
         """Remove current scheme selection.
