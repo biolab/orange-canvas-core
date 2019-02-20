@@ -4,7 +4,7 @@ import multiprocessing.pool
 from datetime import datetime
 from threading import current_thread
 
-from AnyQt.QtCore import Qt, QThread, QTimer
+from AnyQt.QtCore import Qt, QThread, QTimer, QCoreApplication, QEvent
 from ...gui.test import QAppTestCase
 
 from ..outputview import OutputView, TextStream, ExceptHook
@@ -106,8 +106,13 @@ class TestOutputView(QAppTestCase):
 
         res.wait()
 
+        # force all pending enqueued emits
+        QCoreApplication.sendPostedEvents(blue, QEvent.MetaCall)
+        QCoreApplication.sendPostedEvents(red, QEvent.MetaCall)
+        self.app.processEvents()
+
         self.assertTrue(all(correct))
-        self.assertTrue(len(correct) == 10000)
+        self.assertEqual(len(correct), 10000)
 
     def test_excepthook(self):
         output = OutputView()
