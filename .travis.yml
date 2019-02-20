@@ -1,0 +1,27 @@
+language: python
+
+dist: xenial
+
+python:
+  - "3.5"
+  - "3.6"
+  - "3.7"
+
+env:
+  global:
+    - TEST_ENV=PyQt5~=5.9.2
+    - XVFBARGS="-screen 0 1280x1024x24"
+
+matrix:
+  fast_finish: false
+
+cache:
+    pip: true
+
+install:
+  - pip install $TEST_ENV
+  - pip install -e .
+
+script:
+  - catchsegv xvfb-run -a -s "$XVFBARGS" python -m unittest discover -v .
+
