@@ -183,6 +183,9 @@ class SignalManager(QObject):
             return
 
         if self.__workflow is not None:
+            for link in self.__workflow.links:
+                link.enabled_changed.disconnect(self.link_enabled_changed)
+
             self.__workflow.node_added.disconnect(self.on_node_added)
             self.__workflow.node_removed.disconnect(self.on_node_removed)
             self.__workflow.link_added.disconnect(self.link_added)
@@ -200,6 +203,8 @@ class SignalManager(QObject):
             workflow.link_removed.connect(self.link_removed)
             for node in workflow.nodes:
                 self.__node_outputs[node] = defaultdict(dict)
+            for link in workflow.links:
+                link.enabled_changed.connect(self.link_enabled_changed)
             workflow.installEventFilter(self)
 
     def has_pending(self):
