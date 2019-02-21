@@ -89,10 +89,13 @@ class WidgetManager(QObject):
         """
         Set the workflow.
         """
+        if workflow is self.__workflow:
+            return
+
         if self.__workflow is not None:
             # cleanup
             for node in self.__workflow.nodes:
-                self.__on_node_removed(node)
+                self.__remove_node(node)
             self.__workflow.node_added.disconnect(self.__on_node_added)
             self.__workflow.node_removed.disconnect(self.__on_node_removed)
             self.__workflow.link_added.disconnect(self.__on_link_added)
@@ -100,9 +103,6 @@ class WidgetManager(QObject):
             self.__workflow.removeEventFilter(self)
 
         self.__workflow = workflow
-
-        for node in workflow.nodes:
-            self.__on_node_added(node)
 
         workflow.node_added.connect(
             self.__on_node_added, Qt.UniqueConnection)
@@ -113,6 +113,8 @@ class WidgetManager(QObject):
         workflow.link_removed.connect(
             self.__on_link_removed, Qt.UniqueConnection)
         workflow.installEventFilter(self)
+        for node in workflow.nodes:
+            self.__add_node(node)
 
     def workflow(self):
         return self.__workflow
@@ -249,6 +251,10 @@ class WidgetManager(QObject):
         assert self.__workflow is not None
         assert node in self.__workflow.nodes
         assert node not in self.__item_for_node
+        self.__add_node(node)
+
+    def __add_node(self, node): # type: (SchemeNode) -> None
+        # add node for tracking
         node.installEventFilter(self)
         if self.__creation_policy == WidgetManager.Immediate:
             self.ensure_created(node)
@@ -259,6 +265,10 @@ class WidgetManager(QObject):
     def __on_node_removed(self, node):  # type: (SchemeNode) -> None
         assert self.__workflow is not None
         assert node not in self.__workflow.nodes
+        self.__remove_node(node)
+
+    def __remove_node(self, node):  # type: (SchemeNode) -> None
+        # remove the node and its widget from tracking.
         node.removeEventFilter(self)
         if node in self.__init_queue:
             self.__init_queue.remove(node)
