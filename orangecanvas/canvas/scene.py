@@ -204,6 +204,8 @@ class CanvasScene(QGraphicsScene):
         for annot in scheme.annotations:
             self.add_annotation(annot)
 
+        self.__anchor_layout.activate()
+
     def set_registry(self, registry):
         """
         Set the widget registry.

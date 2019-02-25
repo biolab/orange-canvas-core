@@ -6,7 +6,6 @@ Orange Canvas Configuration
 import os
 import sys
 import logging
-import pickle
 import warnings
 
 from distutils.version import LooseVersion
@@ -324,33 +323,6 @@ def save_config():
         "save_config was never used and will be removed in the future",
         DeprecationWarning, stacklevel=2
     )
-
-
-def recent_schemes():
-    """Return a list of recently accessed schemes.
-    """
-    app_dir = data_dir()
-    recent_filename = os.path.join(app_dir, "recent.pck")
-    recent = []
-    if os.path.isdir(app_dir) and os.path.isfile(recent_filename):
-        with open(recent_filename, "rb") as f:
-            recent = pickle.load(f)
-
-    # Filter out files not found on the file system
-    recent = [(title, path) for title, path in recent \
-              if os.path.exists(path)]
-    return recent
-
-
-def save_recent_scheme_list(scheme_list):
-    """Save the list of recently accessed schemes
-    """
-    app_dir = data_dir()
-    recent_filename = os.path.join(app_dir, "recent.pck")
-
-    if os.path.isdir(app_dir):
-        with open(recent_filename, "wb") as f:
-            pickle.dump(scheme_list, f)
 
 
 def widgets_entry_points():

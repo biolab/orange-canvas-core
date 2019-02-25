@@ -6,8 +6,12 @@ Here defined are events dispatched to and from an Scheme workflow
 instance.
 
 """
+import typing
 
 from AnyQt.QtCore import QEvent
+
+if typing.TYPE_CHECKING:
+    from orangecanvas.scheme import SchemeLink, SchemeNode, BaseSchemeAnnotation
 
 __all__ = ["WorkflowEvent", "NodeEvent", "LinkEvent", "AnnotationEvent"]
 
@@ -21,6 +25,14 @@ class WorkflowEvent(QEvent):
     LinkAdded = QEvent.registerEventType()
     #: A Link has been removed from the scheme
     LinkRemoved = QEvent.registerEventType()
+    #: An input Link has been added to a node
+    InputLinkAdded = QEvent.registerEventType()
+    #: An output Link has been added to a node
+    OutputLinkAdded = QEvent.registerEventType()
+    #: Node's (runtime) state has changed
+    InputLinkRemoved = QEvent.registerEventType()
+    #: An output Link has been added to a node
+    OutputLinkRemoved = QEvent.registerEventType()
     #: Node's (runtime) state has changed
     NodeStateChange = QEvent.registerEventType()
     #: Link's (runtime) state has changed
@@ -58,6 +70,7 @@ class WorkflowEvent(QEvent):
 
 class NodeEvent(WorkflowEvent):
     def __init__(self, etype, node):
+        # type: (QEvent.Type, SchemeNode) -> None
         WorkflowEvent.__init__(self, etype)
         self.__node = node
 
@@ -67,6 +80,7 @@ class NodeEvent(WorkflowEvent):
 
 class LinkEvent(WorkflowEvent):
     def __init__(self, etype, link):
+        # type: (QEvent.Type, SchemeLink) -> None
         WorkflowEvent.__init__(self, etype)
         self.__link = link
 
@@ -76,6 +90,7 @@ class LinkEvent(WorkflowEvent):
 
 class AnnotationEvent(WorkflowEvent):
     def __init__(self, etype, annotation):
+        # type: (QEvent.Type, BaseSchemeAnnotation) -> None
         WorkflowEvent.__init__(self, etype)
         self.__annotation = annotation
 
