@@ -7,8 +7,6 @@ import logging
 
 from xml.sax import make_parser, handler, saxutils, SAXParseException
 
-import six
-
 from ..scheme.readwrite import scheme_load
 log = logging.getLogger(__name__)
 

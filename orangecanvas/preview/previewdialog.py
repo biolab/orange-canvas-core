@@ -18,7 +18,7 @@ class PreviewDialog(QDialog):
 
     def __init__(self, parent=None, flags=Qt.WindowFlags(0),
                  model=None, **kwargs):
-        QDialog.__init__(self, parent, flags, **kwargs)
+        super().__init__(parent, flags, **kwargs)
 
         self.__setupUi()
         if model is not None:
@@ -30,7 +30,7 @@ class PreviewDialog(QDialog):
         self.setContentsMargins(0, 0, 0, 0)
 
         heading = self.tr("Preview")
-        heading = u"<h3>{0}</h3>".format(heading)
+        heading = "<h3>{0}</h3>".format(heading)
         self.__heading = QLabel(heading, self,
                                 objectName="heading")
 

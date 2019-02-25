@@ -5,8 +5,6 @@ Widget Discovery Utilities
 """
 import sys
 
-import six
-
 from .description import (
     WidgetDescription, WidgetSpecificationError,
     CategoryDescription, CategorySpecificationError,
@@ -31,7 +29,7 @@ def widget_from_module_globals(module):
         as a string (a qualified import name).
 
     """
-    if isinstance(module, six.string_types):
+    if isinstance(module, str):
         module = __import__(module, fromlist=[""])
 
     module_name = module.__name__.rsplit(".", 1)[-1]
@@ -126,7 +124,7 @@ def category_from_package_globals(package):
         as a string (qualified import name).
 
     """
-    if isinstance(package, six.string_types):
+    if isinstance(package, str):
         package = __import__(package, fromlist=[""])
 
     package_name = package.__name__

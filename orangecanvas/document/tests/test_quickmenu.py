@@ -1,7 +1,5 @@
-from __future__ import print_function
-
 from AnyQt.QtWidgets import QAction
-from AnyQt.QtCore import QPoint, QStringListModel, QTimer
+from AnyQt.QtCore import QPoint, QStringListModel
 from AnyQt.QtTest import QTest
 
 from ..quickmenu import QuickMenu, SuggestMenuPage, FlattenedTreeItemModel, \
@@ -10,7 +8,6 @@ from ..quickmenu import QuickMenu, SuggestMenuPage, FlattenedTreeItemModel, \
 from ...gui.test import QAppTestCase
 from ...registry.qt import QtWidgetRegistry
 from ...registry.tests import small_testing_registry
-from ...utils import qtcompat
 
 
 class TestMenu(QAppTestCase):
@@ -85,7 +82,7 @@ class TestMenu(QAppTestCase):
         flat.setSourceModel(model)
 
         def get(row):
-            return qtcompat.qunwrap(flat.index(row, 0).data())
+            return flat.index(row, 0).data()
 
         self.assertEqual(get(0), "0")
         self.assertEqual(get(1), "1")

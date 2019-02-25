@@ -9,16 +9,16 @@ import sys
 import ast
 
 from collections import defaultdict
+from functools import reduce
 from operator import add
 
-from AnyQt.QtCore import QObject, QEvent, QT_VERSION
+from AnyQt.QtCore import QObject, QEvent, QMetaProperty
 
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
-from .qtcompat import qunwrap
-
 
 def find_meta_property(obj, name):
+    # type: (QObject, str) -> QMetaProperty
     """
     Return a named (`name`) `QMetaProperty` of a `QObject` instance `obj`.
     If a property by taht name does not exist raise an AttributeError.
@@ -37,9 +37,6 @@ def find_notifier(obj, name):
     """
     Return the notifier signal name (`str`) for the property of
     `object` (instance of `QObject`).
-
-    .. todo: Should it return a QMetaMethod instead?
-
     """
     prop_meta = find_meta_property(obj, name)
     if not prop_meta.hasNotifySignal():
@@ -47,10 +44,7 @@ def find_notifier(obj, name):
                         name)
 
     notifier = prop_meta.notifySignal()
-    if QT_VERSION < 0x50000:
-        name = notifier.signature().split("(")[0]
-    else:
-        name = bytes(notifier.methodSignature()).decode("utf-8").split("(")[0]
+    name = bytes(notifier.methodSignature()).decode("utf-8").split("(")[0]
     return name
 
 
@@ -63,7 +57,7 @@ class AbstractBoundProperty(QObject):
     """Emited when the property changes"""
 
     def __init__(self, obj, propertyName, parent=None):
-        QObject.__init__(self, parent)
+        super().__init__(parent)
 
         self.obj = obj
         self.propertyName = propertyName
@@ -80,7 +74,7 @@ class AbstractBoundProperty(QObject):
         """
         Return the property value.
         """
-        return qunwrap(self.obj.property(self.propertyName))
+        return self.obj.property(self.propertyName)
 
     @Slot()
     def notifyChanged(self):
@@ -138,6 +132,8 @@ class AbstractBoundProperty(QObject):
 
 class PropertyBindingExpr(AbstractBoundProperty):
     def __init__(self, expression, globals={}, locals={}, parent=None):
+        # skip the AbstractBoundProperty's __init__. Despite its name it is
+        # not an abstract.
         QObject.__init__(self, parent)
 
         self.ast = ast.parse(expression, mode="eval")
@@ -191,7 +187,7 @@ class PropertyBinding(AbstractBoundProperty):
 
     """
     def __init__(self, obj, propertyName, notifier=None, parent=None):
-        AbstractBoundProperty.__init__(self, obj, propertyName, parent)
+        super().__init__(obj, propertyName, parent)
 
         if notifier is None:
             notifier = find_notifier(obj, propertyName)
@@ -206,15 +202,14 @@ class PropertyBinding(AbstractBoundProperty):
 
     def _on_destroyed(self):
         self.notifierSignal = None
-
-        AbstractBoundProperty._on_destroyed(self)
+        super()._on_destroyed()
 
     def reset(self):
         meta_prop = find_meta_property(self, self.obj, self.propertyName)
         if meta_prop.isResetable():
             meta_prop.reset(self.obj)
         else:
-            return AbstractBoundProperty.reset(self)
+            return super().reset()
 
 
 class DynamicPropertyBinding(AbstractBoundProperty):
@@ -222,7 +217,7 @@ class DynamicPropertyBinding(AbstractBoundProperty):
     A Property binding of a QObject's dynamic property.
     """
     def __init__(self, obj, propertyName, parent=None):
-        AbstractBoundProperty.__init__(self, obj, propertyName, parent)
+        super().__init__(obj, propertyName, parent)
 
         obj.installEventFilter(self)
 
@@ -231,7 +226,7 @@ class DynamicPropertyBinding(AbstractBoundProperty):
             if event.propertyName() == self.propertyName:
                 self.notifyChanged()
 
-        return AbstractBoundProperty.eventFilter(self, obj, event)
+        return super().eventFilter(obj, event)
 
 
 class BindingManager(QObject):
@@ -242,7 +237,7 @@ class BindingManager(QObject):
     Default = 0 if sys.platform == "darwin" else 1
 
     def __init__(self, parent=None, submitPolicy=Default):
-        QObject.__init__(self, parent)
+        super().__init__(parent)
         self._bindings = defaultdict(list)
         self._modified = set()
         self.__submitPolicy = submitPolicy

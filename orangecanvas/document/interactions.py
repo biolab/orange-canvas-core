@@ -16,9 +16,6 @@ All interactions are subclasses of :class:`UserInteraction`.
 import logging
 from functools import reduce
 
-import six
-
-
 from AnyQt.QtWidgets import QApplication, QGraphicsRectItem, QUndoCommand
 from AnyQt.QtGui import QPen, QBrush, QColor, QFontMetrics
 from AnyQt.QtCore import (
@@ -35,7 +32,6 @@ from ..canvas.items import controlpoints
 from ..gui.quickhelp import QuickHelpTipEvent
 from . import commands
 from .editlinksdialog import EditLinksDialog
-from ..utils.qtcompat import qunwrap
 
 log = logging.getLogger(__name__)
 
@@ -81,7 +77,7 @@ class UserInteraction(QObject):
     canceled = Signal([], [int])
 
     def __init__(self, document, parent=None, deleteOnEnd=True):
-        QObject.__init__(self, parent)
+        super().__init__(parent)
         self.document = document
         self.scene = document.scene()
         self.scheme = document.scheme()
@@ -231,7 +227,7 @@ class NewLinkAction(UserInteraction):
     FROM_SINK = 2
 
     def __init__(self, document, *args, **kwargs):
-        UserInteraction.__init__(self, document, *args, **kwargs)
+        super().__init__(document, *args, **kwargs)
         self.source_item = None
         self.sink_item = None
         self.from_item = None
@@ -476,7 +472,7 @@ class NewLinkAction(UserInteraction):
         menu.setSortingFunc(sort)
 
         def filter(index):
-            desc = qunwrap(index.data(QtWidgetRegistry.WIDGET_DESC_ROLE))
+            desc = index.data(QtWidgetRegistry.WIDGET_DESC_ROLE)
             if isinstance(desc, WidgetDescription):
                 return is_compatible(from_desc, desc)
             else:
@@ -489,8 +485,8 @@ class NewLinkAction(UserInteraction):
             menu.setFilterFunc(None)
 
         if action:
-            item = qunwrap(action.property("item"))
-            desc = qunwrap(item.data(QtWidgetRegistry.WIDGET_DESC_ROLE))
+            item = action.property("item")
+            desc = item.data(QtWidgetRegistry.WIDGET_DESC_ROLE)
             pos = event.scenePos()
             # a new widget should be placed so that the connection
             # stays as it was
@@ -652,11 +648,11 @@ class NewLinkAction(UserInteraction):
         self.macro = None
         helpevent = QuickHelpTipEvent("", "")
         QCoreApplication.postEvent(self.document, helpevent)
-        UserInteraction.end(self)
+        super().end()
 
     def cancel(self, reason=UserInteraction.OtherReason):
         self.cleanup()
-        UserInteraction.cancel(self, reason)
+        super().cancel(reason)
 
     def cleanup(self):
         """
@@ -804,8 +800,8 @@ class NewNodeAction(UserInteraction):
 
         action = menu.exec_(pos, search_text)
         if action:
-            item = qunwrap(action.property("item"))
-            desc = qunwrap(item.data(QtWidgetRegistry.WIDGET_DESC_ROLE))
+            item = action.property("item")
+            desc = item.data(QtWidgetRegistry.WIDGET_DESC_ROLE)
             # Get the scene position
             view = self.document.view()
             pos = view.mapToScene(view.mapFromGlobal(pos))
@@ -821,7 +817,7 @@ class RectangleSelectionAction(UserInteraction):
     Select items in the scene using a Rectangle selection
     """
     def __init__(self, document, *args, **kwargs):
-        UserInteraction.__init__(self, document, *args, **kwargs)
+        super().__init__(document, *args, **kwargs)
         # The initial selection at drag start
         self.initial_selection = None
         # Selection when last updated in a mouseMoveEvent
@@ -931,7 +927,7 @@ class RectangleSelectionAction(UserInteraction):
         self.rect_item.hide()
         if self.rect_item.scene() is not None:
             self.scene.removeItem(self.rect_item)
-        UserInteraction.end(self)
+        super().end()
 
     def viewport_rect(self):
         """
@@ -968,7 +964,7 @@ class EditNodeLinksAction(UserInteraction):
 
     """
     def __init__(self, document, source_node, sink_node, *args, **kwargs):
-        UserInteraction.__init__(self, document, *args, **kwargs)
+        super().__init__(document, *args, **kwargs)
         self.source_node = source_node
         self.sink_node = sink_node
 
@@ -1054,7 +1050,7 @@ class NewArrowAnnotation(UserInteraction):
     Create a new arrow annotation handler.
     """
     def __init__(self, document, *args, **kwargs):
-        UserInteraction.__init__(self, document, *args, **kwargs)
+        super().__init__(document, *args, **kwargs)
         self.down_pos = None
         self.arrow_item = None
         self.annotation = None
@@ -1073,7 +1069,7 @@ class NewArrowAnnotation(UserInteraction):
         )
         QCoreApplication.postEvent(self.document, helpevent)
 
-        UserInteraction.start(self)
+        super().start()
 
     def setColor(self, color):
         """
@@ -1138,7 +1134,7 @@ class NewArrowAnnotation(UserInteraction):
         helpevent = QuickHelpTipEvent("", "")
         QCoreApplication.postEvent(self.document, helpevent)
 
-        UserInteraction.end(self)
+        super().end()
 
 
 def rect_to_tuple(rect):
@@ -1153,7 +1149,7 @@ class NewTextAnnotation(UserInteraction):
     A New Text Annotation interaction handler
     """
     def __init__(self, document, *args, **kwargs):
-        UserInteraction.__init__(self, document, *args, **kwargs)
+        super().__init__(document, *args, **kwargs)
         self.down_pos = None
         self.annotation_item = None
         self.annotation = None
@@ -1177,14 +1173,14 @@ class NewTextAnnotation(UserInteraction):
         )
         QCoreApplication.postEvent(self.document, helpevent)
 
-        UserInteraction.start(self)
+        super().start()
 
     def createNewAnnotation(self, rect):
         """
         Create a new TextAnnotation at with `rect` as the geometry.
         """
         annot = scheme.SchemeTextAnnotation(rect_to_tuple(rect))
-        font = {"family": six.text_type(self.font.family()),
+        font = {"family": self.font.family(),
                 "size": self.font.pixelSize()}
         annot.set_font(font)
 
@@ -1277,7 +1273,7 @@ class NewTextAnnotation(UserInteraction):
         helpevent = QuickHelpTipEvent("", "")
         QCoreApplication.postEvent(self.document, helpevent)
 
-        UserInteraction.end(self)
+        super().end()
 
 
 class ResizeTextAnnotation(UserInteraction):
@@ -1285,7 +1281,7 @@ class ResizeTextAnnotation(UserInteraction):
     Resize a Text Annotation interaction handler.
     """
     def __init__(self, document, *args, **kwargs):
-        UserInteraction.__init__(self, document, *args, **kwargs)
+        super().__init__(document, *args, **kwargs)
         self.item = None
         self.annotation = None
         self.control = None
@@ -1300,7 +1296,7 @@ class ResizeTextAnnotation(UserInteraction):
                 self.editItem(item)
                 return False
 
-        return UserInteraction.mousePressEvent(self, event)
+        return super().mousePressEvent(event)
 
     def editItem(self, item):
         annotation = self.scene.annotation_for_item(item)
@@ -1352,8 +1348,7 @@ class ResizeTextAnnotation(UserInteraction):
         log.debug("ResizeTextAnnotation.cancel(%s)", reason)
         if self.item is not None and self.savedRect is not None:
             self.item.setGeometry(self.savedRect)
-
-        UserInteraction.cancel(self, reason)
+        super().cancel(reason)
 
     def end(self):
         if self.control is not None:
@@ -1366,7 +1361,7 @@ class ResizeTextAnnotation(UserInteraction):
         self.annotation = None
         self.control = None
 
-        UserInteraction.end(self)
+        super().end()
 
 
 class ResizeArrowAnnotation(UserInteraction):
@@ -1374,7 +1369,7 @@ class ResizeArrowAnnotation(UserInteraction):
     Resize an Arrow Annotation interaction handler.
     """
     def __init__(self, document, *args, **kwargs):
-        UserInteraction.__init__(self, document, *args, **kwargs)
+        super().__init__(document, *args, **kwargs)
         self.item = None
         self.annotation = None
         self.control = None
@@ -1388,7 +1383,7 @@ class ResizeArrowAnnotation(UserInteraction):
                 self.editItem(item)
                 return False
 
-        return UserInteraction.mousePressEvent(self, event)
+        return super().mousePressEvent(event)
 
     def editItem(self, item):
         annotation = self.scene.annotation_for_item(item)
@@ -1450,7 +1445,7 @@ class ResizeArrowAnnotation(UserInteraction):
         if self.item is not None and self.savedLine is not None:
             self.item.setLine(self.savedLine)
 
-        UserInteraction.cancel(self, reason)
+        super().cancel(reason)
 
     def end(self):
         if self.control is not None:
@@ -1463,4 +1458,4 @@ class ResizeArrowAnnotation(UserInteraction):
         self.item = None
         self.annotation = None
 
-        UserInteraction.end(self)
+        super().end()

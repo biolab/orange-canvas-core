@@ -15,11 +15,10 @@ class CanvasApplication(QApplication):
         if hasattr(Qt, "AA_EnableHighDpiScaling"):
             # Turn on HighDPI support when available
             QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
-        QApplication.__init__(self, argv)
+        super().__init__(argv)
         self.setAttribute(Qt.AA_DontShowIconsInMenus, True)
 
     def event(self, event):
         if event.type() == QEvent.FileOpen:
             self.fileOpenRequest.emit(event.url())
-
-        return QApplication.event(self, event)
+        return super().event(event)

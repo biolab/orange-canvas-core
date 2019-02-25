@@ -11,9 +11,8 @@ import sip
 from AnyQt.QtWidgets import QGraphicsObject, QApplication
 from AnyQt.QtCore import QRectF, QLineF, QEvent
 
-from .items import NodeItem, LinkItem, SourceAnchorItem, SinkAnchorItem
+from .items import LinkItem, SourceAnchorItem, SinkAnchorItem
 from .items.utils import invert_permutation_indices, linspace
-from functools import reduce
 
 
 def composition(f, g):
@@ -26,7 +25,7 @@ def composition(f, g):
 
 class AnchorLayout(QGraphicsObject):
     def __init__(self, parent=None, **kwargs):
-        QGraphicsObject.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.setFlag(QGraphicsObject.ItemHasNoContents)
 
         self.__layoutPending = False
@@ -88,16 +87,6 @@ class AnchorLayout(QGraphicsObject):
 
         self.__invalidatedAnchors = []
 
-    def invalidate(self):
-        items = self.scene().items()
-        nodes = [item for item in items is isinstance(item, NodeItem)]
-        anchors = reduce(add,
-                         [[node.outputAnchorItem, node.inputAnchorItem]
-                          for node in nodes],
-                         [])
-        self.__invalidatedAnchors.extend(anchors)
-        self.scheduleDelayedActivate()
-
     def invalidateLink(self, link):
         self.invalidateAnchorItem(link.sourceItem.outputAnchorItem)
         self.invalidateAnchorItem(link.sinkItem.inputAnchorItem)
@@ -143,7 +132,7 @@ class AnchorLayout(QGraphicsObject):
             self.activate()
             return True
 
-        return QGraphicsObject.event(self, event)
+        return super().event(event)
 
 
 def angle(point1, point2):

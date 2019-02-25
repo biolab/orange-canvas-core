@@ -1,7 +1,5 @@
 from collections import Callable
 
-import six
-
 from AnyQt.QtWidgets import QTextBrowser
 from AnyQt.QtGui import QStatusTipEvent, QWhatsThisClickedEvent
 from AnyQt.QtCore import QObject, QCoreApplication, QEvent, QTimer, QUrl
@@ -14,7 +12,7 @@ class QuickHelp(QTextBrowser):
     textChanged = Signal()
 
     def __init__(self, *args, **kwargs):
-        QTextBrowser.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.setOpenExternalLinks(False)
         self.setOpenLinks(False)
@@ -35,7 +33,7 @@ class QuickHelp(QTextBrowser):
 
         """
         if self.__text != text:
-            self.__text = six.text_type(text)
+            self.__text = text
             self.__update()
             self.textChanged.emit()
 
@@ -100,7 +98,7 @@ class QuickHelpTipEvent(QStatusTipEvent):
     Temporary, Normal, Permanent = range(1, 4)
 
     def __init__(self, tip, html=None, priority=Normal, timeout=None):
-        QStatusTipEvent.__init__(self, tip)
+        super().__init__(tip)
         self.__html = html or ""
         self.__priority = priority
         self.__timeout = timeout
@@ -117,7 +115,7 @@ class QuickHelpTipEvent(QStatusTipEvent):
 
 class QuickHelpDetailRequestEvent(QWhatsThisClickedEvent):
     def __init__(self, href, url):
-        QWhatsThisClickedEvent.__init__(self, href)
+        super().__init__(href)
         self.__url = QUrl(url)
 
     def url(self):
@@ -146,4 +144,4 @@ class StatusTipPromoter(QObject):
                 ev = QuickHelpTipEvent(tip, text if tip else "")
                 return QCoreApplication.sendEvent(obj, ev)
 
-        return QObject.eventFilter(self, obj, event)
+        return super().eventFilter(obj, event)

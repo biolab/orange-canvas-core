@@ -11,17 +11,11 @@ import logging
 
 from collections import namedtuple, MutableMapping
 
-import six
-
 from AnyQt.QtCore import QObject, QEvent, QCoreApplication, QSettings
 from AnyQt.QtCore import pyqtSignal as Signal
 
 _QObjectType = type(QObject)
 
-from . import toPyObject
-
-# Import QSettings from qtcompat module (compatibility with PyQt < 4.8.3
-from .qtcompat import QSettings
 
 log = logging.getLogger(__name__)
 
@@ -56,7 +50,7 @@ class SettingChangedEvent(QEvent):
         """
         Initialize the event instance
         """
-        QEvent.__init__(self, etype)
+        super().__init__(etype)
         self.__key = key
         self.__value = value
         self.__oldValue = oldValue
@@ -74,17 +68,10 @@ class SettingChangedEvent(QEvent):
 def qt_to_mapped_type(value):
     """
     Try to convert a Qt value to the corresponding python mapped type
-    (i.e. QString to unicode, etc.).
+    (i.e. QString to str, etc.).
 
     """
     return value
-
-    if isinstance(value, QString):
-        return six.text_type(value)
-    elif isinstance(value, QChar):
-        return str(value)
-    else:
-        return value
 
 
 class QABCMeta(_QObjectType, abc.ABCMeta):
@@ -97,16 +84,17 @@ class _pickledvalue(object):
     def __init__(self, value):
         self.value = value
 
-class Settings(six.with_metaclass(QABCMeta, QObject, MutableMapping)):
+
+class Settings(QObject, MutableMapping, metaclass=QABCMeta):
     """
     A `dict` like interface to a QSettings store.
     """
-    valueChanged = Signal(six.text_type, object)
-    valueAdded = Signal(six.text_type, object)
-    keyRemoved = Signal(six.text_type)
+    valueChanged = Signal(str, object)
+    valueAdded = Signal(str, object)
+    keyRemoved = Signal(str)
 
     def __init__(self, parent=None, defaults=(), path=None, store=None):
-        QObject.__init__(self, parent)
+        super().__init__(parent)
 
         if store is None:
             store = QSettings()
@@ -166,13 +154,13 @@ class Settings(six.with_metaclass(QABCMeta, QObject, MutableMapping)):
         typesafe = value_type is not None
 
         if value_type is None:
-            value = toPyObject(self.__store.value(fullkey))
+            value = self.__store.value(fullkey)
         else:
             try:
                 value = self.__store.value(fullkey, type=value_type)
             except TypeError:
                 # In case the value was pickled in a type unsafe mode
-                value = toPyObject(self.__store.value(fullkey))
+                value = self.__store.value(fullkey)
                 typesafe = False
 
         if not typesafe:
@@ -220,7 +208,7 @@ class Settings(six.with_metaclass(QABCMeta, QObject, MutableMapping)):
         """
         Set the setting for key.
         """
-        if not isinstance(key, six.string_types):
+        if not isinstance(key, str):
             raise TypeError(key)
 
         fullkey = self.__key(key)
@@ -259,8 +247,7 @@ class Settings(six.with_metaclass(QABCMeta, QObject, MutableMapping)):
     def __iter__(self):
         """Return an iterator over over all keys.
         """
-        keys = list(map(six.text_type, self.__store.allKeys())) + \
-               list(self.__defaults.keys())
+        keys = self.__store.allKeys() + list(self.__defaults.keys())
 
         if self.__path:
             path = self.__path + "/"
@@ -330,10 +317,10 @@ class Settings(six.with_metaclass(QABCMeta, QObject, MutableMapping)):
         """
         Return a list over of all values in the settings.
         """
-        return MutableMapping.values(self)
+        return super().values(self)
 
     def customEvent(self, event):
-        QObject.customEvent(self, event)
+        super().customEvent(event)
 
         if isinstance(event, SettingChangedEvent):
             if event.type() == SettingChangedEvent.SettingChanged:

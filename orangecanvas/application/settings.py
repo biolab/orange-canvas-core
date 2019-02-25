@@ -9,7 +9,6 @@ from collections import namedtuple
 
 from .. import config
 from ..utils.settings import SettingChangedEvent
-from ..utils.qtcompat import QSettings, qunwrap
 
 from ..utils.propertybindings import (
     AbstractBoundProperty, PropertyBinding, BindingManager
@@ -22,7 +21,7 @@ from AnyQt.QtWidgets import (
 )
 from AnyQt.QtGui import QStandardItemModel, QStandardItem
 from AnyQt.QtCore import (
-    Qt, QEventLoop, QAbstractItemModel, QModelIndex
+    Qt, QEventLoop, QAbstractItemModel, QModelIndex, QSettings
 )
 
 log = logging.getLogger(__name__)
@@ -35,7 +34,7 @@ class UserDefaultsPropertyBinding(AbstractBoundProperty):
 
     """
     def __init__(self, obj, propertyName, parent=None):
-        AbstractBoundProperty.__init__(self, obj, propertyName, parent)
+        super().__init__(obj, propertyName, parent)
 
         obj.installEventFilter(self)
 
@@ -50,7 +49,7 @@ class UserDefaultsPropertyBinding(AbstractBoundProperty):
                 event.key() == self.propertyName:
             self.notifyChanged()
 
-        return AbstractBoundProperty.eventFilter(self, obj, event)
+        return super().eventFilter(obj, event)
 
 
 class UserSettingsModel(QAbstractItemModel):
@@ -60,7 +59,7 @@ class UserSettingsModel(QAbstractItemModel):
 
     """
     def __init__(self, parent=None, settings=None):
-        QAbstractItemModel.__init__(self, parent)
+        super().__init__(parent)
 
         self.__settings = settings
         self.__headers = ["Name", "Status", "Type", "Value"]
@@ -103,7 +102,7 @@ class UserSettingsModel(QAbstractItemModel):
             if role == Qt.DisplayRole:
                 return self.__headers[section]
 
-        return QAbstractItemModel.headerData(self, section, orientation, role)
+        return super().headerData(section, orientation, role)
 
     def data(self, index, role=Qt.DisplayRole):
         if self._valid(index):
@@ -135,7 +134,6 @@ class UserSettingsModel(QAbstractItemModel):
     def setData(self, index, value, role=Qt.EditRole):
         if self._valid(index) and index.column() == 3:
             key = self._keyFromIndex(index)
-            value = qunwrap(value)
             try:
                 self.__settings[key] = value
             except (TypeError, ValueError) as ex:
@@ -187,7 +185,7 @@ class UserSettingsDialog(QMainWindow):
     MAC_UNIFIED = True
 
     def __init__(self, parent=None, **kwargs):
-        QMainWindow.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.setWindowFlags(Qt.Dialog)
         self.setWindowModality(Qt.ApplicationModal)
 
@@ -474,13 +472,13 @@ class UserSettingsDialog(QMainWindow):
         return status
 
     def hideEvent(self, event):
-        QMainWindow.hideEvent(self, event)
+        super().hideEvent(self, event)
         if self.__loop is not None:
             self.__loop.exit(0)
             self.__loop = None
 
     def __macOnToolBarAction(self, action):
-        index = qunwrap(action.data())
+        index = action.data()
         self.stack.setCurrentIndex(index)
 
 

@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import sys
 import os
 import logging
@@ -12,15 +10,13 @@ import xmlrpc.client
 import json
 import traceback
 import concurrent.futures
+import urllib.request
 
 from collections import namedtuple, deque
 from xml.sax.saxutils import escape
 from distutils import version
 
 from typing import List, Dict, Any, Optional, Union, Tuple, NamedTuple
-
-import future.moves.urllib.request
-from future.moves import urllib
 
 import requests
 import pkg_resources
@@ -49,7 +45,6 @@ from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 from ..gui.utils import message_warning, message_information, \
                         message_critical as message_error
 from ..help.manager import get_dist_meta, trim
-from ..utils.qtcompat import qunwrap
 from .. import config
 
 log = logging.getLogger(__name__)
@@ -168,7 +163,7 @@ class AddonManagerWidget(QWidget):
     statechanged = Signal()
 
     def __init__(self, parent=None, **kwargs):
-        super(AddonManagerWidget, self).__init__(parent, **kwargs)
+        super().__init__(parent, **kwargs)
 
         #: list of Available | Installed
         self.__items = []
@@ -377,7 +372,7 @@ class AddonManagerWidget(QWidget):
             self.__details.setText("")
         else:
             item = self.__model.item(index, 1)
-            item = qunwrap(item.data(Qt.UserRole))
+            item = item.data(Qt.UserRole)
             assert isinstance(item, (Installed, Available))
             text = self._detailed_text(item)
             self.__details.setText(text)
@@ -432,7 +427,7 @@ def method_queued(method, sig, conntype=Qt.QueuedConnection):
 
 class AddonManagerDialog(QDialog):
     def __init__(self, parent=None, **kwargs):
-        super(AddonManagerDialog, self).__init__(parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.setLayout(QVBoxLayout())
 
         self.addonwidget = AddonManagerWidget()
@@ -564,13 +559,13 @@ class AddonManagerDialog(QDialog):
         return self.__progress
 
     def done(self, retcode):
-        super(AddonManagerDialog, self).done(retcode)
+        super().done(retcode)
         if self.__thread is not None:
             self.__thread.quit()
             self.__thread.wait(1000)
 
     def closeEvent(self, event):
-        super(AddonManagerDialog, self).closeEvent(event)
+        super().closeEvent(event)
         if self.__thread is not None:
             self.__thread.quit()
             self.__thread.wait(1000)
@@ -620,11 +615,11 @@ class AddonManagerDialog(QDialog):
 
 class SafeTransport(xmlrpc.client.SafeTransport):
     def __init__(self, use_datetime=0, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
-        super(SafeTransport, self).__init__(use_datetime)
+        super().__init__(use_datetime)
         self._timeout = timeout
 
     def make_connection(self, *args, **kwargs):
-        conn = super(SafeTransport, self).make_connection(*args, **kwargs)
+        conn = super().make_connection(*args, **kwargs)
         conn.timeout = self._timeout
         return conn
 
@@ -836,7 +831,7 @@ class Installer(QObject):
     error = Signal(str, object, int, list)
 
     def __init__(self, parent=None, steps=[]):
-        QObject.__init__(self, parent)
+        super().__init__(parent)
         self.__interupt = False
         self.__queue = deque(steps)
         self.__statusMessage = ""

@@ -9,7 +9,7 @@ from AnyQt.QtWidgets import QUndoCommand
 
 class AddNodeCommand(QUndoCommand):
     def __init__(self, scheme, node, parent=None):
-        QUndoCommand.__init__(self, "Add %s" % node.title, parent)
+        super().__init__("Add %s" % node.title, parent)
         self.scheme = scheme
         self.node = node
 
@@ -22,7 +22,7 @@ class AddNodeCommand(QUndoCommand):
 
 class RemoveNodeCommand(QUndoCommand):
     def __init__(self, scheme, node, parent=None):
-        QUndoCommand.__init__(self, "Remove %s" % node.title, parent)
+        super().__init__("Remove %s" % node.title, parent)
         self.scheme = scheme
         self.node = node
 
@@ -34,18 +34,18 @@ class RemoveNodeCommand(QUndoCommand):
 
     def redo(self):
         # redo child commands
-        QUndoCommand.redo(self)
+        super().redo()
         self.scheme.remove_node(self.node)
 
     def undo(self):
         self.scheme.add_node(self.node)
         # Undo child commands
-        QUndoCommand.undo(self)
+        super().undo()
 
 
 class AddLinkCommand(QUndoCommand):
     def __init__(self, scheme, link, parent=None):
-        QUndoCommand.__init__(self, "Add link", parent)
+        super().__init__("Add link", parent)
         self.scheme = scheme
         self.link = link
 
@@ -58,7 +58,7 @@ class AddLinkCommand(QUndoCommand):
 
 class RemoveLinkCommand(QUndoCommand):
     def __init__(self, scheme, link, parent=None):
-        QUndoCommand.__init__(self, "Remove link", parent)
+        super().__init__("Remove link", parent)
         self.scheme = scheme
         self.link = link
 
@@ -71,7 +71,7 @@ class RemoveLinkCommand(QUndoCommand):
 
 class InsertNodeCommand(QUndoCommand):
     def __init__(self, scheme, new_node, old_link, new_links, parent=None):
-        QUndoCommand.__init__(self, "Insert widget into link", parent)
+        super().__init__("Insert widget into link", parent)
         self.scheme = scheme
         self.inserted_widget = new_node
         self.original_link = old_link
@@ -92,7 +92,7 @@ class InsertNodeCommand(QUndoCommand):
 
 class AddAnnotationCommand(QUndoCommand):
     def __init__(self, scheme, annotation, parent=None):
-        QUndoCommand.__init__(self, "Add annotation", parent)
+        super().__init__("Add annotation", parent)
         self.scheme = scheme
         self.annotation = annotation
 
@@ -105,7 +105,7 @@ class AddAnnotationCommand(QUndoCommand):
 
 class RemoveAnnotationCommand(QUndoCommand):
     def __init__(self, scheme, annotation, parent=None):
-        QUndoCommand.__init__(self, "Remove annotation", parent)
+        super().__init__("Remove annotation", parent)
         self.scheme = scheme
         self.annotation = annotation
 
@@ -118,7 +118,7 @@ class RemoveAnnotationCommand(QUndoCommand):
 
 class MoveNodeCommand(QUndoCommand):
     def __init__(self, scheme, node, old, new, parent=None):
-        QUndoCommand.__init__(self, "Move", parent)
+        super().__init__("Move", parent)
         self.scheme = scheme
         self.node = node
         self.old = old
@@ -133,7 +133,7 @@ class MoveNodeCommand(QUndoCommand):
 
 class ResizeCommand(QUndoCommand):
     def __init__(self, scheme, item, new_geom, parent=None):
-        QUndoCommand.__init__(self, "Resize", parent)
+        super().__init__("Resize", parent)
         self.scheme = scheme
         self.item = item
         self.new_geom = new_geom
@@ -148,7 +148,7 @@ class ResizeCommand(QUndoCommand):
 
 class ArrowChangeCommand(QUndoCommand):
     def __init__(self, scheme, item, new_line, parent=None):
-        QUndoCommand.__init__(self, "Move arrow", parent)
+        super().__init__("Move arrow", parent)
         self.scheme = scheme
         self.item = item
         self.new_line = new_line
@@ -163,7 +163,7 @@ class ArrowChangeCommand(QUndoCommand):
 
 class AnnotationGeometryChange(QUndoCommand):
     def __init__(self, scheme, annotation, old, new, parent=None):
-        QUndoCommand.__init__(self, "Change Annotation Geometry", parent)
+        super().__init__("Change Annotation Geometry", parent)
         self.scheme = scheme
         self.annotation = annotation
         self.old = old
@@ -178,7 +178,7 @@ class AnnotationGeometryChange(QUndoCommand):
 
 class RenameNodeCommand(QUndoCommand):
     def __init__(self, scheme, node, old_name, new_name, parent=None):
-        QUndoCommand.__init__(self, "Rename", parent)
+        super().__init__("Rename", parent)
         self.scheme = scheme
         self.node = node
         self.old_name = old_name
@@ -195,7 +195,7 @@ class TextChangeCommand(QUndoCommand):
     def __init__(self, scheme, annotation,
                  old_content, old_content_type,
                  new_content, new_content_type, parent=None):
-        QUndoCommand.__init__(self, "Change text", parent)
+        super().__init__("Change text", parent)
         self.scheme = scheme
         self.annotation = annotation
         self.old_content = old_content
@@ -214,7 +214,7 @@ class SetAttrCommand(QUndoCommand):
     def __init__(self, obj, attrname, newvalue, name=None, parent=None):
         if name is None:
             name = "Set %r" % attrname
-        QUndoCommand.__init__(self, name, parent)
+        super().__init__(name, parent)
         self.obj = obj
         self.attrname = attrname
         self.newvalue = newvalue

@@ -88,7 +88,7 @@ class WelcomeDialog(QDialog):
     def __init__(self, *args, **kwargs):
         showAtStartup = kwargs.pop("showAtStartup", True)
         feedbackUrl = kwargs.pop("feedbackUrl", "")
-        super(WelcomeDialog, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.__triggeredAction = None
         self.__showAtStartupCheck = None
@@ -239,7 +239,7 @@ class WelcomeDialog(QDialog):
     def showEvent(self, event):
         # Clear the triggered action before show.
         self.__triggeredAction = None
-        QDialog.showEvent(self, event)
+        super().showEvent(event)
 
     def __on_actionTriggered(self, action):
         """Called when the button action is triggered.

@@ -37,7 +37,7 @@ class CollapsibleDockWidget(QDockWidget):
     expandedChanged = Signal(bool)
 
     def __init__(self, *args, **kwargs):
-        QDockWidget.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.__expandedWidget = None
         self.__collapsedWidget = None
@@ -82,7 +82,7 @@ class CollapsibleDockWidget(QDockWidget):
         self.__stack.transitionStarted.connect(self.__onTransitionStarted)
         self.__stack.transitionFinished.connect(self.__onTransitionFinished)
 
-        QDockWidget.setWidget(self, self.__stack)
+        super().setWidget(self.__stack)
 
         self.__closeButton.setIcon(self.__iconLeft)
 
@@ -213,13 +213,12 @@ class CollapsibleDockWidget(QDockWidget):
             # TODO: which other events can trigger the button (is the button
             # focusable).
 
-        return QDockWidget.eventFilter(self, obj, event)
+        return super().eventFilter(obj, event)
 
     def event(self, event):
         if event.type() == QEvent.LayoutRequest:
             self.__fixMinimumWidth()
-
-        return QDockWidget.event(self, event)
+        return super().event(event)
 
     def __onFeaturesChanged(self, features):
         pass

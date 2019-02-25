@@ -3,8 +3,6 @@ from AnyQt.QtGui import QPainterPath, QPainterPathStroker, QBrush, QPen
 from AnyQt.QtCore import Qt, QPointF
 from AnyQt.QtCore import pyqtSignal as Signal
 
-from ...utils.qtcompat import qunwrap
-
 
 class GraphicsPathObject(QGraphicsObject):
     """A QGraphicsObject subclass implementing an interface similar to
@@ -15,7 +13,7 @@ class GraphicsPathObject(QGraphicsObject):
     positionChanged = Signal([], ["QPointF"])
 
     def __init__(self, parent=None, **kwargs):
-        QGraphicsObject.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.setFlag(QGraphicsObject.ItemSendsGeometryChanges)
 
         self.__path = QPainterPath()
@@ -97,11 +95,10 @@ class GraphicsPathObject(QGraphicsObject):
 
     def itemChange(self, change, value):
         if change == QGraphicsObject.ItemPositionHasChanged:
-            pos = qunwrap(value)
             self.positionChanged.emit()
-            self.positionChanged[QPointF].emit(pos)
+            self.positionChanged[QPointF].emit(value)
 
-        return QGraphicsObject.itemChange(self, change, value)
+        return super().itemChange(change, value)
 
 
 def shapeFromPath(path, pen):

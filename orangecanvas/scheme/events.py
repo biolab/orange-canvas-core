@@ -64,14 +64,11 @@ class WorkflowEvent(QEvent):
     #: the workflow view
     ActivateParentRequest = QEvent.registerEventType()
 
-    def __init__(self, etype):
-        QEvent.__init__(self, etype)
-
 
 class NodeEvent(WorkflowEvent):
     def __init__(self, etype, node):
         # type: (QEvent.Type, SchemeNode) -> None
-        WorkflowEvent.__init__(self, etype)
+        super().__init__(etype)
         self.__node = node
 
     def node(self):
@@ -81,7 +78,7 @@ class NodeEvent(WorkflowEvent):
 class LinkEvent(WorkflowEvent):
     def __init__(self, etype, link):
         # type: (QEvent.Type, SchemeLink) -> None
-        WorkflowEvent.__init__(self, etype)
+        super().__init__(etype)
         self.__link = link
 
     def link(self):
@@ -91,7 +88,7 @@ class LinkEvent(WorkflowEvent):
 class AnnotationEvent(WorkflowEvent):
     def __init__(self, etype, annotation):
         # type: (QEvent.Type, BaseSchemeAnnotation) -> None
-        WorkflowEvent.__init__(self, etype)
+        super().__init__(etype)
         self.__annotation = annotation
 
     def annotation(self):

@@ -4,9 +4,7 @@ import multiprocessing.pool
 from datetime import datetime
 from threading import current_thread
 
-import six
-
-from AnyQt.QtCore import Qt, QThread, QTimer
+from AnyQt.QtCore import Qt, QThread, QTimer, QCoreApplication, QEvent
 from ...gui.test import QAppTestCase
 
 from ..outputview import OutputView, TextStream, ExceptHook
@@ -20,16 +18,16 @@ class TestOutputView(QAppTestCase):
         line1 = "A line \n"
         line2 = "A different line\n"
         output.write(line1)
-        self.assertEqual(six.text_type(output.toPlainText()), line1)
+        self.assertEqual(output.toPlainText(), line1)
 
         output.write(line2)
-        self.assertEqual(six.text_type(output.toPlainText()), line1 + line2)
+        self.assertEqual(output.toPlainText(), line1 + line2)
 
         output.clear()
-        self.assertEqual(six.text_type(output.toPlainText()), "")
+        self.assertEqual(output.toPlainText(), "")
 
         output.writelines([line1, line2])
-        self.assertEqual(six.text_type(output.toPlainText()), line1 + line2)
+        self.assertEqual(output.toPlainText(), line1 + line2)
 
         output.setMaximumLines(5)
 
@@ -37,7 +35,7 @@ class TestOutputView(QAppTestCase):
             now = datetime.now().strftime("%c\n")
             output.write(now)
 
-            text = six.text_type(output.toPlainText())
+            text = output.toPlainText()
             self.assertLessEqual(len(text.splitlines()), 5)
 
         timer = QTimer(output, interval=500)
@@ -108,8 +106,13 @@ class TestOutputView(QAppTestCase):
 
         res.wait()
 
+        # force all pending enqueued emits
+        QCoreApplication.sendPostedEvents(blue, QEvent.MetaCall)
+        QCoreApplication.sendPostedEvents(red, QEvent.MetaCall)
+        self.app.processEvents()
+
         self.assertTrue(all(correct))
-        self.assertTrue(len(correct) == 10000)
+        self.assertEqual(len(correct), 10000)
 
     def test_excepthook(self):
         output = OutputView()

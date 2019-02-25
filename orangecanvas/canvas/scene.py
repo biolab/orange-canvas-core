@@ -12,8 +12,6 @@ from operator import attrgetter
 
 from xml.sax.saxutils import escape
 
-import six
-
 from AnyQt.QtWidgets import QGraphicsScene, QGraphicsItem
 from AnyQt.QtGui import QPainter, QColor, QFont
 from AnyQt.QtCore import (
@@ -22,17 +20,10 @@ from AnyQt.QtCore import (
 )
 from AnyQt.QtSvg import QSvgGenerator
 from AnyQt.QtCore import pyqtSignal as Signal
-try:
-    from AnyQt.QtCore import PYQT_VERSION
-    USE_PYQT = True
-except ImportError:
-    USE_PYQT, PYQT_VERSION = False, -1
 
 from .. import scheme
-
 from . import items
 from .layout import AnchorLayout
-from .items.utils import toGraphicsObjectIfPossible
 
 log = logging.getLogger(__name__)
 
@@ -78,7 +69,7 @@ class CanvasScene(QGraphicsScene):
     link_item_hovered = Signal(object)
 
     def __init__(self, *args, **kwargs):
-        QGraphicsScene.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.scheme = None
         self.registry = None
@@ -452,7 +443,7 @@ class CanvasScene(QGraphicsScene):
         item.setSinkItem(sink_item)
 
         def channel_name(channel):
-            if isinstance(channel, six.string_types):
+            if isinstance(channel, str):
                 return channel
             else:
                 return channel.name
@@ -460,7 +451,7 @@ class CanvasScene(QGraphicsScene):
         source_name = channel_name(source_channel)
         sink_name = channel_name(sink_channel)
 
-        fmt = u"<b>{0}</b>&nbsp; \u2192 &nbsp;<b>{1}</b>"
+        fmt = "<b>{0}</b>&nbsp; \u2192 &nbsp;<b>{1}</b>"
         item.setToolTip(
             fmt.format(escape(source_name),
                        escape(sink_name))
@@ -756,33 +747,6 @@ class CanvasScene(QGraphicsScene):
 
         return items[0] if items else None
 
-    if USE_PYQT and PYQT_VERSION < 0x040900:
-        # For QGraphicsObject subclasses items, itemAt ... return a
-        # QGraphicsItem wrapper instance and not the actual class instance.
-        def itemAt(self, *args, **kwargs):
-            item = QGraphicsScene.itemAt(self, *args, **kwargs)
-            return toGraphicsObjectIfPossible(item)
-
-        def items(self, *args, **kwargs):
-            items = QGraphicsScene.items(self, *args, **kwargs)
-            return list(map(toGraphicsObjectIfPossible, items))
-
-        def selectedItems(self, *args, **kwargs):
-            return list(map(toGraphicsObjectIfPossible,
-                            QGraphicsScene.selectedItems(self, *args, **kwargs)))
-
-        def collidingItems(self, *args, **kwargs):
-            return list(map(toGraphicsObjectIfPossible,
-                            QGraphicsScene.collidingItems(self, *args, **kwargs)))
-
-        def focusItem(self, *args, **kwargs):
-            item = QGraphicsScene.focusItem(self, *args, **kwargs)
-            return toGraphicsObjectIfPossible(item)
-
-        def mouseGrabberItem(self, *args, **kwargs):
-            item = QGraphicsScene.mouseGrabberItem(self, *args, **kwargs)
-            return toGraphicsObjectIfPossible(item)
-
     def mousePressEvent(self, event):
         if self.user_interaction_handler and \
                 self.user_interaction_handler.mousePressEvent(event):
@@ -799,45 +763,44 @@ class CanvasScene(QGraphicsScene):
                 self.clearSelection()
                 shape_item.setSelected(True)
 
-        return QGraphicsScene.mousePressEvent(self, event)
+        return super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
         if self.user_interaction_handler and \
                 self.user_interaction_handler.mouseMoveEvent(event):
             return
 
-        return QGraphicsScene.mouseMoveEvent(self, event)
+        super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
         if self.user_interaction_handler and \
                 self.user_interaction_handler.mouseReleaseEvent(event):
             return
-        return QGraphicsScene.mouseReleaseEvent(self, event)
+        super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event):
         if self.user_interaction_handler and \
                 self.user_interaction_handler.mouseDoubleClickEvent(event):
             return
-
-        return QGraphicsScene.mouseDoubleClickEvent(self, event)
+        super().mouseDoubleClickEvent(event)
 
     def keyPressEvent(self, event):
         if self.user_interaction_handler and \
                 self.user_interaction_handler.keyPressEvent(event):
             return
-        return QGraphicsScene.keyPressEvent(self, event)
+        super().keyPressEvent(event)
 
     def keyReleaseEvent(self, event):
         if self.user_interaction_handler and \
                 self.user_interaction_handler.keyReleaseEvent(event):
             return
-        return QGraphicsScene.keyReleaseEvent(self, event)
+        super().keyReleaseEvent(event)
 
     def contextMenuEvent(self, event):
         if self.user_interaction_handler and \
                 self.user_interaction_handler.contextMenuEvent(event):
             return
-        super(CanvasScene, self).contextMenuEvent(event)
+        super().contextMenuEvent(event)
 
     def set_user_interaction_handler(self, handler):
         if self.user_interaction_handler and \
@@ -878,7 +841,7 @@ if QT_VERSION >= 0x50900 and \
             if metric == QSvgGenerator.PdmDevicePixelRatioScaled:
                 return int(1 * QSvgGenerator.devicePixelRatioFScale())
             else:
-                return super(QSvgGenerator, self).metric(metric)
+                return super().metric(metric)
 
 
 def grab_svg(scene):

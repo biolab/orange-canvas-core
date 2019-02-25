@@ -6,7 +6,6 @@ import os
 import logging
 import types
 
-import six
 import pkg_resources
 
 from orangecanvas import config
@@ -85,7 +84,7 @@ class ExampleWorkflow(object):
         if self.package is not None:
             return pkg_resources.resource_filename(self.package.__name__,
                                                    self.resource)
-        elif isinstance(self.resource, six.string_types):
+        elif isinstance(self.resource, str):
             if os.path.isabs(self.resource):
                 return self.resource
 
@@ -97,7 +96,7 @@ class ExampleWorkflow(object):
         if self.package is not None:
             return pkg_resources.resource_stream(self.package.__name__,
                                                  self.resource)
-        elif isinstance(self.resource, six.string_types):
+        elif isinstance(self.resource, str):
             if os.path.isabs(self.resource) and os.path.exists(self.resource):
                 return open(self.resource, "rb")
 

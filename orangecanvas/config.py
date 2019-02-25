@@ -11,29 +11,21 @@ import warnings
 from distutils.version import LooseVersion
 
 import pkg_resources
-import six
 
 from AnyQt.QtGui import (
     QPainter, QFont, QFontMetrics, QColor, QPixmap, QIcon
 )
 
-from AnyQt.QtCore import Qt, QCoreApplication, QPoint, QRect, QT_VERSION
-
-if QT_VERSION < 0x50000:
-    from AnyQt.QtGui import QDesktopServices
-else:
-    from AnyQt.QtCore import QStandardPaths
+from AnyQt.QtCore import (
+    Qt, QCoreApplication, QPoint, QRect, QSettings, QStandardPaths
+)
 
 from .utils.settings import Settings, config_slot
-
-# Import QSettings from qtcompat module (compatibility with PyQt < 4.8.3
-from .utils.qtcompat import QSettings
 
 log = logging.getLogger(__name__)
 
 __version__ = "0.0"
 
-# from . import __version__
 
 #: Entry point by which widgets are registered.
 WIDGETS_ENTRY = "orangecanvas.widgets"
@@ -44,18 +36,19 @@ ADDON_PYPI_SEARCH_SPEC = {"keywords": ["orange", "add-on"]}
 
 TUTORIALS_ENTRY = "orangecanvas.tutorials"
 
-if QT_VERSION < 0x50000:
-    def standard_location(type):
-        return QDesktopServices.storageLocation(type)
-    standard_location.DesktopLocation = QDesktopServices.DesktopLocation
-    standard_location.DataLocation = QDesktopServices.DataLocation
-    standard_location.CacheLocation = QDesktopServices.CacheLocation
-else:
-    def standard_location(type):
-        return QStandardPaths.writableLocation(type)
-    standard_location.DesktopLocation = QStandardPaths.DesktopLocation
-    standard_location.DataLocation = QStandardPaths.DataLocation
-    standard_location.CacheLocation = QStandardPaths.CacheLocation
+
+def standard_location(type):
+    warnings.warn(
+        "Use QStandardPaths.writableLocation", DeprecationWarning,
+        stacklevel=2
+    )
+    return QStandardPaths.writableLocation(type)
+
+
+standard_location.DesktopLocation = QStandardPaths.DesktopLocation
+standard_location.DataLocation = QStandardPaths.DataLocation
+standard_location.CacheLocation = QStandardPaths.CacheLocation
+standard_location.DocumentsLocation = QStandardPaths.DocumentsLocation
 
 
 class default(object):
@@ -180,7 +173,7 @@ spec = \
      ("startup/show-welcome-screen", bool, True,
       "Show Welcome screen at startup"),
 
-     ("stylesheet", six.text_type, "orange",
+     ("stylesheet", str, "orange",
       "QSS stylesheet to use"),
 
      ("schemeinfo/show-at-new-scheme", bool, True,
@@ -263,8 +256,8 @@ def data_dir():
     init()
 
     datadir = standard_location(standard_location.DataLocation)
-    datadir = six.text_type(datadir)
-    version = six.text_type(QCoreApplication.applicationVersion())
+    datadir = datadir
+    version = QCoreApplication.applicationVersion()
     datadir = os.path.join(datadir, version)
     if not os.path.exists(datadir):
         os.makedirs(datadir)
@@ -279,8 +272,8 @@ def cache_dir():
     init()
 
     cachedir = standard_location(standard_location.CacheLocation)
-    cachedir = six.text_type(cachedir)
-    version = six.text_type(QCoreApplication.applicationVersion())
+    cachedir = cachedir
+    version = QCoreApplication.applicationVersion()
     cachedir = os.path.join(cachedir, version)
     if not os.path.exists(cachedir):
         os.makedirs(cachedir)
@@ -307,6 +300,10 @@ def widget_settings_dir():
     """
     Return the widget settings directory.
     """
+    warnings.warn(
+        "'widget_settings_dir' is deprecated.",
+        DeprecationWarning, stacklevel=2
+    )
     return os.path.join(data_dir(), 'widgets')
 
 

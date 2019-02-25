@@ -13,20 +13,11 @@ import unicodedata
 import copy
 
 from operator import attrgetter
-
 from typing import List, Optional
 
-if sys.version_info < (3, ):
-    from urllib import urlencode
-else:
-    from urllib.parse import urlencode
-
-if sys.version_info < (3, 3):
-    from contextlib2 import ExitStack
-else:
-    from contextlib import ExitStack
-
-import six
+from urllib.parse import urlencode
+from contextlib import ExitStack
+from typing import List
 
 from AnyQt.QtWidgets import (
     QWidget, QVBoxLayout, QInputDialog, QMenu, QAction, QActionGroup,
@@ -38,12 +29,9 @@ from AnyQt.QtGui import (
     QKeySequence, QCursor, QFont, QPainter, QPixmap, QColor, QIcon,
     QWhatsThisClickedEvent, QPalette
 )
-
 from AnyQt.QtCore import (
-    Qt, QObject, QEvent, QSignalMapper, QRectF, QCoreApplication,
-    QPoint)
-
-
+    Qt, QObject, QEvent, QSignalMapper, QRectF, QCoreApplication, QPoint
+)
 from AnyQt.QtCore import pyqtProperty as Property, pyqtSignal as Signal
 
 from ..registry import WidgetDescription
@@ -62,7 +50,6 @@ from ..canvas import items
 from . import interactions
 from . import commands
 from . import quickmenu
-from ..utils.qtcompat import qunwrap
 
 log = logging.getLogger(__name__)
 
@@ -74,7 +61,7 @@ class GraphicsSceneFocusEventListener(QGraphicsObject):
     itemFocusedOut = Signal(object)
 
     def __init__(self, parent=None):
-        QGraphicsObject.__init__(self, parent)
+        super().__init__(parent)
         self.setFlag(QGraphicsItem.ItemHasNoContents)
 
     def sceneEventFilter(self, obj, event):
@@ -90,7 +77,7 @@ class GraphicsSceneFocusEventListener(QGraphicsObject):
                 self.itemFocusedOut.emit(obj)
             return True
 
-        return QGraphicsObject.sceneEventFilter(self, obj, event)
+        return super().sceneEventFilter(obj, event)
 
     def boundingRect(self):
         return QRectF()
@@ -117,10 +104,10 @@ class SchemeEditWidget(QWidget):
     selectionChanged = Signal()
 
     #: Document title has changed.
-    titleChanged = Signal(six.text_type)
+    titleChanged = Signal(str)
 
     #: Document path has changed.
-    pathChanged = Signal(six.text_type)
+    pathChanged = Signal(str)
 
     # Quick Menu triggers
     (NoTriggers,
@@ -130,13 +117,15 @@ class SchemeEditWidget(QWidget):
      AnyKey) = [0, 1, 2, 4, 8]
 
     def __init__(self, parent=None, ):
-        QWidget.__init__(self, parent)
+        super().__init__(parent)
 
         self.__modified = False
         self.__registry = None
         self.__scheme = None
+
         self.__widgetManager = None  # type: Optional[WidgetManager]
-        self.__path = u""
+        self.__path = ""
+
         self.__quickMenuTriggers = SchemeEditWidget.SpaceKey | \
                                    SchemeEditWidget.DoubleClicked
         self.__emptyClickButtons = 0
@@ -675,7 +664,7 @@ class SchemeEditWidget(QWidget):
 
         """
         if self.__path != path:
-            self.__path = six.text_type(path)
+            self.__path = path
             self.pathChanged.emit(self.__path)
 
     def path(self):
@@ -1075,16 +1064,15 @@ class SchemeEditWidget(QWidget):
         Edit (rename) the `node`'s title. Opens an input dialog.
         """
         name, ok = QInputDialog.getText(
-                    self, self.tr("Rename"),
-                    six.text_type(self.tr("Enter a new name for the '%s' widget")) \
-                    % node.title,
-                    text=node.title
-                    )
+            self, self.tr("Rename"),
+            self.tr("Enter a new name for the '%s' widget") % node.title,
+            text=node.title
+        )
 
         if ok:
             self.__undoStack.push(
                 commands.RenameNodeCommand(self.__scheme, node, node.title,
-                                           six.text_type(name))
+                                           name)
             )
 
     def __onCleanChanged(self, clean):
@@ -1099,7 +1087,7 @@ class SchemeEditWidget(QWidget):
             if self.__scene is not None:
                 self.__scene.setPalette(self.palette())
 
-        QWidget.changeEvent(self, event)
+        super().changeEvent(event)
 
     def eventFilter(self, obj, event):
         # Filter the scene's drag/drop events.
@@ -1178,7 +1166,7 @@ class SchemeEditWidget(QWidget):
                 self.window().activateWindow()
                 self.window().raise_()
 
-        return QWidget.eventFilter(self, obj, event)
+        return super().eventFilter(obj, event)
 
     def sceneMousePressEvent(self, event):
         scene = self.__scene
@@ -1337,9 +1325,9 @@ class SchemeEditWidget(QWidget):
 
         elif len(event.text()) and \
                 self.__quickMenuTriggers & SchemeEditWidget.AnyKey and \
-                is_printable(six.text_type(event.text())[0]):
+                is_printable(event.text()[0]):
             handler = interactions.NewNodeAction(self)
-            searchText = six.text_type(event.text())
+            searchText = event.text()
 
             # TODO: set the search text to event.text() and set focus on the
             # search line
@@ -1371,7 +1359,7 @@ class SchemeEditWidget(QWidget):
         item = self.scene().item_at(scenePos, items.NodeItem)
         if item is not None:
             node = self.scene().node_for_item(item)
-            actions = qunwrap(node.property("ext-menu-actions"))
+            actions = node.property("ext-menu-actions")
             if isinstance(actions, list) and \
                     all(isinstance(item, QAction) for item in actions) and \
                             len(self.selectedNodes()) == 1:
@@ -1591,7 +1579,7 @@ class SchemeEditWidget(QWidget):
         else:
             handler = interactions.NewArrowAnnotation(self)
             checked = self.__arrowColorActionGroup.checkedAction()
-            handler.setColor(qunwrap(checked.data()))
+            handler.setColor(checked.data())
 
             handler.ended.connect(action.toggle)
 
@@ -1642,7 +1630,7 @@ class SchemeEditWidget(QWidget):
             # Update the preferred color on the interaction handler
             handler = self.__scene.user_interaction_handler
             if isinstance(handler, interactions.NewArrowAnnotation):
-                handler.setColor(qunwrap(action.data()))
+                handler.setColor(action.data())
 
     def __onRenameAction(self):
         """

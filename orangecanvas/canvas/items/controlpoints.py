@@ -1,5 +1,3 @@
-import logging
-
 from AnyQt.QtWidgets import QGraphicsItem, QGraphicsObject
 from AnyQt.QtGui import QBrush, QPainterPath
 from AnyQt.QtCore import Qt, QPointF, QLineF, QRectF, QMargins, QEvent
@@ -8,9 +6,6 @@ from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
 from .graphicspathobject import GraphicsPathObject
 from .utils import toGraphicsObjectIfPossible
-from ...utils import qtcompat
-
-log = logging.getLogger(__name__)
 
 
 class ControlPoint(GraphicsPathObject):
@@ -26,7 +21,7 @@ class ControlPoint(GraphicsPathObject):
     BottomLeft = Bottom | Left
 
     def __init__(self, parent=None, anchor=0, **kwargs):
-        GraphicsPathObject.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.setFlag(QGraphicsItem.ItemSendsGeometryChanges, False)
         self.setAcceptedMouseButtons(Qt.LeftButton)
 
@@ -57,7 +52,7 @@ class ControlPoint(GraphicsPathObject):
             self.setFlag(QGraphicsItem.ItemSendsGeometryChanges, True)
             event.accept()
         else:
-            GraphicsPathObject.mousePressEvent(self, event)
+            super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -65,7 +60,7 @@ class ControlPoint(GraphicsPathObject):
             self.setFlag(QGraphicsItem.ItemSendsGeometryChanges, False)
             event.accept()
         else:
-            GraphicsPathObject.mouseReleaseEvent(self, event)
+            super().mouseReleaseEvent(event)
 
     def mouseMoveEvent(self, event):
         if event.buttons() & Qt.LeftButton:
@@ -79,15 +74,12 @@ class ControlPoint(GraphicsPathObject):
             self.setPos(self.__initialPosition + current - down)
             event.accept()
         else:
-            GraphicsPathObject.mouseMoveEvent(self, event)
+            super().mouseMoveEvent(event)
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.ItemPositionChange:
-            pos = qtcompat.qunwrap(value)
-            newpos = self.constrain(pos)
-            return qtcompat.qwrap(newpos)
-
-        return GraphicsPathObject.itemChange(self, change, value)
+            return self.constrain(value)
+        return super().itemChange(change, value)
 
     def hasConstraint(self):
         return self.__constraintFunc is not None or self.__constraint != 0
@@ -129,7 +121,7 @@ class ControlPointRect(QGraphicsObject):
     rectEdited = Signal(QRectF)
 
     def __init__(self, parent=None, rect=None, constraints=0, **kwargs):
-        QGraphicsObject.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.setFlag(QGraphicsItem.ItemHasNoContents)
         self.setFlag(QGraphicsItem.ItemIsFocusable)
 
@@ -228,36 +220,25 @@ class ControlPointRect(QGraphicsObject):
     def itemChange(self, change, value):
         if change == QGraphicsItem.ItemSceneHasChanged and self.scene():
             self.__installFilter()
-
-        return QGraphicsObject.itemChange(self, change, value)
+        return super().itemChange(change, value)
 
     def sceneEventFilter(self, obj, event):
-        try:
-            obj = toGraphicsObjectIfPossible(obj)
-            if isinstance(obj, ControlPoint):
-                etype = event.type()
-                if etype == QEvent.GraphicsSceneMousePress and \
-                        event.button() == Qt.LeftButton:
-                    self.__setActiveControl(obj)
+        obj = toGraphicsObjectIfPossible(obj)
+        if isinstance(obj, ControlPoint):
+            etype = event.type()
+            if etype == QEvent.GraphicsSceneMousePress and \
+                    event.button() == Qt.LeftButton:
+                self.__setActiveControl(obj)
 
-                elif etype == QEvent.GraphicsSceneMouseRelease and \
-                        event.button() == Qt.LeftButton:
-                    self.__setActiveControl(None)
-
-        except Exception:
-            log.error("Error in 'ControlPointRect.sceneEventFilter'",
-                      exc_info=True)
-
-        return QGraphicsObject.sceneEventFilter(self, obj, event)
+            elif etype == QEvent.GraphicsSceneMouseRelease and \
+                    event.button() == Qt.LeftButton:
+                self.__setActiveControl(None)
+        return super().sceneEventFilter(obj, event)
 
     def __installFilter(self):
         # Install filters on the control points.
-        try:
-            for p in self.__points.values():
-                p.installSceneEventFilter(self)
-        except Exception:
-            log.error("Error in ControlPointRect.__installFilter",
-                      exc_info=True)
+        for p in self.__points.values():
+            p.installSceneEventFilter(self)
 
     def __pointsLayout(self):
         """Layout the control points
@@ -335,7 +316,7 @@ class ControlPointLine(QGraphicsObject):
     lineEdited = Signal(QLineF)
 
     def __init__(self, parent=None, **kwargs):
-        QGraphicsObject.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.setFlag(QGraphicsItem.ItemHasNoContents)
         self.setFlag(QGraphicsItem.ItemIsFocusable)
 
@@ -381,21 +362,17 @@ class ControlPointLine(QGraphicsObject):
         if change == QGraphicsItem.ItemSceneHasChanged:
             if self.scene():
                 self.__installFilter()
-        return QGraphicsObject.itemChange(self, change, value)
+        return super().itemChange(change, value)
 
     def sceneEventFilter(self, obj, event):
-        try:
-            obj = toGraphicsObjectIfPossible(obj)
-            if isinstance(obj, ControlPoint):
-                etype = event.type()
-                if etype == QEvent.GraphicsSceneMousePress:
-                    self.__setActiveControl(obj)
-                elif etype == QEvent.GraphicsSceneMouseRelease:
-                    self.__setActiveControl(None)
-
-            return QGraphicsObject.sceneEventFilter(self, obj, event)
-        except Exception:
-            log.error("", exc_info=True)
+        obj = toGraphicsObjectIfPossible(obj)
+        if isinstance(obj, ControlPoint):
+            etype = event.type()
+            if etype == QEvent.GraphicsSceneMousePress:
+                self.__setActiveControl(obj)
+            elif etype == QEvent.GraphicsSceneMouseRelease:
+                self.__setActiveControl(None)
+        return super().sceneEventFilter(obj, event)
 
     def __pointsLayout(self):
         self.__points[0].setPos(self.__line.p1())
