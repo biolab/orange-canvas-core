@@ -7,14 +7,13 @@ A :class:`QuickMenu` widget provides lists of actions organized in tabs
 with a quick search functionality.
 
 """
-
+import statistics
 import sys
 import logging
 
 from collections import namedtuple
 from collections.abc import Callable
 
-import numpy
 
 from AnyQt.QtWidgets import (
     QWidget, QFrame, QToolButton, QAbstractButton, QAction, QTreeView,
@@ -417,9 +416,12 @@ class MenuStackWidget(QStackedWidget):
             widget_hints.append(hint)
 
         width = max([s.width() for s in widget_hints])
-        # Take the median for the height
-        height = numpy.median([s.height() for s in widget_hints])
 
+        if widget_hints:
+            # Take the median for the height
+            height = statistics.median([s.height() for s in widget_hints])
+        else:
+            height = default_size.height()
         return QSize(width, int(height))
 
     def __sizeHintForTreeView(self, view):

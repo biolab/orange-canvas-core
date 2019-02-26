@@ -2,9 +2,7 @@
 Node/Link layout.
 
 """
-from operator import attrgetter, add
-
-import numpy
+from operator import attrgetter
 
 import sip
 
@@ -12,15 +10,8 @@ from AnyQt.QtWidgets import QGraphicsObject, QApplication
 from AnyQt.QtCore import QRectF, QLineF, QEvent
 
 from .items import LinkItem, SourceAnchorItem, SinkAnchorItem
-from .items.utils import invert_permutation_indices, linspace
-
-
-def composition(f, g):
-    """Return a composition of two functions
-    """
-    def fg(arg):
-        return g(f(arg))
-    return fg
+from .items.utils import invert_permutation_indices, linspace, argsort, \
+    composition
 
 
 class AnchorLayout(QGraphicsObject):
@@ -76,13 +67,13 @@ class AnchorLayout(QGraphicsObject):
                 others_angle = [angle(other.anchorScenePos(), anchor_pos)
                                 for other in others]
 
-            indices = list(numpy.argsort(others_angle))
+            indices = argsort(others_angle)
             # Invert the indices.
             indices = invert_permutation_indices(indices)
 
-            positions = numpy.array(linspace(len(points)))
-            positions = list(positions[indices])
-
+            positions = linspace(len(points))
+            positions = [positions[i] for i in indices]
+            print(positions)
             anchor_item.setAnchorPositions(positions)
 
         self.__invalidatedAnchors = []

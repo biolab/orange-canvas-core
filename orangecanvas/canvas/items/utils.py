@@ -1,6 +1,61 @@
-import numpy
+from itertools import islice, count
+from operator import itemgetter
+
+import typing
+from typing import List, Iterable, Optional, Callable, Any
 
 from AnyQt.QtGui import QColor, QRadialGradient, QPainterPathStroker
+
+
+if typing.TYPE_CHECKING:
+    T = typing.TypeVar("T")
+    A = typing.TypeVar("A")
+    B = typing.TypeVar("B")
+    C = typing.TypeVar("C")
+
+
+def composition(f, g):
+    # type: (Callable[[A], B], Callable[[B], C]) -> Callable[[A], C]
+    """Return a composition of two functions
+    """
+    def fg(arg):  # type: (A) -> C
+        return g(f(arg))
+    return fg
+
+
+def argsort(iterable, key=None, reverse=False):
+    # type: (Iterable[T], Optional[Callable[[T], Any]], bool) -> List[int]
+    if key is None:
+        key_ = itemgetter(0)
+    else:
+        key_ = composition(itemgetter(0), key)
+    ordered = sorted(zip(iterable, count(0)), key=key_, reverse=reverse)
+    return list(map(itemgetter(1), ordered))
+
+
+def linspace_(count):
+    # type: (int) -> Iterable[float]
+    if count > 1:
+        return (i / (count - 1) for i in range(count))
+    elif count == 1:
+        return (_ for _ in (0.0,))
+    elif count == 0:
+        return (_ for _ in ())
+    else:
+        raise ValueError("Count must be non-negative")
+
+
+def linspace(count):
+    """Return `count` evenly spaced points from 0..1 interval excluding
+    both end points, e.g. `linspace(3) == [0.25, 0.5, 0.75]`.
+    """
+    return list(islice(linspace_(count + 2), 1, count + 1))
+
+
+def sample_path(path, num=10):
+    """Sample `num` equidistant points from the `path` (`QPainterPath`).
+    """
+    return [path.pointAtPercent(p) for p in linspace_(num)]
 
 
 def saturated(color, factor=150):
@@ -13,13 +68,6 @@ def saturated(color, factor=150):
     s = factor * s / 100.0
     s = max(min(1.0, s), 0.0)
     return QColor.fromHsvF(h, s, v, a).convertTo(color.spec())
-
-
-def sample_path(path, num=10):
-    """Sample `num` equidistant points from the `path` (`QPainterPath`).
-    """
-    space = numpy.linspace(0.0, 1.0, num, endpoint=True)
-    return [path.pointAtPercent(float(p)) for p in space]
 
 
 def radial_gradient(color, color_light=50):
@@ -58,29 +106,16 @@ def toGraphicsObjectIfPossible(item):
     return item if obj is None else obj
 
 
-def linspace(count):
-    """Return `count` evenly spaced points from 0..1 interval excluding
-    both end points, e.g. `linspace(3) == [0.25, 0.5, 0.75]`.
-
-    """
-    return numpy.linspace(0.0, 1.0, count + 2, endpoint=True)[1:-1]
-
-
 def uniform_linear_layout(points):
     """Layout the points (a list of floats in 0..1 range) in a uniform
     linear space while preserving the existing sorting order.
 
     """
-    indices = numpy.argsort(points)
-    space = numpy.asarray(linspace(len(points)))
-
+    indices = argsort(points)
+    space = linspace(len(points))
     # invert the indices
-    indices = numpy.argsort(indices)
-#     indices = invert_permutation_indices(indices)
-#    assert((numpy.argsort(points) == numpy.argsort(space[indices])).all())
-    points = space[indices]
-
-    return points.tolist()
+    indices = invert_permutation_indices(indices)
+    return [space[i] for i in indices]
 
 
 def invert_permutation_indices(indices):

@@ -25,7 +25,6 @@ INSTALL_REQUIRES = (
     "setuptools",
     "AnyQt",
     "docutils",
-    "numpy",
     "commonmark",
     "requests",
     "cachecontrol[filecache]",
