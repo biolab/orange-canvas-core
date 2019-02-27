@@ -472,7 +472,7 @@ class UserSettingsDialog(QMainWindow):
         return status
 
     def hideEvent(self, event):
-        super().hideEvent(self, event)
+        super().hideEvent(event)
         if self.__loop is not None:
             self.__loop.exit(0)
             self.__loop = None
