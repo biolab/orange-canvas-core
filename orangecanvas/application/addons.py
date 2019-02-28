@@ -29,9 +29,8 @@ except ImportError:
 
 from AnyQt.QtWidgets import (
     QWidget, QDialog, QLabel, QLineEdit, QTreeView, QHeaderView,
-    QTextBrowser, QDialogButtonBox, QProgressDialog,
-    QVBoxLayout, QStyle, QStyledItemDelegate, QStyleOptionViewItem,
-    QApplication, QPushButton, QFormLayout, QHBoxLayout
+    QTextBrowser, QDialogButtonBox, QProgressDialog, QVBoxLayout,
+    QPushButton, QFormLayout, QHBoxLayout
 )
 
 from AnyQt.QtGui import (
@@ -39,7 +38,7 @@ from AnyQt.QtGui import (
 )
 from AnyQt.QtCore import (
     QSortFilterProxyModel, QItemSelectionModel,
-    Qt, QObject, QMetaObject, QEvent, QSize, QTimer, QThread, Q_ARG,
+    Qt, QObject, QMetaObject, QSize, QTimer, QThread, Q_ARG,
     QSettings
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
@@ -113,54 +112,6 @@ def is_updatable(item):
                 version.LooseVersion(inst.version))
 
 
-class TristateCheckItemDelegate(QStyledItemDelegate):
-    """
-    A QStyledItemDelegate which properly toggles Qt.ItemIsTristate check
-    state transitions on user interaction.
-    """
-    def editorEvent(self, event, model, option, index):
-        flags = model.flags(index)
-        if not flags & Qt.ItemIsUserCheckable or \
-                not option.state & QStyle.State_Enabled or \
-                not flags & Qt.ItemIsEnabled:
-            return False
-
-        checkstate = model.data(index, Qt.CheckStateRole)
-        if checkstate is None:
-            return False
-
-        widget = option.widget
-        style = widget.style() if widget else QApplication.style()
-        if event.type() in {QEvent.MouseButtonPress, QEvent.MouseButtonRelease,
-                            QEvent.MouseButtonDblClick}:
-            pos = event.pos()
-            opt = QStyleOptionViewItem(option)
-            self.initStyleOption(opt, index)
-            rect = style.subElementRect(
-                QStyle.SE_ItemViewItemCheckIndicator, opt, widget)
-
-            if event.button() != Qt.LeftButton or not rect.contains(pos):
-                return False
-
-            if event.type() in {QEvent.MouseButtonPress,
-                                QEvent.MouseButtonDblClick}:
-                return True
-
-        elif event.type() == QEvent.KeyPress:
-            if event.key() != Qt.Key_Space and event.key() != Qt.Key_Select:
-                return False
-        else:
-            return False
-
-        if model.flags(index) & Qt.ItemIsTristate:
-            checkstate = (checkstate + 1) % 3
-        else:
-            checkstate = \
-                Qt.Unchecked if checkstate == Qt.Checked else Qt.Checked
-
-        return model.setData(index, checkstate, Qt.CheckStateRole)
-
-
 def get_meta_from_archive(path):
     """Return project name, version and summary extracted from
     sdist or wheel metadata in a ZIP or tar.gz archive, or None if metadata
@@ -216,7 +167,6 @@ class AddonManagerWidget(QWidget):
             selectionMode=QTreeView.SingleSelection,
             alternatingRowColors=True
         )
-        self.__view.setItemDelegateForColumn(0, TristateCheckItemDelegate())
         self.layout().addWidget(view)
 
         self.__model = model = QStandardItemModel()
@@ -276,7 +226,7 @@ class AddonManagerWidget(QWidget):
             item1 = QStandardItem()
             item1.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable |
                            Qt.ItemIsUserCheckable |
-                           (Qt.ItemIsTristate if updatable else 0))
+                           (Qt.ItemIsUserTristate if updatable else 0))
 
             if installed and updatable:
                 item1.setCheckState(Qt.PartiallyChecked)
@@ -327,7 +277,7 @@ class AddonManagerWidget(QWidget):
             modelitem = self.__model.item(i, 0)
             item = modelitem.data(Qt.UserRole)
             state = modelitem.checkState()
-            if modelitem.flags() & Qt.ItemIsTristate and state == Qt.Checked:
+            if modelitem.flags() & Qt.ItemIsUserTristate and state == Qt.Checked:
                 steps.append((Upgrade, item))
             elif isinstance(item, Available) and state == Qt.Checked:
                 steps.append((Install, item))
@@ -386,7 +336,7 @@ class AddonManagerWidget(QWidget):
             state = modelitem.checkState()
             flags = modelitem.flags()
 
-            if flags & Qt.ItemIsTristate and state == Qt.Checked:
+            if flags & Qt.ItemIsUserTristate and state == Qt.Checked:
                 actionitem.setText("Update")
             elif isinstance(item, Available) and state == Qt.Checked:
                 actionitem.setText("Install")
