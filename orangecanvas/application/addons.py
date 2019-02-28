@@ -22,10 +22,8 @@ from typing import List, Dict, Any, Optional, Union, Tuple, NamedTuple
 import requests
 import pkg_resources
 
-try:
-    import docutils.core
-except ImportError:
-    docutils = None
+import docutils.core
+import docutils.utils
 
 from AnyQt.QtWidgets import (
     QWidget, QDialog, QLabel, QLineEdit, QTreeView, QHeaderView,
@@ -368,24 +366,17 @@ class AddonManagerWidget(QWidget):
         else:
             description = item[0].description
 
-        if docutils is not None:
-            try:
-                html = docutils.core.publish_string(
-                    trim(description),
-                    writer_name="html",
-                    settings_overrides={
-                        "output-encoding": "utf-8",
-#                         "embed-stylesheet": False,
-#                         "stylesheet": [],
-#                         "stylesheet_path": []
-                    }
-                ).decode("utf-8")
-
-            except docutils.utils.SystemMessage:
-                html = "<pre>{}<pre>".format(escape(description))
-            except Exception:
-                html = "<pre>{}<pre>".format(escape(description))
-        else:
+        try:
+            html = docutils.core.publish_string(
+                trim(description),
+                writer_name="html",
+                settings_overrides={
+                    "output-encoding": "utf-8",
+                }
+            ).decode("utf-8")
+        except docutils.utils.SystemMessage:
+            html = "<pre>{}<pre>".format(escape(description))
+        except Exception:
             html = "<pre>{}<pre>".format(escape(description))
         return html
 
