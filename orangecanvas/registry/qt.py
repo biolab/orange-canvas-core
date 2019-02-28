@@ -2,17 +2,10 @@
 Qt Model classes for widget registry.
 
 """
-import sys
 import bisect
 
 from xml.sax.saxutils import escape
-
-if sys.version_info < (3,):
-    from urllib import urlencode
-else:
-    from urllib.parse import urlencode
-
-import six
+from urllib.parse import urlencode
 
 from AnyQt.QtWidgets import QAction
 from AnyQt.QtGui import QStandardItemModel, QStandardItem, QColor, QBrush
@@ -22,8 +15,6 @@ from AnyQt.QtCore import pyqtSignal as Signal
 from .discovery import WidgetDiscovery
 from .description import WidgetDescription, CategoryDescription
 from .base import WidgetRegistry
-
-from ..utils import qtcompat
 from ..resources import icon_loader
 
 from . import cache, NAMED_COLORS, DEFAULT_COLOR
@@ -132,7 +123,7 @@ class QtWidgetRegistry(QObject, WidgetRegistry):
     def item_for_widget(self, widget):
         """Return the QStandardItem for the widget.
         """
-        if isinstance(widget, six.string_types):
+        if isinstance(widget, str):
             widget = self.widget(widget)
         cat = self.category(widget.category)
         cat_ind = self.categories().index(cat)
@@ -147,7 +138,7 @@ class QtWidgetRegistry(QObject, WidgetRegistry):
 
         """
         item = self.item_for_widget(widget)
-        return qtcompat.qunwrap(item.data(self.WIDGET_ACTION_ROLE))
+        return item.data(self.WIDGET_ACTION_ROLE)
 
     def create_action_for_item(self, item):
         """
@@ -168,7 +159,7 @@ class QtWidgetRegistry(QObject, WidgetRegistry):
 
         widget_desc = item.data(self.WIDGET_DESC_ROLE)
         action.setData(widget_desc)
-        action.setProperty("item", qtcompat.qwrap(item))
+        action.setProperty("item", item)
         return action
 
     def _insert_category(self, desc):
@@ -235,7 +226,7 @@ class QtWidgetRegistry(QObject, WidgetRegistry):
 
         item.setToolTip(tooltip)
         item.setFlags(Qt.ItemIsEnabled)
-        item.setData(qtcompat.qwrap(desc), self.CATEGORY_DESC_ROLE)
+        item.setData(desc, self.CATEGORY_DESC_ROLE)
         return item
 
     def _widget_desc_to_std_item(self, desc, category):
@@ -273,11 +264,11 @@ class QtWidgetRegistry(QObject, WidgetRegistry):
         item.setToolTip(tooltip)
         item.setWhatsThis(whats_this_helper(desc))
         item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
-        item.setData(qtcompat.qwrap(desc), self.WIDGET_DESC_ROLE)
+        item.setData(desc, self.WIDGET_DESC_ROLE)
 
         # Create the action for the widget_item
         action = self.create_action_for_item(item)
-        item.setData(qtcompat.qwrap(action), self.WIDGET_ACTION_ROLE)
+        item.setData(action, self.WIDGET_ACTION_ROLE)
         return item
 
 

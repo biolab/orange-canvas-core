@@ -27,7 +27,7 @@ class LinkCurveItem(QGraphicsPathItem):
     Link curve item. The main component of a :class:`LinkItem`.
     """
     def __init__(self, parent):
-        super(LinkCurveItem, self).__init__(parent)
+        super().__init__(parent)
         self.setAcceptedMouseButtons(Qt.NoButton)
         self.setAcceptHoverEvents(True)
 
@@ -76,7 +76,7 @@ class LinkCurveItem(QGraphicsPathItem):
             self.prepareGeometryChange()
             self.__pen = QPen(pen)
             self.__shape = None
-            super(LinkCurveItem, self).setPen(self.__pen)
+            super().setPen(self.__pen)
 
     def shape(self):
         if self.__shape is None:
@@ -89,7 +89,7 @@ class LinkCurveItem(QGraphicsPathItem):
 
     def setPath(self, path):
         self.__shape = None
-        super(LinkCurveItem, self).setPath(path)
+        super().setPath(path)
 
     def __update(self):
         shadow_enabled = self.__hover
@@ -248,7 +248,7 @@ class LinkAnchorIndicator(QGraphicsEllipseItem):
 
     """
     def __init__(self, *args):
-        QGraphicsEllipseItem.__init__(self, *args)
+        super().__init__(*args)
         self.setRect(-3.5, -3.5, 7., 7.)
         self.setPen(QPen(Qt.NoPen))
         self.setBrush(QBrush(QColor("#9CACB4")))

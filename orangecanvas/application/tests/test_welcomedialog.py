@@ -1,8 +1,6 @@
 """
 Test for welcome screen.
 """
-from __future__ import print_function
-
 from AnyQt.QtWidgets import QAction
 
 from ...resources import icon_loader

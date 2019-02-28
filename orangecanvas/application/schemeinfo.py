@@ -3,8 +3,6 @@ Scheme Info editor widget.
 
 """
 
-import six
-
 from AnyQt.QtWidgets import (
     QWidget, QDialog, QLabel, QTextEdit, QCheckBox, QFormLayout,
     QVBoxLayout, QHBoxLayout, QDialogButtonBox, QSizePolicy
@@ -20,7 +18,7 @@ class SchemeInfoEdit(QWidget):
     """Scheme info editor widget.
     """
     def __init__(self, *args, **kwargs):
-        QWidget.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.scheme = None
         self.__setupUi()
 
@@ -67,9 +65,9 @@ class SchemeInfoEdit(QWidget):
             # 'untitled' text was not changed
             name = ""
         else:
-            name = six.text_type(self.name_edit.text()).strip()
+            name = self.name_edit.text().strip()
 
-        description = six.text_type(self.desc_edit.toPlainText()).strip()
+        description = self.desc_edit.toPlainText().strip()
         self.scheme.title = name
         self.scheme.description = description
 
@@ -77,15 +75,15 @@ class SchemeInfoEdit(QWidget):
         return StyledWidget_paintEvent(self, event)
 
     def title(self):
-        return six.text_type(self.name_edit.text()).strip()
+        return self.name_edit.text().strip()
 
     def description(self):
-        return six.text_type(self.desc_edit.toPlainText()).strip()
+        return self.desc_edit.toPlainText().strip()
 
 
 class SchemeInfoDialog(QDialog):
     def __init__(self, *args, **kwargs):
-        QDialog.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.scheme = None
         self.__autoCommit = True
 

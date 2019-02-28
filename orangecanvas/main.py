@@ -13,18 +13,13 @@ import pickle
 import shlex
 import shutil
 import io
-import platform
 from urllib.request import getproxies
-
-if sys.version_info < (3, 3):
-    from contextlib2 import ExitStack
-else:
-    from contextlib import ExitStack
+from contextlib import ExitStack
 
 import pkg_resources
 
 from AnyQt.QtGui import QFont, QColor, QPalette
-from AnyQt.QtCore import Qt, QDir, QT_VERSION
+from AnyQt.QtCore import Qt, QDir, QSettings, QT_VERSION
 
 import AnyQt.importhooks
 
@@ -39,33 +34,12 @@ from .application.outputview import TextStream, ExceptHook
 from . import utils, config
 from .gui.splashscreen import SplashScreen
 from .utils.redirect import redirect_stdout, redirect_stderr
-from .utils.qtcompat import QSettings
 
 from .registry import qt
 from .registry import WidgetRegistry, set_global_registry
 from .registry import cache
 
 log = logging.getLogger(__name__)
-
-
-def fix_osx_private_font():
-    """Temporary fixes for QTBUG-32789, QTBUG-40833 and QTBUG-47206"""
-    if sys.platform == "darwin" and QT_VERSION < 0x50000:
-        release = platform.mac_ver()[0]
-        if not release:
-            return
-        release = release.split(".")[:2]
-        osx_release = (int(release[0]), int(release[1]))
-        if osx_release >= (10, 11):
-            # El Capitan (or later?)
-            QFont.insertSubstitution(".SF NS Text", "Helvetica Neue")
-        elif osx_release == (10, 10) and QT_VERSION < 0x40807:
-            # Yosemite
-            QFont.insertSubstitution(".Helvetica Neue DeskInterface",
-                                     "Helvetica Neue")
-        elif osx_release == (10, 9) and QT_VERSION < 0x40806:
-            # Mavericks
-            QFont.insertSubstitution(".Lucida Grande UI", "Lucida Grande")
 
 
 def fix_macos_nswindow_tabbing():
@@ -223,11 +197,11 @@ def main(argv=None):
     # and write to the old file descriptors)
     fix_win_pythonw_std_stream()
 
-    # Try to fix fonts on OSX Mavericks/Yosemite, ...
-    fix_osx_private_font()
-
     # Set http_proxy environment variable(s) for some clients
     fix_set_proxy_env()
+
+    # Try to fix macOS automatic window tabbing (Sierra and later)
+    fix_macos_nswindow_tabbing()
 
     # File handler should always be at least INFO level so we need
     # the application root level to be at least at INFO.

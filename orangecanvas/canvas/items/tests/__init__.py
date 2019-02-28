@@ -1,9 +1,6 @@
 """
 Tests for items
 """
-import sys
-import traceback
-
 from AnyQt.QtWidgets import QGraphicsScene, QGraphicsView
 from AnyQt.QtGui import QPainter
 
@@ -12,7 +9,7 @@ from orangecanvas.gui.test import QAppTestCase
 
 class TestItems(QAppTestCase):
     def setUp(self):
-        super(TestItems, self).setUp()
+        super().setUp()
 
         self.scene = QGraphicsScene()
         self.view = QGraphicsView(self.scene)
@@ -30,4 +27,4 @@ class TestItems(QAppTestCase):
         self.view.deleteLater()
         del self.scene
         del self.view
-        super(TestItems, self).tearDown()
+        super().tearDown()

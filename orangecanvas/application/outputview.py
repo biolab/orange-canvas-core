@@ -4,8 +4,6 @@ import sys
 import warnings
 import traceback
 
-import six
-
 from AnyQt.QtWidgets import QWidget, QPlainTextEdit, QVBoxLayout, QSizePolicy
 from AnyQt.QtGui import (
     QTextCursor, QTextCharFormat, QFont, QTextOption, QFontDatabase
@@ -229,7 +227,7 @@ class formater(Formatter):
 
 
 class TextStream(QObject):
-    stream = Signal(six.text_type)
+    stream = Signal(str)
     flushed = Signal()
 
     def __init__(self, parent=None, **kwargs):
@@ -250,7 +248,7 @@ class ExceptHook(QObject):
     handledException = Signal(tuple)
 
     def __init__(self, parent=None, stream=None, **kwargs):
-        super(ExceptHook, self).__init__(parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.stream = stream
 
     def __call__(self, exc_type, exc_value, tb):

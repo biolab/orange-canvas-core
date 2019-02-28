@@ -6,8 +6,12 @@ Here defined are events dispatched to and from an Scheme workflow
 instance.
 
 """
+import typing
 
 from AnyQt.QtCore import QEvent
+
+if typing.TYPE_CHECKING:
+    from orangecanvas.scheme import SchemeLink, SchemeNode, BaseSchemeAnnotation
 
 __all__ = ["WorkflowEvent", "NodeEvent", "LinkEvent", "AnnotationEvent"]
 
@@ -21,6 +25,14 @@ class WorkflowEvent(QEvent):
     LinkAdded = QEvent.registerEventType()
     #: A Link has been removed from the scheme
     LinkRemoved = QEvent.registerEventType()
+    #: An input Link has been added to a node
+    InputLinkAdded = QEvent.registerEventType()
+    #: An output Link has been added to a node
+    OutputLinkAdded = QEvent.registerEventType()
+    #: Node's (runtime) state has changed
+    InputLinkRemoved = QEvent.registerEventType()
+    #: An output Link has been added to a node
+    OutputLinkRemoved = QEvent.registerEventType()
     #: Node's (runtime) state has changed
     NodeStateChange = QEvent.registerEventType()
     #: Link's (runtime) state has changed
@@ -52,13 +64,11 @@ class WorkflowEvent(QEvent):
     #: the workflow view
     ActivateParentRequest = QEvent.registerEventType()
 
-    def __init__(self, etype):
-        QEvent.__init__(self, etype)
-
 
 class NodeEvent(WorkflowEvent):
     def __init__(self, etype, node):
-        WorkflowEvent.__init__(self, etype)
+        # type: (QEvent.Type, SchemeNode) -> None
+        super().__init__(etype)
         self.__node = node
 
     def node(self):
@@ -67,7 +77,8 @@ class NodeEvent(WorkflowEvent):
 
 class LinkEvent(WorkflowEvent):
     def __init__(self, etype, link):
-        WorkflowEvent.__init__(self, etype)
+        # type: (QEvent.Type, SchemeLink) -> None
+        super().__init__(etype)
         self.__link = link
 
     def link(self):
@@ -76,7 +87,8 @@ class LinkEvent(WorkflowEvent):
 
 class AnnotationEvent(WorkflowEvent):
     def __init__(self, etype, annotation):
-        WorkflowEvent.__init__(self, etype)
+        # type: (QEvent.Type, BaseSchemeAnnotation) -> None
+        super().__init__(etype)
         self.__annotation = annotation
 
     def annotation(self):

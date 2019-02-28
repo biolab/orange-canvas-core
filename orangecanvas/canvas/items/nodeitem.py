@@ -6,9 +6,11 @@ Node Item
 """
 import string
 
+from operator import attrgetter
+from itertools import groupby
 from xml.sax.saxutils import escape
 
-import six
+from typing import Dict, Any
 
 from AnyQt.QtWidgets import (
     QGraphicsItem, QGraphicsObject, QGraphicsTextItem, QGraphicsWidget,
@@ -32,7 +34,6 @@ from ...scheme.node import UserMessage
 from ...registry import NAMED_COLORS
 from ...resources import icon_loader
 from .utils import uniform_linear_layout
-from ...utils import qtcompat
 
 
 def create_palette(light_color, color):
@@ -81,7 +82,7 @@ class NodeBodyItem(GraphicsPathObject):
     The central part (body) of the `NodeItem`.
     """
     def __init__(self, parent=None):
-        GraphicsPathObject.__init__(self, parent)
+        super().__init__(parent)
         assert(isinstance(parent, NodeItem))
 
         self.__processingState = 0
@@ -182,12 +183,12 @@ class NodeBodyItem(GraphicsPathObject):
     def hoverEnterEvent(self, event):
         self.__hover = True
         self.__updateShadowState()
-        return GraphicsPathObject.hoverEnterEvent(self, event)
+        return super().hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event):
         self.__hover = False
         self.__updateShadowState()
-        return GraphicsPathObject.hoverLeaveEvent(self, event)
+        return super().hoverLeaveEvent(event)
 
     def paint(self, painter, option, widget):
         """
@@ -197,7 +198,7 @@ class NodeBodyItem(GraphicsPathObject):
         if option.state & QStyle.State_Selected:
             # Prevent the default bounding rect selection indicator.
             option.state = option.state ^ QStyle.State_Selected
-        GraphicsPathObject.paint(self, painter, option, widget)
+        super().paint(painter, option, widget)
         if self.__progress >= 0:
             # Draw the progress meter over the shape.
             # Set the clip to shape so the meter does not overflow the shape.
@@ -297,7 +298,7 @@ class AnchorPoint(QGraphicsObject):
     anchorDirectionChanged = Signal(QPointF)
 
     def __init__(self, *args):
-        QGraphicsObject.__init__(self, *args)
+        super().__init__(*args)
         self.setFlag(QGraphicsItem.ItemSendsScenePositionChanges, True)
         self.setFlag(QGraphicsItem.ItemHasNoContents, True)
 
@@ -325,8 +326,8 @@ class AnchorPoint(QGraphicsObject):
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.ItemScenePositionHasChanged:
-            self.scenePositionChanged.emit(qtcompat.qunwrap(value))
-        return QGraphicsObject.itemChange(self, change, value)
+            self.scenePositionChanged.emit(value)
+        return super().itemChange(change, value)
 
     def boundingRect(self,):
         return QRectF()
@@ -338,7 +339,7 @@ class NodeAnchorItem(GraphicsPathObject):
     """
 
     def __init__(self, parent, *args):
-        GraphicsPathObject.__init__(self, parent, *args)
+        super().__init__(parent, *args)
         self.setAcceptHoverEvents(True)
         self.setPen(QPen(Qt.NoPen))
         self.normalBrush = QBrush(QColor("#CDD5D9"))
@@ -547,15 +548,15 @@ class NodeAnchorItem(GraphicsPathObject):
         if self.__shape is not None:
             return self.__shape
         else:
-            return GraphicsPathObject.shape(self)
+            return super().shape()
 
     def hoverEnterEvent(self, event):
         self.shadow.setEnabled(True)
-        return GraphicsPathObject.hoverEnterEvent(self, event)
+        return super().hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event):
         self.shadow.setEnabled(False)
-        return GraphicsPathObject.hoverLeaveEvent(self, event)
+        return super().hoverLeaveEvent(event)
 
     def __updatePositions(self):
         """Update anchor points positions.
@@ -594,7 +595,7 @@ class GraphicsIconItem(QGraphicsItem):
     A graphics item displaying an :class:`QIcon`.
     """
     def __init__(self, parent=None, icon=None, iconSize=None, **kwargs):
-        QGraphicsItem.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.setFlag(QGraphicsItem.ItemUsesExtendedStyleOption, True)
 
         if icon is None:
@@ -680,7 +681,7 @@ class GraphicsIconItem(QGraphicsItem):
 
 class NameTextItem(QGraphicsTextItem):
     def __init__(self, *args, **kwargs):
-        super(NameTextItem, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.__selected = False
         self.__palette = None
         self.__content = ""
@@ -703,7 +704,7 @@ class NameTextItem(QGraphicsTextItem):
 
             painter.restore()
 
-        super(NameTextItem, self).paint(painter, option, widget)
+        super().paint(painter, option, widget)
 
     def _blocks(self, doc):
         block = doc.begin()
@@ -749,7 +750,7 @@ class NameTextItem(QGraphicsTextItem):
     def setHtml(self, contents):
         if contents != self.__content:
             self.__content = contents
-            super(NameTextItem, self).setHtml(contents)
+            super().setHtml(contents)
 
 
 class NodeItem(QGraphicsWidget):
@@ -812,7 +813,7 @@ class NodeItem(QGraphicsWidget):
         self.__error = None
         self.__warning = None
         self.__info = None
-
+        self.__messages = {}  # type: Dict[Any, UserMessage]
         self.__anchorLayout = None
         self.__animationEnabled = False
 
@@ -972,7 +973,7 @@ class NodeItem(QGraphicsWidget):
         """
         return self.__title
 
-    title_ = Property(six.text_type, fget=title, fset=setTitle,
+    title_ = Property(str, fget=title, fset=setTitle,
                       doc="Node title text.")
 
     def setFont(self, font):
@@ -1058,7 +1059,7 @@ class NodeItem(QGraphicsWidget):
 
         """
         if self.__statusMessage != message:
-            self.__statusMessage = six.text_type(message)
+            self.__statusMessage = message
             self.__updateTitleText()
 
     def statusMessage(self):
@@ -1075,14 +1076,8 @@ class NodeItem(QGraphicsWidget):
             the icon and `message.contents` is used as a tool tip.
 
         """
-        # TODO: Group messages by message_id not by severity
-        # and deprecate set[Error|Warning|Error]Message
-        if message.severity == UserMessage.Info:
-            self.setInfoMessage(message.contents)
-        elif message.severity == UserMessage.Warning:
-            self.setWarningMessage(message.contents)
-        elif message.severity == UserMessage.Error:
-            self.setErrorMessage(message.contents)
+        self.__messages[message.message_id] = message
+        self.__updateMessages()
 
     def setErrorMessage(self, message):
         if self.__error != message:
@@ -1237,8 +1232,16 @@ class NodeItem(QGraphicsWidget):
         """
         items = [self.errorItem, self.warningItem, self.infoItem]
 
-        messages = [self.__error, self.__warning, self.__info]
-        for message, item in zip(messages, items):
+        messages = list(self.__messages.values()) + [
+            UserMessage(self.__error, UserMessage.Error),
+            UserMessage(self.__warning, UserMessage.Warning),
+            UserMessage(self.__info, UserMessage.Info),
+        ]
+        key = attrgetter("severity")
+        messages = groupby(sorted(messages, key=key, reverse=True), key=key)
+
+        for (_, message_g), item in zip(messages, items):
+            message = "<br/>".join(m.contents for m in message_g if m.contents)
             item.setVisible(bool(message))
             item.setToolTip(message or "")
 
@@ -1292,10 +1295,9 @@ class NodeItem(QGraphicsWidget):
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.ItemSelectedChange:
-            selected = bool(qtcompat.qunwrap(value))
-            self.shapeItem.setSelected(selected)
-            self.captionTextItem.setSelectionState(selected)
-            self.backgroundItem.setVisible(selected)
+            self.shapeItem.setSelected(value)
+            self.captionTextItem.setSelectionState(value)
+            self.backgroundItem.setVisible(value)
         elif change == QGraphicsItem.ItemPositionHasChanged:
             self.positionChanged.emit()
 

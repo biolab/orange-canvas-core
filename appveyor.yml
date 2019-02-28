@@ -1,0 +1,28 @@
+matrix:
+  fast_finish: true
+
+environment:
+  global:
+    PIP_DISABLE_PIP_VERSION_CHECK: 1
+    TEST_ENV: PyQt5~=5.9.2
+
+  matrix:
+    - PYTHON: C:\Python35-x64
+    - PYTHON: C:\Python36-x64
+    - PYTHON: C:\Python37-x64
+      TEST_ENV: PyQt5~=5.12.0
+
+cache:
+  - '%LOCALAPPDATA%\pip\cache -> appveyor.yml'
+
+install:
+  - >-
+    %PYTHON%\python.exe -m pip install %TEST_ENV%
+
+build_script:
+  - >-
+    %PYTHON%\python.exe -m pip install -e .
+
+test_script:
+  - >-
+    %PYTHON%\python.exe -m unittest discover -v .

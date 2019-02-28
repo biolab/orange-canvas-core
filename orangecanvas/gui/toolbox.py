@@ -71,7 +71,7 @@ class ToolBoxTabButton(QToolButton):
         font = kwargs.pop("font", None)
         palette = kwargs.pop("palette", None)
 
-        QToolButton.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         if font is None:
             self.setFont(QApplication.font("QAbstractButton"))
@@ -94,7 +94,7 @@ class ToolBoxTabButton(QToolButton):
 
     def paintEvent(self, event):
         if self.__nativeStyling:
-            QToolButton.paintEvent(self, event)
+            super().paintEvent(event)
         else:
             self.__paintEventNoStyle()
 
@@ -215,19 +215,19 @@ class _ToolBoxScrollArea(QScrollArea):
                 # Mac OSX using fink and Qt 4.7.3
                 return False
 
-        return QScrollArea.eventFilter(self, obj, event)
+        return super().eventFilter(obj, event)
 
 
 class _ToolBoxLayout(QVBoxLayout):
     def __init__(self, *args, **kwargs):
         self.__minimumSize = None
         self.__maximumSize = None
-        QVBoxLayout.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def minimumSize(self):
         """Reimplemented from `QBoxLayout.minimimSize`."""
         if self.__minimumSize is None:
-            msize = QVBoxLayout.minimumSize(self)
+            msize = super().minimumSize()
             # Extend the minimum size by including the minimum width of
             # hidden widgets (which QBoxLayout ignores), so the minimum
             # width does not depend on the tab open/close state.
@@ -242,7 +242,7 @@ class _ToolBoxLayout(QVBoxLayout):
 
     def maximumSize(self):
         """Reimplemented from `QBoxLayout.maximumSize`."""
-        msize = QVBoxLayout.maximumSize(self)
+        msize = super().maximumSize()
         # Allow the contents to grow horizontally (expand within the
         # containing scroll area - joining the tab buttons to the
         # right edge), but have a suitable maximum height (displaying an
@@ -255,7 +255,7 @@ class _ToolBoxLayout(QVBoxLayout):
         """Reimplemented from `QVBoxLayout.invalidate`."""
         self.__minimumSize = None
         self.__maximumSize = None
-        QVBoxLayout.invalidate(self)
+        super().invalidate()
 
 
 class ToolBox(QFrame):
@@ -300,7 +300,7 @@ class ToolBox(QFrame):
                           doc="Exclusive tabs")
 
     def __init__(self, parent=None, **kwargs):
-        QFrame.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
 
         self.__pages = []
         self.__tabButtonHeight = -1

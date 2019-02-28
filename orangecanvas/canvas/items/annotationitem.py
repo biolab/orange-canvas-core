@@ -3,7 +3,6 @@ import logging
 from collections import OrderedDict
 from xml.sax.saxutils import escape
 
-import six
 import docutils.core
 
 from AnyQt.QtWidgets import (
@@ -15,7 +14,7 @@ from AnyQt.QtGui import (
     QPalette
 )
 from AnyQt.QtCore import (
-    Qt, QPointF, QSizeF, QRectF, QLineF, QEvent, QMetaObject, QT_VERSION
+    Qt, QPointF, QSizeF, QRectF, QLineF, QEvent, QMetaObject
 )
 from AnyQt.QtCore import (
     pyqtSignal as Signal, pyqtProperty as Property, pyqtSlot as Slot
@@ -30,16 +29,7 @@ class Annotation(QGraphicsWidget):
     """Base class for annotations in the canvas scheme.
     """
     def __init__(self, parent=None, **kwargs):
-        QGraphicsWidget.__init__(self, parent, **kwargs)
-
-    if QT_VERSION < 0x40700:
-        geometryChanged = Signal()
-        def setGeometry(self, rect):
-            QGraphicsWidget.setGeometry(self, rect)
-            self.geometryChanged.emit()
-    else:
-        def setGeometry(self, rect):
-            QGraphicsWidget.setGeometry(self, rect)
+        super().__init__(parent, **kwargs)
 
 
 class GraphicsTextEdit(QGraphicsTextItem):
@@ -55,7 +45,7 @@ class GraphicsTextEdit(QGraphicsTextItem):
     editingFinished = Signal()
 
     def __init__(self, *args, **kwargs):
-        QGraphicsTextItem.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.setAcceptHoverEvents(True)
         self.__placeholderText = ""
         self.__editing = False  # text editing in progress
@@ -75,13 +65,13 @@ class GraphicsTextEdit(QGraphicsTextItem):
         """
         Return the placeholder text.
         """
-        return six.text_type(self.__placeholderText)
+        return self.__placeholderText
 
-    placeholderText_ = Property(six.text_type, placeholderText, setPlaceholderText,
+    placeholderText_ = Property(str, placeholderText, setPlaceholderText,
                                 doc="Placeholder text")
 
     def paint(self, painter, option, widget=None):
-        QGraphicsTextItem.paint(self, painter, option, widget)
+        super().paint(painter, option, widget)
 
         # Draw placeholder text if necessary
         if not (self.toPlainText() and self.toHtml()) and \
@@ -104,7 +94,7 @@ class GraphicsTextEdit(QGraphicsTextItem):
             self.setCursor(Qt.PointingHandCursor)
         else:
             self.unsetCursor()
-        super(GraphicsTextEdit, self).hoverMoveEvent(event)
+        super().hoverMoveEvent(event)
 
     def mousePressEvent(self, event):
         flags = self.textInteractionFlags()
@@ -115,27 +105,27 @@ class GraphicsTextEdit(QGraphicsTextItem):
             # Qt.TextSelectableByMouse flag set. This causes the
             # corresponding mouse release to never get to this item
             # and therefore no linkActivated/openUrl ...
-            super(GraphicsTextEdit, self).mousePressEvent(event)
+            super().mousePressEvent(event)
             if not event.isAccepted():
                 event.accept()
         else:
-            super(GraphicsTextEdit, self).mousePressEvent(event)
+            super().mousePressEvent(event)
 
     def setTextInteractionFlags(self, flags):
-        super(GraphicsTextEdit, self).setTextInteractionFlags(flags)
+        super().setTextInteractionFlags(flags)
         if self.hasFocus() and flags & Qt.TextEditable and not self.__editing:
             self.__editing = True
             self.editingStarted.emit()
 
     def focusInEvent(self, event):
-        super(GraphicsTextEdit, self).focusInEvent(event)
+        super().focusInEvent(event)
         if self.textInteractionFlags() & Qt.TextEditable and \
                 not self.__editing:
             self.__editing = True
             self.editingStarted.emit()
 
     def focusOutEvent(self, event):
-        super(GraphicsTextEdit, self).focusOutEvent(event)
+        super().focusOutEvent(event)
         if self.__editing and \
                 event.reason() not in {Qt.ActiveWindowFocusReason,
                                        Qt.PopupFocusReason}:
@@ -248,7 +238,7 @@ class TextAnnotation(Annotation):
     ])  # type: Dict[str, Callable[[str], [str]]]
 
     def __init__(self, parent=None, **kwargs):
-        super(TextAnnotation, self).__init__(None, **kwargs)
+        super().__init__(None, **kwargs)
         self.setFlag(QGraphicsItem.ItemIsMovable)
         self.setFlag(QGraphicsItem.ItemIsSelectable)
 
@@ -297,7 +287,7 @@ class TextAnnotation(Annotation):
                 self.__textItem.installSceneEventFilter(self)
         if change == QGraphicsItem.ItemSelectedHasChanged:
             self.__updateFrameStyle()
-        return super(TextAnnotation, self).itemChange(change, value)
+        return super().itemChange(change, value)
 
     def adjustSize(self):
         """Resize to a reasonable size.
@@ -414,7 +404,7 @@ class TextAnnotation(Annotation):
         self.document().setDefaultStyleSheet(stylesheet)
 
     def mouseDoubleClickEvent(self, event):
-        Annotation.mouseDoubleClickEvent(self, event)
+        super().mouseDoubleClickEvent(event)
 
         if event.buttons() == Qt.LeftButton and \
                 self.__textInteractionFlags & Qt.TextEditable:
@@ -472,7 +462,7 @@ class TextAnnotation(Annotation):
         left, _, right, _ = self.textMargins()
         self.__textItem.setTextWidth(max(width - left - right, 0))
         self.__updateFrame()
-        QGraphicsWidget.resizeEvent(self, event)
+        super().resizeEvent(event)
 
     def __textEditingFinished(self):
         self.endEdit()
@@ -487,7 +477,7 @@ class TextAnnotation(Annotation):
             self.contextMenuEvent(event)
             event.accept()
             return True
-        return super(TextAnnotation, self).sceneEventFilter(obj, event)
+        return super().sceneEventFilter(obj, event)
 
     def changeEvent(self, event):
         if event.type() == QEvent.FontChange:
@@ -496,7 +486,7 @@ class TextAnnotation(Annotation):
             self.__textItem.setDefaultTextColor(
                 self.palette().color(QPalette.Text)
             )
-        Annotation.changeEvent(self, event)
+        super().changeEvent(event)
 
     @Slot()
     def __updateRenderedContent(self):
@@ -557,7 +547,7 @@ class ArrowItem(GraphicsPathObject):
     Plain, Concave = 1, 2
 
     def __init__(self, parent=None, line=None, lineWidth=4, **kwargs):
-        GraphicsPathObject.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
 
         if line is None:
             line = QLineF(0, 0, 10, 0)
@@ -704,7 +694,7 @@ def arrow_path_concave(line, width):
 
 class ArrowAnnotation(Annotation):
     def __init__(self, parent=None, line=None, **kwargs):
-        Annotation.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
         self.setFlag(QGraphicsItem.ItemIsMovable)
         self.setFlag(QGraphicsItem.ItemIsSelectable)
 
@@ -861,7 +851,7 @@ class ArrowAnnotation(Annotation):
         if change == QGraphicsItem.ItemSelectedHasChanged:
             self.__updateStyleState()
 
-        return Annotation.itemChange(self, change, value)
+        return super().itemChange(change, value)
 
     def __updateStyleState(self):
         """

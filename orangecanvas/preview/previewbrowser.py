@@ -5,8 +5,6 @@ Preview Browser Widget.
 
 from xml.sax.saxutils import escape
 
-import six
-
 from AnyQt.QtWidgets import (
     QWidget, QLabel, QListView, QAction, QVBoxLayout, QHBoxLayout, QSizePolicy,
     QStyleOption, QStylePainter
@@ -18,7 +16,6 @@ from AnyQt.QtCore import (
 
 from AnyQt.QtCore import pyqtSignal as Signal
 
-from ..utils import check_type, qtcompat
 from ..gui.dropshadow import DropShadowFrame
 from . import previewmodel
 
@@ -29,7 +26,7 @@ NO_PREVIEW_SVG = """
 
 
 # Default description template
-DESCRIPTION_TEMPLATE = u"""
+DESCRIPTION_TEMPLATE = """
 <h3 class=item-heading>{name}</h3>
 <p class=item-description>
 {description}
@@ -48,7 +45,7 @@ class LinearIconView(QListView):
     horizontal line layout.
     """
     def __init__(self, *args, **kwargs):
-        QListView.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.setViewMode(QListView.IconMode)
         self.setWrapping(False)
@@ -84,12 +81,12 @@ class LinearIconView(QListView):
 
     def updateGeometries(self):
         """Reimplemented"""
-        QListView.updateGeometries(self)
+        super().updateGeometries()
         self.updateGeometry()
 
     def dataChanged(self, topLeft, bottomRight, roles=[]):
         """Reimplemented"""
-        QListView.dataChanged(self, topLeft, bottomRight)
+        super().dataChanged(topLeft, bottomRight)
         self.updateGeometry()
 
 
@@ -97,7 +94,7 @@ class TextLabel(QWidget):
     """A plain text label widget with support for elided text.
     """
     def __init__(self, *args, **kwargs):
-        QWidget.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.setSizePolicy(QSizePolicy.Expanding,
                            QSizePolicy.Preferred)
@@ -110,9 +107,8 @@ class TextLabel(QWidget):
     def setText(self, text):
         """Set the `text` string to display.
         """
-        check_type(text, six.string_types)
         if self.__text != text:
-            self.__text = six.text_type(text)
+            self.__text = text
             self.__update()
 
     def text(self):
@@ -165,7 +161,7 @@ class TextLabel(QWidget):
         if event.type() == QEvent.FontChange:
             self.__update()
 
-        return QWidget.changeEvent(self, event)
+        return super().changeEvent(event)
 
     def __update(self):
         self.__sizeHint = None
@@ -183,7 +179,7 @@ class PreviewBrowser(QWidget):
     activated = Signal(int)
 
     def __init__(self, *args):
-        QWidget.__init__(self, *args)
+        super().__init__(*args)
         self.__model = None
         self.__currentIndex = -1
         self.__template = DESCRIPTION_TEMPLATE
@@ -340,27 +336,24 @@ class PreviewBrowser(QWidget):
             path = ""
             svg = NO_PREVIEW_SVG
         else:
-            description = qtcompat.qunwrap(index.data(Qt.WhatsThisRole))
+            description = index.data(Qt.WhatsThisRole)
             if description:
-                description = six.text_type(description)
+                description = description
             else:
-                description = u"No description."
+                description = "No description."
 
             description = escape(description)
             description = description.replace("\n", "<br/>")
 
-            name = qtcompat.qunwrap(index.data(Qt.DisplayRole))
+            name = index.data(Qt.DisplayRole)
             if name:
-                name = six.text_type(name)
+                name = name
             else:
                 name = "Untitled"
 
             name = escape(name)
-            path = qtcompat.qunwrap(index.data(Qt.StatusTipRole))
-            path = six.text_type(path)
-
-            svg = qtcompat.qunwrap(index.data(previewmodel.ThumbnailSVGRole))
-            svg = six.text_type(svg)
+            path = str(index.data(Qt.StatusTipRole))
+            svg = str(index.data(previewmodel.ThumbnailSVGRole))
 
         desc_text = self.__template.format(description=description, name=name)
 

@@ -4,8 +4,6 @@ A widget containing a grid of clickable actions/buttons.
 """
 from collections import namedtuple, deque
 
-import six
-
 from AnyQt.QtWidgets import (
     QFrame, QAction, QToolButton, QGridLayout,  QSizePolicy,
     QStyleOptionToolButton, QStylePainter, QStyle
@@ -15,7 +13,6 @@ from AnyQt.QtCore import Qt, QObject, QSize, QEvent, QSignalMapper
 from AnyQt.QtCore import pyqtSignal as Signal
 
 from . import utils
-from ..utils import qtcompat
 
 _ToolGridSlot = namedtuple(
     "_ToolGridSlot",
@@ -29,23 +26,22 @@ _ToolGridSlot = namedtuple(
 
 class _ToolGridButton(QToolButton):
     def __init__(self, *args, **kwargs):
-        QToolButton.__init__(self, *args, **kwargs)
-
+        super().__init__(*args, **kwargs)
         self.__text = ""
 
     def actionEvent(self, event):
-        QToolButton.actionEvent(self, event)
+        super().actionEvent(event)
         if event.type() == QEvent.ActionChanged or \
                 event.type() == QEvent.ActionAdded:
             self.__textLayout()
 
     def resizeEvent(self, event):
-        QToolButton.resizeEvent(self, event)
+        super().resizeEvent(event)
         self.__textLayout()
 
     def __textLayout(self):
         fm = QFontMetrics(self.font())
-        text = six.text_type(self.defaultAction().text())
+        text = self.defaultAction().text()
         words = deque(text.split())
 
         lines = []
@@ -75,7 +71,7 @@ class _ToolGridButton(QToolButton):
                     # Warning: hardcoded max lines
                     curr_line = fm.elidedText(line_extended, Qt.ElideRight,
                                               width)
-                    curr_line = six.text_type(curr_line)
+                    curr_line = curr_line
                 else:
                     # Put the word back
                     words.appendleft(w)
@@ -135,7 +131,7 @@ class ToolGrid(QFrame):
 
     def __init__(self, parent=None, columns=4, buttonSize=None,
                  iconSize=None, toolButtonStyle=Qt.ToolButtonTextUnderIcon):
-        QFrame.__init__(self, parent)
+        super().__init__(parent)
 
         if buttonSize is not None:
             buttonSize = QSize(buttonSize)
@@ -250,7 +246,7 @@ class ToolGrid(QFrame):
 
             before = actions[before]
 
-        return QFrame.insertAction(self, before, action)
+        return super().insertAction(before, action)
 
     def setActions(self, actions):
         """
@@ -282,7 +278,7 @@ class ToolGrid(QFrame):
             button.setIconSize(self.__iconSize)
 
         button.setToolButtonStyle(self.__toolButtonStyle)
-        button.setProperty("tool-grid-button", qtcompat.qwrap(True))
+        button.setProperty("tool-grid-button", True)
         return button
 
     def count(self):
@@ -292,7 +288,7 @@ class ToolGrid(QFrame):
         return len(self.__gridSlots)
 
     def actionEvent(self, event):
-        QFrame.actionEvent(self, event)
+        super().actionEvent(event)
 
         if event.type() == QEvent.ActionAdded:
             # Note: the action is already in the self.actions() list.
@@ -403,7 +399,7 @@ class ToolGrid(QFrame):
                     return True
         elif etype == QEvent.HoverEnter and obj.parent() is self:
             self.__onButtonEnter(obj)
-        return QFrame.eventFilter(self, obj, event)
+        return super().eventFilter(obj, event)
 
     def __focusMove(self, focus, key):
         assert(focus is self.focusWidget())

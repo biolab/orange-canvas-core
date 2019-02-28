@@ -24,8 +24,6 @@ import logging
 
 from typing import NamedTuple, Dict, Tuple, List, Union, Any
 
-import six
-
 from . import SchemeNode, SchemeLink
 from .annotations import SchemeTextAnnotation, SchemeArrowAnnotation
 from .errors import IncompatibleChannelTypeError
@@ -108,298 +106,6 @@ def _terminal_value(node):
         return node.value
 
     raise ValueError("Not a terminal")
-
-
-def sniff_version(stream):
-    """
-    Parse a scheme stream and return the scheme's serialization
-    version string.
-
-    """
-    doc = parse(stream)
-    scheme_el = doc.getroot()
-    version = scheme_el.attrib.get("version", None)
-    # Fallback: check for "widgets" tag.
-    if scheme_el.find("widgets") is not None:
-        version = "1.0"
-    else:
-        version = "2.0"
-
-    return version
-
-
-def parse_scheme(scheme, stream, error_handler=None,
-                 allow_pickle_data=False):
-    """
-    Parse a saved scheme from `stream` and populate a `scheme`
-    instance (:class:`Scheme`).
-    `error_handler` if given will be called with an exception when
-    a 'recoverable' error occurs. By default the exception is simply
-    raised.
-
-    Parameters
-    ----------
-    scheme : :class:`.Scheme`
-        A scheme instance to populate with the contents of `stream`.
-    stream : file-like object
-        A file like object opened for reading.
-    error_hander : function, optional
-        A function to call with an exception instance when a `recoverable`
-        error occurs.
-    allow_picked_data : bool, optional
-        Specifically allow parsing of picked data streams.
-
-    """
-    warnings.warn("Use 'scheme_load' instead", DeprecationWarning,
-                  stacklevel=2)
-
-    doc = parse(stream)
-    scheme_el = doc.getroot()
-    version = scheme_el.attrib.get("version", None)
-    if version is None:
-        # Fallback: check for "widgets" tag.
-        if scheme_el.find("widgets") is not None:
-            version = "1.0"
-        else:
-            version = "2.0"
-
-    if error_handler is None:
-        def error_handler(exc):
-            raise exc
-
-    if version == "1.0":
-        parse_scheme_v_1_0(doc, scheme, error_handler=error_handler,
-                           allow_pickle_data=allow_pickle_data)
-        return scheme
-    else:
-        parse_scheme_v_2_0(doc, scheme, error_handler=error_handler,
-                           allow_pickle_data=allow_pickle_data)
-        return scheme
-
-
-def scheme_node_from_element(node_el, registry):
-    """
-    Create a SchemeNode from an `Element` instance.
-    """
-    try:
-        widget_desc = registry.widget(node_el.get("qualified_name"))
-    except KeyError as ex:
-        raise UnknownWidgetDefinition(*ex.args)
-
-    title = node_el.get("title")
-    pos = node_el.get("position")
-
-    if pos is not None:
-        pos = tuple_eval(pos)
-
-    return SchemeNode(widget_desc, title=title, position=pos)
-
-
-def parse_scheme_v_2_0(etree, scheme, error_handler, widget_registry=None,
-                       allow_pickle_data=False):
-    """
-    Parse an `ElementTree` instance.
-    """
-    if widget_registry is None:
-        widget_registry = global_registry()
-
-    nodes_not_found = []
-
-    nodes = []
-    links = []
-
-    id_to_node = {}
-
-    scheme_node = etree.getroot()
-    scheme.title = scheme_node.attrib.get("title", "")
-    scheme.description = scheme_node.attrib.get("description", "")
-
-    # Load and create scheme nodes.
-    for node_el in etree.findall("nodes/node"):
-        try:
-            node = scheme_node_from_element(node_el, widget_registry)
-        except UnknownWidgetDefinition as ex:
-            # description was not found
-            error_handler(ex)
-            node = None
-        except Exception:
-            raise
-
-        if node is not None:
-            nodes.append(node)
-            id_to_node[node_el.get("id")] = node
-        else:
-            nodes_not_found.append(node_el.get("id"))
-
-    # Load and create scheme links.
-    for link_el in etree.findall("links/link"):
-        source_id = link_el.get("source_node_id")
-        sink_id = link_el.get("sink_node_id")
-
-        if source_id in nodes_not_found or sink_id in nodes_not_found:
-            continue
-
-        source = id_to_node.get(source_id)
-        sink = id_to_node.get(sink_id)
-
-        source_channel = link_el.get("source_channel")
-        sink_channel = link_el.get("sink_channel")
-        enabled = link_el.get("enabled") == "true"
-
-        try:
-            link = SchemeLink(source, source_channel, sink, sink_channel,
-                              enabled=enabled)
-        except (ValueError, IncompatibleChannelTypeError) as ex:
-            error_handler(ex)
-        else:
-            links.append(link)
-
-    # Load node properties
-    for property_el in etree.findall("node_properties/properties"):
-        node_id = property_el.attrib.get("node_id")
-
-        if node_id in nodes_not_found:
-            continue
-
-        node = id_to_node[node_id]
-
-        format = property_el.attrib.get("format", "pickle")
-
-        if "data" in property_el.attrib:
-            # data string is 'encoded' with 'repr' i.e. unicode and
-            # nonprintable characters are \u or \x escaped.
-            # Could use 'codecs' module?
-            data = string_eval(property_el.attrib.get("data"))
-        else:
-            data = property_el.text
-
-        properties = None
-        if format != "pickle" or allow_pickle_data:
-            try:
-                properties = loads(data, format)
-            except Exception:
-                log.error("Could not load properties for %r.", node.title,
-                          exc_info=True)
-
-        if properties is not None:
-            node.properties = properties
-
-    annotations = []
-    for annot_el in etree.findall("annotations/*"):
-        if annot_el.tag == "text":
-            rect = annot_el.attrib.get("rect", "(0, 0, 20, 20)")
-            rect = tuple_eval(rect)
-
-            font_family = annot_el.attrib.get("font-family", "").strip()
-            font_size = annot_el.attrib.get("font-size", "").strip()
-
-            font = {}
-            if font_family:
-                font["family"] = font_family
-            if font_size:
-                font["size"] = int(font_size)
-
-            annot = SchemeTextAnnotation(rect, annot_el.text or "", font=font)
-        elif annot_el.tag == "arrow":
-            start = annot_el.attrib.get("start", "(0, 0)")
-            end = annot_el.attrib.get("end", "(0, 0)")
-            start, end = map(tuple_eval, (start, end))
-
-            color = annot_el.attrib.get("fill", "red")
-            annot = SchemeArrowAnnotation(start, end, color=color)
-        annotations.append(annot)
-
-    for node in nodes:
-        scheme.add_node(node)
-
-    for link in links:
-        scheme.add_link(link)
-
-    for annot in annotations:
-        scheme.add_annotation(annot)
-
-
-def parse_scheme_v_1_0(etree, scheme, error_handler, widget_registry=None,
-                       allow_pickle_data=False):
-    """
-    ElementTree Instance of an old .ows scheme format (Orange < 2.7).
-    """
-    if widget_registry is None:
-        widget_registry = global_registry()
-
-    widgets_not_found = []
-
-    widgets = widget_registry.widgets()
-    widgets_by_name = [(d.qualified_name.rsplit(".", 1)[-1], d)
-                       for d in widgets]
-    widgets_by_name = dict(widgets_by_name)
-
-    nodes_by_caption = {}
-    nodes = []
-    links = []
-    for widget_el in etree.findall("widgets/widget"):
-        caption = widget_el.get("caption")
-        name = widget_el.get("widgetName")
-        x_pos = widget_el.get("xPos")
-        y_pos = widget_el.get("yPos")
-
-        if name in widgets_by_name:
-            desc = widgets_by_name[name]
-        else:
-            error_handler(UnknownWidgetDefinition(name))
-            widgets_not_found.append(caption)
-            continue
-
-        node = SchemeNode(desc, title=caption,
-                          position=(int(x_pos), int(y_pos)))
-        nodes_by_caption[caption] = node
-        nodes.append(node)
-
-    for channel_el in etree.findall("channels/channel"):
-        in_caption = channel_el.get("inWidgetCaption")
-        out_caption = channel_el.get("outWidgetCaption")
-
-        if in_caption in widgets_not_found or \
-                out_caption in widgets_not_found:
-            continue
-
-        source = nodes_by_caption[out_caption]
-        sink = nodes_by_caption[in_caption]
-        enabled = channel_el.get("enabled") == "1"
-        signals = literal_eval(channel_el.get("signals"))
-
-        for source_channel, sink_channel in signals:
-            try:
-                link = SchemeLink(source, source_channel, sink, sink_channel,
-                                  enabled=enabled)
-            except (ValueError, IncompatibleChannelTypeError) as ex:
-                error_handler(ex)
-            else:
-                links.append(link)
-
-    settings = etree.find("settings")
-    properties = {}
-    if settings is not None:
-        data = settings.attrib.get("settingsDictionary", None)
-        if data and allow_pickle_data:
-            try:
-                properties = literal_eval(data)
-            except Exception:
-                log.error("Could not load properties for the scheme.",
-                          exc_info=True)
-
-    for node in nodes:
-        if node.title in properties:
-            try:
-                node.properties = pickle.loads(properties[node.title])
-            except Exception:
-                log.error("Could not unpickle properties for the node %r.",
-                          node.title, exc_info=True)
-
-        scheme.add_node(node)
-
-    for link in links:
-        scheme.add_link(link)
 
 
 # Intermediate scheme representation
@@ -486,7 +192,12 @@ _session_data = NamedTuple(
 
 def parse_ows_etree_v_2_0(tree):
     # type: (ElementTree) -> _scheme
+    """
+    Parset an xml.etree.ElementTree struct into a intermediate workflow
+    representation.
+    """
     scheme = tree.getroot()
+    version = scheme.get("version")
     nodes, links, annotations = [], [], []
 
     # First collect all properties
@@ -494,7 +205,7 @@ def parse_ows_etree_v_2_0(tree):
     for property in tree.findall("node_properties/properties"):
         node_id = property.get("node_id")
         format = property.get("format")
-        if "data" in property.attrib:
+        if version == "2.0" and "data" in property.attrib:
             data = property.get("data")
         else:
             data = property.text
@@ -557,7 +268,7 @@ def parse_ows_etree_v_2_0(tree):
                 params=_arrow_params((start, end), color)
             )
         else:
-            log.warn("Unknown annotation '%s'. Skipping.", annot.tag)
+            log.warning("Unknown annotation '%s'. Skipping.", annot.tag)
             continue
         annotations.append(annotation)
 
@@ -581,7 +292,7 @@ def parse_ows_etree_v_2_0(tree):
     session_state = _session_data(window_presets)
 
     return _scheme(
-        version=scheme.get("version"),
+        version=version,
         title=scheme.get("title", ""),
         description=scheme.get("description"),
         nodes=nodes,
@@ -591,99 +302,30 @@ def parse_ows_etree_v_2_0(tree):
     )
 
 
-def parse_ows_etree_v_1_0(tree):
-    nodes, links = [], []
-    id_gen = count()
-
-    settings = tree.find("settings")
-    properties = {}
-    if settings is not None:
-        data = settings.get("settingsDictionary", None)
-        if data:
-            try:
-                properties = literal_eval(data)
-            except Exception:
-                log.error("Could not decode properties data.",
-                          exc_info=True)
-
-    for widget in tree.findall("widgets/widget"):
-        title = widget.get("caption")
-        data = properties.get(title, None)
-        node = _node(
-            id=next(id_gen),
-            title=widget.get("caption"),
-            name=None,
-            position=(float(widget.get("xPos")),
-                      float(widget.get("yPos"))),
-            project_name=None,
-            qualified_name=widget.get("widgetName"),
-            version="",
-            data=_data("pickle", data)
-        )
-        nodes.append(node)
-
-    nodes_by_title = dict((node.title, node) for node in nodes)
-
-    for channel in tree.findall("channels/channel"):
-        in_title = channel.get("inWidgetCaption")
-        out_title = channel.get("outWidgetCaption")
-
-        source = nodes_by_title[out_title]
-        sink = nodes_by_title[in_title]
-        enabled = channel.get("enabled") == "1"
-        # repr list of (source_name, sink_name) tuples.
-        signals = literal_eval(channel.get("signals"))
-
-        for source_channel, sink_channel in signals:
-            links.append(
-                _link(id=next(id_gen),
-                      source_node_id=source.id,
-                      sink_node_id=sink.id,
-                      source_channel=source_channel,
-                      sink_channel=sink_channel,
-                      enabled=enabled)
-            )
-    return _scheme(title="", description="", version="1.0",
-                   nodes=nodes, links=links, annotations=[],
-                   session_state=_session_data([]))
-
-
 def parse_ows_stream(stream):
     # type: (...) -> _scheme
     doc = parse(stream)
     scheme_el = doc.getroot()
+    if scheme_el.tag != "scheme":
+        raise ValueError(
+            "Invalid Orange Workflow Scheme file"
+        )
     version = scheme_el.get("version", None)
     if version is None:
-        # Fallback: check for "widgets" tag.
+        # Check for "widgets" tag - old Orange<2.7 format
         if scheme_el.find("widgets") is not None:
-            version = "1.0"
+            raise ValueError(
+                "Cannot open Orange Workflow Scheme v1.0. This format is no "
+                "longer supported"
+            )
         else:
-            log.warning("<scheme> tag does not have a 'version' attribute")
-            version = "2.0"
-
-    if version == "1.0":
-        return parse_ows_etree_v_1_0(doc)
-    elif version == "2.0":
+            raise ValueError(
+                "Invalid Orange Workflow Scheme file (missing version)."
+            )
+    if version in {"2.0", "2.1"}:
         return parse_ows_etree_v_2_0(doc)
     else:
         raise ValueError()
-
-
-def resolve_1_0(scheme_desc, registry):
-    widgets = registry.widgets()
-    widgets_by_name = dict((d.qualified_name.rsplit(".", 1)[-1], d)
-                           for d in widgets)
-    nodes = scheme_desc.nodes
-    for i, node in list(enumerate(nodes)):
-        # 1.0's qualified name is the class name only, need to replace it
-        # with the full qualified import name
-        qname = node.qualified_name
-        if qname in widgets_by_name:
-            desc = widgets_by_name[qname]
-            nodes[i] = node._replace(qualified_name=desc.qualified_name,
-                                     project_name=desc.project_name)
-
-    return scheme_desc._replace(nodes=nodes)
 
 
 def resolve_replaced(scheme_desc, registry):
@@ -749,9 +391,6 @@ def scheme_load(scheme, stream, registry=None, error_handler=None):
     if error_handler is None:
         def error_handler(exc):
             raise exc
-
-    if desc.version == "1.0":
-        desc = resolve_1_0(desc, registry)
 
     desc = resolve_replaced(desc, registry)
     nodes_not_found = []
@@ -911,7 +550,7 @@ def scheme_to_etree(scheme, data_format="literal", pickle_fallback=False):
                           "font-size": font.get("size", None)})
             attrs = [(key, value) for key, value in attrs.items()
                      if value is not None]
-            attrs = dict((key, six.text_type(value)) for key, value in attrs)
+            attrs = dict((key, str(value)) for key, value in attrs)
             data = annotation.content
         elif isinstance(annotation, SchemeArrowAnnotation):
             tag = "arrow"
@@ -993,15 +632,9 @@ def scheme_to_ows_stream(scheme, stream, pretty=False, pickle_fallback=False):
     """
     tree = scheme_to_etree(scheme, data_format="literal",
                            pickle_fallback=pickle_fallback)
-
     if pretty:
         indent(tree.getroot(), 0)
-
-    if sys.version_info < (2, 7):
-        # in Python 2.6 the write does not have xml_declaration parameter.
-        tree.write(stream, encoding="utf-8")
-    else:
-        tree.write(stream, encoding="utf-8", xml_declaration=True)
+    tree.write(stream, encoding="utf-8", xml_declaration=True)
 
 
 def indent(element, level=0, indent="\t"):
@@ -1031,14 +664,6 @@ def indent(element, level=0, indent="\t"):
                 element.tail = "\n" + indent * (level + (-1 if last else 0))
 
     return indent_(element, level, True)
-
-
-if six.PY3:
-    _encodebytes = base64.encodebytes
-    _decodebytes = base64.decodebytes
-else:
-    _encodebytes = base64.encodestring
-    _decodebytes = base64.decodestring
 
 
 def dumps(obj, format="literal", prettyprint=False, pickle_fallback=False):
@@ -1074,14 +699,14 @@ def dumps(obj, format="literal", prettyprint=False, pickle_fallback=False):
                         exc_info=True)
 
     elif format == "pickle":
-        return _encodebytes(pickle.dumps(obj)).decode('ascii'), "pickle"
+        return base64.encodebytes(pickle.dumps(obj)).decode('ascii'), "pickle"
 
     else:
         raise ValueError("Unsupported format %r" % format)
 
     if pickle_fallback:
         log.warning("Using pickle fallback")
-        return _encodebytes(pickle.dumps(obj)).decode('ascii'), "pickle"
+        return base64.encodebytes(pickle.dumps(obj)).decode('ascii'), "pickle"
     else:
         raise Exception("Something strange happened.")
 
@@ -1092,7 +717,7 @@ def loads(string, format):
     elif format == "json":
         return json.loads(string)
     elif format == "pickle":
-        return pickle.loads(_decodebytes(string.encode('ascii')))
+        return pickle.loads(base64.decodebytes(string.encode('ascii')))
     else:
         raise ValueError("Unknown format")
 
@@ -1106,7 +731,7 @@ def literal_dumps(obj, prettyprint=False, indent=4):
     NoneType = type(None)
 
     def check(obj):
-        if type(obj) in [int, float, bool, NoneType, bytes, six.text_type]:
+        if type(obj) in [int, float, bool, NoneType, bytes, str]:
             return True
 
         if id(obj) in memo:
@@ -1120,7 +745,7 @@ def literal_dumps(obj, prettyprint=False, indent=4):
             return all(map(check, chain(obj.keys(), obj.values())))
         else:
             raise TypeError("{0} can not be serialized as a python "
-                             "literal".format(type(obj)))
+                            "literal".format(type(obj)))
 
     check(obj)
 

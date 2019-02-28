@@ -68,7 +68,7 @@ def read_inventory_v2(f, uri, join, bufsize=16*1024):
         if not m:
             continue
         name, type, prio, location, dispname = m.groups()
-        if location.endswith(u'$'):
+        if location.endswith('$'):
             location = location[:-1] + name
         location = join(uri, location)
         invdata.setdefault(type, {})[name] = (projname, version,

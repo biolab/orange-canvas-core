@@ -6,35 +6,26 @@ Orange Canvas Configuration
 import os
 import sys
 import logging
-import pickle
 import warnings
 
 from distutils.version import LooseVersion
 
 import pkg_resources
-import six
 
 from AnyQt.QtGui import (
     QPainter, QFont, QFontMetrics, QColor, QPixmap, QIcon
 )
 
-from AnyQt.QtCore import Qt, QCoreApplication, QPoint, QRect, QT_VERSION
-
-if QT_VERSION < 0x50000:
-    from AnyQt.QtGui import QDesktopServices
-else:
-    from AnyQt.QtCore import QStandardPaths
+from AnyQt.QtCore import (
+    Qt, QCoreApplication, QPoint, QRect, QSettings, QStandardPaths
+)
 
 from .utils.settings import Settings, config_slot
-
-# Import QSettings from qtcompat module (compatibility with PyQt < 4.8.3
-from .utils.qtcompat import QSettings
 
 log = logging.getLogger(__name__)
 
 __version__ = "0.0"
 
-# from . import __version__
 
 #: Entry point by which widgets are registered.
 WIDGETS_ENTRY = "orangecanvas.widgets"
@@ -45,18 +36,19 @@ ADDON_PYPI_SEARCH_SPEC = {"keywords": ["orange", "add-on"]}
 
 TUTORIALS_ENTRY = "orangecanvas.tutorials"
 
-if QT_VERSION < 0x50000:
-    def standard_location(type):
-        return QDesktopServices.storageLocation(type)
-    standard_location.DesktopLocation = QDesktopServices.DesktopLocation
-    standard_location.DataLocation = QDesktopServices.DataLocation
-    standard_location.CacheLocation = QDesktopServices.CacheLocation
-else:
-    def standard_location(type):
-        return QStandardPaths.writableLocation(type)
-    standard_location.DesktopLocation = QStandardPaths.DesktopLocation
-    standard_location.DataLocation = QStandardPaths.DataLocation
-    standard_location.CacheLocation = QStandardPaths.CacheLocation
+
+def standard_location(type):
+    warnings.warn(
+        "Use QStandardPaths.writableLocation", DeprecationWarning,
+        stacklevel=2
+    )
+    return QStandardPaths.writableLocation(type)
+
+
+standard_location.DesktopLocation = QStandardPaths.DesktopLocation
+standard_location.DataLocation = QStandardPaths.DataLocation
+standard_location.CacheLocation = QStandardPaths.CacheLocation
+standard_location.DocumentsLocation = QStandardPaths.DocumentsLocation
 
 
 class default(object):
@@ -181,7 +173,7 @@ spec = \
      ("startup/show-welcome-screen", bool, True,
       "Show Welcome screen at startup"),
 
-     ("stylesheet", six.text_type, "orange",
+     ("stylesheet", str, "orange",
       "QSS stylesheet to use"),
 
      ("schemeinfo/show-at-new-scheme", bool, True,
@@ -275,8 +267,8 @@ def data_dir():
     init()
 
     datadir = standard_location(standard_location.DataLocation)
-    datadir = six.text_type(datadir)
-    version = six.text_type(QCoreApplication.applicationVersion())
+    datadir = datadir
+    version = QCoreApplication.applicationVersion()
     datadir = os.path.join(datadir, version)
     if not os.path.exists(datadir):
         os.makedirs(datadir)
@@ -291,8 +283,8 @@ def cache_dir():
     init()
 
     cachedir = standard_location(standard_location.CacheLocation)
-    cachedir = six.text_type(cachedir)
-    version = six.text_type(QCoreApplication.applicationVersion())
+    cachedir = cachedir
+    version = QCoreApplication.applicationVersion()
     cachedir = os.path.join(cachedir, version)
     if not os.path.exists(cachedir):
         os.makedirs(cachedir)
@@ -319,6 +311,10 @@ def widget_settings_dir():
     """
     Return the widget settings directory.
     """
+    warnings.warn(
+        "'widget_settings_dir' is deprecated.",
+        DeprecationWarning, stacklevel=2
+    )
     return os.path.join(data_dir(), 'widgets')
 
 
@@ -335,33 +331,6 @@ def save_config():
         "save_config was never used and will be removed in the future",
         DeprecationWarning, stacklevel=2
     )
-
-
-def recent_schemes():
-    """Return a list of recently accessed schemes.
-    """
-    app_dir = data_dir()
-    recent_filename = os.path.join(app_dir, "recent.pck")
-    recent = []
-    if os.path.isdir(app_dir) and os.path.isfile(recent_filename):
-        with open(recent_filename, "rb") as f:
-            recent = pickle.load(f)
-
-    # Filter out files not found on the file system
-    recent = [(title, path) for title, path in recent \
-              if os.path.exists(path)]
-    return recent
-
-
-def save_recent_scheme_list(scheme_list):
-    """Save the list of recently accessed schemes
-    """
-    app_dir = data_dir()
-    recent_filename = os.path.join(app_dir, "recent.pck")
-
-    if os.path.isdir(app_dir):
-        with open(recent_filename, "wb") as f:
-            pickle.dump(scheme_list, f)
 
 
 def widgets_entry_points():

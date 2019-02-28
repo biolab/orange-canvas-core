@@ -6,8 +6,6 @@ Scheme Link
 """
 import enum
 
-import six
-
 from AnyQt.QtCore import QObject
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
@@ -100,10 +98,10 @@ class SchemeLink(QObject):
     def __init__(self, source_node, source_channel,
                  sink_node, sink_channel, enabled=True, properties=None,
                  parent=None):
-        QObject.__init__(self, parent)
+        super().__init__(parent)
         self.source_node = source_node
 
-        if isinstance(source_channel, six.string_types):
+        if isinstance(source_channel, str):
             source_channel = source_node.output_channel(source_channel)
         elif source_channel not in source_node.output_channels():
             raise ValueError("%r not in in nodes output channels." \
@@ -113,7 +111,7 @@ class SchemeLink(QObject):
 
         self.sink_node = sink_node
 
-        if isinstance(sink_channel, six.string_types):
+        if isinstance(sink_channel, str):
             sink_channel = sink_node.input_channel(sink_channel)
         elif sink_channel not in sink_node.input_channels():
             raise ValueError("%r not in in nodes input channels." \
@@ -225,10 +223,8 @@ class SchemeLink(QObject):
                         fset=set_tool_tip)
 
     def __str__(self):
-        return u"{0}(({1}, {2}) -> ({3}, {4}))".format(
-                    type(self).__name__,
-                    self.source_node.title,
-                    self.source_channel.name,
-                    self.sink_node.title,
-                    self.sink_channel.name
-                )
+        return "{0}(({1}, {2}) -> ({3}, {4}))".format(
+            type(self).__name__,
+            self.source_node.title, self.source_channel.name,
+            self.sink_node.title, self.sink_channel.name
+        )

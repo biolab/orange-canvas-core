@@ -14,8 +14,6 @@ from typing import List, Tuple
 
 import logging
 
-import six
-
 from AnyQt.QtCore import QObject, QCoreApplication
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
@@ -86,17 +84,17 @@ class Scheme(QObject):
     annotation_removed = Signal(BaseSchemeAnnotation)
 
     # Signal emitted when the title of scheme changes.
-    title_changed = Signal(six.text_type)
+    title_changed = Signal(str)
 
     # Signal emitted when the description of scheme changes.
-    description_changed = Signal(six.text_type)
+    description_changed = Signal(str)
 
     #: Signal emitted when the associated runtime environment changes
     runtime_env_changed = Signal(str, object, object)
 
     def __init__(self, parent=None, title=None, description=None, env={},
                  **kwargs):
-        QObject.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
 
         self.__title = title or ""
         "Workflow title (empty string by default)."
@@ -153,7 +151,7 @@ class Scheme(QObject):
         """
         return self.__title
 
-    title = Property(six.text_type, fget=title, fset=set_title)
+    title = Property(str, fget=title, fset=set_title)
 
     def set_description(self, description):
         """
@@ -169,7 +167,7 @@ class Scheme(QObject):
         """
         return self.__description
 
-    description = Property(six.text_type, fget=description, fset=set_description)
+    description = Property(str, fget=description, fset=set_description)
 
     def add_node(self, node):
         """
@@ -663,7 +661,7 @@ class Scheme(QObject):
         .scheme_to_ows_stream
 
         """
-        if isinstance(stream, six.string_types):
+        if isinstance(stream, str):
             stream = open(stream, "wb")
 
         self.sync_node_properties()
@@ -679,7 +677,7 @@ class Scheme(QObject):
             # TODO: should we clear the scheme and load it.
             raise ValueError("Scheme is not empty.")
 
-        if isinstance(stream, six.string_types):
+        if isinstance(stream, str):
             stream = open(stream, "rb")
         readwrite.scheme_load(self, stream)
 #         parse_scheme(self, stream)
@@ -708,25 +706,6 @@ class Scheme(QObject):
         will be reflected in it.
         """
         return types.MappingProxyType(self.__env)
-
-    def widget_for_node(self, node):
-        # type: (SchemeNode) -> Optional[QWidget]
-        return None
-
-    def save_widget_geometry_for_node(self, node):
-        # type: (SchemeNode) -> bytes
-        """
-        Save and return the current geometry and state for node
-
-        Parameters
-        ----------
-        node : Scheme
-        """
-        return b''
-
-    def restore_widget_geometry_for_node(self, node, state):
-        # type: (SchemeNode, bytes) -> bool
-        return False
 
     class WindowGroup(types.SimpleNamespace):
         name = ...     # type: str

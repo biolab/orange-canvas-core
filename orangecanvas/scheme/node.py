@@ -4,7 +4,7 @@ Scheme Node
 ===========
 
 """
-import six
+from typing import Optional, Dict, Any
 
 from AnyQt.QtCore import QObject
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
@@ -14,22 +14,22 @@ class UserMessage(object):
     """
     A user message that should be displayed in a scheme view.
 
-    Paramaters
+    Parameters
     ----------
     contents : str
         Message text.
     severity : int
         Message severity.
-    message_id : A hashable object
+    message_id : str
         Message id.
     data : dict
         A dictionary with optional extra data.
-
     """
     #: Severity flags
     Info, Warning, Error = 1, 2, 3
 
     def __init__(self, contents, severity=Info, message_id=None, data={}):
+        # type: (str, int, str, Dict[str, Any]) -> None
         self.contents = contents
         self.severity = severity
         self.message_id = message_id
@@ -57,7 +57,7 @@ class SchemeNode(QObject):
 
     def __init__(self, description, title=None, position=None,
                  properties=None, parent=None):
-        QObject.__init__(self, parent)
+        super().__init__(parent)
         self.description = description
 
         if title is None:
@@ -108,14 +108,14 @@ class SchemeNode(QObject):
                          (name, self.description.name))
 
     #: The title of the node has changed
-    title_changed = Signal(six.text_type)
+    title_changed = Signal(str)
 
     def set_title(self, title):
         """
         Set the node title.
         """
         if self.__title != title:
-            self.__title = six.text_type(title)
+            self.__title = title
             self.title_changed.emit(self.__title)
 
     def title(self):
@@ -124,7 +124,7 @@ class SchemeNode(QObject):
         """
         return self.__title
 
-    title = Property(six.text_type, fset=set_title, fget=title)
+    title = Property(str, fset=set_title, fget=title)
 
     #: Position of the node in the scheme has changed
     position_changed = Signal(tuple)
@@ -195,7 +195,7 @@ class SchemeNode(QObject):
                         fget=tool_tip)
 
     #: The node's status tip has changes
-    status_message_changed = Signal(six.text_type)
+    status_message_changed = Signal(str)
 
     def set_status_message(self, text):
         if self.__status_message != text:
@@ -212,12 +212,32 @@ class SchemeNode(QObject):
         """
         Set a message to be displayed by a scheme view for this node.
         """
-        if message.message_id in self.__state_messages and \
-                not message.contents:
-            del self.__state_messages[message.message_id]
-
         self.__state_messages[message.message_id] = message
         self.state_message_changed.emit(message)
+
+    def clear_state_message(self, message_id):
+        # type: (str) -> None
+        """
+        Clear (remove) a message with `message_id`.
+
+        :attr:`state_message_changed` signal will be emitted with a empty
+        message for the `message_id`.
+        """
+        if message_id in self.__state_messages:
+            # emit an empty message
+            m = self.__state_messages[message_id]
+            m = UserMessage("", m.severity, m.message_id)
+            self.__state_messages[message_id] = m
+            self.state_message_changed.emit(m)
+            del self.__state_messages[message_id]
+
+    def state_message(self, message_id):
+        # type: (str) -> Optional[UserMessage]
+        """
+        Return a message with `message_id` or None if a message with that
+        id does not exist.
+        """
+        return self.__state_messages.get(message_id, None)
 
     def state_messages(self):
         """
@@ -226,7 +246,7 @@ class SchemeNode(QObject):
         return self.__state_messages.values()
 
     def __str__(self):
-        return u"SchemeNode(description_id=%s, title=%r, ...)" % \
+        return "SchemeNode(description_id=%r, title=%r, ...)" % \
                 (str(self.description.id), self.title)
 
     def __repr__(self):
