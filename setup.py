@@ -25,7 +25,8 @@ INSTALL_REQUIRES = (
     "docutils",
     "numpy",
     "commonmark",
-    "pip",
+    "requests",
+    "pip>=18.0",
 )
 
 
