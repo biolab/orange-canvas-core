@@ -43,7 +43,8 @@ CLASSIFIERS = (
 )
 
 EXTRAS_REQUIRE = {
-    ':python_version=="3.4"': ["typing"]
+    ':python_version=="3.4"': ["typing"],
+    'DOCBUILD': ['sphinx', 'sphinx-rtd-theme'],
 }
 
 PROJECT_URLS = {
