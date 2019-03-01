@@ -86,7 +86,7 @@ class SignalManager(QObject):
         """
         #: The manager is running, i.e. it propagates signals
         Running = 0
-        #: The manager is stopped. It does not track node ouput changes,
+        #: The manager is stopped. It does not track node output changes,
         #: and does not deliver signals to dependent nodes
         Stopped = 1
         #: The manager is paused. It still tracks node output changes, but
@@ -275,7 +275,7 @@ class SignalManager(QObject):
 
         Return
         ------
-        state : State
+        state : SignalManager.State
         """
         return self.__state
 
