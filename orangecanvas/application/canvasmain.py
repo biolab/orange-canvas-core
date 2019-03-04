@@ -25,7 +25,7 @@ from AnyQt.QtGui import (
 
 from AnyQt.QtCore import (
     Qt, QObject, QEvent, QSize, QUrl, QTimer, QFile, QByteArray, QFileInfo,
-    QSettings, QT_VERSION
+    QSettings, QStandardPaths, QT_VERSION
 )
 
 try:
@@ -97,7 +97,7 @@ def user_documents_path():
     """
     Return the users 'Documents' folder path.
     """
-    return config.standard_location(config.standard_location.DocumentsLocation)
+    return QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation)
 
 
 class FakeToolBar(QToolBar):
@@ -367,9 +367,11 @@ class CanvasMainWindow(QMainWindow):
             self.help_view = QWebView()
             manager = self.help_view.page().networkAccessManager()
             cache = QNetworkDiskCache()
-            cache.setCacheDirectory(
-                os.path.join(config.cache_dir(), "help", "help-view-cache")
+            cachedir = os.path.join(
+                QStandardPaths.writableLocation(QStandardPaths.CacheLocation),
+                "help", "help-view-cache"
             )
+            cache.setCacheDirectory(cachedir)
             manager.setCache(cache)
 
         self.help_dock.setWidget(self.help_view)

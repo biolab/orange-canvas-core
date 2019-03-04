@@ -277,30 +277,29 @@ def settings():
 
 
 def data_dir():
-    """Return the application data directory. If the directory path
+    """
+    Return the application data directory. If the directory path
     does not yet exists then create it.
-
     """
     init()
-
-    datadir = standard_location(standard_location.DataLocation)
-    datadir = datadir
+    datadir = QStandardPaths.writableLocation(QStandardPaths.DataLocation)
     version = QCoreApplication.applicationVersion()
     datadir = os.path.join(datadir, version)
-    if not os.path.exists(datadir):
-        os.makedirs(datadir)
+    if not os.path.isdir(datadir):
+        try:
+            os.makedirs(datadir, exist_ok=True)
+        except OSError:
+            pass
     return datadir
 
 
 def cache_dir():
-    """Return the application cache directory. If the directory path
+    """
+    Return the application cache directory. If the directory path
     does not yet exists then create it.
-
     """
     init()
-
-    cachedir = standard_location(standard_location.CacheLocation)
-    cachedir = cachedir
+    cachedir = QStandardPaths.writableLocation(QStandardPaths.CacheLocation)
     version = QCoreApplication.applicationVersion()
     cachedir = os.path.join(cachedir, version)
     if not os.path.exists(cachedir):
