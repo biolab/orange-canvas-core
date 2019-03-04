@@ -8,13 +8,14 @@ from xml.sax.saxutils import escape
 
 from typing import Iterable, Dict, Deque, Optional, List, Tuple
 
-from orangecanvas.scheme import SchemeNode, Scheme, NodeEvent, SchemeLink, \
-    LinkEvent
-
 from AnyQt.QtCore import Qt, QObject, QEvent, QTimer, QCoreApplication
 from AnyQt.QtCore import Slot, Signal
-from AnyQt.QtWidgets import QWidget, QLabel
+from AnyQt.QtGui import QKeySequence
+from AnyQt.QtWidgets import QWidget, QLabel, QShortcut
 
+from orangecanvas.scheme import (
+    SchemeNode, Scheme, NodeEvent, SchemeLink, LinkEvent, WorkflowEvent
+)
 from orangecanvas.scheme.node import UserMessage
 
 log = logging.getLogger(__name__)
@@ -222,6 +223,11 @@ class WidgetManager(QObject):
         self.__set_float_on_top_flag(w)
 
         w.installEventFilter(self.__activation_monitor)
+        # Up shortcut (activate/open parent)
+        up_shortcut = QShortcut(
+            QKeySequence(Qt.ControlModifier + Qt.Key_Up), w)
+        up_shortcut.activated.connect(self.__on_activate_parent)
+
         # send all the post creation notification events
         workflow = self.__workflow
         assert workflow is not None
@@ -468,6 +474,10 @@ class WidgetManager(QObject):
             item.errorwidget.show()
             item.errorwidget.raise_()
             item.errorwidget.activateWindow()
+
+    def __on_activate_parent(self):
+        event = WorkflowEvent(WorkflowEvent.ActivateParentRequest)
+        QCoreApplication.sendEvent(self.scheme(), event)
 
     def eventFilter(self, recv, event):
         # type: (QObject, QEvent) -> bool
