@@ -10,10 +10,15 @@ import typing
 
 from AnyQt.QtCore import QEvent
 
+from typing import Any
+
 if typing.TYPE_CHECKING:
     from orangecanvas.scheme import SchemeLink, SchemeNode, BaseSchemeAnnotation
 
-__all__ = ["WorkflowEvent", "NodeEvent", "LinkEvent", "AnnotationEvent"]
+__all__ = [
+    "WorkflowEvent", "NodeEvent", "LinkEvent", "AnnotationEvent",
+    "WorkflowEnvChanged"
+]
 
 
 class WorkflowEvent(QEvent):
@@ -52,6 +57,7 @@ class WorkflowEvent(QEvent):
 
     #: Workflow resource changed (e.g. work directory, env variable)
     WorkflowResourceChange = QEvent.registerEventType()
+    WorkflowEnvironmentChange = WorkflowResourceChange
     #: Workflow is about to close.
     WorkflowAboutToClose = QEvent.registerEventType()
     WorkflowClose = QEvent.registerEventType()
@@ -93,3 +99,39 @@ class AnnotationEvent(WorkflowEvent):
 
     def annotation(self):
         return self.__annotation
+
+
+class WorkflowEnvChanged(WorkflowEvent):
+    """
+    An event notifying the receiver of a workflow environment change.
+
+    See Also
+    --------
+    Scheme.runtime_env
+    """
+    def __init__(self, name, newValue, oldValue):
+        super().__init__(QEvent.Type(WorkflowEvent.WorkflowEnvironmentChange))
+        self.__name = name
+        self.__oldValue = oldValue
+        self.__newValue = newValue
+
+    def name(self):
+        # type: () -> str
+        """
+        The name of the environment property.
+        """
+        return self.__name
+
+    def oldValue(self):
+        # type: () -> Any
+        """
+        The old value.
+        """
+        return self.__oldValue
+
+    def newValue(self):
+        # type: () -> Any
+        """
+        The new value.
+        """
+        return self.__newValue

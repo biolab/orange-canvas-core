@@ -14,8 +14,9 @@ from AnyQt.QtGui import QKeySequence
 from AnyQt.QtWidgets import QWidget, QLabel, QShortcut
 
 from orangecanvas.scheme import (
-    SchemeNode, Scheme, NodeEvent, SchemeLink, LinkEvent, WorkflowEvent
+    SchemeNode, Scheme, NodeEvent, SchemeLink, LinkEvent
 )
+from orangecanvas.scheme.events import WorkflowEvent, WorkflowEnvChanged
 from orangecanvas.scheme.node import UserMessage
 
 log = logging.getLogger(__name__)
@@ -24,7 +25,7 @@ __all__ = ["WidgetManager"]
 
 
 class Item:
-    def __init__(self, node, widget,  activation_order=-1, errorwidget=None):
+    def __init__(self, node, widget, activation_order=-1, errorwidget=None):
         # type: (SchemeNode, Optional[QWidget], int, Optional[QWidget]) -> None
         self.node = node
         self.widget = widget
@@ -42,6 +43,22 @@ class WidgetManager(QObject):
 
     This is an abstract class, subclassed MUST reimplement at least
     :func:`create_widget_for_node` and :func:`delete_widget_for_node`.
+
+    ... The widgets created with the `create_widget_for_node` are
+
+    Events
+    ------
+    The widgets created with `create_widget_for_node` will automatically
+    receive dispatched events:
+
+        * :ref:`LinkEvent.InputLinkAdded` - when a new input link is added to
+          the workflow.
+        * :ref:`LinkEvent.InputLinkRemoved` - when a input link is removed
+        * :ref:`LinkEvent.OutputLinkAdded` - when a new output link is added to
+          the workflow
+        * `LinkEvent.InputLinkRemoved` - when a output link is removed
+        * `WorkflowEnvEvent.WorkflowEnvironmentChanged` - when the workflow
+          environment changes.
     """
     #: A new QWidget was created and added by the manager.
     widget_for_node_added = Signal(SchemeNode, QWidget)
@@ -101,6 +118,7 @@ class WidgetManager(QObject):
             self.__workflow.node_removed.disconnect(self.__on_node_removed)
             self.__workflow.link_added.disconnect(self.__on_link_added)
             self.__workflow.link_removed.disconnect(self.__on_link_removed)
+            self.__workflow.runtime_env_changed.disconnect(self.__on_env_changed)
             self.__workflow.removeEventFilter(self)
 
         self.__workflow = workflow
@@ -113,6 +131,8 @@ class WidgetManager(QObject):
             self.__on_link_added, Qt.UniqueConnection)
         workflow.link_removed.connect(
             self.__on_link_removed, Qt.UniqueConnection)
+        workflow.runtime_env_changed.connect(
+            self.__on_env_changed, Qt.UniqueConnection)
         workflow.installEventFilter(self)
         for node in workflow.nodes:
             self.__add_node(node)
@@ -505,6 +525,13 @@ class WidgetManager(QObject):
         # Changing window flags hid the widget
         if widget_was_visible:
             widget.show()
+
+    def __on_env_changed(self, key, newvalue, oldvalue):
+        # Notify widgets of a runtime environment change
+        for item in self.__item_for_node.values():
+            if item.widget is not None:
+                ev = WorkflowEnvChanged(key, newvalue, oldvalue)
+                QCoreApplication.sendEvent(item.widget, ev)
 
 
 # Utility class used to preserve window stacking order.
