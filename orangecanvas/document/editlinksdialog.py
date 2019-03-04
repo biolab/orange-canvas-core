@@ -16,7 +16,8 @@ from AnyQt.QtWidgets import (
     QGraphicsView, QGraphicsWidget, QGraphicsRectItem,
     QGraphicsLineItem, QGraphicsTextItem, QGraphicsLayoutItem,
     QGraphicsLinearLayout, QGraphicsGridLayout, QGraphicsPixmapItem,
-    QGraphicsDropShadowEffect, QSizePolicy, QGraphicsItem
+    QGraphicsDropShadowEffect, QSizePolicy, QGraphicsItem,
+    QWIDGETSIZE_MAX
 )
 from AnyQt.QtGui import (
     QPalette, QPen, QPainter, QIcon, QColor, QPainterPathStroker
@@ -29,10 +30,6 @@ from ..scheme import compatible_channels
 from ..registry import InputSignal, OutputSignal
 
 from ..resources import icon_loader
-
-# This is a special value defined in Qt4 but does not seem to be exported
-# by PyQt4
-QWIDGETSIZE_MAX = ((1 << 24) - 1)
 
 
 class EditLinksDialog(QDialog):

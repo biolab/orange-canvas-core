@@ -14,7 +14,7 @@ from operator import eq, attrgetter
 from AnyQt.QtWidgets import (
     QWidget, QFrame, QSizePolicy, QStyle, QStyleOptionToolButton,
     QStyleOptionToolBox, QScrollArea, QVBoxLayout, QToolButton,
-    QAction, QActionGroup, QApplication
+    QAction, QActionGroup, QApplication, QWIDGETSIZE_MAX
 )
 from AnyQt.QtGui import (
     QIcon, QFontMetrics, QPainter, QPalette, QBrush, QPen, QColor,
@@ -24,7 +24,7 @@ from AnyQt.QtCore import (
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
-from .utils import brush_darker, QWIDGETSIZE_MAX
+from .utils import brush_darker
 
 _ToolBoxPage = namedtuple(
     "_ToolBoxPage",
