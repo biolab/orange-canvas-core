@@ -4,7 +4,6 @@
 
 .. autoclass:: SignalManager
    :members:
-   :exclude-members:
    :member-order: bysource
    :show-inheritance:
 
