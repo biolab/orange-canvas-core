@@ -17,11 +17,11 @@
 build
 dist
 MANIFEST
-Orange/version.py
+
 *.egg-info
-*.egg
-setuptools*.tar.gz
 
 # Built documentation.
 docs/build/*
 
+# Coverage report
+htmlcov
