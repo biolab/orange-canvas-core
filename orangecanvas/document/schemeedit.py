@@ -13,11 +13,10 @@ import unicodedata
 import copy
 
 from operator import attrgetter
-from typing import List, Optional
-
 from urllib.parse import urlencode
 from contextlib import ExitStack
-from typing import List
+
+from typing import List, Optional
 
 from AnyQt.QtWidgets import (
     QWidget, QVBoxLayout, QInputDialog, QMenu, QAction, QActionGroup,
@@ -194,26 +193,26 @@ class SchemeEditWidget(QWidget):
         self.__suggestions = Suggestions()
 
     def __setupActions(self):
-        self.__cleanUpAction = \
-            QAction(self.tr("Clean Up"), self,
-                    objectName="cleanup-action",
-                    toolTip=self.tr("Align widget to a grid."),
-                    triggered=self.alignToGrid,
-                    )
+        self.__cleanUpAction = QAction(
+            self.tr("Clean Up"), self,
+            objectName="cleanup-action",
+            toolTip=self.tr("Align widget to a grid."),
+            triggered=self.alignToGrid,
+        )
 
-        self.__newTextAnnotationAction = \
-            QAction(self.tr("Text"), self,
-                    objectName="new-text-action",
-                    toolTip=self.tr("Add a text annotation to the workflow."),
-                    checkable=True,
-                    toggled=self.__toggleNewTextAnnotation,
-                    )
+        self.__newTextAnnotationAction = QAction(
+            self.tr("Text"), self,
+            objectName="new-text-action",
+            toolTip=self.tr("Add a text annotation to the workflow."),
+            checkable=True,
+            toggled=self.__toggleNewTextAnnotation,
+        )
 
         # Create a font size menu for the new annotation action.
         self.__fontMenu = QMenu("Font Size", self)
-        self.__fontActionGroup = group = \
-            QActionGroup(self, exclusive=True,
-                         triggered=self.__onFontSizeTriggered)
+        self.__fontActionGroup = group = QActionGroup(
+            self, exclusive=True, triggered=self.__onFontSizeTriggered
+        )
 
         def font(size):
             f = QFont(self.font())
@@ -221,29 +220,28 @@ class SchemeEditWidget(QWidget):
             return f
 
         for size in [12, 14, 16, 18, 20, 22, 24]:
-            action = QAction("%ipx" % size, group,
-                             checkable=True,
-                             font=font(size))
-
+            action = QAction(
+                "%ipx" % size, group, checkable=True, font=font(size)
+            )
             self.__fontMenu.addAction(action)
 
         group.actions()[2].setChecked(True)
 
         self.__newTextAnnotationAction.setMenu(self.__fontMenu)
 
-        self.__newArrowAnnotationAction = \
-            QAction(self.tr("Arrow"), self,
-                    objectName="new-arrow-action",
-                    toolTip=self.tr("Add a arrow annotation to the workflow."),
-                    checkable=True,
-                    toggled=self.__toggleNewArrowAnnotation,
-                    )
+        self.__newArrowAnnotationAction = QAction(
+            self.tr("Arrow"), self,
+            objectName="new-arrow-action",
+            toolTip=self.tr("Add a arrow annotation to the workflow."),
+            checkable=True,
+            toggled=self.__toggleNewArrowAnnotation,
+        )
 
         # Create a color menu for the arrow annotation action
         self.__arrowColorMenu = QMenu("Arrow Color",)
-        self.__arrowColorActionGroup = group = \
-            QActionGroup(self, exclusive=True,
-                         triggered=self.__onArrowColorTriggered)
+        self.__arrowColorActionGroup = group = QActionGroup(
+            self, exclusive=True, triggered=self.__onArrowColorTriggered
+        )
 
         def color_icon(color):
             icon = QIcon()
@@ -278,28 +276,27 @@ class SchemeEditWidget(QWidget):
         self.__redoAction.setShortcut(QKeySequence.Redo)
         self.__redoAction.setObjectName("redo-action")
 
-        self.__selectAllAction = \
-            QAction(self.tr("Select all"), self,
-                    objectName="select-all-action",
-                    toolTip=self.tr("Select all items."),
-                    triggered=self.selectAll,
-                    shortcut=QKeySequence.SelectAll
-                    )
-
-        self.__openSelectedAction = \
-            QAction(self.tr("Open"), self,
-                    objectName="open-action",
-                    toolTip=self.tr("Open selected widget"),
-                    triggered=self.openSelected,
-                    enabled=False)
-
-        self.__removeSelectedAction = \
-            QAction(self.tr("Remove"), self,
-                    objectName="remove-selected",
-                    toolTip=self.tr("Remove selected items"),
-                    triggered=self.removeSelected,
-                    enabled=False
-                    )
+        self.__selectAllAction = QAction(
+            self.tr("Select all"), self,
+            objectName="select-all-action",
+            toolTip=self.tr("Select all items."),
+            triggered=self.selectAll,
+            shortcut=QKeySequence.SelectAll
+        )
+        self.__openSelectedAction = QAction(
+            self.tr("Open"), self,
+            objectName="open-action",
+            toolTip=self.tr("Open selected widget"),
+            triggered=self.openSelected,
+            enabled=False
+        )
+        self.__removeSelectedAction = QAction(
+            self.tr("Remove"), self,
+            objectName="remove-selected",
+            toolTip=self.tr("Remove selected items"),
+            triggered=self.removeSelected,
+            enabled=False
+        )
 
         shortcuts = [Qt.Key_Delete,
                      Qt.ControlModifier + Qt.Key_Backspace]
@@ -311,74 +308,74 @@ class SchemeEditWidget(QWidget):
 
         self.__removeSelectedAction.setShortcuts(shortcuts)
 
-        self.__renameAction = \
-            QAction(self.tr("Rename"), self,
-                    objectName="rename-action",
-                    toolTip=self.tr("Rename selected widget"),
-                    triggered=self.__onRenameAction,
-                    shortcut=QKeySequence(Qt.Key_F2),
-                    enabled=False)
+        self.__renameAction = QAction(
+            self.tr("Rename"), self,
+            objectName="rename-action",
+            toolTip=self.tr("Rename selected widget"),
+            triggered=self.__onRenameAction,
+            shortcut=QKeySequence(Qt.Key_F2),
+            enabled=False
+        )
 
-        self.__helpAction = \
-            QAction(self.tr("Help"), self,
-                    objectName="help-action",
-                    toolTip=self.tr("Show widget help"),
-                    triggered=self.__onHelpAction,
-                    shortcut=QKeySequence("F1"),
-                    enabled=False,
-                    )
+        self.__helpAction = QAction(
+            self.tr("Help"), self,
+            objectName="help-action",
+            toolTip=self.tr("Show widget help"),
+            triggered=self.__onHelpAction,
+            shortcut=QKeySequence("F1"),
+            enabled=False,
+        )
+        self.__linkEnableAction = QAction(
+            self.tr("Enabled"), self, objectName="link-enable-action",
+            triggered=self.__toggleLinkEnabled, checkable=True,
+        )
 
-        self.__linkEnableAction = \
-            QAction(self.tr("Enabled"), self,
-                    objectName="link-enable-action",
-                    triggered=self.__toggleLinkEnabled,
-                    checkable=True,
-                    )
+        self.__linkRemoveAction = QAction(
+            self.tr("Remove"), self,
+            objectName="link-remove-action",
+            triggered=self.__linkRemove,
+            toolTip=self.tr("Remove link."),
+        )
 
-        self.__linkRemoveAction = \
-            QAction(self.tr("Remove"), self,
-                    objectName="link-remove-action",
-                    triggered=self.__linkRemove,
-                    toolTip=self.tr("Remove link."),
-                    )
+        self.__nodeInsertAction = QAction(
+            self.tr("Insert Widget"), self,
+            objectName="node-insert-action",
+            triggered=self.__nodeInsert,
+            toolTip=self.tr("Insert widget."),
+        )
 
-        self.__nodeInsertAction = \
-            QAction(self.tr("Insert Widget"), self,
-                    objectName="node-insert-action",
-                    triggered=self.__nodeInsert,
-                    toolTip=self.tr("Insert widget."),
-                    )
+        self.__linkResetAction = QAction(
+            self.tr("Reset Signals"), self,
+            objectName="link-reset-action",
+            triggered=self.__linkReset,
+        )
+        self.__duplicateSelectedAction = QAction(
+            self.tr("Duplicate Selected"), self,
+            objectName="duplicate-action",
+            enabled=False,
+            shortcut=QKeySequence(Qt.ControlModifier + Qt.Key_D),
+            triggered=self.__duplicateSelected,
+        )
 
-        self.__linkResetAction = \
-            QAction(self.tr("Reset Signals"), self,
-                    objectName="link-reset-action",
-                    triggered=self.__linkReset,
-                    )
-
-        self.__duplicateSelectedAction = \
-            QAction(self.tr("Duplicate Selected"), self,
-                    objectName="duplicate-action",
-                    enabled=False,
-                    shortcut=QKeySequence(Qt.ControlModifier + Qt.Key_D),
-                    triggered=self.__duplicateSelected,
-                    )
-
-        self.addActions([self.__newTextAnnotationAction,
-                         self.__newArrowAnnotationAction,
-                         self.__linkEnableAction,
-                         self.__linkRemoveAction,
-                         self.__nodeInsertAction,
-                         self.__linkResetAction,
-                         self.__duplicateSelectedAction])
+        self.addActions([
+            self.__newTextAnnotationAction,
+            self.__newArrowAnnotationAction,
+            self.__linkEnableAction,
+            self.__linkRemoveAction,
+            self.__nodeInsertAction,
+            self.__linkResetAction,
+            self.__duplicateSelectedAction
+        ])
 
         # Actions which should be disabled while a multistep
         # interaction is in progress.
-        self.__disruptiveActions = \
-                [self.__undoAction,
-                 self.__redoAction,
-                 self.__removeSelectedAction,
-                 self.__selectAllAction,
-                 self.__duplicateSelectedAction]
+        self.__disruptiveActions = [
+            self.__undoAction,
+            self.__redoAction,
+            self.__removeSelectedAction,
+            self.__selectAllAction,
+            self.__duplicateSelectedAction
+        ]
 
         #: Top 'Window Groups' action
         self.__windowGroupsAction = QAction(
@@ -1739,7 +1736,6 @@ class SchemeEditWidget(QWidget):
             self.insertNode(new_node, original_link)
         else:
             log.info("Cannot insert node: links not possible.")
-
 
     def __duplicateSelected(self):
         """
