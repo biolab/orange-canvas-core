@@ -11,7 +11,7 @@ from typing import Iterable, Dict, Deque, Optional, List, Tuple
 from AnyQt.QtCore import Qt, QObject, QEvent, QTimer, QCoreApplication
 from AnyQt.QtCore import Slot, Signal
 from AnyQt.QtGui import QKeySequence
-from AnyQt.QtWidgets import QWidget, QLabel, QShortcut
+from AnyQt.QtWidgets import QWidget, QLabel, QShortcut, QAction
 
 from orangecanvas.scheme import (
     SchemeNode, Scheme, NodeEvent, SchemeLink, LinkEvent
@@ -531,6 +531,27 @@ class WidgetManager(QObject):
             if item.widget is not None:
                 ev = WorkflowEnvChanged(key, newvalue, oldvalue)
                 QCoreApplication.sendEvent(item.widget, ev)
+
+    def actions_for_context_menu(self, node):
+        # type: (SchemeNode) -> List[QAction]
+        """
+        Return a list of extra actions that can be inserted into context
+        menu in the workflow editor.
+
+        Subclasses can reimplement this method to extend the default context
+        menu.
+
+        Parameters
+        ----------
+        node: SchemeNode
+            The node for which the context menu is requested.
+
+        Return
+        ------
+        actions: List[QAction]
+            Actions that are appended to the default menu.
+        """
+        return []
 
 
 # Utility class used to preserve window stacking order.

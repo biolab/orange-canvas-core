@@ -1356,11 +1356,15 @@ class SchemeEditWidget(QWidget):
 
         item = self.scene().item_at(scenePos, items.NodeItem)
         if item is not None:
-            node = self.scene().node_for_item(item)
-            actions = node.property("ext-menu-actions")
-            if isinstance(actions, list) and \
-                    all(isinstance(item, QAction) for item in actions) and \
-                            len(self.selectedNodes()) == 1:
+            node = self.scene().node_for_item(item)  # type: SchemeNode
+            actions = []
+            manager = self.widgetManager()
+            if manager is not None:
+                actions = manager.actions_for_context_menu(node)
+
+            # TODO: Inspect actions for all selected nodes and merge 'same'
+            #       actions (by name)
+            if actions and len(self.selectedNodes()) == 1:
                 # The node has extra actions for the context menu.
                 # Copy the default context menu and append the extra actions.
                 menu = QMenu(self)
