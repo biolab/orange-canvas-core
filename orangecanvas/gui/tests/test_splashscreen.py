@@ -18,9 +18,8 @@ from ... import config
 class TestSplashScreen(QAppTestCase):
     def test_splashscreen(self):
         splash = pkg_resources.resource_filename(
-                     config.__package__,
-                     "icons/orange-splash-screen.png"
-                 )
+            config.__package__, "icons/orange-canvas-core-splash.svg"
+        )
         w = SplashScreen()
         w.setPixmap(QPixmap(splash))
         w.setTextRect(QRect(100, 100, 400, 50))

@@ -78,8 +78,22 @@ class default(object):
 
     @staticmethod
     def splash_screen():
+        # type: () -> Tuple[QPixmap, QRect]
+        """
+        Return a splash screen pixmap and an text area within it.
+
+        The text area is used for displaying text messages during application
+        startup.
+
+        The default implementation returns a bland rectangle splash screen.
+
+        Returns
+        -------
+        t : Tuple[QPixmap, QRect]
+            A QPixmap and a rect area within it.
+        """
         path = pkg_resources.resource_filename(
-            __name__, "icons/orange-splash-screen.png")
+            __name__, "icons/orange-canvas-core-splash.svg")
         pm = QPixmap(path)
 
         version = QCoreApplication.applicationVersion()
@@ -88,14 +102,14 @@ class default(object):
             version_comp = version_parsed.version
             version = ".".join(map(str, version_comp[:2]))
         size = 21 if len(version) < 5 else 16
-        font = QFont("Helvetica")
+        font = QFont()
         font.setPixelSize(size)
         font.setBold(True)
         font.setItalic(True)
         font.setLetterSpacing(QFont.AbsoluteSpacing, 2)
         metrics = QFontMetrics(font)
         br = metrics.boundingRect(version).adjusted(-5, 0, 5, 0)
-        br.moveCenter(QPoint(436, 224))
+        br.moveBottomRight(QPoint(pm.width() - 15, pm.height() - 15))
 
         p = QPainter(pm)
         p.setRenderHint(QPainter.Antialiasing)
@@ -104,7 +118,8 @@ class default(object):
         p.setPen(QColor("#231F20"))
         p.drawText(br, Qt.AlignCenter, version)
         p.end()
-        return pm, QRect(88, 193, 200, 20)
+        textarea = QRect(15, 15, 170, 20)
+        return pm, textarea
 
     @staticmethod
     def widgets_entry_points():
