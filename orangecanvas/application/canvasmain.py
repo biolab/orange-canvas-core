@@ -70,7 +70,7 @@ from ..preview import previewdialog, previewmodel
 
 from .. import config
 
-from . import tutorials
+from . import examples
 
 log = logging.getLogger(__name__)
 
@@ -487,7 +487,7 @@ class CanvasMainWindow(QMainWindow):
             self.tr("Example Workflows"), self,
             objectName="examples-action",
             toolTip=self.tr("Browse example workflows."),
-            triggered=self.tutorial_scheme,
+            triggered=self.examples_dialog,
             icon=canvas_icons("Examples.svg")
         )
 
@@ -1351,14 +1351,14 @@ class CanvasMainWindow(QMainWindow):
             self.open_scheme_file(selected.path())
         return status
 
-    def tutorial_scheme(self):
+    def examples_dialog(self):
         """
         Browse a collection of tutorial/example schemes.
 
         Returns QDialog.Rejected if the user canceled the dialog else loads
         the selected scheme into the canvas and returns QDialog.Accepted.
         """
-        tutors = tutorials.tutorials()
+        tutors = examples.workflows(config.default)
         items = [previewmodel.PreviewItem(path=t.abspath()) for t in tutors]
         model = previewmodel.PreviewModel(items=items)
         dialog = previewdialog.PreviewDialog(self)
@@ -1409,7 +1409,7 @@ class CanvasMainWindow(QMainWindow):
                 dialog.accept()
 
         def browse_examples():
-            if self.tutorial_scheme() == QDialog.Accepted:
+            if self.examples_dialog() == QDialog.Accepted:
                 dialog.accept()
 
         new_action = \
@@ -1867,7 +1867,7 @@ class CanvasMainWindow(QMainWindow):
             elif url.scheme() == "orange":
                 target = url.host()
                 if target == "examples":
-                    self.tutorial_scheme()
+                    self.examples_dialog()
                 elif target == "tutorials":
                     self.get_started_screencasts_action.trigger()
                 elif target == "welcome":

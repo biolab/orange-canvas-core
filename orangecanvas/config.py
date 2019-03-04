@@ -29,12 +29,14 @@ __version__ = "0.0"
 
 #: Entry point by which widgets are registered.
 WIDGETS_ENTRY = "orangecanvas.widgets"
+
 #: Entry point by which add-ons register with pkg_resources.
 ADDONS_ENTRY = "orangecanvas.addon"
+
 #: Parameters for searching add-on packages in PyPi using xmlrpc api.
 ADDON_PYPI_SEARCH_SPEC = {"keywords": ["orange", "add-on"]}
 
-TUTORIALS_ENTRY = "orangecanvas.tutorials"
+EXAMPLE_WORKFLOWS_ENTRY = "orangecanvas.examples"
 
 
 def standard_location(type):
@@ -117,8 +119,8 @@ class default(object):
         return dict(ADDON_PYPI_SEARCH_SPEC)
 
     @staticmethod
-    def tutorials_entry_points():
-        return pkg_resources.iter_entry_points(TUTORIALS_ENTRY)
+    def examples_entry_points():
+        return pkg_resources.iter_entry_points(EXAMPLE_WORKFLOWS_ENTRY)
 
     @staticmethod
     def widget_discovery(*args, **kwargs):
