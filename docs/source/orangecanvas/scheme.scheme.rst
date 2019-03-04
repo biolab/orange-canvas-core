@@ -61,3 +61,22 @@ Scheme (``scheme``)
 
 .. autoclass:: DuplicatedLinkError
    :show-inheritance:
+
+
+.. currentmodule:: orangecanvas.scheme.events
+
+.. autoclass:: orangecanvas.scheme.events.WorkflowEvent
+   :show-inheritance:
+   :members:
+
+.. autoclass:: orangecanvas.scheme.events.NodeEvent
+   :show-inheritance:
+
+.. autoclass:: orangecanvas.scheme.events.LinkEvent
+   :show-inheritance:
+
+.. autoclass:: orangecanvas.scheme.events.AnnotationEvent
+   :show-inheritance:
+
+.. autoclass:: orangecanvas.scheme.events.WorkflowEnvChanged
+   :show-inheritance:

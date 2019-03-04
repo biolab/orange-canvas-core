@@ -44,21 +44,20 @@ class WidgetManager(QObject):
     This is an abstract class, subclassed MUST reimplement at least
     :func:`create_widget_for_node` and :func:`delete_widget_for_node`.
 
-    ... The widgets created with the `create_widget_for_node` are
-
-    Events
-    ------
     The widgets created with `create_widget_for_node` will automatically
     receive dispatched events:
 
-        * :ref:`LinkEvent.InputLinkAdded` - when a new input link is added to
+        * :data:`WorkflowEvent.InputLinkAdded` - when a new input link is added to
           the workflow.
-        * :ref:`LinkEvent.InputLinkRemoved` - when a input link is removed
-        * :ref:`LinkEvent.OutputLinkAdded` - when a new output link is added to
+        * :data:`LinkEvent.InputLinkRemoved` - when a input link is removed
+        * :data:`LinkEvent.OutputLinkAdded` - when a new output link is added to
           the workflow
-        * `LinkEvent.InputLinkRemoved` - when a output link is removed
-        * `WorkflowEnvEvent.WorkflowEnvironmentChanged` - when the workflow
-          environment changes.
+        * :data:`LinkEvent.InputLinkRemoved` - when a output link is removed
+        * :data:`WorkflowEnvEvent.WorkflowEnvironmentChanged` - when the
+          workflow environment changes.
+
+    .. seealso:: :func:`.Scheme.add_link()`, :func:`Scheme.remove_link`,
+                 :func:`.Scheme.runtime_env`
     """
     #: A new QWidget was created and added by the manager.
     widget_for_node_added = Signal(SchemeNode, QWidget)
