@@ -23,54 +23,54 @@ __all__ = [
 
 class WorkflowEvent(QEvent):
     #: Delivered to Scheme when a node has been added
-    NodeAdded = QEvent.registerEventType()
+    NodeAdded = QEvent.Type(QEvent.registerEventType())
     #: Delivered to Scheme when a node has been removed
-    NodeRemoved = QEvent.registerEventType()
+    NodeRemoved = QEvent.Type(QEvent.registerEventType())
     #: A Link has been added to the scheme
-    LinkAdded = QEvent.registerEventType()
+    LinkAdded = QEvent.Type(QEvent.registerEventType())
     #: A Link has been removed from the scheme
-    LinkRemoved = QEvent.registerEventType()
+    LinkRemoved = QEvent.Type(QEvent.registerEventType())
 
     #: An input Link has been added to a node
-    InputLinkAdded = QEvent.registerEventType()
+    InputLinkAdded = QEvent.Type(QEvent.registerEventType())
     #: An output Link has been added to a node
-    OutputLinkAdded = QEvent.registerEventType()
+    OutputLinkAdded = QEvent.Type(QEvent.registerEventType())
     #: An input Link has been removed from a node
-    InputLinkRemoved = QEvent.registerEventType()
+    InputLinkRemoved = QEvent.Type(QEvent.registerEventType())
     #: An output Link has been removed from a node
-    OutputLinkRemoved = QEvent.registerEventType()
+    OutputLinkRemoved = QEvent.Type(QEvent.registerEventType())
 
     #: Node's (runtime) state has changed
-    NodeStateChange = QEvent.registerEventType()
+    NodeStateChange = QEvent.Type(QEvent.registerEventType())
     #: Link's (runtime) state has changed
-    LinkStateChange = QEvent.registerEventType()
+    LinkStateChange = QEvent.Type(QEvent.registerEventType())
     #: Request for Node's runtime initialization (e.g.
     #: load required data, establish connection, ...)
-    NodeInitialize = QEvent.registerEventType()
+    NodeInitialize = QEvent.Type(QEvent.registerEventType())
     #: Restore the node from serialized state
-    NodeRestore = QEvent.registerEventType()
-    NodeSaveStateRequest = QEvent.registerEventType()  # ?
+    NodeRestore = QEvent.Type(QEvent.registerEventType())
+    NodeSaveStateRequest = QEvent.Type(QEvent.registerEventType())
     #: Node user activate request (e.g. on double click in the
     #: canvas GUI)
-    NodeActivateRequest = QEvent.registerEventType()
+    NodeActivateRequest = QEvent.Type(QEvent.registerEventType())
 
     # Workflow runtime changed (Running/Paused/Stopped, ...)
-    RuntimeStateChange = QEvent.registerEventType()
+    RuntimeStateChange = QEvent.Type(QEvent.registerEventType())
 
     #: Workflow resource changed (e.g. work directory, env variable)
-    WorkflowResourceChange = QEvent.registerEventType()
+    WorkflowResourceChange = QEvent.Type(QEvent.registerEventType())
     WorkflowEnvironmentChange = WorkflowResourceChange
     #: Workflow is about to close.
-    WorkflowAboutToClose = QEvent.registerEventType()
-    WorkflowClose = QEvent.registerEventType()
+    WorkflowAboutToClose = QEvent.Type(QEvent.registerEventType())
+    WorkflowClose = QEvent.Type(QEvent.registerEventType())
 
-    AnnotationAdded = QEvent.registerEventType()
-    AnnotationRemoved = QEvent.registerEventType()
-    AnnotationChange = QEvent.registerEventType()
+    AnnotationAdded = QEvent.Type(QEvent.registerEventType())
+    AnnotationRemoved = QEvent.Type(QEvent.registerEventType())
+    AnnotationChange = QEvent.Type(QEvent.registerEventType())
 
     #: Request activation (show and raise) of the window containing
     #: the workflow view
-    ActivateParentRequest = QEvent.registerEventType()
+    ActivateParentRequest = QEvent.Type(QEvent.registerEventType())
 
 
 class NodeEvent(WorkflowEvent):
@@ -80,6 +80,13 @@ class NodeEvent(WorkflowEvent):
         self.__node = node
 
     def node(self):
+        # type: () -> SchemeNode
+        """
+        Return
+        ------
+        node : SchemeNode
+            The node instance.
+        """
         return self.__node
 
 
@@ -90,6 +97,13 @@ class LinkEvent(WorkflowEvent):
         self.__link = link
 
     def link(self):
+        # type: () -> SchemeLink
+        """
+        Return
+        ------
+        link : SchemeLink
+            The link instance.
+        """
         return self.__link
 
 
@@ -100,6 +114,13 @@ class AnnotationEvent(WorkflowEvent):
         self.__annotation = annotation
 
     def annotation(self):
+        # type: () -> BaseSchemeAnnotation
+        """
+        Return
+        ------
+        annotation : BaseSchemeAnnotation
+            The annotation instance.
+        """
         return self.__annotation
 
 
@@ -112,7 +133,7 @@ class WorkflowEnvChanged(WorkflowEvent):
     Scheme.runtime_env
     """
     def __init__(self, name, newValue, oldValue):
-        super().__init__(QEvent.Type(WorkflowEvent.WorkflowEnvironmentChange))
+        super().__init__(WorkflowEvent.WorkflowEnvironmentChange)
         self.__name = name
         self.__oldValue = oldValue
         self.__newValue = newValue
