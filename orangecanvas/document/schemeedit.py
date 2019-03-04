@@ -528,6 +528,7 @@ class SchemeEditWidget(QWidget):
         """
         Return a list of actions that can be inserted into a toolbar.
         At the moment these are:
+
             - 'Zoom in' action
             - 'Zoom out' action
             - 'Zoom Reset' action
