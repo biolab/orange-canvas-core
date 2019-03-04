@@ -30,14 +30,16 @@ class WorkflowEvent(QEvent):
     LinkAdded = QEvent.registerEventType()
     #: A Link has been removed from the scheme
     LinkRemoved = QEvent.registerEventType()
+
     #: An input Link has been added to a node
     InputLinkAdded = QEvent.registerEventType()
     #: An output Link has been added to a node
     OutputLinkAdded = QEvent.registerEventType()
-    #: Node's (runtime) state has changed
+    #: An input Link has been removed from a node
     InputLinkRemoved = QEvent.registerEventType()
-    #: An output Link has been added to a node
+    #: An output Link has been removed from a node
     OutputLinkRemoved = QEvent.registerEventType()
+
     #: Node's (runtime) state has changed
     NodeStateChange = QEvent.registerEventType()
     #: Link's (runtime) state has changed
