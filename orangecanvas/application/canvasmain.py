@@ -140,10 +140,6 @@ class CanvasMainWindow(QMainWindow):
         self.__document_title = "untitled"
         self.__first_show = True
         self.__is_transient = True
-        self.__executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-        # PyPi search results (Future)
-        self.__f_pypi_addons = None
-        self.__addon_items = None
         self.widget_registry = None
         # Proxy widget registry model
         self.__proxy_model = None
@@ -1559,12 +1555,6 @@ class CanvasMainWindow(QMainWindow):
     def open_addons(self):
         """Open the add-on manager dialog.
         """
-        if self.__f_pypi_addons is None:
-            self.__f_pypi_addons = self.__executor.submit(
-                addons.pypi_search,
-                config.default.addon_pypi_search_spec(),
-                timeout=20,
-            )
         from .addons import have_install_permissions
         if not have_install_permissions():
             QMessageBox(QMessageBox.Warning,
@@ -1573,35 +1563,10 @@ class CanvasMainWindow(QMainWindow):
                         "as a system administrator or install Orange in user folders.",
                         parent=self).exec_()
         dlg = addons.AddonManagerDialog(
-            self, windowTitle=self.tr("Add-ons"), modal=True)
+            self, windowTitle=self.tr("Add-ons"), modal=True
+        )
         dlg.setAttribute(Qt.WA_DeleteOnClose)
-
-        if self.__addon_items is not None:
-            pypi_distributions = self.__f_pypi_addons.result()
-            installed = [ep.dist for ep in config.default.addon_entry_points()]
-            items = addons.installable_items(pypi_distributions, installed)
-            self.__addon_items = items
-            dlg.setItems(items)
-        else:
-            # Use the dialog's own progress dialog
-            progress = dlg.progressDialog()
-            dlg.show()
-            progress.show()
-            progress.setLabelText(
-                self.tr("Retrieving package list")
-            )
-            self.__f_pypi_addons.add_done_callback(
-                addons.method_queued(self.__on_pypi_search_done, (object,))
-            )
-            close_dialog = addons.method_queued(dlg.close, ())
-
-            self.__f_pypi_addons.add_done_callback(
-                lambda f:
-                    close_dialog() if f.exception() else None)
-
-            self.__p_addon_items_available.connect(progress.hide)
-            self.__p_addon_items_available.connect(dlg.setItems)
-
+        dlg.start(config.default)
         return dlg.exec_()
 
     def set_float_widgets_on_top_enabled(self, enabled):
@@ -1611,32 +1576,6 @@ class CanvasMainWindow(QMainWindow):
         wm = self.current_document().widgetManager()
         if wm is not None:
             wm.set_float_widgets_on_top(enabled)
-
-    __p_addon_items_available = Signal(object)
-
-    @Slot(object)
-    def __on_pypi_search_done(self, f):
-        if f.exception():
-            exc = f.exception()
-            log.error("Error querying PyPi", exc_info=(type(exc), exc, None))
-
-            message_warning(
-                "Could not retrieve package list",
-                title="Error",
-                informative_text=str(exc),
-                parent=self
-            )
-
-            self.__f_pypi_addons = None
-            self.__addon_items = None
-            return
-
-        pypi_distributions = f.result()
-        installed = [ep.dist for ep in config.default.addon_entry_points()]
-        items = addons.installable_items(pypi_distributions, installed)
-
-        self.__addon_items = items
-        self.__p_addon_items_available.emit(items)
 
     def output_view(self):
         """Return the output text widget.
@@ -1799,7 +1738,6 @@ class CanvasMainWindow(QMainWindow):
         settings.endGroup()
         self.help_dock.close()
         self.output_dock.close()
-        self.__executor.shutdown(wait=False)
         super().closeEvent(event)
 
     __did_restore = False
