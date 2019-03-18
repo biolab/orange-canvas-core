@@ -1,3 +1,4 @@
+import enum
 import sys
 import sysconfig
 import os
@@ -32,8 +33,8 @@ from AnyQt.QtWidgets import (
 )
 
 from AnyQt.QtGui import (
-    QStandardItemModel, QStandardItem, QPalette, QTextOption
-)
+    QStandardItemModel, QStandardItem, QPalette, QTextOption,
+    QDropEvent, QDragEnterEvent)
 from AnyQt.QtCore import (
     QSortFilterProxyModel, QItemSelectionModel,
     Qt, QObject, QMetaObject, QSize, QTimer, QThread, Q_ARG,
@@ -143,9 +144,7 @@ class AddonManagerWidget(QWidget):
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
-
-        #: list of Available | Installed
-        self.__items = []
+        self.__items = []  # type: List[Item]
         self.setLayout(QVBoxLayout())
 
         self.__header = QLabel(
@@ -200,6 +199,14 @@ class AddonManagerWidget(QWidget):
 
     def setItems(self, items):
         # type: (List[Item]) -> None
+        """
+        Set a list of items to display.
+
+        Parameters
+        ----------
+        items: List[Item]
+            A list of :class:`Available` or :class:`Installed`
+        """
         self.__items = items
         model = self.__model
         model.setRowCount(0)
@@ -266,10 +273,28 @@ class AddonManagerWidget(QWidget):
 
     def items(self):
         # type: () -> List[Item]
+        """
+        Return a list of items.
+
+        Return
+        ------
+        items: List[Item]
+        """
         return list(self.__items)
 
     def itemState(self):
         # type: () -> List['Action']
+        """
+        Return the current `items` state encoded as a list of actions to be
+        performed.
+
+        Return
+        ------
+        actions : List['Action']
+            For every item that is has been changed in the GUI interface
+            return a tuple of (command, item) where Ccmmand is one of
+             `Install`, `Uninstall`, `Upgrade`.
+        """
         steps = []
         for i in range(self.__model.rowCount()):
             modelitem = self.__model.item(i, 0)
@@ -286,6 +311,18 @@ class AddonManagerWidget(QWidget):
 
     def setItemState(self, steps):
         # type: (List['Action']) -> None
+        """
+        Set the current state as a list of actions to perform.
+
+        i.e. `w.setItemState([(Install, item1), (Uninstall, item2)])`
+        will mark item1 for installation and item2 for uninstallation, all
+        other items will be reset to their default state
+
+        Parameters
+        ----------
+        steps : List[Tuple[Command, Item]]
+            State encoded as a list of commands.
+        """
         model = self.__model
         if model.rowCount() == 0:
             return
@@ -397,8 +434,15 @@ def method_queued(method, sig, conntype=Qt.QueuedConnection):
 
 
 class AddonManagerDialog(QDialog):
-    def __init__(self, parent=None, **kwargs):
-        super().__init__(parent, acceptDrops=True, **kwargs)
+    """
+    A add-on manager dialog.
+    """
+    #: cached packages list.
+    __packages = None
+    __cached_query_f = None  # type: Future[List[Installable]]
+
+    def __init__(self, parent=None, acceptDrops=True, **kwargs):
+        super().__init__(parent, acceptDrops=acceptDrops, **kwargs)
         self.setLayout(QVBoxLayout())
 
         self.addonwidget = AddonManagerWidget()
@@ -422,6 +466,14 @@ class AddonManagerDialog(QDialog):
         self.layout().addWidget(buttons)
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
+        if AddonManagerDialog.__packages is None:
+            self._f_pypi_addons = self._executor.submit(
+                list_available_versions, config.default
+            )
+        else:
+            self._f_pypi_addons = concurrent.futures.Future()
+            self._f_pypi_addons.set_result(AddonManagerDialog.__packages)
+
         self.__progress = None  # type: QProgressDialog
 
         # The installer thread
@@ -432,11 +484,25 @@ class AddonManagerDialog(QDialog):
     @Slot(object)
     def setItems(self, items):
         # type: (List[Item]) -> None
+        """
+        Set items
+
+        Parameters
+        ----------
+        items: List[Items]
+        """
         self.addonwidget.setItems(items)
 
     @Slot(object)
     def addInstallable(self, installable):
         # type: (Installable) -> None
+        """
+        Add/append a single Installable item.
+
+        Parameters
+        ----------
+        installable: Installable
+        """
         items = self.addonwidget.items()
         if installable.name in {item.installable.name for item in items
                                 if item.installable is not None}:
@@ -515,6 +581,7 @@ class AddonManagerDialog(QDialog):
         message_error(text, title="Error", details=error_details)
 
     def progressDialog(self):
+        # type: () -> QProgressDialog
         if self.__progress is None:
             self.__progress = QProgressDialog(
                 self,
@@ -526,7 +593,6 @@ class AddonManagerDialog(QDialog):
             self.__progress.setWindowModality(Qt.WindowModal)
             self.__progress.hide()
             self.__progress.canceled.connect(self.reject)
-
         return self.__progress
 
     def done(self, retcode):
@@ -544,14 +610,21 @@ class AddonManagerDialog(QDialog):
     ADDON_EXTENSIONS = ('.zip', '.whl', '.tar.gz')
 
     def dragEnterEvent(self, event):
+        # type: (QDragEnterEvent) -> None
+        """Reimplemented."""
         urls = event.mimeData().urls()
         if any(url.toLocalFile().endswith(self.ADDON_EXTENSIONS)
                for url in urls):
             event.acceptProposedAction()
 
     def dropEvent(self, event):
-        """Allow dropping add-ons (zip or wheel archives) on this dialog to
-        install them"""
+        # type: (QDropEvent) -> None
+        """
+        Reimplemented.
+
+        Allow dropping add-ons (zip or wheel archives) on this dialog to
+        install them.
+        """
         packages = []
         names = []
         for url in event.mimeData().urls():
@@ -619,13 +692,14 @@ class AddonManagerDialog(QDialog):
 
 
 class SafeTransport(xmlrpc.client.SafeTransport):
-    def __init__(self, use_datetime=0, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
+    def __init__(self, use_datetime=0, timeout=None):
         super().__init__(use_datetime)
         self._timeout = timeout
 
     def make_connection(self, *args, **kwargs):
         conn = super().make_connection(*args, **kwargs)
-        conn.timeout = self._timeout
+        if self._timeout is not None:
+            conn.timeout = self._timeout
         return conn
 
 
@@ -633,7 +707,7 @@ PYPI_API_JSON = "https://pypi.org/pypi/{name}/json"
 PYPI_API_XMLRPC = "https://pypi.org/pypi"
 
 
-def pypi_search(spec, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
+def pypi_search(spec, timeout=None):
     """
     Search package distributions available on PyPi using PyPiXMLRPC.
     """
@@ -753,6 +827,47 @@ def list_installed_addons():
     return [ep.dist for ep in config.default.addon_entry_points()]
 
 
+def list_available_versions(config, session=None):
+    # type: (config.Config, Optional[requests.Session]) -> List[Installable]
+    if session is None:
+        session = requests.Session()
+
+    defaults = config.addon_defaults_list(session)
+    defaults_names = {a.get("info", {}).get("name", "") for a in defaults}
+
+    # query pypi.org for installed add-ons that are not in the defaults
+    # list
+    installed = [ep.dist for ep in config.addon_entry_points()]
+    missing = {dist.project_name.casefold() for dist in installed} - \
+              {name.casefold() for name in defaults_names}
+
+    distributions = []
+    for p in missing:
+        response = session.get(
+            PYPI_API_JSON.format(name=p), headers={
+                "Accept": "application/json, text/plain"
+            }
+        )
+        if response.status_code != 200:
+            continue
+        distributions.append(response.json())
+
+    packages = []
+    for addon in defaults + distributions:
+        try:
+            info = addon["info"]
+            packages.append(
+                Installable(info["name"], info["version"],
+                            info["summary"], info["description"],
+                            info["package_url"],
+                            info["package_url"])
+            )
+        except (TypeError, KeyError):
+            continue  # skip invalid packages
+
+    return packages
+
+
 def installable_items(pypipackages, installed=[]):
     """
     Return a list of installable items.
@@ -837,9 +952,15 @@ def _env_with_proxies():
     return env
 
 
-Install, Upgrade, Uninstall = 1, 2, 3
+class Command(enum.Enum):
+    Install = "Install"
+    Upgrade = "Upgrade"
+    Uninstall = "Uninstall"
 
-Action = Tuple[int, Item]
+
+Install, Upgrade, Uninstall = Command
+
+Action = Tuple[Command, Item]
 
 
 class CommandFailed(Exception):
