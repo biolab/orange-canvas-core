@@ -1,3 +1,5 @@
+import types
+import tempfile
 import enum
 import sys
 import sysconfig
@@ -7,18 +9,17 @@ import errno
 import shlex
 import subprocess
 import itertools
-import socket
 import xmlrpc.client
 import json
 import traceback
-import concurrent.futures
 import urllib.request
 
+from concurrent.futures import ThreadPoolExecutor, Future
 from collections import namedtuple, deque
 from xml.sax.saxutils import escape
 from distutils import version
 
-from typing import List, Dict, Any, Optional, Union, Tuple, NamedTuple
+from typing import List, Dict, Any, Optional, Union, Tuple, NamedTuple, Callable
 
 import requests
 import pkg_resources
@@ -31,10 +32,10 @@ from AnyQt.QtWidgets import (
     QTextBrowser, QDialogButtonBox, QProgressDialog, QVBoxLayout,
     QPushButton, QFormLayout, QHBoxLayout
 )
-
 from AnyQt.QtGui import (
     QStandardItemModel, QStandardItem, QPalette, QTextOption,
-    QDropEvent, QDragEnterEvent)
+    QDropEvent, QDragEnterEvent
+)
 from AnyQt.QtCore import (
     QSortFilterProxyModel, QItemSelectionModel,
     Qt, QObject, QMetaObject, QSize, QTimer, QThread, Q_ARG,
@@ -51,16 +52,21 @@ from .. import config
 
 log = logging.getLogger(__name__)
 
-#: An installable distribution from PyPi
-Installable = namedtuple(
-    "Installable",
-    ["name",
-     "version",
-     "summary",
-     "description",
-     "package_url",
-     "release_urls"]
-)
+
+class Installable(
+    NamedTuple(
+        "Installable", (
+            ("name", str),
+            ("version", str),
+            ("summary", str),
+            ("description", str),
+            ("package_url", str),
+            ("release_urls", List['ReleaseUrls'])
+        )
+    )):
+    """
+    An installable distribution from PyPi
+    """
 
 #: An source/wheel/egg release for a distribution
 ReleaseUrl = namedtuple(
@@ -146,6 +152,8 @@ class AddonManagerWidget(QWidget):
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
         self.__items = []  # type: List[Item]
+        self.__corepacakges = config.default.core_packages()
+
         self.setLayout(QVBoxLayout())
 
         self.__header = QLabel(
@@ -423,8 +431,9 @@ class AddonManagerWidget(QWidget):
 
 
 def method_queued(method, sig, conntype=Qt.QueuedConnection):
+    # type: (types.MethodType, Tuple[type, ...], ...) -> Callable[[], bool]
     name = method.__name__
-    obj = method.__self__
+    obj = method.__self__  # type: QObject
     assert isinstance(obj, QObject)
 
     def call(*args):
@@ -439,9 +448,10 @@ class AddonManagerDialog(QDialog):
     A add-on manager dialog.
     """
     #: cached packages list.
-    __packages = None
+    __packages = None  # type: List[Installable]
     __cached_query_f = None  # type: Future[List[Installable]]
-
+    __f_pypi_addons = None
+    __config = None
     def __init__(self, parent=None, acceptDrops=True, **kwargs):
         super().__init__(parent, acceptDrops=acceptDrops, **kwargs)
         self.setLayout(QVBoxLayout())
@@ -465,22 +475,92 @@ class AddonManagerDialog(QDialog):
         buttons.rejected.connect(self.reject)
 
         self.layout().addWidget(buttons)
-        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        self.__progress = None  # type: Optional[QProgressDialog]
 
-        if AddonManagerDialog.__packages is None:
-            self._f_pypi_addons = self._executor.submit(
-                list_available_versions, config.default
-            )
-        else:
-            self._f_pypi_addons = concurrent.futures.Future()
-            self._f_pypi_addons.set_result(AddonManagerDialog.__packages)
-
-        self.__progress = None  # type: QProgressDialog
-
+        self.__executor = ThreadPoolExecutor(max_workers=1)
         # The installer thread
         self.__thread = None
         # The installer object
         self.__installer = None
+
+    def setConfig(self, config):
+        self.__config = config
+
+    def config(self):
+        if self.__config is None:
+            return config.default
+        else:
+            return self.__config
+
+    @Slot()
+    def start(self, config):
+        # type: (config.Config) -> None
+        """
+        Initialize the dialog/manager for the specified configuration namespace.
+
+        Calling this method will start an async query of ...
+
+        At the end the found items will be set using `setItems` overriding any
+        previously set items.
+
+        Parameters
+        ----------
+        config : config.Config
+        """
+
+        if self.__packages is not None:
+            # method_queued(self.setItems, (object,))(self.__packages)
+            installed = [ep.dist for ep in config.addon_entry_points()]
+            items = installable_items(self.__packages, installed)
+            self.setItems(items)
+            return
+
+        progress = self.progressDialog()
+        self.show()
+        progress.show()
+        progress.setLabelText(
+            self.tr("Retrieving package list")
+        )
+        self.__f_pypi_addons = self.__executor.submit(
+            lambda config=config: (config, list_available_versions(config)),
+        )
+        self.__f_pypi_addons.add_done_callback(
+            method_queued(self.__on_query_done, (object,))
+        )
+
+    @Slot(object)
+    def __on_query_done(self, f):
+        # type: (Future[Tuple[config.Config, List[Installable]]]) -> None
+        assert f.done()
+        if self.__progress is not None:
+            self.__progress.hide()
+
+        if f.exception():
+            exc = f.exception()
+            etype, tb = type(exc), exc.__traceback__
+            log.error(
+                "Error fetching package list",
+                exc_info=(etype, exc, tb)
+            )
+            message_warning(
+                "Could not retrieve package list",
+                title="Error",
+                informative_text=
+                    "".join(traceback.format_exception_only(etype, exc)),
+                details=
+                    "".join(traceback.format_exception(etype, exc, tb)),
+                parent=self
+            )
+            self.__f_pypi_addons = None
+            self.__addon_items = None
+            return
+
+        config, packages = f.result()
+        assert all(isinstance(p, Installable) for p in packages)
+        AddonManagerDialog.__packages = packages
+        installed = [ep.dist for ep in config.addon_entry_points()]
+        items = installable_items(packages, installed)
+        self.setItems(items)
 
     @Slot(object)
     def setItems(self, items):
@@ -508,9 +588,16 @@ class AddonManagerDialog(QDialog):
         if installable.name in {item.installable.name for item in items
                                 if item.installable is not None}:
             return
-        new = installable_items([installable], list_installed_addons())
+        new_ = installable_items([installable], list_installed_addons())
+        new = next(
+            filter(
+                lambda item: item.installable.name == installable.name,
+                new_
+            ),
+            None
+        )
         state = self.addonwidget.itemState()
-        self.addonwidget.setItems(items + new)
+        self.addonwidget.setItems(items + [new])
         self.addonwidget.setItemState(state)  # restore state
 
     def __run_add_package_dialog(self):
@@ -545,7 +632,7 @@ class AddonManagerDialog(QDialog):
         def query():
             nonlocal f
             name = nameentry.text()
-            f = self._executor.submit(pypi_json_query_project_meta, [name])
+            f = self.__executor.submit(pypi_json_query_project_meta, [name])
             okb.setDisabled(True)
 
             def ondone(f):
@@ -1034,31 +1121,43 @@ class PipInstaller:
         self.arguments = shlex.split(arguments)
 
     def install(self, pkg):
-        cmd = ["python", "-m", "pip", "install"]
-        cmd.extend(self.arguments)
-        if pkg.package_url.startswith("http://") or pkg.package_url.startswith("https://"):
-            cmd.append(pkg.name)
-        else:
-            # Package url is path to the (local) wheel
-            cmd.append(pkg.package_url)
+        # type: (Installable) -> None
+        constraints = config.default.core_packages()
+        constraints = ("\n".join(constraints))
+        with tempfile.NamedTemporaryFile(
+                mode="w+t", suffix=".txt", encoding="utf-8") as cfile:
+            cfile.write(constraints)
+            cfile.flush()
+            cmd = [
+                "python", "-m", "pip",  "install",
+                      "--constraint", cfile.name,
+            ] + self.arguments
 
-        run_command(cmd)
+            if pkg.package_url.startswith(("http://", "https://")):
+                cmd.append(pkg.name)
+            else:
+                # Package url is path to the (local) wheel
+                cmd.append(pkg.package_url)
+
+            run_command(cmd)
 
     def upgrade(self, package):
-        # This is done in two steps to avoid upgrading
-        # all of the dependencies - faster
-        self.upgrade_no_deps(package)
-        self.install(package)
-
-    def upgrade_no_deps(self, package):
-        cmd = ["python", "-m", "pip", "install", "--upgrade", "--no-deps"]
-        cmd.extend(self.arguments)
-        if package.package_url.startswith("http://") or package.package_url.startswith("https://"):
-            cmd.append(package.name)
-        else:
-            cmd.append(package.package_url)
-
-        run_command(cmd)
+        constraints = config.default.core_packages()
+        constraints = ("\n".join(constraints))
+        with tempfile.NamedTemporaryFile(
+                mode="w+t", suffix=".txt", encoding="utf-8") as cfile:
+            cfile.write(constraints)
+            cfile.flush()
+            cmd = [
+                "python", "-m", "pip", "install",
+                    "--upgrade", "--upgrade-strategy=only-if-needed",
+                    "--constraint", cfile.name,
+            ] + self.arguments
+            if package.package_url.startswith(("http://", "https://")):
+                cmd.append(package.name)
+            else:
+                cmd.append(package.package_url)
+            run_command(cmd)
 
     def uninstall(self, dist):
         cmd = ["python", "-m", "pip", "uninstall", "--yes", dist.project_name]
