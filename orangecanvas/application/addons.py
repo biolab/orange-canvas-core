@@ -42,6 +42,7 @@ from AnyQt.QtCore import (
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
+from orangecanvas.utils import unique
 from ..gui.utils import message_warning, message_information, \
                         message_critical as message_error
 from ..help.manager import get_dist_meta, trim, parse_meta
@@ -912,17 +913,6 @@ def installable_items(pypipackages, installed=[]):
             assert False
         items.append(item)
     return items
-
-
-def unique(iterable):
-    seen = set()
-
-    def observed(el):
-        observed = el in seen
-        seen.add(el)
-        return observed
-
-    return (el for el in iterable if not observed(el))
 
 
 def have_install_permissions():
