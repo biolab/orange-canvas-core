@@ -1,7 +1,12 @@
-import warnings
 from functools import reduce
 
+import typing
+from typing import Iterable
+
 from .qtcompat import toPyObject
+
+if typing.TYPE_CHECKING:
+    H = typing.TypeVar("H", bound=typing.Hashable)
 
 
 def dotted_getattr(obj, name):
@@ -59,3 +64,26 @@ def check_subclass(cls, class_or_tuple):
 def check_arg(pred, value):
     if not pred:
         raise ValueError(value)
+
+
+def unique(iterable):
+    # type: (Iterable[H]) -> Iterable[H]
+    """
+    Return unique elements of `iterable` while preserving their order.
+
+    Parameters
+    ----------
+    iterable : Iterable[Hashable]
+
+    Returns
+    -------
+    unique : Iterable
+        Unique elements from `iterable`.
+    """
+    seen = set()
+
+    def observed(el):
+        observed = el in seen
+        seen.add(el)
+        return observed
+    return (el for el in iterable if not observed(el))

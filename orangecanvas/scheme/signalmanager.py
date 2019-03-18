@@ -23,6 +23,7 @@ from typing import Any, Optional, List, Tuple, NamedTuple, Iterable, Callable
 from AnyQt.QtCore import QObject, QTimer, QEvent
 from AnyQt.QtCore import pyqtSignal, pyqtSlot as Slot
 
+from ..utils import unique
 from ..registry import OutputSignal
 from .scheme import Scheme, SchemeNode, SchemeLink
 
@@ -848,29 +849,6 @@ def group_by_all(sequence, key=None):
             order_seen.append(item_key)
 
     return [(key, groups[key]) for key in order_seen]
-
-
-def unique(iterable):
-    # type: (Iterable[H]) -> Iterable[H]
-    """
-    Return unique elements of `iterable` while preserving their order.
-
-    Parameters
-    ----------
-    iterable : Iterable[Hashable]
-
-    Returns
-    -------
-    unique : Iterable
-        Unique elements from `iterable`.
-    """
-    seen = set()
-
-    def observed(el):
-        observed = el in seen
-        seen.add(el)
-        return observed
-    return (el for el in iterable if not observed(el))
 
 
 def strongly_connected_components(nodes, expand):
