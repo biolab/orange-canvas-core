@@ -9,6 +9,7 @@ import logging
 import warnings
 
 from distutils.version import LooseVersion
+from typing import Dict, Optional, Tuple, List, Union, Iterable
 
 import pkg_resources
 
@@ -21,6 +22,9 @@ from AnyQt.QtCore import (
 )
 
 from .utils.settings import Settings, config_slot
+
+EntryPoint = pkg_resources.EntryPoint
+Distribution = pkg_resources.Distribution
 
 log = logging.getLogger(__name__)
 
@@ -53,7 +57,117 @@ standard_location.CacheLocation = QStandardPaths.CacheLocation
 standard_location.DocumentsLocation = QStandardPaths.DocumentsLocation
 
 
-class default(object):
+class Config:
+    OrganizationDomain = ...  # type: str
+    ApplicationName = ...     # type: str
+    ApplicationVersion = ...  # type: str
+
+    def init(self):
+        QCoreApplication.setOrganizationDomain(self.OrganizationDomain)
+        QCoreApplication.setApplicationName(self.ApplicationName)
+        QCoreApplication.setApplicationVersion(self.ApplicationVersion)
+        QSettings.setDefaultFormat(QSettings.IniFormat)
+
+    def application_icon(self):
+        # type: () -> QIcon
+        """
+        Return the main application icon.
+        """
+        return QIcon()
+
+    def splash_screen(self):
+        # type: () -> Tuple[QPixmap, QRect]
+        """
+        Return a splash screen pixmap and an text area within it.
+
+        The text area is used for displaying text messages during application
+        startup.
+
+        The default implementation returns a bland rectangle splash screen.
+
+        Returns
+        -------
+        t : Tuple[QPixmap, QRect]
+            A QPixmap and a rect area within it.
+        """
+        return QPixmap(), QRect()
+
+    def widgets_entry_points(self):
+        # type: () -> Iterable[EntryPoint]
+        """
+        Return an iterator over entry points defining the set of
+        'nodes/widgets' available to the workflow model.
+        """
+        return iter(())
+
+    def addon_entry_points(self):
+        # type: () -> Iterable[EntryPoint]
+        return iter(())
+
+    def addon_pypi_search_spec(self):
+        return {}
+
+    def addon_defaults_list(self):
+        # type: () -> List[Dict[str, Union[str, list, dict, int, float]]]
+        """
+        Return a list of default add-ons.
+
+        The return value must be a list with meta description following the
+        `PyPI JSON api`_ specification. At the minimum 'info.name' and
+        'info.version' must be supplied. e.g.
+
+            `[{'info': {'name': 'Super Pkg', 'version': '4.2'}}]
+
+        .. _`PyPI JSON api`:
+            https://warehouse.readthedocs.io/api-reference/json/
+        """
+        return []
+
+    def core_packages(self):
+        # type: () -> List[str]
+        """
+        Return a list of core packages.
+
+        List of packages that are core of the product. Most importantly,
+        if they themselves define add-on/plugin entry points they must
+        not be 'uninstalled' via a package manager, they can only be
+        updated.
+
+        Return
+        ------
+        packages : List[str]
+            A list of package names (can also contain PEP-440 version
+            specifiers).
+        """
+        return ["orange-canvas-core >= 0.0, < 0.1a"]
+
+    def examples_entry_points(self):
+        # type: () -> Iterable[EntryPoint]
+        return iter(())
+
+    def widget_discovery(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def workflow_constructor(self):
+        raise NotImplementedError
+
+    #: Standard application urls. If defined to a valid url appropriate actions
+    #: are defined in various contexts
+    APPLICATION_URLS = {
+        #: Submit a bug report action in the Help menu
+        "Bug Report": None,
+        #: A url quick tour/getting started url
+        "Quick Start": None,
+        #: An url to the full documentation
+        "Documentation": None,
+        #: Video screencast/tutorials
+        "Screencasts": None,
+        #: Used for 'Submit Feedback' action in the help menu
+        "Feedback": None,
+    }  # type: Dict[str, Optional[str]]
+
+
+class default(Config):
     OrganizationDomain = "biolab.si"
     ApplicationName = "Orange Canvas Core"
     ApplicationVersion = __version__
@@ -123,15 +237,58 @@ class default(object):
 
     @staticmethod
     def widgets_entry_points():
+        # type: () -> Iterable[EntryPoint]
+        """
+        Return an iterator over entry points defining the set of
+        'nodes/widgets' available to the workflow model.
+        """
         return pkg_resources.iter_entry_points(WIDGETS_ENTRY)
 
     @staticmethod
     def addon_entry_points():
+        # type: () -> Iterable[EntryPoint]
         return pkg_resources.iter_entry_points(ADDONS_ENTRY)
 
     @staticmethod
     def addon_pypi_search_spec():
         return dict(ADDON_PYPI_SEARCH_SPEC)
+
+    @staticmethod
+    def addon_defaults_list():
+        # type: () -> List[Dict[str, Union[str, list, dict, int, float]]]
+        """
+        Return a list of default add-ons.
+
+        The return value must be a list with meta description following the
+        `PyPI JSON api`_ specification. At the minimum 'info.name' and
+        'info.version' must be supplied. e.g.
+
+            `[{'info': {'name': 'Super Pkg', 'version': '4.2'}}]
+
+        .. _`PyPI JSON api`:
+            https://warehouse.readthedocs.io/api-reference/json/
+        """
+        return []
+
+    @staticmethod
+    def core_packages():
+        # type: () -> List[str]
+        """
+        Return a list of core packages.
+
+        List of packages that are core of the product. Most importantly,
+        if they themselves define add-on/plugin entry points they must
+        not be 'uninstalled' via a package manager, they can only be
+        updated.
+
+        Return
+        ------
+        packages : List[str]
+            A list of package names (can also contain PEP-440 version
+            specifiers).
+        """
+        return ["orange-canvas-core >= 0.0, < 0.1a"]
+
 
     @staticmethod
     def examples_entry_points():
@@ -149,7 +306,6 @@ class default(object):
 
     #: Standard application urls. If defined to a valid url appropriate actions
     #: are defined in various contexts
-
     APPLICATION_URLS = {
         #: Submit a bug report action in the Help menu
         "Bug Report": None,
