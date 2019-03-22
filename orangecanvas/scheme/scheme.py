@@ -7,6 +7,7 @@ The :class:`Scheme` class defines a DAG (Directed Acyclic Graph) workflow.
 
 """
 import types
+from contextlib import ExitStack
 from operator import itemgetter
 from collections import deque
 
@@ -652,35 +653,37 @@ class Scheme(QObject):
         """
         pass
 
-    def save_to(self, stream, pretty=True, pickle_fallback=False):
+    def save_to(self, stream, pretty=True, **kwargs):
         """
-        Save the scheme as an xml formated file to `stream`
+        Save the scheme as an xml formatted file to `stream`
 
         See also
         --------
-        .scheme_to_ows_stream
-
+        readwrite.scheme_to_ows_stream
         """
-        if isinstance(stream, str):
-            stream = open(stream, "wb")
+        with ExitStack() as exitstack:
+            if isinstance(stream, str):
+                stream = exitstack.enter_context(open(stream, "wb"))
+            self.sync_node_properties()
+            readwrite.scheme_to_ows_stream(self, stream, pretty, **kwargs)
 
-        self.sync_node_properties()
-
-        readwrite.scheme_to_ows_stream(self, stream, pretty,
-                                       pickle_fallback=pickle_fallback)
-
-    def load_from(self, stream):
+    def load_from(self, stream, *args, **kwargs):
         """
-        Load the scheme from xml formated stream.
+        Load the scheme from xml formatted `stream`.
+
+        Any extra arguments are passed to `readwrite.scheme_load`
+
+        See Also
+        --------
+        readwrite.scheme_load
         """
         if self.__nodes or self.__links or self.__annotations:
-            # TODO: should we clear the scheme and load it.
             raise ValueError("Scheme is not empty.")
 
-        if isinstance(stream, str):
-            stream = open(stream, "rb")
-        readwrite.scheme_load(self, stream)
-#         parse_scheme(self, stream)
+        with ExitStack() as exitstack:
+            if isinstance(stream, str):
+                stream = exitstack.enter_context(open(stream, "rb"))
+            readwrite.scheme_load(self, stream, *args, **kwargs)
 
     def set_runtime_env(self, key, value):
         """

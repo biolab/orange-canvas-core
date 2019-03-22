@@ -59,7 +59,6 @@ from .outputview import OutputView, TextStream
 from .settings import UserSettingsDialog, category_state
 from ..document.schemeedit import SchemeEditWidget
 from ..gui.itemmodels import FilterProxyModel
-from ..scheme.readwrite import scheme_load
 from ..registry import WidgetDescription, CategoryDescription
 from ..registry.qt import QtWidgetRegistry
 
@@ -1069,22 +1068,21 @@ class CanvasMainWindow(QMainWindow):
             if not self.freeze_action.isChecked():
                 # activate the default window group.
                 scheme_doc_widget.activateDefaultWindowGroup()
-            return QDialog.Accepted
-        else:
-            return QDialog.Rejected
 
     def new_scheme_from(self, filename):
-        """Create and return a new :class:`scheme.Scheme`
-        from a saved `filename`. Return `None` if an error occurs.
-
+        """
+        Create and return a new :class:`scheme.Scheme` from a saved
+        `filename`. Return `None` if an error occurs.
         """
         new_scheme = config.workflow_constructor(parent=self)
         new_scheme.set_runtime_env("basedir", os.path.dirname(filename))
         errors = []
         try:
             with open(filename, "rb") as f:
-                scheme_load(new_scheme, f, error_handler=errors.append)
-
+                new_scheme.load_from(
+                    f, registry=self.widget_registry,
+                    error_handler=errors.append
+                )
         except Exception:
             message_critical(
                  self.tr("Could not load an Orange Workflow file"),
