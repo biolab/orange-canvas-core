@@ -1107,8 +1107,7 @@ class CanvasMainWindow(QMainWindow):
 
     def reload_last(self):
         """
-        Reload last opened scheme. Return QDialog.Rejected if the
-        user canceled the operation and QDialog.Accepted otherwise.
+        Reload last opened scheme.
         """
         # TODO: Search for a temp backup scheme with per process
         # locking.
