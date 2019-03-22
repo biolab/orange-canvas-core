@@ -1267,39 +1267,41 @@ class CanvasMainWindow(QMainWindow):
             with open(filename, "wb") as f:
                 f.write(buffer.getvalue())
             return True
-        except (IOError, OSError) as ex:
+        except FileNotFoundError as ex:
             log.error("%s saving '%s'", type(ex).__name__, filename,
                       exc_info=True)
-            if ex.errno == 2:
-                # user might enter a string containing a path separator
-                message_warning(
-                    self.tr('Workflow "%s" could not be saved. The path does '
-                            'not exist') % title,
-                    title="",
-                    informative_text=self.tr("Choose another location."),
-                    parent=self
-                )
-            elif ex.errno == 13:
-                message_warning(
-                    self.tr('Workflow "%s" could not be saved. You do not '
-                            'have write permissions.') % title,
-                    title="",
-                    informative_text=self.tr(
-                        "Change the file system permissions or choose "
-                        "another location."),
-                    parent=self
-                )
-            else:
-                message_warning(
-                    self.tr('Workflow "%s" could not be saved.') % title,
-                    title="",
-                    informative_text=ex.strerror,
-                    exc_info=True,
-                    parent=self
-                )
+            message_warning(
+                self.tr('Workflow "%s" could not be saved. The path does '
+                        'not exist') % title,
+                title="",
+                informative_text=self.tr("Choose another location."),
+                parent=self
+            )
+        except PermissionError as ex:
+            log.error("%s saving '%s'", type(ex).__name__, filename,
+                      exc_info=True)
+            message_warning(
+                self.tr('Workflow "%s" could not be saved. You do not '
+                        'have write permissions.') % title,
+                title="",
+                informative_text=self.tr(
+                    "Change the file system permissions or choose "
+                    "another location."),
+                parent=self
+            )
+        except OSError as ex:
+            log.error("%s saving '%s'", type(ex).__name__, filename,
+                      exc_info=True)
+            message_warning(
+                self.tr('Workflow "%s" could not be saved.') % title,
+                title="",
+                informative_text=os.strerror(ex.errno),
+                exc_info=True,
+                parent=self
+            )
             return False
 
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             log.error("Error saving %r to %r", scheme, filename, exc_info=True)
             message_critical(
                 self.tr('An error occurred while trying to save workflow '
