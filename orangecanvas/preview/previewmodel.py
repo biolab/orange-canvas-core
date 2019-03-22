@@ -231,3 +231,6 @@ class SvgIconEngine(QIconEngine):
             opt.palette = QApplication.palette()
             pm = style.generatedIconPixmap(mode, pm, opt)
         return pm
+
+    def clone(self):
+        return SvgIconEngine(self.__contents)
