@@ -2,6 +2,7 @@
 Scheme save/load routines.
 
 """
+import numbers
 import sys
 import warnings
 import base64
@@ -723,15 +724,56 @@ def loads(string, format):
 
 
 # This is a subset of PyON serialization.
-def literal_dumps(obj, prettyprint=False, indent=4):
+def literal_dumps(obj, indent=None, relaxed_types=True):
     """
     Write obj into a string as a python literal.
+
+    Note
+    ----
+    :class:`set` objects are not supported as the empty set is not
+    representable as a literal.
+
+    Parameters
+    ----------
+    obj : Any
+    indent : Optional[int]
+        If not None then it is the indent for the pretty printer.
+    relaxed_types : bool
+        Relaxed type checking. In addition to exact builtin numberic types,
+        the numbers.Integer, numbers.Real are checked and alowed if their
+        repr matches that of the builtin.
+
+        .. warning:: The exact type of the values will be lost.
+
+    Returns
+    -------
+    repr : str
+        String representation of `obj`
+
+    See Also
+    --------
+    ast.literal_eval
+
+    Raises
+    ------
+    TypeError
+        If obj contains non builtin types that cannot be represented as a
+        literal value.
+
+    ValueError
+        If obj is a recursive structure.
     """
     memo = {}
     NoneType = type(None)
+    # non compounds
+    builtins = {int, float, bool, NoneType, str, bytes}
+    # sequences
+    builtins_seq = {list, tuple}
+    # mappings
+    builtins_mapping = {dict}
 
     def check(obj):
-        if type(obj) in [int, float, bool, NoneType, bytes, str]:
+        if type(obj) in builtins:
             return True
 
         if id(obj) in memo:
@@ -739,18 +781,47 @@ def literal_dumps(obj, prettyprint=False, indent=4):
 
         memo[id(obj)] = obj
 
-        if type(obj) in [list, tuple]:
+        if type(obj) in builtins_seq:
             return all(map(check, obj))
-        elif type(obj) is dict:
+        elif type(obj) in builtins_mapping:
             return all(map(check, chain(obj.keys(), obj.values())))
         else:
             raise TypeError("{0} can not be serialized as a python "
                             "literal".format(type(obj)))
 
-    check(obj)
+    def check_relaxed(obj):
+        if type(obj) in builtins:
+            return True
 
-    if prettyprint:
-        return pprint.pformat(obj, indent=indent)
+        if id(obj) in memo:
+            raise ValueError("{0} is a recursive structure".format(obj))
+
+        memo[id(obj)] = obj
+
+        if type(obj) in builtins_seq:
+            return all(map(check_relaxed, obj))
+        elif type(obj) in builtins_mapping:
+            return all(map(check_relaxed, chain(obj.keys(), obj.values())))
+
+        # numpy.int, uint, ...
+        elif isinstance(obj, numbers.Integral):
+            if repr(obj) == repr(int(obj)):
+                return True
+        # numpy.float, ...
+        elif isinstance(obj, numbers.Real):
+            if repr(obj) == repr(float(obj)):
+                return True
+
+        raise TypeError("{0} can not be serialized as a python "
+                        "literal".format(type(obj)))
+
+    if relaxed_types:
+        check_relaxed(obj)
+    else:
+        check(obj)
+
+    if indent is not None:
+        return pprint.pformat(obj, width=80 * 2, indent=indent, compact=True)
     else:
         return repr(obj)
 
