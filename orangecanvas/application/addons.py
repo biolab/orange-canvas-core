@@ -507,15 +507,20 @@ def method_queued(method, sig, conntype=Qt.QueuedConnection):
     return call
 
 
+class _QueryResult(types.SimpleNamespace):
+    queryname = ...    # type: str
+    installable = ...  # type: Optional[Installable]
+
+
 class AddonManagerDialog(QDialog):
     """
     A add-on manager dialog.
     """
     #: cached packages list.
     __packages = None  # type: List[Installable]
-    __cached_query_f = None  # type: Future[List[Installable]]
     __f_pypi_addons = None
     __config = None
+
     def __init__(self, parent=None, acceptDrops=True, **kwargs):
         super().__init__(parent, acceptDrops=acceptDrops, **kwargs)
         self.setLayout(QVBoxLayout())
@@ -546,6 +551,7 @@ class AddonManagerDialog(QDialog):
         self.__thread = None
         # The installer object
         self.__installer = None
+        self.__add_package_by_name_dialog = None  # type: Optional[QDialog]
 
     def setConfig(self, config):
         self.__config = config
@@ -571,6 +577,7 @@ class AddonManagerDialog(QDialog):
         ----------
         config : config.Config
         """
+        self.__config = config
 
         if self.__packages is not None:
             # method_queued(self.setItems, (object,))(self.__packages)
@@ -624,7 +631,16 @@ class AddonManagerDialog(QDialog):
         AddonManagerDialog.__packages = packages
         installed = [ep.dist for ep in config.addon_entry_points()]
         items = installable_items(packages, installed)
-        self.setItems(items)
+        core = [Requirement.parse(r).project_name.casefold()
+                for r in config.core_packages()]
+
+        def f(item):
+            if isinstance(item, Installed) and \
+                    item.local.project_name.casefold() in core:
+                return item._replace(required=True)
+            else:
+                return item
+        self.setItems([f(item) for item in items])
 
     @Slot(object)
     def setItems(self, items):
@@ -652,7 +668,8 @@ class AddonManagerDialog(QDialog):
         if installable.name in {item.installable.name for item in items
                                 if item.installable is not None}:
             return
-        new_ = installable_items([installable], list_installed_addons())
+        installed = [ep.dist for ep in self.config().addon_entry_points()]
+        new_ = installable_items([installable], installed)
         new = next(
             filter(
                 lambda item: item.installable.name == installable.name,
@@ -665,7 +682,9 @@ class AddonManagerDialog(QDialog):
         self.addonwidget.setItemState(state)  # restore state
 
     def __run_add_package_dialog(self):
-        dlg = QDialog(self, windowTitle="Add add-on by name")
+        self.__add_package_by_name_dialog = dlg = QDialog(
+            self, windowTitle="Add add-on by name",
+        )
         dlg.setAttribute(Qt.WA_DeleteOnClose)
 
         vlayout = QVBoxLayout()
@@ -696,34 +715,22 @@ class AddonManagerDialog(QDialog):
         def query():
             nonlocal f
             name = nameentry.text()
-            f = self.__executor.submit(pypi_json_query_project_meta, [name])
+
+            def query_pypi(name):
+                # type: (str) -> _QueryResult
+                res = pypi_json_query_project_meta([name])
+                assert len(res) == 1
+                r = res[0]
+                if r is not None:
+                    r = installable_from_json_response(r)
+                return _QueryResult(queryname=name, installable=r)
+            f = self.__executor.submit(query_pypi, name)
+
             okb.setDisabled(True)
 
-            def ondone(f):
-                error_text = ""
-                error_details = ""
-                try:
-                    pkgs = f.result()
-                except Exception:
-                    log.error("Query error:", exc_info=True)
-                    error_text = "Failed to query package index"
-                    error_details = traceback.format_exc()
-                    pkg = None
-                else:
-                    pkg = pkgs[0]
-                    if pkg is None:
-                        error_text = "'{}' not was not found".format(name)
-                if pkg:
-                    pkg = installable_from_json_response(pkg)
-                    method_queued(self.addInstallable, (object,))(pkg)
-                    method_queued(dlg.accept, ())()
-                else:
-                    method_queued(self.__show_error_for_query, (str, str)) \
-                        (error_text, error_details)
-                    method_queued(dlg.reject, ())()
-
-            f.add_done_callback(ondone)
-
+            f.add_done_callback(
+                method_queued(self.__on_add_single_query_finish, (object,))
+            )
         buttons.accepted.connect(query)
         buttons.rejected.connect(dlg.reject)
         dlg.exec_()
@@ -731,6 +738,30 @@ class AddonManagerDialog(QDialog):
     @Slot(str, str)
     def __show_error_for_query(self, text, error_details):
         message_error(text, title="Error", details=error_details)
+
+    @Slot(object)
+    def __on_add_single_query_finish(self, f):
+        # type: (Future[_QueryResult]) -> None
+        error_text = ""
+        error_details = ""
+        try:
+            result = f.result()
+        except Exception:
+            log.error("Query error:", exc_info=True)
+            error_text = "Failed to query package index"
+            error_details = traceback.format_exc()
+            pkg = None
+        else:
+            pkg = result.installable
+            if pkg is None:
+                error_text = "'{}' not was not found".format(result.queryname)
+        dlg = self.__add_package_by_name_dialog
+        if pkg:
+            self.addInstallable(pkg)
+            dlg.accept()
+        else:
+            dlg.reject()
+            self.__show_error_for_query(error_text, error_details)
 
     def progressDialog(self):
         # type: () -> QProgressDialog
