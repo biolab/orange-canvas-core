@@ -9,6 +9,8 @@ import logging
 import warnings
 
 from distutils.version import LooseVersion
+import typing
+
 from typing import Dict, Optional, Tuple, List, Union, Iterable
 
 import pkg_resources
@@ -22,6 +24,9 @@ from AnyQt.QtCore import (
 )
 
 from .utils.settings import Settings, config_slot
+
+if typing.TYPE_CHECKING:
+    import requests
 
 EntryPoint = pkg_resources.EntryPoint
 Distribution = pkg_resources.Distribution
@@ -58,11 +63,23 @@ standard_location.DocumentsLocation = QStandardPaths.DocumentsLocation
 
 
 class Config:
-    OrganizationDomain = ...  # type: str
-    ApplicationName = ...     # type: str
-    ApplicationVersion = ...  # type: str
+    """
+    Application configuration.
+    """
+    #: Organization domain
+    OrganizationDomain = ""  # type: str
+    #: The application name
+    ApplicationName = ""     # type: str
+    #: Version
+    ApplicationVersion = ""  # type: str
 
     def init(self):
+        """
+        Initialize the QCoreApplication.organizationDomain, applicationName,
+        applicationVersion and the default settings format.
+
+        Should only be run once at application startup.
+        """
         QCoreApplication.setOrganizationDomain(self.OrganizationDomain)
         QCoreApplication.setApplicationName(self.ApplicationName)
         QCoreApplication.setApplicationVersion(self.ApplicationVersion)
@@ -107,8 +124,10 @@ class Config:
     def addon_pypi_search_spec(self):
         return {}
 
-    def addon_defaults_list(self):
-        # type: () -> List[Dict[str, Union[str, list, dict, int, float]]]
+    def addon_defaults_list(
+            self,
+            session=None  # type: Optional[requests.Session]
+    ):  # type: (...) -> List[Dict[str, Union[str, list, dict, int, float]]]
         """
         Return a list of default add-ons.
 
@@ -128,7 +147,7 @@ class Config:
         """
         Return a list of core packages.
 
-        List of packages that are core of the product. Most importantly,
+        List of packages that are core of the application. Most importantly,
         if they themselves define add-on/plugin entry points they must
         not be 'uninstalled' via a package manager, they can only be
         updated.
@@ -143,12 +162,18 @@ class Config:
 
     def examples_entry_points(self):
         # type: () -> Iterable[EntryPoint]
+        """
+        Return an iterator over entry points defining example/preset workflows.
+        """
         return iter(())
 
     def widget_discovery(self, *args, **kwargs):
         raise NotImplementedError
 
-    def workflow_constructor(self):
+    def workflow_constructor(self, *args, **kwargs):
+        """
+        The default workflow constructor.
+        """
         raise NotImplementedError
 
     #: Standard application urls. If defined to a valid url appropriate actions
@@ -167,18 +192,15 @@ class Config:
     }  # type: Dict[str, Optional[str]]
 
 
-class default(Config):
+class Default(Config):
+
     OrganizationDomain = "biolab.si"
     ApplicationName = "Orange Canvas Core"
     ApplicationVersion = __version__
 
-    @classmethod
-    def init(cls):
-        QCoreApplication.setOrganizationDomain(cls.OrganizationDomain)
-        QCoreApplication.setApplicationName(cls.ApplicationName)
-        QCoreApplication.setApplicationVersion(cls.ApplicationVersion)
-
-        QSettings.setDefaultFormat(QSettings.IniFormat)
+    @staticmethod
+    def init():
+        Config.init(Default)
 
     @staticmethod
     def application_icon():
@@ -254,8 +276,7 @@ class default(Config):
         return dict(ADDON_PYPI_SEARCH_SPEC)
 
     @staticmethod
-    def addon_defaults_list():
-        # type: () -> List[Dict[str, Union[str, list, dict, int, float]]]
+    def addon_defaults_list(session=None):
         """
         Return a list of default add-ons.
 
@@ -289,7 +310,6 @@ class default(Config):
         """
         return ["orange-canvas-core >= 0.0, < 0.1a"]
 
-
     @staticmethod
     def examples_entry_points():
         return pkg_resources.iter_entry_points(EXAMPLE_WORKFLOWS_ENTRY)
@@ -304,20 +324,8 @@ class default(Config):
         from . import scheme
         return scheme.Scheme(*args, **kwargs)
 
-    #: Standard application urls. If defined to a valid url appropriate actions
-    #: are defined in various contexts
-    APPLICATION_URLS = {
-        #: Submit a bug report action in the Help menu
-        "Bug Report": None,
-        #: A url quick tour/getting started url
-        "Quick Start": None,
-        #: An url to the full documentation
-        "Documentation": None,
-        #: Video screencast/tutorials
-        "Screencasts": None,
-        #: Used for 'Submit Feedback' action in the help menu
-        "Feedback": None,
-    }  # type: Dict[str, Optional[str]]
+
+default = Default()
 
 
 def init():

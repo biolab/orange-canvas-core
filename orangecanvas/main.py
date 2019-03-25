@@ -220,9 +220,7 @@ def main(argv=None):
         except (ImportError, AttributeError):
             pass
         else:
-#             config.default = cfg
-            config.set_default(cfg)
-
+            config.set_default(cfg())
             log.info("activating %s", options.config)
 
     log.info("Starting 'Orange Canvas' application.")

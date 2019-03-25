@@ -1424,6 +1424,7 @@ def main(argv=None):
     )
     args = parser.parse_args(argv[1:])
     config_ = name_lookup(args.config)
+    config_ = config_()
     config_.init()
     config.set_default(config_)
     dlg = AddonManagerDialog()
