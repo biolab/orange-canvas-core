@@ -43,7 +43,7 @@ from AnyQt.QtCore import (
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
-from orangecanvas.utils import unique
+from orangecanvas.utils import unique, name_lookup
 from ..gui.utils import message_warning, message_information, \
                         message_critical as message_error
 from ..help.manager import get_dist_meta, trim, parse_meta
@@ -1292,3 +1292,29 @@ def create_process(cmd, executable=None, **kwargs):
         universal_newlines=True,
         **kwargs
     )
+
+
+def main(argv=None):
+    import argparse
+    from AnyQt.QtWidgets import QApplication
+    app = QApplication(argv if argv is not None else [])
+    argv = app.arguments()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--config", metavar="CLASSNAME",
+        default="orangecanvas.config.default",
+        help="The configuration namespace to use"
+    )
+    args = parser.parse_args(argv[1:])
+    config_ = name_lookup(args.config)
+    config_.init()
+    config.set_default(config_)
+    dlg = AddonManagerDialog()
+    dlg.start(config_)
+    dlg.show()
+    dlg.raise_()
+    return app.exec()
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
