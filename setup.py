@@ -26,6 +26,7 @@ INSTALL_REQUIRES = (
     "numpy",
     "commonmark",
     "requests",
+    "cachecontrol[filecache]",
     "pip>=18.0",
 )
 

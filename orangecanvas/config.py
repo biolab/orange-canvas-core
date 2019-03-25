@@ -139,7 +139,7 @@ class Config:
             A list of package names (can also contain PEP-440 version
             specifiers).
         """
-        return ["orange-canvas-core >= 0.0, < 0.1a"]
+        return ["orange-canvas-core >= 0.1a, < 0.2a"]
 
     def examples_entry_points(self):
         # type: () -> Iterable[EntryPoint]

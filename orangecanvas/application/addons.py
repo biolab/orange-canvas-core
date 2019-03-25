@@ -41,7 +41,7 @@ from AnyQt.QtGui import (
 from AnyQt.QtCore import (
     QSortFilterProxyModel, QItemSelectionModel,
     Qt, QObject, QMetaObject, QSize, QTimer, QThread, Q_ARG,
-    QSettings
+    QSettings, QStandardPaths
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
@@ -952,8 +952,7 @@ def pypi_json_query_project_meta(projects, session=None):
     session : Optional[requests.Session]
     """
     if session is None:
-        session = requests.Session()
-
+        session = _session()
     rval = []
     for name in projects:
         r = session.get(PYPI_API_JSON.format(name=name))
@@ -999,23 +998,40 @@ def installable_from_json_response(meta):
     return Installable(name, version, summary, description, package_url, [])
 
 
-def list_pypi_addons():
+def _session(cachedir=None):
+    # type: (...) -> requests.Session
     """
-    List add-ons available on pypi.
+    Return a requests.Session instance
+
+    Parameters
+    ----------
+    cachedir : Optional[str]
+        HTTP cache location.
+
+    Returns
+    -------
+    session : requests.Session
     """
-    return pypi_search(config.default.addon_pypi_search_spec(), timeout=20)
-
-
-def list_installed_addons():
-    return [ep.dist for ep in config.default.addon_entry_points()]
+    import cachecontrol.caches
+    if cachedir is None:
+        cachedir = QStandardPaths.writableLocation(QStandardPaths.CacheLocation)
+        cachedir = os.path.join(cachedir, "networkcache", "requests")
+    session = requests.Session()
+    session = cachecontrol.CacheControl(
+        session,
+        cache=cachecontrol.caches.FileCache(
+            directory=cachedir
+        )
+    )
+    return session
 
 
 def list_available_versions(config, session=None):
     # type: (config.Config, Optional[requests.Session]) -> List[Installable]
     if session is None:
-        session = requests.Session()
+        session = _session()
 
-    defaults = config.addon_defaults_list(session)
+    defaults = config.addon_defaults_list()
     defaults_names = {a.get("info", {}).get("name", "") for a in defaults}
 
     # query pypi.org for installed add-ons that are not in the defaults
@@ -1026,11 +1042,7 @@ def list_available_versions(config, session=None):
 
     distributions = []
     for p in missing:
-        response = session.get(
-            PYPI_API_JSON.format(name=p), headers={
-                "Accept": "application/json, text/plain"
-            }
-        )
+        response = session.get(PYPI_API_JSON.format(name=p))
         if response.status_code != 200:
             continue
         distributions.append(response.json())
@@ -1070,7 +1082,7 @@ def installable_items(pypipackages, installed=[]):
     for pkg_name in set(packages.keys()).difference(set(dists.keys())):
         try:
             d = ws.find(Requirement.parse(pkg_name))
-        except pkg_resources.VersionConflict:
+        except pkg_resources.ResolutionError:
             pass
         except ValueError:
             # Requirements.parse error ?
