@@ -852,13 +852,15 @@ class AddonManagerDialog(QDialog):
             self.__installer.installStatusChanged.connect(progress.setLabelText)
             progress.show()
             progress.setLabelText("Installing")
-
             self.__installer.start()
 
         else:
             self.accept()
 
     def __on_installer_error(self, command, pkg, retcode, output):
+        if self.__progress is not None:
+            self.__progress.close()
+            self.__progress = None
         message_error(
             "An error occurred while running a subprocess", title="Error",
             informative_text="{} exited with non zero status.".format(command),
@@ -868,6 +870,9 @@ class AddonManagerDialog(QDialog):
         self.reject()
 
     def __on_installer_finished(self):
+        if self.__progress is not None:
+            self.__progress.close()
+            self.__progress = None
         message_information(
             "Please restart the application for changes to take effect.",
             parent=self)
