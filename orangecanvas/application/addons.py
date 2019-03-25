@@ -119,6 +119,7 @@ class Installed(
         "Installed", (
             ("installable", Optional[Installable]),
             ("local", 'Distribution'),
+            ("required", bool)
         ))):
     """
     An installed package. Does not need to have a corresponding installable
@@ -133,7 +134,12 @@ class Installed(
     local : Distribution
         A :class:`~.Distribution` instance representing the distribution meta
         of the locally installed package.
+    required : bool
+        Is the distribution required (is part of the core application and
+        must not be uninstalled).
     """
+    def __new__(cls, installable, local, required=False):
+        return super().__new__(cls, installable, local, required)
 
 
 #: An installable item/slot
@@ -147,7 +153,7 @@ def is_updatable(item):
     elif item.installable is None:
         return False
     else:
-        inst, dist = item
+        inst, dist, *_ = item
         try:
             v1 = version.StrictVersion(dist.version)
             v2 = version.StrictVersion(inst.version)
@@ -187,14 +193,72 @@ def get_meta_from_archive(path):
                 for key in ('Name', 'Version', 'Description', 'Summary')]
 
 
+class PluginsModel(QStandardItemModel):
+    def __init__(self, parent=None, **kwargs):
+        super().__init__(parent, **kwargs)
+        self.setHorizontalHeaderLabels(
+            ["", self.tr("Name"), self.tr("Version"), self.tr("Action")]
+        )
+
+    @staticmethod
+    def createRow(item):
+        # type: (Item) -> List[QStandardItem]
+        if isinstance(item, Installed):
+            installed = True
+            ins, dist = item.installable, item.local
+            name = dist.project_name
+            summary = get_dist_meta(dist).get("Summary", "")
+            version = ins.version if ins is not None else dist.version
+            item_is_core = item.required
+        else:
+            installed = False
+            ins = item.installable
+            dist = None
+            name = ins.name
+            summary = ins.summary
+            version = ins.version
+            item_is_core = False
+
+        updatable = is_updatable(item)
+
+        item1 = QStandardItem()
+        item1.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable |
+                       Qt.ItemIsUserCheckable |
+                       (Qt.ItemIsUserTristate if updatable else 0))
+        item1.setEnabled(not (item_is_core and not updatable))
+
+        if installed and updatable:
+            item1.setCheckState(Qt.PartiallyChecked)
+        elif installed:
+            item1.setCheckState(Qt.Checked)
+        else:
+            item1.setCheckState(Qt.Unchecked)
+        item1.setData(item, Qt.UserRole)
+
+        item2 = QStandardItem(name)
+        item2.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+        item2.setToolTip(summary)
+        item2.setData(item, Qt.UserRole)
+
+        if updatable:
+            version = "{} < {}".format(dist.version, ins.version)
+
+        item3 = QStandardItem(version)
+        item3.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+
+        item4 = QStandardItem()
+        item4.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+
+        return [item1, item2, item3, item4]
+
+
 class AddonManagerWidget(QWidget):
 
-    statechanged = Signal()
+    stateChanged = Signal()
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
         self.__items = []  # type: List[Item]
-        self.__corepacakges = config.default.core_packages()
 
         self.setLayout(QVBoxLayout())
 
@@ -217,8 +281,7 @@ class AddonManagerWidget(QWidget):
         )
         self.layout().addWidget(view)
 
-        self.__model = model = QStandardItemModel()
-        model.setHorizontalHeaderLabels(["", "Name", "Version", "Action"])
+        self.__model = model = PluginsModel()
         model.dataChanged.connect(self.__data_changed)
         proxy = QSortFilterProxyModel(
             filterKeyColumn=1,
@@ -263,50 +326,8 @@ class AddonManagerWidget(QWidget):
         model.setRowCount(0)
 
         for item in items:
-            if isinstance(item, Installed):
-                installed = True
-                ins, dist = item
-                name = dist.project_name
-                summary = get_dist_meta(dist).get("Summary", "")
-                version = ins.version if ins is not None else dist.version
-            else:
-                installed = False
-                (ins,) = item
-                dist = None
-                name = ins.name
-                summary = ins.summary
-                version = ins.version
-
-            updatable = is_updatable(item)
-
-            item1 = QStandardItem()
-            item1.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable |
-                           Qt.ItemIsUserCheckable |
-                           (Qt.ItemIsUserTristate if updatable else 0))
-
-            if installed and updatable:
-                item1.setCheckState(Qt.PartiallyChecked)
-            elif installed:
-                item1.setCheckState(Qt.Checked)
-            else:
-                item1.setCheckState(Qt.Unchecked)
-            item1.setData(item, Qt.UserRole)
-
-            item2 = QStandardItem(name)
-            item2.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
-            item2.setToolTip(summary)
-            item2.setData(item, Qt.UserRole)
-
-            if updatable:
-                version = "{} < {}".format(dist.version, ins.version)
-
-            item3 = QStandardItem(version)
-            item3.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
-
-            item4 = QStandardItem()
-            item4.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
-
-            model.appendRow([item1, item2, item3, item4])
+            row = model.createRow(item)
+            model.appendRow(row)
 
         model.sort(1)
 
@@ -430,7 +451,7 @@ class AddonManagerWidget(QWidget):
                 actionitem.setText("Uninstall")
             else:
                 actionitem.setText("")
-        self.statechanged.emit()
+        self.stateChanged.emit()
 
     def __update_details(self):
         index = self.__selected_row()
@@ -444,15 +465,16 @@ class AddonManagerWidget(QWidget):
             self.__details.setText(text)
 
     def _detailed_text(self, item):
+        # type: (Item) -> str
         if isinstance(item, Installed):
-            remote, dist = item
+            remote, dist = item.installable, item.local
             if remote is None:
                 meta = get_dist_meta(dist)
                 description = meta.get("Description") or meta.get('Summary')
             else:
                 description = remote.description
         else:
-            description = item[0].description
+            description = item.installable.description
 
         try:
             html = docutils.core.publish_string(
