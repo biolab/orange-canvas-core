@@ -19,7 +19,9 @@ from collections import namedtuple, deque
 from xml.sax.saxutils import escape
 from distutils import version
 
-from typing import List, Dict, Any, Optional, Union, Tuple, NamedTuple, Callable
+from typing import (
+    List, Dict, Any, Optional, Union, Tuple, NamedTuple, Callable, AnyStr
+)
 
 import requests
 import pkg_resources
@@ -1215,17 +1217,19 @@ class CondaInstaller:
         return bool(self.conda)
 
 
-def run_command(command, raise_on_fail=True):
-    """Run command in a subprocess.
+def run_command(command, raise_on_fail=True, **kwargs):
+    # type: (List[str], bool, ...) -> Tuple[int, List[AnyStr]]
+    """
+    Run command in a subprocess.
 
     Return `process` return code and output once it completes.
     """
     log.info("Running %s", " ".join(command))
 
     if command[0] == "python":
-        process = python_process(command[1:])
+        process = python_process(command[1:], **kwargs)
     else:
-        process = create_process(command)
+        process = create_process(command, **kwargs)
 
     output = []
     while process.poll() is None:
@@ -1254,6 +1258,7 @@ def run_command(command, raise_on_fail=True):
 
 
 def python_process(args, script_name=None, **kwargs):
+    # type: (List[str], Optional[str], ...) -> subprocess.Popen
     """
     Run a `sys.executable` in a subprocess with `args`.
     """
@@ -1270,11 +1275,13 @@ def python_process(args, script_name=None, **kwargs):
 
     return create_process(
         [script] + args,
-        executable=executable
+        executable=executable,
+        **kwargs
     )
 
 
 def create_process(cmd, executable=None, **kwargs):
+    # type: (List[str], Optional[str], ...) -> subprocess.Popen
     if hasattr(subprocess, "STARTUPINFO"):
         # do not open a new console window for command on windows
         startupinfo = subprocess.STARTUPINFO()
