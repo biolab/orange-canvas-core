@@ -15,7 +15,7 @@ import traceback
 import urllib.request
 
 from concurrent.futures import ThreadPoolExecutor, Future
-from collections import namedtuple, deque
+from collections import deque
 from xml.sax.saxutils import escape
 from distutils import version
 
@@ -52,6 +52,9 @@ from ..help.manager import get_dist_meta, trim, parse_meta
 
 from .. import config
 
+Requirement = pkg_resources.Requirement
+Distribution = pkg_resources.Distribution
+
 log = logging.getLogger(__name__)
 
 
@@ -64,37 +67,74 @@ class Installable(
             ("description", str),
             ("package_url", str),
             ("release_urls", List['ReleaseUrls'])
-        )
-    )):
+        ))):
     """
     An installable distribution from PyPi
+
+    Attributes
+    ----------
+    name: str
+        The distribution/project name
+    version: str
+        The release version
+    summary: str
+        Short one line summary text
+    description: str
+        A longer more detailed description
+    package_url: str
+    release_urls: List[ReleaseUrls]
     """
 
-#: An source/wheel/egg release for a distribution
-ReleaseUrl = namedtuple(
-    "ReleaseUrl",
-    ["filename",
-     "url",
-     "size",
-     "python_version",
-     "package_type"
-     ]
-)
 
-#: An available package
-Available = NamedTuple(
-    "Available", (
-        ("installable", Installable),
-    )
-)
-#: An installed package. Does not need to have a corresponding installable
-#: entry (eg. only local or private distribution)
-Installed = NamedTuple(
-    "Installed", (
-        ("installable", Optional[Installable]),
-        ("local", pkg_resources.Distribution)
-    )
-)
+class ReleaseUrl(
+    NamedTuple(
+        "ReleaseUrl", (
+            ("filename", str),
+            ("url", str),
+            ("size", int),
+            ("python_version", str),
+            ("package_type", str),
+        ))):
+  """
+  An source/wheel/egg release for a distribution,
+  """
+
+
+class Available(
+    NamedTuple(
+        "Available", (
+            ("installable", Installable),
+    ))):
+    """
+    An available package.
+
+    Attributes
+    ----------
+    installable : Installable
+    """
+
+
+class Installed(
+    NamedTuple(
+        "Installed", (
+            ("installable", Optional[Installable]),
+            ("local", 'Distribution'),
+        ))):
+    """
+    An installed package. Does not need to have a corresponding installable
+    entry (eg. only local or private distribution)
+
+    Attributes
+    ----------
+    installable: Installable
+        An optional installable item. Is None if the package is not available
+        from any package index (is not published and installed locally or
+        possibly orphaned).
+    local : Distribution
+        A :class:`~.Distribution` instance representing the distribution meta
+        of the locally installed package.
+    """
+
 
 #: An installable item/slot
 Item = Union[Available, Installed]
@@ -976,7 +1016,7 @@ def installable_items(pypipackages, installed=[]):
     ws = pkg_resources.WorkingSet()
     for pkg_name in set(packages.keys()).difference(set(dists.keys())):
         try:
-            d = ws.find(pkg_resources.Requirement.parse(pkg_name))
+            d = ws.find(Requirement.parse(pkg_name))
         except pkg_resources.VersionConflict:
             pass
         except ValueError:
