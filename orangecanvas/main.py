@@ -156,9 +156,6 @@ def main(argv=None):
                       action="store_true",
                       help="Force full widget discovery "
                            "(invalidate cache)")
-    parser.add_option("--clear-widget-settings",
-                      action="store_true",
-                      help="Remove stored widget setting")
     parser.add_option("--no-welcome",
                       action="store_true",
                       help="Don't show welcome dialog.")
@@ -242,10 +239,6 @@ def main(argv=None):
         qt_argv += shlex.split(options.qt)
 
     qt_argv += args
-
-    if options.clear_widget_settings:
-        log.debug("Clearing widget settings")
-        shutil.rmtree(config.widget_settings_dir(), ignore_errors=True)
 
     if QT_VERSION >= 0x50600:
         CanvasApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
