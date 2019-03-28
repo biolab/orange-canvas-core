@@ -51,7 +51,7 @@ EXTRAS_REQUIRE = {
 PROJECT_URLS = {
     "Bug Reports": "https://github.com/ales-erjavec/orange-canvas/issues",
     "Source": "https://github.com/ales-erjavec/orange-canvas/",
-    "Documentation": "https://pythonhosted.org/Orange-Canvas-Core/",
+    "Documentation": "https://orange-canvas-core.readthedocs.io/en/latest/",
 }
 
 PYTHON_REQUIRES = ">=3.4"
