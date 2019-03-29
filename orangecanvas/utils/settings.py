@@ -67,15 +67,6 @@ class SettingChangedEvent(QEvent):
         return self.__oldValue
 
 
-def qt_to_mapped_type(value):
-    """
-    Try to convert a Qt value to the corresponding python mapped type
-    (i.e. QString to str, etc.).
-
-    """
-    return value
-
-
 class QABCMeta(_QObjectType, abc.ABCMeta):
     def __init__(self, name, bases, attr_dict):
         _QObjectType.__init__(self, name, bases, attr_dict)
@@ -219,7 +210,6 @@ class Settings(QObject, MutableMapping, metaclass=QABCMeta):
         if fullkey in self.__defaults:
             value_type = self.__defaults[fullkey].value_type
             if not isinstance(value, value_type):
-                value = qt_to_mapped_type(value)
                 if not isinstance(value, value_type):
                     raise TypeError("Expected {0!r} got {1!r}".format(
                                         value_type.__name__,
