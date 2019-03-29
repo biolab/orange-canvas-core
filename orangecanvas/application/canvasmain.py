@@ -602,26 +602,44 @@ class CanvasMainWindow(QMainWindow):
             self.set_float_widgets_on_top_enabled)
 
     def setup_menu(self):
+        # QTBUG - 51480
         if sys.platform == "darwin" and QT_VERSION >= 0x50000:
             self.__menu_glob = QMenuBar(None)
 
         menu_bar = QMenuBar(self)
 
         # File menu
-        file_menu = QMenu(self.tr("&File"), menu_bar)
+        file_menu = QMenu(
+            self.tr("&File"), menu_bar, objectName="file-menu"
+        )
         file_menu.addAction(self.new_action)
         file_menu.addAction(self.open_action)
         file_menu.addAction(self.open_and_freeze_action)
         file_menu.addAction(self.reload_last_action)
 
         # File -> Open Recent submenu
-        self.recent_menu = QMenu(self.tr("Open Recent"), file_menu)
+        self.recent_menu = QMenu(
+            self.tr("Open Recent"), file_menu, objectName="recent-menu",
+        )
         file_menu.addMenu(self.recent_menu)
+
+        # An invisible hidden separator action indicating the end of the
+        # actions that with 'open' (new window/document) disposition
+        sep = QAction(
+            "", file_menu, objectName="open-actions-separator",
+            visible=False, enabled=False
+        )
+        # qt/cocoa native menu bar menu displays hidden separators
+        # sep.setSeparator(True)
+        file_menu.addAction(sep)
+
         file_menu.addAction(self.close_window_action)
-        file_menu.addSeparator()
+        sep = file_menu.addSeparator()
+        sep.setObjectName("close-window-actions-separator")
         file_menu.addAction(self.save_action)
         file_menu.addAction(self.save_as_action)
-        file_menu.addSeparator()
+        sep = file_menu.addSeparator()
+        sep.setObjectName("save-actions-separator")
         file_menu.addAction(self.show_properties_action)
         file_menu.addAction(self.quit_action)
 
@@ -660,25 +678,31 @@ class CanvasMainWindow(QMainWindow):
         menu_bar.addMenu(self.edit_menu)
 
         # View menu
-        self.view_menu = QMenu(self.tr("&View"), self)
+        self.view_menu = QMenu(
+            self.tr("&View"), menu_bar, objectName="view-menu"
+        )
         # find and insert window group presets submenu
         window_groups = self.scheme_widget.findChild(
             QAction, "window-groups-action"
         )
         if window_groups is not None:
             self.view_menu.addAction(window_groups)
+        sep = self.view_menu.addSeparator()
+        sep.setObjectName("workflow-window-groups-actions-separator")
 
-        self.view_menu.addSeparator()
+        # Actions that toggle visibility of editor views
         self.view_menu.addAction(self.toggle_tool_dock_expand)
         self.view_menu.addAction(self.show_output_action)
 
-        self.view_menu.addSeparator()
+        sep = self.view_menu.addSeparator()
+        sep.setObjectName("view-visible-actions-separator")
 
         self.view_menu.addAction(self.zoom_in_action)
         self.view_menu.addAction(self.zoom_out_action)
         self.view_menu.addAction(self.zoom_reset_action)
 
-        self.view_menu.addSeparator()
+        sep = self.view_menu.addSeparator()
+        sep.setObjectName("view-zoom-actions-separator")
 
         self.view_menu.addAction(self.toogle_margins_action)
         raise_widgets_action = self.scheme_widget.findChild(
@@ -691,8 +715,9 @@ class CanvasMainWindow(QMainWindow):
         menu_bar.addMenu(self.view_menu)
 
         # Options menu
-        self.options_menu = QMenu(self.tr("&Options"), self)
-        self.options_menu.addSeparator()
+        self.options_menu = QMenu(
+            self.tr("&Options"), menu_bar, objectName="options-menu"
+        )
         self.options_menu.addAction(self.canvas_settings_action)
         self.options_menu.addAction(self.canvas_addons_action)
 
@@ -701,7 +726,9 @@ class CanvasMainWindow(QMainWindow):
 
         if sys.platform == "darwin":
             # Mac OS X native look and feel.
-            self.window_menu = QMenu(self.tr("Window"), self)
+            self.window_menu = QMenu(
+                self.tr("Window"), menu_bar, objectName="window-menu"
+            )
             self.window_menu.addAction(self.minimize_action)
             self.window_menu.addAction(self.zoom_action)
             menu_bar.addMenu(self.window_menu)
@@ -709,7 +736,9 @@ class CanvasMainWindow(QMainWindow):
         menu_bar.addMenu(self.options_menu)
 
         # Help menu.
-        self.help_menu = QMenu(self.tr("&Help"), self)
+        self.help_menu = QMenu(
+            self.tr("&Help"), menu_bar, objectName="help-menu",
+        )
         self.help_menu.addActions([
             self.about_action,
             self.welcome_action,
