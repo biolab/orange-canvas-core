@@ -223,12 +223,6 @@ class CanvasMainWindow(QMainWindow):
         self.scheme_widget.pathChanged.connect(self.setWindowFilePath)
         self.scheme_widget.modificationChanged.connect(self.setWindowModified)
 
-        def touch():
-            # Mark the window as non transient on any change
-            self.__is_transient = False
-            self.scheme_widget.modificationChanged.disconnect(touch)
-        self.scheme_widget.modificationChanged.connect(touch)
-
         # QMainWindow's Dock widget
         self.dock_widget = CollapsibleDockWidget(objectName="main-area-dock")
         self.dock_widget.setFeatures(QDockWidget.DockWidgetMovable |
@@ -1699,6 +1693,13 @@ class CanvasMainWindow(QMainWindow):
         # Override the default context menu popup (we don't want the user to
         # be able to hide the tool dock widget).
         return None
+
+    def changeEvent(self, event):
+        # type: (QEvent) -> None
+        if event.type() == QEvent.ModifiedChange:
+            # clear transient flag on any change
+            self.__is_transient = False
+        super().changeEvent(event)
 
     def closeEvent(self, event):
         """
