@@ -23,7 +23,7 @@ from AnyQt.QtGui import (
     QPainterPathStroker
 )
 from AnyQt.QtCore import (
-    Qt, QEvent, QPointF, QRectF, QRect, QSize, QTimer, QPropertyAnimation
+    Qt, QEvent, QPointF, QRectF, QRect, QSize, QTime, QTimer, QPropertyAnimation
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
@@ -805,6 +805,9 @@ class NodeItem(QGraphicsWidget):
         # background when selected
         self.backgroundItem = None
 
+        self.mousePressTime = QTime()
+        self.mousePressTime.start()
+
         self.__title = ""
         self.__processingState = 0
         self.__progress = -1
@@ -1260,10 +1263,16 @@ class NodeItem(QGraphicsWidget):
                 origin = origin + QPointF(rect.width() + spacing, 0)
 
     def mousePressEvent(self, event):
-        if self.shapeItem.path().contains(event.pos()):
-            return super().mousePressEvent(event)
-        else:
+        if self.mousePressTime.elapsed() < QApplication.doubleClickInterval():
+            # Double-click triggers two mouse press events and a double-click event.
+            # Ignore the second mouse press event (causes widget's node relocation with Logitech's Smart Move).
             event.ignore()
+        else:
+            self.mousePressTime.restart()
+            if self.shapeItem.path().contains(event.pos()):
+                return super().mousePressEvent(event)
+            else:
+                event.ignore()
 
     def mouseDoubleClickEvent(self, event):
         if self.shapeItem.path().contains(event.pos()):
