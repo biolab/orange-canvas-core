@@ -7,7 +7,7 @@ import sys
 import logging
 import operator
 import io
-import concurrent.futures
+
 from functools import partial
 from types import SimpleNamespace
 
@@ -40,7 +40,7 @@ except ImportError:
 
 
 from AnyQt.QtCore import (
-    pyqtProperty as Property, pyqtSignal as Signal, pyqtSlot as Slot
+    pyqtProperty as Property, pyqtSignal as Signal
 )
 
 from ..gui.dropshadow import DropShadowFrame
@@ -61,6 +61,7 @@ from ..document.schemeedit import SchemeEditWidget
 from ..gui.itemmodels import FilterProxyModel
 from ..registry import WidgetDescription, CategoryDescription
 from ..registry.qt import QtWidgetRegistry
+from ..utils.settings import QSettings_readArray, QSettings_writeArray
 
 from . import welcomedialog
 from . import addons
@@ -1316,7 +1317,9 @@ class CanvasMainWindow(QMainWindow):
         """
         settings = QSettings()
         recent = QSettings_readArray(
-            settings, "mainwindow/recent-items", {"title": str, "path": str}
+            settings, "mainwindow/recent-items", {
+                "title": (str, ""), "path": (str, "")
+            }
         )
         recent = [RecentItem(**item) for item in recent]
         recent = [item for item in recent if os.path.exists(item.path)]
@@ -2018,67 +2021,3 @@ class RecentItem(SimpleNamespace):
     title = ""  # type: str
     path = ""  # type: str
 
-
-def QSettings_readArray(settings, key, scheme):
-    """
-    Read the whole array from a QSettings instance
-
-    Parameters
-    ----------
-    settings : QSettings
-    key : str
-    scheme : Dict[str, type]
-
-    Example
-    -------
-    >>> s = QSettings("./login.ini")
-    >>> QSettings_readArray(s, "array", {"username": str, "password": str})
-    [{"username": "darkhelmet", "password": "1234"}}
-    """
-    from collections import Mapping
-    items = []
-    if not isinstance(scheme, Mapping):
-        scheme = {key: None for key in scheme}
-
-    count = settings.beginReadArray(key)
-    for i in range(count):
-        settings.setArrayIndex(i)
-        keys = settings.allKeys()
-        item = {}
-        for key in keys:
-            if key in scheme:
-                vtype = scheme.get(key, None)
-                if vtype is not None:
-                    value = settings.value(key, type=vtype)
-                else:
-                    value = settings.value(key)
-                item[key] = value
-        items.append(item)
-    settings.endArray()
-    return items
-
-
-def QSettings_writeArray(settings, key, values):
-    # type: (QSettings, str, List[Dict[str, Any]]) -> None
-    """
-    Write an array of values to a QSettings instance.
-
-    Parameters
-    ----------
-    settings : QSettings
-    key : str
-    values : List[Dict[str, Any]]
-
-    Examples
-    --------
-    >>> s = QSettings("./login.ini")
-    >>> QSettings_writeArray(
-    ...     s, "array", [{"username": "darkhelmet", "password": "1234"}]
-    ... )
-    """
-    settings.beginWriteArray(key, len(values))
-    for i in range(len(values)):
-        settings.setArrayIndex(i)
-        for key_, val in values[i].items():
-            settings.setValue(key_, val)
-    settings.endArray()

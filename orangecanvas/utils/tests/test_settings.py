@@ -2,10 +2,14 @@
 Tests for settings utility module.
 
 """
+import tempfile
+
+import unittest
 import logging
 
 from AnyQt.QtCore import QSettings
-from ..settings import Settings, config_slot
+from ..settings import Settings, config_slot, QSettings_readArray, \
+    QSettings_writeArray, QSettings_writeArrayItem
 from ...gui import test
 
 
@@ -99,3 +103,49 @@ class TestUserSettings(test.QAppTestCase):
         settings.clear()
         self.assertSetEqual(set(settings.keys()),
                             set(["foo", "bar", "foobar/foo"]))
+
+
+class TestQSettings_array(unittest.TestCase):
+    filename = ""  # type: str
+
+    def setUp(self):
+        self.file = tempfile.NamedTemporaryFile()
+        self.filename = self.file.name
+        self.settings = QSettings(self.filename, QSettings.IniFormat)
+
+    def tearDown(self):
+        self.settings.sync()
+        del self.settings
+        self.file.close()
+
+    def test_readwrite_array(self):
+        s = self.settings
+        scheme = {
+            "name": str,
+            "price": int
+        }
+        items = QSettings_readArray(s, "items", scheme)
+        self.assertSequenceEqual(items, [])
+        items_ = [
+            {"name": "apple", "price": 10},
+            {"name": "pear", "price": 12},
+        ]
+        QSettings_writeArray(s, "items", items_)
+        items = QSettings_readArray(s, "items", scheme)
+        self.assertSequenceEqual(items, items_)
+        scheme = {
+            "quality": (int, -1),
+            **scheme
+        }
+        items = QSettings_readArray(s, "items", scheme)
+        self.assertSequenceEqual(items, [{"quality": -1, **d} for d in items_])
+
+        QSettings_writeArrayItem(
+            s, "items", 1, {"name": "banana", "price": 5, "quality": 5},
+            arraysize=2
+        )
+        items = QSettings_readArray(s, "items", scheme)
+        self.assertSequenceEqual(items, [
+            {"name": "apple", "price": 10, "quality": -1},
+            {"name": "banana", "price": 5, "quality": 5}
+        ])
