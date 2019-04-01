@@ -95,9 +95,9 @@ class ReleaseUrl(
             ("python_version", str),
             ("package_type", str),
         ))):
-  """
-  An source/wheel/egg release for a distribution,
-  """
+    """
+    An source/wheel/egg release for a distribution,
+    """
 
 
 class Available(
