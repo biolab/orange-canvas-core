@@ -955,7 +955,7 @@ class CanvasMainWindow(QMainWindow):
         -------
         window: CanvasMainWindow
         """
-        window = CanvasMainWindow()
+        window = type(self)()  # 'preserve' subclass type
         window.setAttribute(Qt.WA_DeleteOnClose)
         window.setGeometry(self.geometry().translated(20, 20))
         window.setStyleSheet(self.styleSheet())
