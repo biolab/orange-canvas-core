@@ -34,8 +34,8 @@ import docutils.utils
 from AnyQt.QtWidgets import (
     QWidget, QDialog, QLabel, QLineEdit, QTreeView, QHeaderView,
     QTextBrowser, QDialogButtonBox, QProgressDialog, QVBoxLayout,
-    QPushButton, QFormLayout, QHBoxLayout
-)
+    QPushButton, QFormLayout, QHBoxLayout,
+    QStyledItemDelegate, QStyle, QApplication, QStyleOptionViewItem)
 from AnyQt.QtGui import (
     QStandardItemModel, QStandardItem, QPalette, QTextOption,
     QDropEvent, QDragEnterEvent
@@ -43,7 +43,7 @@ from AnyQt.QtGui import (
 from AnyQt.QtCore import (
     QSortFilterProxyModel, QItemSelectionModel,
     Qt, QObject, QMetaObject, QSize, QTimer, QThread, Q_ARG,
-    QSettings, QStandardPaths
+    QSettings, QStandardPaths, QEvent, QAbstractItemModel, QModelIndex
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
@@ -198,6 +198,9 @@ def get_meta_from_archive(path):
                 for key in ('Name', 'Version', 'Description', 'Summary')]
 
 
+HasConstraintRole = Qt.UserRole + 0xf45
+
+
 class PluginsModel(QStandardItemModel):
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
@@ -231,6 +234,7 @@ class PluginsModel(QStandardItemModel):
                        Qt.ItemIsUserCheckable |
                        (Qt.ItemIsUserTristate if updatable else 0))
         item1.setEnabled(not (item_is_core and not updatable))
+        item1.setData(item_is_core, HasConstraintRole)
 
         if installed and updatable:
             item1.setCheckState(Qt.PartiallyChecked)
@@ -255,6 +259,66 @@ class PluginsModel(QStandardItemModel):
         item4.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
 
         return [item1, item2, item3, item4]
+
+
+class TristateCheckItemDelegate(QStyledItemDelegate):
+    """
+    A QStyledItemDelegate with customizable Qt.CheckStateRole state toggle
+    on user interaction.
+    """
+    def editorEvent(self, event, model, option, index):
+        # type: (QEvent, QAbstractItemModel, QStyleOptionViewItem, QModelIndex) -> bool
+        """
+        Reimplemented.
+        """
+        flags = model.flags(index)
+        if not flags & Qt.ItemIsUserCheckable or \
+                not option.state & QStyle.State_Enabled or \
+                not flags & Qt.ItemIsEnabled:
+            return False
+
+        checkstate = model.data(index, Qt.CheckStateRole)
+        if checkstate is None:
+            return False
+
+        widget = option.widget
+        style = widget.style() if widget is not None else QApplication.style()
+        if event.type() in {QEvent.MouseButtonPress, QEvent.MouseButtonRelease,
+                            QEvent.MouseButtonDblClick}:
+            pos = event.pos()
+            opt = QStyleOptionViewItem(option)
+            self.initStyleOption(opt, index)
+            rect = style.subElementRect(
+                QStyle.SE_ItemViewItemCheckIndicator, opt, widget)
+
+            if event.button() != Qt.LeftButton or not rect.contains(pos):
+                return False
+
+            if event.type() in {QEvent.MouseButtonPress,
+                                QEvent.MouseButtonDblClick}:
+                return True
+
+        elif event.type() == QEvent.KeyPress:
+            if event.key() != Qt.Key_Space and event.key() != Qt.Key_Select:
+                return False
+        else:
+            return False
+        checkstate = self.nextCheckState(checkstate, index)
+        return model.setData(index, checkstate, Qt.CheckStateRole)
+
+    def nextCheckState(self, state, index):
+        # type: (Qt.CheckeState, QModelIndex) -> Qt.CheckState
+        """
+        Return the next check state for index.
+        """
+        constraint = index.data(HasConstraintRole)
+        flags = index.flags()
+        if flags & Qt.ItemIsUserTristate and constraint:
+            return Qt.PartiallyChecked if state == Qt.Checked else Qt.Checked
+        elif flags & Qt.ItemIsUserTristate:
+            return (state + 1) % 3
+        else:
+            return Qt.Unchecked if state == Qt.Checked else Qt.Checked
 
 
 class AddonManagerWidget(QWidget):
@@ -284,6 +348,7 @@ class AddonManagerWidget(QWidget):
             selectionMode=QTreeView.SingleSelection,
             alternatingRowColors=True
         )
+        view.setItemDelegateForColumn(0, TristateCheckItemDelegate(view))
         self.layout().addWidget(view)
 
         self.__model = model = PluginsModel()
