@@ -1074,8 +1074,13 @@ def installable_from_json_response(meta):
     summary = info.get("summary", "")
     description = info.get("description", "")
     package_url = info.get("package_url", "")
+    distributions = meta.get("releases", {}).get(version, [])
+    release_urls = [ReleaseUrl(r["filename"], url=r["url"], size=r["size"],
+                               python_version=r.get("python_version", ""),
+                               package_type=r["packagetype"])
+                    for r in distributions]
 
-    return Installable(name, version, summary, description, package_url, [])
+    return Installable(name, version, summary, description, package_url, release_urls)
 
 
 def _session(cachedir=None):
@@ -1130,15 +1135,11 @@ def list_available_versions(config, session=None):
     packages = []
     for addon in defaults + distributions:
         try:
-            info = addon["info"]
-            packages.append(
-                Installable(info["name"], info["version"],
-                            info["summary"], info["description"],
-                            info["package_url"],
-                            info["package_url"])
-            )
+            p = installable_from_json_response(addon)
         except (TypeError, KeyError):
             continue  # skip invalid packages
+        else:
+            packages.append(p)
 
     return packages
 
