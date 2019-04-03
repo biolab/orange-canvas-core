@@ -17,7 +17,6 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, Future
 from collections import deque
 from xml.sax.saxutils import escape
-from distutils import version
 
 from typing import (
     List, Dict, Any, Optional, Union, Tuple, NamedTuple, Callable, AnyStr
@@ -25,6 +24,9 @@ from typing import (
 
 import requests
 import pkg_resources
+
+import packaging.version
+import packaging.requirements
 
 import docutils.core
 import docutils.utils
@@ -119,7 +121,8 @@ class Installed(
         "Installed", (
             ("installable", Optional[Installable]),
             ("local", 'Distribution'),
-            ("required", bool)
+            ("required", bool),
+            ("constraint", Optional[Requirement]),
         ))):
     """
     An installed package. Does not need to have a corresponding installable
@@ -137,9 +140,11 @@ class Installed(
     required : bool
         Is the distribution required (is part of the core application and
         must not be uninstalled).
+    constraint: Optional[Requirement]
+        A version constraint string.
     """
-    def __new__(cls, installable, local, required=False):
-        return super().__new__(cls, installable, local, required)
+    def __new__(cls, installable, local, required=False, constraint=None):
+        return super().__new__(cls, installable, local, required, constraint)
 
 
 #: An installable item/slot
@@ -153,17 +158,17 @@ def is_updatable(item):
     elif item.installable is None:
         return False
     else:
-        inst, dist, *_ = item
+        inst, dist = item.installable, item.local
         try:
-            v1 = version.StrictVersion(dist.version)
-            v2 = version.StrictVersion(inst.version)
+            v1 = packaging.version.parse(dist.version)
+            v2 = packaging.version.parse(inst.version)
         except ValueError:
-            pass
+            return False
+
+        if item.constraint is not None and str(v2) not in item.constraint:
+            return False
         else:
             return v1 < v2
-
-        return (version.LooseVersion(dist.version) <
-                version.LooseVersion(inst.version))
 
 
 def get_meta_from_archive(path):
@@ -631,15 +636,20 @@ class AddonManagerDialog(QDialog):
         AddonManagerDialog.__packages = packages
         installed = [ep.dist for ep in config.addon_entry_points()]
         items = installable_items(packages, installed)
-        core = [Requirement.parse(r).project_name.casefold()
-                for r in config.core_packages()]
+        core_constraints = {
+            r.project_name.casefold(): r
+            for r in (Requirement.parse(r) for r in config.core_packages())
+        }
 
-        def f(item):
-            if isinstance(item, Installed) and \
-                    item.local.project_name.casefold() in core:
-                return item._replace(required=True)
-            else:
-                return item
+        def f(item):  # type: (Item) -> Item
+            """Include constraint in Installed when in core_constraint"""
+            if isinstance(item, Installed):
+                name = item.local.project_name.casefold()
+                if name in core_constraints:
+                    return item._replace(
+                        required=True, constraint=core_constraints[name]
+                    )
+            return item
         self.setItems([f(item) for item in items])
 
     @Slot(object)
