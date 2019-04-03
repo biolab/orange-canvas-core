@@ -540,7 +540,8 @@ class AddonManagerWidget(QWidget):
             remote, dist = item.installable, item.local
             if remote is None:
                 meta = get_dist_meta(dist)
-                description = meta.get("Description") or meta.get('Summary')
+                description = meta.get("Description", "") or \
+                              meta.get('Summary', "")
             else:
                 description = remote.description
         else:
