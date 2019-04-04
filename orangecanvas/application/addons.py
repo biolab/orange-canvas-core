@@ -68,7 +68,7 @@ class Installable(
             ("summary", str),
             ("description", str),
             ("package_url", str),
-            ("release_urls", List['ReleaseUrls'])
+            ("release_urls", List['ReleaseUrl'])
         ))):
     """
     An installable distribution from PyPi
@@ -566,7 +566,7 @@ class AddonManagerWidget(QWidget):
 
 
 def method_queued(method, sig, conntype=Qt.QueuedConnection):
-    # type: (types.MethodType, Tuple[type, ...], ...) -> Callable[[], bool]
+    # type: (types.MethodType, Tuple[type, ...], int) -> Callable[[], bool]
     name = method.__name__
     obj = method.__self__  # type: QObject
     assert isinstance(obj, QObject)
@@ -1122,7 +1122,8 @@ def list_available_versions(config, session=None):
 
     # query pypi.org for installed add-ons that are not in the defaults
     # list
-    installed = [ep.dist for ep in config.addon_entry_points()]
+    installed = [ep.dist for ep in config.addon_entry_points()
+                 if ep.dist is not None]
     missing = {dist.project_name.casefold() for dist in installed} - \
               {name.casefold() for name in defaults_names}
 
@@ -1405,7 +1406,7 @@ class CondaInstaller:
 
 
 def run_command(command, raise_on_fail=True, **kwargs):
-    # type: (List[str], bool, ...) -> Tuple[int, List[AnyStr]]
+    # type: (List[str], bool, Any) -> Tuple[int, List[AnyStr]]
     """
     Run command in a subprocess.
 
@@ -1445,7 +1446,7 @@ def run_command(command, raise_on_fail=True, **kwargs):
 
 
 def python_process(args, script_name=None, **kwargs):
-    # type: (List[str], Optional[str], ...) -> subprocess.Popen
+    # type: (List[str], Optional[str], Any) -> subprocess.Popen
     """
     Run a `sys.executable` in a subprocess with `args`.
     """
@@ -1468,7 +1469,7 @@ def python_process(args, script_name=None, **kwargs):
 
 
 def create_process(cmd, executable=None, **kwargs):
-    # type: (List[str], Optional[str], ...) -> subprocess.Popen
+    # type: (List[str], Optional[str], Any) -> subprocess.Popen
     if hasattr(subprocess, "STARTUPINFO"):
         # do not open a new console window for command on windows
         startupinfo = subprocess.STARTUPINFO()
