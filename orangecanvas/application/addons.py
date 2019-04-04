@@ -1488,7 +1488,7 @@ def create_process(cmd, executable=None, **kwargs):
     )
 
 
-def main(argv=None):
+def main(argv=None):  # noqa
     import argparse
     from AnyQt.QtWidgets import QApplication
     app = QApplication(argv if argv is not None else [])
