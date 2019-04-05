@@ -679,7 +679,7 @@ def dumps(obj, format="literal", prettyprint=False, pickle_fallback=False):
     """
     if format == "literal":
         try:
-            return (literal_dumps(obj, prettyprint=prettyprint, indent=1),
+            return (literal_dumps(obj, indent=1 if prettyprint else None),
                     "literal")
         except (ValueError, TypeError) as ex:
             if not pickle_fallback:
