@@ -15,11 +15,10 @@ CanvasMainWindow {
     background-color: #E9EFF2;
 }
 
-QMainWindow::separator {
+CanvasMainWindow::separator {
     width: 1px; /* when vertical */
     height: 1px; /* when horizontal */
 }
-
 
 /* The widget buttons in the dock tool box */
 
@@ -27,11 +26,6 @@ WidgetToolBox WidgetToolGrid QToolButton {
     border: none;
     background-color: #F2F2F2;
     border-radius: 8px;
-/*
-    font-family: "Helvetica";
-    font-size: 10px;
-    font-weight: bold;
-*/
     color: #333;
 }
 
@@ -42,10 +36,7 @@ WidgetToolBox QToolButton#toolbox-tab-button {
     /* nativeStyling property overrides the QStyle and uses a fixed drawing
     routine */
     qproperty-nativeStyling_: "false";
-
-    font-family: "Helvetica";
     font-size: 14px;
-    font-weight: bold;
     color: #333;
     border: none;
     border-bottom: 1px solid #B5B8B8;
@@ -88,15 +79,18 @@ WidgetToolBox ToolGrid QToolButton[last-column] {
     border-right: none;
 }
 
-WidgetToolBox  ToolGrid QToolButton:focus {
+WidgetToolBox ToolGrid QToolButton {
+    font-size: 10px;
+}
+WidgetToolBox ToolGrid QToolButton:focus {
     background-color: palette(window);
 }
 
-WidgetToolBox  ToolGrid QToolButton:hover {
+WidgetToolBox ToolGrid QToolButton:hover {
     background-color: palette(light);
 }
 
-WidgetToolBox  ToolGrid QToolButton:pressed {
+WidgetToolBox ToolGrid QToolButton:pressed {
     background-color: palette(dark);
 }
 
@@ -246,12 +240,10 @@ CanvasToolDock QSplitter::handle {
  */
 
 SchemeInfoDialog {
-    font-family: "Helvetica";
     background-color: #E9EFF2;
 }
 
 SchemeInfoDialog SchemeInfoEdit QLabel {
-    font-family: "Helvetica";
     font-weight: bold;
     font-size: 16px;
     color: black;
@@ -263,7 +255,6 @@ SchemeInfoDialog QLabel#heading {
 }
 
 SchemeInfoDialog StyledWidget#auto-show-container * {
-    font-family: "Helvetica";
     font-size: 12px;
     color: #1A1A1A;
 }
@@ -274,8 +265,6 @@ SchemeInfoDialog StyledWidget#auto-show-container {
 
 SchemeInfoDialog SchemeInfoEdit QLineEdit {
     padding: 4px;
-    /* background-color: red; */
-    /* font-weight: normal; */
     font-size: 12px;
     color: #1A1A1A;
 }
@@ -283,7 +272,6 @@ SchemeInfoDialog SchemeInfoEdit QLineEdit {
 SchemeInfoDialog SchemeInfoEdit QTextEdit {
     padding: 4px;
     background-color: white;
-    /* font-weight: normal; */
     font-size: 12px;
     color: #1A1A1A;
 }
@@ -297,14 +285,12 @@ PreviewDialog {
 }
 
 PreviewDialog QLabel#heading {
-    font-family: "Helvetica";
     font-weight: bold;
     font-size: 21px;
     color: #515151;
 }
 
 PreviewDialog PreviewBrowser * {
-    font-family: "Helvetica";
     color: #1A1A1A;
 }
 
@@ -329,10 +315,7 @@ WelcomeDialog {
 }
 
 WelcomeDialog QToolButton {
-	font-family: "Helvetica";
 	font-size: 13px;
-	font-style: normal;
-	font-weight: bold;
 	color: #333;
 }
 
@@ -340,18 +323,8 @@ WelcomeDialog QWidget#bottom-bar {
 	border-top: 1px solid #C1C2C3;
 }
 
-WelcomeDialog QWidget#bottom-bar QCheckBox {	
-	font-family: "Helvetica";
-	font-size: 12px;
+WelcomeDialog QWidget#bottom-bar QCheckBox {
 	color: #333;
-}
-
-/* SchemeEditWidget
- */
-
-SchemeEditWidget {
-	font-family: "Helvetica";
-	font-size: 12px;
 }
 
 /* Quick Menu 
