@@ -327,6 +327,13 @@ WelcomeDialog QWidget#bottom-bar QCheckBox {
 	color: #333;
 }
 
+/* SchemeEditWidget
+ */
+
+SchemeEditWidget {
+	font-size: 12px;
+}
+
 /* Quick Menu 
  */
 
