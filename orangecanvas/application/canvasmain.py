@@ -219,7 +219,7 @@ class CanvasMainWindow(QMainWindow):
         frame.setWidget(self.scheme_widget)
 
         # Window 'title'
-        self.setWindowFilePath(self.scheme_widget.path() or " ")
+        self.setWindowFilePath(self.scheme_widget.path())
         self.scheme_widget.pathChanged.connect(self.setWindowFilePath)
         self.scheme_widget.modificationChanged.connect(self.setWindowModified)
 
@@ -788,6 +788,16 @@ class CanvasMainWindow(QMainWindow):
         )
 
         self.__update_from_settings()
+
+    def setWindowFilePath(self, filePath):  # type: (str) -> None
+        if sys.platform == "darwin":
+            super().setWindowFilePath(filePath)
+        else:
+            # use non-empty path to 'force' Qt to add '[*]' modified marker
+            # in the displayed title.
+            if not filePath:
+                filePath = " "
+            super().setWindowFilePath(filePath)
 
     def set_document_title(self, title):
         """Set the document title (and the main window title). If `title`
