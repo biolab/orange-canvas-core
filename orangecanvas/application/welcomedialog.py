@@ -79,9 +79,9 @@ class WelcomeActionButton(QToolButton):
 
 
 class WelcomeDialog(QDialog):
-    """A welcome widget shown at startup presenting a series
+    """
+    A welcome widget shown at startup presenting a series
     of buttons (actions) for a beginner to choose from.
-
     """
     triggered = Signal(QAction)
 

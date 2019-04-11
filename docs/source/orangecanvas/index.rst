@@ -11,3 +11,4 @@ The Orange Canvas API reference
    registry
    canvas
    document
+   application

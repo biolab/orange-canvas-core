@@ -14,7 +14,8 @@ Scheme Editor (:mod:`schemeedit`)
       undoCommandAdded,
       selectionChanged,
       titleChanged,
-      pathChanged
+      pathChanged,
+      onNewLink
    :member-order: bysource
    :show-inheritance:
 

@@ -44,7 +44,7 @@ class WidgetManager(QObject):
     This is an abstract class, subclassed MUST reimplement at least
     :func:`create_widget_for_node` and :func:`delete_widget_for_node`.
 
-    The widgets created with `create_widget_for_node` will automatically
+    The widgets created with :func:`create_widget_for_node` will automatically
     receive dispatched events:
 
         * :data:`WorkflowEvent.InputLinkAdded` - when a new input link is added to
