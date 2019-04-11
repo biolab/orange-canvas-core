@@ -59,7 +59,7 @@ from .outputview import OutputView, TextStream
 from .settings import UserSettingsDialog, category_state
 from ..document.schemeedit import SchemeEditWidget
 from ..gui.itemmodels import FilterProxyModel
-from ..registry import WidgetDescription, CategoryDescription
+from ..registry import WidgetRegistry, WidgetDescription, CategoryDescription
 from ..registry.qt import QtWidgetRegistry
 from ..utils.settings import QSettings_readArray, QSettings_writeArray
 
@@ -819,7 +819,13 @@ class CanvasMainWindow(QMainWindow):
         return self.__document_title
 
     def set_widget_registry(self, widget_registry):
-        """Set widget registry.
+        # type: (WidgetRegistry) -> None
+        """
+        Set widget registry.
+
+        Parameters
+        ----------
+        widget_registry : WidgetRegistry
         """
         if self.widget_registry is not None:
             # Clear the dock widget and popup.
@@ -830,18 +836,19 @@ class CanvasMainWindow(QMainWindow):
             self.__proxy_model.deleteLater()
             self.__proxy_model = None
 
-        self.widget_registry = widget_registry
+        self.widget_registry = WidgetRegistry(widget_registry)
+        qreg = QtWidgetRegistry(self.widget_registry, parent=self)
 
         # Restore category hidden/sort order state
         proxy = FilterProxyModel(self)
-        proxy.setSourceModel(widget_registry.model())
+        proxy.setSourceModel(qreg.model())
         self.__proxy_model = proxy
         self.__update_registry_filters()
 
         self.widgets_tool_box.setModel(proxy)
         self.quick_category.setModel(proxy)
 
-        self.scheme_widget.setRegistry(widget_registry)
+        self.scheme_widget.setRegistry(qreg)
         self.scheme_widget.quickMenu().setModel(proxy)
 
         self.help.set_registry(widget_registry)
