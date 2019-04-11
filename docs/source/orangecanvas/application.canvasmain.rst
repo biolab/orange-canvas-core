@@ -5,7 +5,6 @@ Canvas Main Window (``canvasmain``)
 .. currentmodule:: orangecanvas.application.canvasmain
 
 .. autoclass:: orangecanvas.application.canvasmain.CanvasMainWindow
-
    :member-order: bysource
    :show-inheritance:
 

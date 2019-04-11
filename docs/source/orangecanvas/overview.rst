@@ -70,4 +70,4 @@ Application
 ***********
 
 Joining everything together, the final application (main window, ...)
-is implemented in :mod:`~application`.
+is implemented in :mod:`orangecanvas.application`.
