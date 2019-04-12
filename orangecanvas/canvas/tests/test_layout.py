@@ -72,7 +72,7 @@ class TestAnchorLayout(QAppTestCase):
         path.addEllipse(125, 0, 50, 300)
 
         def advance():
-            t = time.clock()
+            t = time.process_time()
             cons_item.setPos(path.pointAtPercent(t % 1.0))
             negate_item.setPos(path.pointAtPercent((t + 0.5) % 1.0))
 

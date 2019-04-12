@@ -114,7 +114,7 @@ class TestLinkItem(TestItems):
         self.assertTrue(link.isDynamicEnabled())
 
         def advance():
-            clock = time.clock()
+            clock = time.process_time()
             link.setDynamic(clock > 1)
             link.setDynamicEnabled(int(clock) % 2 == 0)
 

@@ -57,7 +57,7 @@ class TestAnnotationItem(TestItems):
         item.setLineWidth(5)
 
         def advance():
-            clock = time.clock() * 10
+            clock = time.process_time() * 10
             item.setLineWidth(5 + math.sin(clock) * 5)
             item.setColor(QColor(Qt.red).lighter(100 + 30 * math.cos(clock)))
 
