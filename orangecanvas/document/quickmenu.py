@@ -1172,7 +1172,7 @@ class QuickMenu(FramelessWindow):
         self.__clearCurrentItems()
 
         self.__search.setText(searchText)
-        patt = QRegExp("(^|\W)"+searchText)
+        patt = QRegExp(r"(^|\W)"+searchText)
         patt.setCaseSensitivity(False)
         self.__suggestPage.setFilterRegExp(patt)
 
@@ -1277,7 +1277,7 @@ class QuickMenu(FramelessWindow):
         self.triggered.emit(action)
 
     def __on_textEdited(self, text):
-        patt = QRegExp("(^|\W)" + text)
+        patt = QRegExp(r"(^|\W)" + text)
         patt.setCaseSensitivity(False)
         self.__suggestPage.setFilterRegExp(patt)
         self.__pages.setCurrentPage(self.__suggestPage)
