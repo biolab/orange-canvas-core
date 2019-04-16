@@ -10,6 +10,7 @@ import io
 
 from functools import partial
 from types import SimpleNamespace
+from typing import Optional
 
 import pkg_resources
 
@@ -25,7 +26,7 @@ from AnyQt.QtGui import (
 
 from AnyQt.QtCore import (
     Qt, QObject, QEvent, QSize, QUrl, QTimer, QFile, QByteArray, QFileInfo,
-    QSettings, QStandardPaths, QT_VERSION
+    QSettings, QStandardPaths, QAbstractItemModel, QT_VERSION
 )
 
 try:
@@ -141,7 +142,8 @@ class CanvasMainWindow(QMainWindow):
         self.__document_title = "untitled"
         self.__first_show = True
         self.__is_transient = True
-        self.widget_registry = None
+        self.widget_registry = None  # type: Optional[WidgetRegistry]
+        self.__registry_model = None  # type: Optional[QAbstractItemModel]
         # Proxy widget registry model
         self.__proxy_model = None
 
@@ -838,7 +840,7 @@ class CanvasMainWindow(QMainWindow):
 
         self.widget_registry = WidgetRegistry(widget_registry)
         qreg = QtWidgetRegistry(self.widget_registry, parent=self)
-
+        self.__registry_model = qreg.model()
         # Restore category hidden/sort order state
         proxy = FilterProxyModel(self)
         proxy.setSourceModel(qreg.model())
@@ -888,11 +890,12 @@ class CanvasMainWindow(QMainWindow):
         if use_popover:
             # Show a popup menu with the widgets in the category
             popup = CategoryPopupMenu(self.quick_category)
-            reg = self.widget_registry.model()
+            model = self.__registry_model
+            assert model is not None
             i = index(self.widget_registry.categories(), category,
                       predicate=lambda name, cat: cat.name == name)
             if i != -1:
-                popup.setCategoryItem(reg.item(i))
+                popup.setCategoryItem(model.item(i))
                 button = self.quick_category.buttonForAction(action)
                 pos = popup_position_from_source(popup, button)
                 action = popup.exec_(pos)
