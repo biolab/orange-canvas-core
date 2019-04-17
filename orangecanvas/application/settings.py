@@ -379,7 +379,9 @@ class UserSettingsDialog(QMainWindow):
         # Categories Tab
         tab = QWidget()
         layout = QVBoxLayout()
-        view = QListView()
+        view = QListView(
+            editTriggers=QListView.NoEditTriggers
+        )
         from .. import registry
         reg = registry.global_registry()
         model = QStandardItemModel()
