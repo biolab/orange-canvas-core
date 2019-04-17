@@ -209,8 +209,9 @@ class UserSettingsDialog(QMainWindow):
         """Set up the UI.
         """
         if self.__macUnified:
-            self.tab = QToolBar()
-
+            self.tab = QToolBar(
+                floatable=False, movable=False, allowedAreas=Qt.TopToolBarArea,
+            )
             self.addToolBar(Qt.TopToolBarArea, self.tab)
             self.setUnifiedTitleAndToolBarOnMac(True)
 
