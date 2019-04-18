@@ -4,7 +4,9 @@ from setuptools import setup, find_packages
 NAME = "Orange-Canvas-Core"
 VERSION = "0.1.0.dev0"
 DESCRIPTION = "Core component of Orange Canvas"
-LONG_DESCRIPTION = open("README.txt", "rt").read()
+
+with open("README.txt", "rt", encoding="utf-8") as f:
+    LONG_DESCRIPTION = f.read()
 
 URL = "http://orange.biolab.si/"
 AUTHOR = "Bioinformatics Laboratory, FRI UL"
@@ -63,6 +65,7 @@ if __name__ == "__main__":
         version=VERSION,
         description=DESCRIPTION,
         long_description=LONG_DESCRIPTION,
+        long_description_content_type="text/x-rst",
         url=URL,
         author=AUTHOR,
         author_email=AUTHOR_EMAIL,
