@@ -21,12 +21,6 @@ import pkg_resources
 from AnyQt.QtGui import QFont, QColor, QPalette
 from AnyQt.QtCore import Qt, QDir, QSettings, QT_VERSION
 
-import AnyQt.importhooks
-
-if AnyQt.USED_API == "pyqt5":
-    # Use a backport shim to fake leftover PyQt4 imports
-    AnyQt.importhooks.install_backport_hook('pyqt4')
-
 from .application.application import CanvasApplication
 from .application.canvasmain import CanvasMainWindow
 from .application.outputview import TextStream, ExceptHook
