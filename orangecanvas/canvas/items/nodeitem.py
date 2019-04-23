@@ -895,7 +895,7 @@ class NodeItem(QGraphicsWidget):
         backgroundrect.addRoundedRect(anchor_rect.adjusted(-4, -2, 4, 2),
                                       5, 5, mode=Qt.AbsoluteSize)
         self.backgroundItem.setPen(QPen(Qt.NoPen))
-        self.backgroundItem.setBrush(QPalette().brush(QPalette.Highlight))
+        self.backgroundItem.setBrush(self.palette().brush(QPalette.Highlight))
         self.backgroundItem.setOpacity(0.5)
         self.backgroundItem.setPath(backgroundrect)
         self.backgroundItem.setZValue(-10)
@@ -1313,7 +1313,9 @@ class NodeItem(QGraphicsWidget):
         return super().itemChange(change, value)
 
     def __updatePalette(self):
-        self.captionTextItem.setPalette(self.palette())
+        palette = self.palette()
+        self.captionTextItem.setPalette(palette)
+        self.backgroundItem.setBrush(palette.brush(QPalette.Highlight))
 
     def __updateFont(self):
         self.prepareGeometryChange()
