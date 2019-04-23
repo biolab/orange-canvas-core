@@ -782,7 +782,6 @@ class NodeItem(QGraphicsWidget):
         super().__init__(parent, **kwargs)
         self.setFocusPolicy(Qt.ClickFocus)
         self.setFlag(QGraphicsItem.ItemSendsGeometryChanges, True)
-        self.setFlag(QGraphicsItem.ItemHasNoContents, True)
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.ItemIsMovable, True)
         self.setFlag(QGraphicsItem.ItemIsFocusable, True)

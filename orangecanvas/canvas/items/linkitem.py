@@ -307,7 +307,6 @@ class LinkItem(QGraphicsWidget):
     def __init__(self, *args):
         self.__boundingRect = None
         super().__init__(*args)
-        self.setFlag(QGraphicsItem.ItemHasNoContents, True)
         self.setAcceptedMouseButtons(Qt.RightButton | Qt.LeftButton)
         self.setAcceptHoverEvents(True)
 
