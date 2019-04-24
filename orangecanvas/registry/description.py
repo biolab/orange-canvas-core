@@ -6,6 +6,9 @@ Widget meta description classes
 
 import sys
 import copy
+from typing import Union
+
+from orangecanvas.utils import qualified_name
 
 # Exceptions
 
@@ -175,6 +178,16 @@ def output_channel_from_args(args):
                         "(got {0!r})".format(type(args)))
 
 
+def normalize_type(type_):
+    # type: (Union[type, str]) -> str
+    if isinstance(type_, type):
+        return qualified_name(type_)
+    elif isinstance(type_, str):
+        return type_
+    else:
+        raise TypeError
+
+
 class WidgetDescription(object):
     """
     Description of a widget.
@@ -202,9 +215,9 @@ class WidgetDescription(object):
         A package name where the widget is implemented.
     project_name : str, optional
         The distribution name that provides the widget.
-    inputs : list of :class:`InputSignal`, optional
+    inputs : list of :class:`InputSignal`
         A list of input channels provided by the widget.
-    outputs : list of :class:`OutputSignal`, optional
+    outputs : list of :class:`OutputSignal`
         A list of output channels provided by the widget.
     help : str, optional
         URL or an Resource template of a detailed widget help page.
@@ -227,7 +240,7 @@ class WidgetDescription(object):
         A filename of the widget icon (in relation to the package).
     background : str, optional
         Widget's background color (in the canvas GUI).
-    replaces : list-of-str, optional
+    replaces : list of `str`, optional
         A list of ids this widget replaces (optional).
 
     """
@@ -256,6 +269,21 @@ class WidgetDescription(object):
         self.qualified_name = qualified_name
         self.package = package
         self.project_name = project_name
+        # Copy input/outputs and normalize the type to string.
+        inputs = [
+            InputSignal(
+                i.name, normalize_type(i.type), i.handler, i.flags, i.id,
+                i.doc, i.replaces
+            )
+            for i in inputs
+        ]
+        outputs = [
+            OutputSignal(
+                o.name, normalize_type(o.type), o.flags, o.id, o.doc,
+                o.replaces
+            )
+            for o in outputs
+        ]
         self.inputs = inputs
         self.outputs = outputs
         self.help = help
