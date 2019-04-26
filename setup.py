@@ -13,7 +13,7 @@ AUTHOR = "Bioinformatics Laboratory, FRI UL"
 AUTHOR_EMAIL = 'contact@orange.biolab.si'
 
 LICENSE = "GPLv3"
-DOWNLOAD_URL = 'https://github.org/ales-erjavec/orange-canvas'
+DOWNLOAD_URL = 'https://github.com/biolab/orange-canvas-core'
 PACKAGES = find_packages()
 
 PACKAGE_DATA = {
@@ -52,8 +52,8 @@ EXTRAS_REQUIRE = {
 }
 
 PROJECT_URLS = {
-    "Bug Reports": "https://github.com/ales-erjavec/orange-canvas/issues",
-    "Source": "https://github.com/ales-erjavec/orange-canvas/",
+    "Bug Reports": "https://github.com/biolab/orange-canvas-core/issues",
+    "Source": "https://github.com/biolab/orange-canvas-core/",
     "Documentation": "https://orange-canvas-core.readthedocs.io/en/latest/",
 }
 
