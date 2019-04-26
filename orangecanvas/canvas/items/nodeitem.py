@@ -33,7 +33,7 @@ from .utils import saturated, radial_gradient
 from ...scheme.node import UserMessage
 from ...registry import NAMED_COLORS
 from ...resources import icon_loader
-from .utils import uniform_linear_layout
+from .utils import uniform_linear_layout_trunc
 
 
 def create_palette(light_color, color):
@@ -1107,7 +1107,7 @@ class NodeItem(QGraphicsWidget):
         self.inputAnchorItem.addAnchor(anchor, position=1.0)
 
         positions = self.inputAnchorItem.anchorPositions()
-        positions = uniform_linear_layout(positions)
+        positions = uniform_linear_layout_trunc(positions)
         self.inputAnchorItem.setAnchorPositions(positions)
 
         return anchor
@@ -1119,7 +1119,7 @@ class NodeItem(QGraphicsWidget):
         self.inputAnchorItem.removeAnchor(anchor)
 
         positions = self.inputAnchorItem.anchorPositions()
-        positions = uniform_linear_layout(positions)
+        positions = uniform_linear_layout_trunc(positions)
         self.inputAnchorItem.setAnchorPositions(positions)
 
     def newOutputAnchor(self):
@@ -1133,7 +1133,7 @@ class NodeItem(QGraphicsWidget):
         self.outputAnchorItem.addAnchor(anchor, position=1.0)
 
         positions = self.outputAnchorItem.anchorPositions()
-        positions = uniform_linear_layout(positions)
+        positions = uniform_linear_layout_trunc(positions)
         self.outputAnchorItem.setAnchorPositions(positions)
 
         return anchor
@@ -1145,7 +1145,7 @@ class NodeItem(QGraphicsWidget):
         self.outputAnchorItem.removeAnchor(anchor)
 
         positions = self.outputAnchorItem.anchorPositions()
-        positions = uniform_linear_layout(positions)
+        positions = uniform_linear_layout_trunc(positions)
         self.outputAnchorItem.setAnchorPositions(positions)
 
     def inputAnchors(self):

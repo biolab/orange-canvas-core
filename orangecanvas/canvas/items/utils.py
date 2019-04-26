@@ -1,10 +1,14 @@
+import sys
 from itertools import islice, count
 from operator import itemgetter
 
 import typing
 from typing import List, Iterable, Optional, Callable, Any
 
-from AnyQt.QtGui import QColor, QRadialGradient, QPainterPathStroker
+from AnyQt.QtCore import QPointF
+from AnyQt.QtGui import (
+    QColor, QRadialGradient, QPainterPathStroker, QPainterPath
+)
 
 
 if typing.TYPE_CHECKING:
@@ -16,7 +20,8 @@ if typing.TYPE_CHECKING:
 
 def composition(f, g):
     # type: (Callable[[A], B], Callable[[B], C]) -> Callable[[A], C]
-    """Return a composition of two functions
+    """
+    Return a composition of two functions.
     """
     def fg(arg):  # type: (A) -> C
         return g(f(arg))
@@ -25,6 +30,22 @@ def composition(f, g):
 
 def argsort(iterable, key=None, reverse=False):
     # type: (Iterable[T], Optional[Callable[[T], Any]], bool) -> List[int]
+    """
+    Return indices that sort elements of iterable in ascending order.
+
+    A custom key function can be supplied to customize the sort order, and the
+    reverse flag can be set to request the result in descending order.
+
+    Parameters
+    ----------
+    iterable : Iterable[T]
+    key : Callable[[T], Any]
+    reverse : bool
+
+    Returns
+    -------
+    indices : List[int]
+    """
     if key is None:
         key_ = itemgetter(0)
     else:
@@ -33,8 +54,14 @@ def argsort(iterable, key=None, reverse=False):
     return list(map(itemgetter(1), ordered))
 
 
-def linspace_(count):
+def linspace(count):
     # type: (int) -> Iterable[float]
+    """
+    Return `count` evenly spaced points from 0..1 interval.
+
+    >>> list(linspace(3)))
+    [0.0, 0.5, 1.0]
+    """
     if count > 1:
         return (i / (count - 1) for i in range(count))
     elif count == 1:
@@ -45,17 +72,24 @@ def linspace_(count):
         raise ValueError("Count must be non-negative")
 
 
-def linspace(count):
-    """Return `count` evenly spaced points from 0..1 interval excluding
-    both end points, e.g. `linspace(3) == [0.25, 0.5, 0.75]`.
+def linspace_trunc(count):
+    # type: (int) -> Iterable[float]
     """
-    return list(islice(linspace_(count + 2), 1, count + 1))
+    Return `count` evenly spaced points from 0..1 interval *excluding*
+    both end points.
+
+    >>> list(linspace_trunc(3))
+    [0.25, 0.5, 0.75]
+    """
+    return islice(linspace(count + 2), 1, count + 1)
 
 
 def sample_path(path, num=10):
-    """Sample `num` equidistant points from the `path` (`QPainterPath`).
+    # type: (QPainterPath, int) -> List[QPointF]
     """
-    return [path.pointAtPercent(p) for p in linspace_(num)]
+    Sample `num` equidistant points from the `path` (`QPainterPath`).
+    """
+    return [path.pointAtPercent(p) for p in linspace(num)]
 
 
 def saturated(color, factor=150):
@@ -106,22 +140,23 @@ def toGraphicsObjectIfPossible(item):
     return item if obj is None else obj
 
 
-def uniform_linear_layout(points):
-    """Layout the points (a list of floats in 0..1 range) in a uniform
-    linear space while preserving the existing sorting order.
-
+def uniform_linear_layout_trunc(points):
+    """
+    Layout the points (a list of floats in 0..1 range) in a uniform
+    linear space (truncated) while preserving the existing sorting order.
     """
     indices = argsort(points)
-    space = linspace(len(points))
-    # invert the indices
     indices = invert_permutation_indices(indices)
+    space = list(linspace_trunc(len(indices)))
     return [space[i] for i in indices]
 
 
 def invert_permutation_indices(indices):
-    """Invert the permutation giver by indices.
+    # type: (List[int]) -> List[int]
     """
-    inverted = [0] * len(indices)
+    Invert the permutation given by indices.
+    """
+    inverted = [sys.maxsize] * len(indices)
     for i, index in enumerate(indices):
         inverted[index] = i
     return inverted

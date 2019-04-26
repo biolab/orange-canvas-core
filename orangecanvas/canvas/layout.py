@@ -10,8 +10,9 @@ from AnyQt.QtWidgets import QGraphicsObject, QApplication
 from AnyQt.QtCore import QRectF, QLineF, QEvent
 
 from .items import LinkItem, SourceAnchorItem, SinkAnchorItem
-from .items.utils import invert_permutation_indices, linspace, argsort, \
-    composition
+from .items.utils import (
+    invert_permutation_indices, argsort, composition, linspace_trunc
+)
 
 
 class AnchorLayout(QGraphicsObject):
@@ -71,9 +72,8 @@ class AnchorLayout(QGraphicsObject):
             # Invert the indices.
             indices = invert_permutation_indices(indices)
 
-            positions = linspace(len(points))
+            positions = list(linspace_trunc(len(points)))
             positions = [positions[i] for i in indices]
-            print(positions)
             anchor_item.setAnchorPositions(positions)
 
         self.__invalidatedAnchors = []
