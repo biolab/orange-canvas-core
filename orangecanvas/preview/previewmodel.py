@@ -4,15 +4,14 @@ Preview item model.
 
 import logging
 
-from AnyQt.QtWidgets import QApplication, QStyleOption
 from AnyQt.QtGui import (
-    QStandardItemModel, QStandardItem, QIcon, QIconEngine, QPainter, QPixmap
+    QStandardItemModel, QStandardItem, QIcon
 )
-from AnyQt.QtSvg import QSvgRenderer
-# pylint: disable=unused-import
-from AnyQt.QtCore import Qt, QTimer, QRectF, QRect, QSize
+from AnyQt.QtCore import Qt, QTimer
 
+from ..gui.svgiconengine import SvgIconEngine
 from . import scanner
+
 
 log = logging.getLogger(__name__)
 
@@ -185,52 +184,3 @@ class PreviewItem(QStandardItem):
         self.setData(path, PathRole)
         self.setStatusTip(path)
         self.setToolTip(path)
-
-
-class SvgIconEngine(QIconEngine):
-    def __init__(self, contents):
-        # type: (bytes) -> None
-        super().__init__()
-        self.__contents = contents
-        self.__generator = QSvgRenderer(contents)
-
-    def paint(self, painter, rect, mode, state):
-        # type: (QPainter, QRect, QIcon.Mode, QIcon.State) -> None
-        if self.__generator.isValid():
-            size = rect.size()
-            dpr = 1.0
-            try:
-                dpr = painter.device().devicePixelRatioF()
-            except AttributeError:
-                pass
-            if dpr != 1.0:
-                size = size * dpr
-            painter.drawPixmap(rect, self.pixmap(size, mode, state))
-
-    def pixmap(self, size, mode, state):
-        # type: (QSize, QIcon.Mode, QIcon.State) -> QPixmap
-        if not self.__generator.isValid():
-            return QPixmap()
-
-        dsize = self.__generator.defaultSize()  # type: QSize
-        if not dsize.isNull():
-            dsize.scale(size, Qt.KeepAspectRatio)
-            size = dsize
-
-        pm = QPixmap(size)
-        pm.fill(Qt.transparent)
-        painter = QPainter(pm)
-        try:
-            self.__generator.render(
-                painter, QRectF(0, 0, size.width(), size.height()))
-        finally:
-            painter.end()
-        style = QApplication.style()
-        if style is not None:
-            opt = QStyleOption()
-            opt.palette = QApplication.palette()
-            pm = style.generatedIconPixmap(mode, pm, opt)
-        return pm
-
-    def clone(self):
-        return SvgIconEngine(self.__contents)
