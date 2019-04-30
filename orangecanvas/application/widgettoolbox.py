@@ -349,18 +349,14 @@ class WidgetToolBox(ToolBox):
                   changes to take effect.
 
         """
-        # In version 1 of saved state the state was saved in
-        # a simple dict repr string.
-        if isinstance(state, QByteArray):
-            stream = QDataStream(state, QIODevice.ReadOnly)
-            version = stream.readInt()
-            if version == 2:
-                expanded = stream.readQStringList()
-                for action in map(self.tabAction, range(self.count())):
-                    if (action.text() in expanded) != action.isChecked():
-                        action.trigger()
-
-                return True
+        stream = QDataStream(state, QIODevice.ReadOnly)
+        version = stream.readInt()
+        if version == 2:
+            expanded = stream.readQStringList()
+            for action in map(self.tabAction, range(self.count())):
+                if (action.text() in expanded) != action.isChecked():
+                    action.trigger()
+            return True
         return False
 
     def setModel(self, model):
