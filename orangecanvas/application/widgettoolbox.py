@@ -9,13 +9,15 @@ A tool box with a tool grid for each category.
 from typing import Optional
 
 from AnyQt.QtWidgets import (
-    QAbstractButton, QSizePolicy, QAction, QApplication
+    QAbstractButton, QSizePolicy, QAction, QApplication, QToolButton
 )
-from AnyQt.QtGui import QDrag, QPalette, QBrush, QIcon, QColor, QGradient
+from AnyQt.QtGui import (
+    QDrag, QPalette, QBrush, QIcon, QColor, QGradient, QActionEvent
+)
 
 from AnyQt.QtCore import (
-    Qt, QObject, QModelIndex, QSize, QEvent, QMimeData, QByteArray,
-    QDataStream, QIODevice
+    Qt, QObject, QAbstractItemModel, QModelIndex, QSize, QEvent, QMimeData,
+    QByteArray, QDataStream, QIODevice,
 )
 
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
@@ -88,6 +90,7 @@ class WidgetToolGrid(ToolGrid):
         self.__statusTipPromoter = StatusTipPromoter(self)
 
     def setModel(self, model, rootIndex=QModelIndex()):
+        # type: (QAbstractItemModel, QModelIndex) -> None
         """
         Set a model (`QStandardItemModel`) for the tool grid. The
         widget actions are children of the rootIndex.
@@ -110,36 +113,36 @@ class WidgetToolGrid(ToolGrid):
 
         self.__initFromModel(model, rootIndex)
 
-    def model(self):
+    def model(self):  # type: () -> QAbstractItemModel
         """
         Return the model for the tool grid.
         """
         return self.__model
 
-    def rootIndex(self):
+    def rootIndex(self):  # type: () -> QModelIndex
         """
         Return the root index of the model.
         """
         return self.__rootIndex
 
     def setActionRole(self, role):
+        # type: (int) -> None
         """
         Set the action role. This is the model role containing a
         `QAction` instance.
-
         """
         if self.__actionRole != role:
             self.__actionRole = role
             if self.__model:
                 self.__update()
 
-    def actionRole(self):
+    def actionRole(self):  # type: () -> int
         """
         Return the action role.
         """
         return self.__actionRole
 
-    def actionEvent(self, event):
+    def actionEvent(self, event):  # type: (QActionEvent) -> None
         if event.type() == QEvent.ActionAdded:
             # Creates and inserts the button instance.
             super().actionEvent(event)
@@ -160,6 +163,7 @@ class WidgetToolGrid(ToolGrid):
             super().actionEvent(event)
 
     def __initFromModel(self, model, rootIndex):
+        # type: (QAbstractItemModel, QModelIndex) -> None
         """
         Initialize the grid from the model with rootIndex as the root.
         """
@@ -167,6 +171,7 @@ class WidgetToolGrid(ToolGrid):
             self.__insertItem(i, index)
 
     def __insertItem(self, index, item):
+        # type: (int, QModelIndex) -> None
         """
         Insert a widget action from `item` (`QModelIndex`) at `index`.
         """
@@ -185,6 +190,7 @@ class WidgetToolGrid(ToolGrid):
         self.__initFromModel(self.__model, self.__rootIndex)
 
     def __on_rowsInserted(self, parent, start, end):
+        # type: (QModelIndex, int, int) -> None
         """
         Insert items from range start:end into the grid.
         """
@@ -194,6 +200,7 @@ class WidgetToolGrid(ToolGrid):
                 self.__insertItem(i, item)
 
     def __on_rowsRemoved(self, parent, start, end):
+        # type: (QModelIndex, int, int) -> None
         """
         Remove items from range start:end from the grid.
         """
@@ -203,6 +210,7 @@ class WidgetToolGrid(ToolGrid):
                 self.removeAction(action)
 
     def __startDrag(self, button):
+        # type: (QToolButton) -> None
         """
         Start a drag from button
         """
@@ -236,6 +244,7 @@ class DragStartEventListener(QObject):
         self.buttonDownPos = None
 
     def eventFilter(self, obj, event):
+        # type: (QObject, QEvent) -> bool
         if event.type() == QEvent.MouseButtonPress:
             self.buttonDownPos = event.pos()
             self.buttonDownObj = obj
@@ -264,7 +273,6 @@ class WidgetToolBox(ToolBox):
     """
     `WidgetToolBox` widget shows a tool box containing button grids of
     actions for a :class:`QtWidgetRegistry` item model.
-
     """
 
     triggered = Signal(QAction)
@@ -278,7 +286,7 @@ class WidgetToolBox(ToolBox):
         self.setSizePolicy(QSizePolicy.Fixed,
                            QSizePolicy.Expanding)
 
-    def setIconSize(self, size):
+    def setIconSize(self, size):  # type: (QSize) -> None
         """
         Set the widget icon size (icons in the button grid).
         """
@@ -286,7 +294,7 @@ class WidgetToolBox(ToolBox):
         for widget in map(self.widget, range(self.count())):
             widget.setIconSize(size)
 
-    def iconSize(self):
+    def iconSize(self):  # type: () -> QSize
         """
         Return the widget buttons icon size.
         """
@@ -295,7 +303,7 @@ class WidgetToolBox(ToolBox):
     iconSize_ = Property(QSize, fget=iconSize, fset=setIconSize,
                          designable=True)
 
-    def setButtonSize(self, size):
+    def setButtonSize(self, size):  # type: (QSize) -> None
         """
         Set fixed widget button size.
         """
@@ -303,7 +311,7 @@ class WidgetToolBox(ToolBox):
         for widget in map(self.widget, range(self.count())):
             widget.setButtonSize(size)
 
-    def buttonSize(self):
+    def buttonSize(self):  # type: () -> QSize
         """Return the widget button size
         """
         return self.__buttonSize
@@ -311,7 +319,7 @@ class WidgetToolBox(ToolBox):
     buttonSize_ = Property(QSize, fget=buttonSize, fset=setButtonSize,
                            designable=True)
 
-    def saveState(self):
+    def saveState(self):  # type: () -> QByteArray
         """
         Return the toolbox state (as a `QByteArray`).
 
@@ -331,7 +339,7 @@ class WidgetToolBox(ToolBox):
 
         return byte_array
 
-    def restoreState(self, state):
+    def restoreState(self, state):  # type: (QByteArray) -> bool
         """
         Restore the toolbox from a :class:`QByteArray` `state`.
 
@@ -354,6 +362,7 @@ class WidgetToolBox(ToolBox):
         return False
 
     def setModel(self, model):
+        # type: (QAbstractItemModel) -> None
         """
         Set the widget registry model (:class:`QAbstractItemModel`) for
         this toolbox.
@@ -372,10 +381,12 @@ class WidgetToolBox(ToolBox):
         self.__initFromModel(self.__model)
 
     def __initFromModel(self, model):
+        # type: (QAbstractItemModel) -> None
         for row in range(model.rowCount()):
             self.__insertItem(model.index(row, 0), self.count())
 
     def __insertItem(self, item, index):
+        # type: (QModelIndex, int) -> None
         """
         Insert category item  (`QModelIndex`) at index.
         """
@@ -421,6 +432,7 @@ class WidgetToolBox(ToolBox):
         button.setPalette(palette)
 
     def __on_dataChanged(self, topLeft, bottomRight):
+        # type: (QModelIndex, QModelIndex) -> None
         parent = topLeft.parent()
         if not parent.isValid():
             for row in range(topLeft.row(), bottomRight.row() + 1):
@@ -431,6 +443,7 @@ class WidgetToolBox(ToolBox):
                 button.setToolTip(item_tooltip(item))
 
     def __on_rowsInserted(self, parent, start, end):
+        # type: (QModelIndex, int, int) -> None
         """
         Items have been inserted in the model.
         """
@@ -441,6 +454,7 @@ class WidgetToolBox(ToolBox):
                 self.__insertItem(item, i)
 
     def __on_rowsRemoved(self, parent, start, end):
+        # type: (QModelIndex, int, int) -> None
         """
         Rows have been removed from the model.
         """
