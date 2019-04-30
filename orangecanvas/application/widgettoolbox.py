@@ -290,15 +290,16 @@ class WidgetToolBox(ToolBox):
         """
         Set the widget icon size (icons in the button grid).
         """
-        self.__iconSize = size
-        for widget in map(self.widget, range(self.count())):
-            widget.setIconSize(size)
+        if self.__iconSize != size:
+            self.__iconSize = QSize(size)
+            for widget in map(self.widget, range(self.count())):
+                widget.setIconSize(size)
 
     def iconSize(self):  # type: () -> QSize
         """
         Return the widget buttons icon size.
         """
-        return self.__iconSize
+        return QSize(self.__iconSize)
 
     iconSize_ = Property(QSize, fget=iconSize, fset=setIconSize,
                          designable=True)
@@ -307,14 +308,15 @@ class WidgetToolBox(ToolBox):
         """
         Set fixed widget button size.
         """
-        self.__buttonSize = size
-        for widget in map(self.widget, range(self.count())):
-            widget.setButtonSize(size)
+        if self.__buttonSize != size:
+            self.__buttonSize = QSize(size)
+            for widget in map(self.widget, range(self.count())):
+                widget.setButtonSize(size)
 
     def buttonSize(self):  # type: () -> QSize
         """Return the widget button size
         """
-        return self.__buttonSize
+        return QSize(self.__buttonSize)
 
     buttonSize_ = Property(QSize, fget=buttonSize, fset=setButtonSize,
                            designable=True)
