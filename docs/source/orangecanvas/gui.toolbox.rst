@@ -9,6 +9,6 @@ Tool Box Widget (``toolbox``)
    :member-order: bysource
    :show-inheritance:
 
-   .. autoattribute:: tabToogled(index, state)
+   .. autoattribute:: tabToggled(index: int, state: bool)
 
       Signal emitted when a tab at `index` is toggled.

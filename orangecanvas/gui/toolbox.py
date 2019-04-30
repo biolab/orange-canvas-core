@@ -248,7 +248,7 @@ class ToolBox(QFrame):
     A tool box widget.
     """
     # Emitted when a tab is toggled.
-    tabToogled = Signal(int, bool)
+    tabToggled = Signal(int, bool)
 
     def setExclusive(self, exclusive):
         """
@@ -334,7 +334,7 @@ class ToolBox(QFrame):
         self.__tabActionGroup.setExclusive(self.__exclusive)
 
         self.__actionMapper = QSignalMapper(self)
-        self.__actionMapper.mapped[QObject].connect(self.__onTabActionToogled)
+        self.__actionMapper.mapped[QObject].connect(self.__onTabActionToggled)
 
     def setTabButtonHeight(self, height):
         """
@@ -524,7 +524,7 @@ class ToolBox(QFrame):
 
         return QSize(200, 200).expandedTo(hint)
 
-    def __onTabActionToogled(self, action):
+    def __onTabActionToggled(self, action):
         page = find(self.__pages, action, key=attrgetter("action"))
         on = action.isChecked()
         page.widget.setVisible(on)
@@ -551,7 +551,7 @@ class ToolBox(QFrame):
 
             next.update()
 
-        self.tabToogled.emit(index, on)
+        self.tabToggled.emit(index, on)
 
         self.__contentsLayout.invalidate()
 
