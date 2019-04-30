@@ -20,7 +20,7 @@ from AnyQt.QtGui import (
     QIcon, QFontMetrics, QPainter, QPalette, QBrush, QPen, QColor,
 )
 from AnyQt.QtCore import (
-    Qt, QObject, QSize, QRect, QPoint, QSignalMapper, QEvent
+    Qt, QObject, QSize, QRect, QPoint, QSignalMapper
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
@@ -203,21 +203,6 @@ class ToolBoxTabButton(QToolButton):
         p.restore()
 
 
-class _ToolBoxScrollArea(QScrollArea):
-    def eventFilter(self, obj, event):
-        if obj is self.widget() and event.type() == QEvent.Resize:
-            if event.size() == event.oldSize() and self.widgetResizable():
-                # This is driving me insane. This should not have happened.
-                # Before the event is sent QWidget specifically makes sure the
-                # sizes are different, but somehow I still get this, and enter
-                # an infinite recursion if I enter QScrollArea.eventFilter.
-                # I can only duplicate this on one development machine a
-                # Mac OSX using fink and Qt 4.7.3
-                return False
-
-        return super().eventFilter(obj, event)
-
-
 class _ToolBoxLayout(QVBoxLayout):
     def __init__(self, *args, **kwargs):
         self.__minimumSize = None
@@ -313,15 +298,16 @@ class ToolBox(QFrame):
         layout.setContentsMargins(0, 0, 0, 0)
 
         # Scroll area for the contents.
-        self.__scrollArea = \
-                _ToolBoxScrollArea(self, objectName="toolbox-scroll-area")
+        self.__scrollArea = QScrollArea(
+            self, objectName="toolbox-scroll-area",
+            sizePolicy=QSizePolicy(QSizePolicy.MinimumExpanding,
+                                   QSizePolicy.MinimumExpanding),
+            verticalScrollBarPolicy=Qt.ScrollBarAlwaysOn,
+            horizontalScrollBarPolicy=Qt.ScrollBarAlwaysOff,
 
-        self.__scrollArea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        self.__scrollArea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.__scrollArea.setSizePolicy(QSizePolicy.MinimumExpanding,
-                                        QSizePolicy.MinimumExpanding)
+            widgetResizable=True,
+        )
         self.__scrollArea.setFrameStyle(QScrollArea.NoFrame)
-        self.__scrollArea.setWidgetResizable(True)
 
         # A widget with all of the contents.
         # The tabs/contents are placed in the layout inside this widget
