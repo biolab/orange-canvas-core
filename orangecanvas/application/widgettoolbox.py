@@ -6,14 +6,12 @@ Widget Tool Box
 A tool box with a tool grid for each category.
 
 """
-
-import logging
-
+from typing import Optional
 
 from AnyQt.QtWidgets import (
     QAbstractButton, QSizePolicy, QAction, QApplication
 )
-from AnyQt.QtGui import QDrag, QPalette, QBrush, QIcon
+from AnyQt.QtGui import QDrag, QPalette, QBrush, QIcon, QColor, QGradient
 
 from AnyQt.QtCore import (
     Qt, QObject, QModelIndex, QSize, QEvent, QMimeData, QByteArray,
@@ -29,17 +27,6 @@ from ..gui.utils import create_gradient
 from ..registry.qt import QtWidgetRegistry
 
 
-log = logging.getLogger(__name__)
-
-
-def iter_item(item):
-    """
-    Iterate over child items of a `QStandardItem`.
-    """
-    for i in range(item.rowCount()):
-        yield item.child(i)
-
-
 def iter_index(model, index):
     """
     Iterate over child indexes of a `QModelIndex` in a `model`.
@@ -48,7 +35,7 @@ def iter_index(model, index):
         yield model.index(row, 0, index)
 
 
-def item_text(index):
+def item_text(index):  # type: (QModelIndex) -> str
     value = index.data(Qt.DisplayRole)
     if value is None:
         return ""
@@ -56,7 +43,7 @@ def item_text(index):
         return str(value)
 
 
-def item_icon(index):
+def item_icon(index):  # type: (QModelIndex) -> QIcon
     value = index.data(Qt.DecorationRole)
     if isinstance(value, QIcon):
         return value
@@ -64,11 +51,21 @@ def item_icon(index):
         return QIcon()
 
 
-def item_tooltip(index):
+def item_tooltip(index):  # type: (QModelIndex) -> str
     value = index.data(Qt.ToolTipRole)
     if isinstance(value, str):
         return value
     return item_text(index)
+
+
+def item_background(index):  # type: (QModelIndex) -> Optional[QBrush]
+    value = index.data(Qt.BackgroundRole)
+    if isinstance(value, QBrush):
+        return value
+    elif isinstance(value, (QColor, Qt.GlobalColor, QGradient)):
+        return QBrush(value)
+    else:
+        return None
 
 
 class WidgetToolGrid(ToolGrid):
@@ -358,9 +355,8 @@ class WidgetToolBox(ToolBox):
 
     def setModel(self, model):
         """
-        Set the widget registry model (:class:`QStandardItemModel`) for
+        Set the widget registry model (:class:`QAbstractItemModel`) for
         this toolbox.
-
         """
         if self.__model is not None:
             self.__model.dataChanged.disconnect(self.__on_dataChanged)
@@ -403,12 +399,10 @@ class WidgetToolBox(ToolBox):
         button = self.tabButton(index)
 
         # Set the 'highlight' color if applicable
-        highlight = None
         highlight_foreground = None
-        highlight = item.data(Qt.BackgroundRole)
-        if highlight is not None:
-            highlight = item.background()
-        elif item.data(QtWidgetRegistry.BACKGROUND_ROLE) is not None:
+        highlight = item_background(item)
+        if highlight is None \
+                and item.data(QtWidgetRegistry.BACKGROUND_ROLE) is not None:
             highlight = item.data(QtWidgetRegistry.BACKGROUND_ROLE)
 
         if isinstance(highlight, QBrush) and highlight.style() != Qt.NoBrush:
