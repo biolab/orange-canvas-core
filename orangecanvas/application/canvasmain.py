@@ -890,12 +890,14 @@ class CanvasMainWindow(QMainWindow):
         if use_popover:
             # Show a popup menu with the widgets in the category
             popup = CategoryPopupMenu(self.quick_category)
+            popup.setActionRole(QtWidgetRegistry.WIDGET_ACTION_ROLE)
             model = self.__registry_model
             assert model is not None
             i = index(self.widget_registry.categories(), category,
                       predicate=lambda name, cat: cat.name == name)
             if i != -1:
-                popup.setCategoryItem(model.item(i))
+                popup.setModel(model)
+                popup.setRootIndex(model.index(i, 0))
                 button = self.quick_category.buttonForAction(action)
                 pos = popup_position_from_source(popup, button)
                 action = popup.exec_(pos)

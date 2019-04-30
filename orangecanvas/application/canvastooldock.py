@@ -3,16 +3,18 @@ Orange Canvas Tool Dock widget
 
 """
 import sys
+import warnings
+from typing import Optional
 
 from AnyQt.QtWidgets import (
-    QWidget, QSplitter, QVBoxLayout, QTextEdit, QAction, QSizePolicy,
-    QApplication,
+    QWidget, QSplitter, QVBoxLayout, QAction, QSizePolicy, QApplication,
 )
 from AnyQt.QtGui import QPalette, QBrush, QDrag
 
 from AnyQt.QtCore import (
     Qt, QSize, QObject, QPropertyAnimation, QEvent, QRect, QPoint,
-    QModelIndex, QPersistentModelIndex, QEventLoop, QMimeData
+    QAbstractItemModel, QModelIndex, QPersistentModelIndex, QEventLoop,
+    QMimeData
 )
 from AnyQt.QtCore import pyqtProperty as Property, pyqtSignal as Signal
 
@@ -367,7 +369,12 @@ class QuickCategoryToolbar(ToolGrid):
                 self.removeAction(action)
 
 
+# This implements the (single category) node selection popup when the
+# tooldock is not expanded.
 class CategoryPopupMenu(FramelessWindow):
+    """
+    A menu popup from which nodes can be dragged or clicked/activated.
+    """
     triggered = Signal(QAction)
     hovered = Signal(QAction)
 
@@ -398,18 +405,60 @@ class CategoryPopupMenu(FramelessWindow):
 
         self.__action = None
         self.__loop = None
-        self.__item = None
 
     def setCategoryItem(self, item):
         """
         Set the category root item (:class:`QStandardItem`).
         """
-        self.__item = item
+        warnings.warn(
+            "setCategoryItem is deprecated. Use the more general 'setModel'"
+            "and setRootIndex", DeprecationWarning, stacklevel=2
+        )
         model = item.model()
         self.__menu.setModel(model)
         self.__menu.setRootIndex(item.index())
 
-    def popup(self, pos=None):
+    def setModel(self, model):  # type: (QAbstractItemModel) -> None
+        """
+        Set the model.
+
+        Parameters
+        ----------
+        model : QAbstractItemModel
+        """
+        self.__menu.setModel(model)
+
+    def setRootIndex(self, index):  # type: (QModelIndex) -> None
+        """
+        Set the root index in `model`.
+
+        Parameters
+        ----------
+        index : QModelIndex
+        """
+        self.__menu.setRootIndex(index)
+
+    def setActionRole(self, role):  # type: (Qt.ItemDataRole) -> None
+        """
+        Set the action role in model.
+
+        This is an item role in `model` that returns a QAction for the item.
+
+        Parameters
+        ----------
+        role : Qt.ItemDataRole
+        """
+        self.__menu.setActionRole(role)
+
+    def popup(self, pos=None):  # type: (Optional[QPoint]) -> None
+        """
+        Show the popup at `pos`.
+
+        Parameters
+        ----------
+        pos : Optional[QPoint]
+            The position in global screen coordinates
+        """
         if pos is None:
             pos = self.pos()
         self.adjustSize()

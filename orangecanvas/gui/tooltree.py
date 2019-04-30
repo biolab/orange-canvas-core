@@ -12,10 +12,12 @@ import logging
 
 from AnyQt.QtWidgets import (
     QTreeView, QWidget, QVBoxLayout, QSizePolicy, QStyledItemDelegate,
-    QStyle, QAction
+    QStyle, QAction,
 )
 from AnyQt.QtGui import QStandardItemModel
-from AnyQt.QtCore import Qt, QEvent, QModelIndex, QAbstractProxyModel
+from AnyQt.QtCore import (
+    Qt, QEvent, QModelIndex, QAbstractItemModel, QAbstractProxyModel
+)
 from AnyQt.QtCore import pyqtSignal as Signal
 
 log = logging.getLogger(__name__)
@@ -87,6 +89,7 @@ class ToolTree(QWidget):
         return self.__flattened
 
     def setModel(self, model):
+        # type: (QAbstractItemModel) -> None
         if self.__model is not model:
             self.__model = model
 
@@ -97,6 +100,7 @@ class ToolTree(QWidget):
             self.__view.setModel(model)
 
     def model(self):
+        # type: () -> QAbstractItemModel
         return self.__model
 
     def setRootIndex(self, index):
