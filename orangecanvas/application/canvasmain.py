@@ -1371,9 +1371,10 @@ class CanvasMainWindow(QMainWindow):
         recent = [item for item in recent if os.path.exists(item.path)]
         items = [previewmodel.PreviewItem(name=item.title, path=item.path)
                  for item in recent]
-        model = previewmodel.PreviewModel(items=items)
 
         dialog = previewdialog.PreviewDialog(self)
+        model = previewmodel.PreviewModel(dialog, items=items)
+
         title = self.tr("Recent Workflows")
         dialog.setWindowTitle(title)
         template = ('<h3 style="font-size: 26px">\n'
@@ -1406,8 +1407,8 @@ class CanvasMainWindow(QMainWindow):
         """
         tutors = examples.workflows(config.default)
         items = [previewmodel.PreviewItem(path=t.abspath()) for t in tutors]
-        model = previewmodel.PreviewModel(items=items)
         dialog = previewdialog.PreviewDialog(self)
+        model = previewmodel.PreviewModel(dialog, items=items)
         title = self.tr("Example Workflows")
         dialog.setWindowTitle(title)
         template = ('<h3 style="font-size: 26px">\n'
