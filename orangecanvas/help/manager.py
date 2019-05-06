@@ -13,11 +13,17 @@ from distutils.version import StrictVersion
 from operator import itemgetter
 from sysconfig import get_path
 
+import typing
+from typing import Dict, Optional
+
 import pkg_resources
+
+from AnyQt.QtCore import QObject, QUrl, QDir
 
 from . import provider
 
-from AnyQt.QtCore import QObject, QUrl, QDir
+if typing.TYPE_CHECKING:
+    from ..registry import WidgetRegistry
 
 log = logging.getLogger(__name__)
 
@@ -25,15 +31,14 @@ log = logging.getLogger(__name__)
 class HelpManager(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._registry = None
+        self._registry = None  # type: Optional[WidgetRegistry]
         self._initialized = False
         self._providers = {}
 
     def set_registry(self, registry):
+        # type: (WidgetRegistry) -> None
         """
-        Set the widget registry for which the manager should
-        provide help.
-
+        Set the widget registry for which the manager should provide help.
         """
         if self._registry is not registry:
             self._registry = registry
@@ -41,13 +46,14 @@ class HelpManager(QObject):
             self.initialize()
 
     def registry(self):
+        # type: () -> Optional[WidgetRegistry]
         """
         Return the previously set with set_registry.
         """
         return self._registry
 
     def initialize(self):
-        if self._initialized:
+        if self._initialized or self._registry is None:
             return
 
         reg = self._registry
@@ -117,13 +123,6 @@ def get_by_id(registry, descriptor_id):
 
 
 def qurl_query_items(url):
-    items = []
-    for key, value in url.queryItems():
-        items.append((key, value))
-    return items
-
-
-def qurl_query_items(url):
     if not url.hasQuery():
         return []
     querystr = url.query()
@@ -190,7 +189,7 @@ def trim(string):
 
     lines = list(map(str.lstrip, lines[:1])) + left_trim_lines(lines[1:])
 
-    return  "\n".join(trim_leading_lines(trim_trailing_lines(lines)))
+    return "\n".join(trim_leading_lines(trim_trailing_lines(lines)))
 
 
 # Fields allowing multiple use (from PEP-0345)

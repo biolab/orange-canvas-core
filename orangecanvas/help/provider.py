@@ -43,7 +43,7 @@ class BaseInventoryProvider(HelpProvider):
         cache_dir = os.path.join(cache_dir, "help", type(self).__qualname__)
 
         try:
-            os.makedirs(cache_dir)
+            os.makedirs(cache_dir, exist_ok=True)
         except OSError:
             pass
 
