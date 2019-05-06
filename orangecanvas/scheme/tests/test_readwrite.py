@@ -5,7 +5,7 @@ import io
 from xml.etree import ElementTree as ET
 
 from ...gui import test
-from ...registry import WidgetRegistry, WidgetDescription
+from ...registry import WidgetRegistry, WidgetDescription, CategoryDescription
 from ...registry import tests as registry_tests
 
 from .. import Scheme, SchemeNode, SchemeLink, \
@@ -142,12 +142,14 @@ class TestReadWrite(test.QAppTestCase):
 
 def foo_registry():
     reg = WidgetRegistry()
+    reg.register_category(CategoryDescription("Quack"))
     reg.register_widget(
         WidgetDescription(
             name="Foo",
             id="foooo",
             qualified_name="package.foo",
-            project_name="Foo"
+            project_name="Foo",
+            category="Quack",
         )
     )
     reg.register_widget(
@@ -156,8 +158,8 @@ def foo_registry():
             id="barrr",
             qualified_name="frob.bar",
             project_name="Bar",
-            replaces=["package.bar"]
-
+            replaces=["package.bar"],
+            category="Quack",
         )
     )
     return reg
