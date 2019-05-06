@@ -24,7 +24,7 @@ class QCoreAppTestCase(unittest.TestCase):
 
     def setUp(self):
         super(QCoreAppTestCase, self).setUp()
-        self._quittimer = QTimer(interval=1000)
+        self._quittimer = QTimer(interval=100)
         self._quittimer.timeout.connect(self.app.quit)
         self._quittimer.start()
 

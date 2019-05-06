@@ -15,7 +15,7 @@ class TestStackedWidget(test.QAppTestCase):
         layout = QVBoxLayout()
         window.setLayout(layout)
 
-        stack = stackedwidget.AnimatedStackedWidget()
+        stack = stackedwidget.AnimatedStackedWidget(animationEnabled=False)
         stack.transitionFinished.connect(self.app.exit)
 
         layout.addStretch(2)
