@@ -45,7 +45,7 @@ class PreviewHandler(handler.ContentHandler):
         elif self._in_description:
             self.description_data.append(content)
         elif self._in_thumbnail:
-            self._thumbnail_data.append(content)
+            self.thumbnail_data.append(content)
 
 
 def preview_parse(scheme_file):
@@ -146,11 +146,9 @@ def scheme_svg_thumbnail(scheme_file):
 def scan_update(item):
     """Given a preview item, scan the scheme file ('item.path') and update the
     items contents.
-
     """
 
     path = item.path()
-
     try:
         title, desc, svg = preview_parse(path)
     except SAXParseException as ex:

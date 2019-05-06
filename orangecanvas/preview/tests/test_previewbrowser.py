@@ -33,6 +33,7 @@ class TestPreviewBrowser(test.QAppTestCase):
     def test_preview_browser(self):
         w = PreviewBrowser()
         model = construct_test_preview_model()
+        model.delayedScanUpdate()
         w.setModel(model)
         w.show()
 

@@ -1,13 +1,14 @@
 """
 Preview item model.
 """
-
+import os
 import logging
 
 from AnyQt.QtGui import (
     QStandardItemModel, QStandardItem, QIcon
 )
 from AnyQt.QtCore import Qt, QTimer
+from AnyQt.QtCore import pyqtSlot as Slot
 
 from ..gui.svgiconengine import SvgIconEngine
 from . import scanner
@@ -46,39 +47,40 @@ class PreviewModel(QStandardItemModel):
 
     def __init__(self, parent=None, items=None):
         super().__init__(parent)
-
+        self.__preview_index = -1
         if items is not None:
             self.insertColumn(0, items)
 
         self.__timer = QTimer(self)
+        self.__timer.timeout.connect(self.__process_next)
 
     def delayedScanUpdate(self, delay=10):
         """Run a delayed preview item scan update.
         """
-        def iter_update(items):
-            for item in items:
-                try:
-                    scanner.scan_update(item)
-                except Exception:
-                    log.error("An unexpected error occurred while "
-                              "scanning '%s'.", item.text(),
-                              exc_info=True)
-                    item.setEnabled(False)
-                yield
-
-        items = [self.item(i) for i in range(self.rowCount())]
-
-        iter_scan = iter_update(items)
-
-        def process_one():
-            try:
-                next(iter_scan)
-            except StopIteration:
-                self.__timer.timeout.disconnect(process_one)
-                self.__timer.stop()
-
-        self.__timer.timeout.connect(process_one)
+        self.__preview_index = -1
         self.__timer.start(delay)
+        log.debug("delayedScanUpdate: Start")
+
+    @Slot()
+    def __process_next(self):
+        index = self.__preview_index
+        log.debug("delayedScanUpdate: Next %i", index + 1)
+        if not 0 <= index + 1 < self.rowCount() - 1:
+            self.__timer.stop()
+            log.debug("delayedScanUpdate: Stop")
+            return
+
+        self.__preview_index = index = index + 1
+
+        assert 0 <= index < self.rowCount()
+        item = self.item(index)
+        if os.path.isfile(item.path()):
+            try:
+                scanner.scan_update(item)
+            except Exception:
+                log.error("An unexpected error occurred while "
+                          "scanning '%s'.", item.text(), exc_info=True)
+                item.setEnabled(False)
 
 
 class PreviewItem(QStandardItem):
