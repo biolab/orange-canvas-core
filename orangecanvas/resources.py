@@ -144,6 +144,7 @@ class resource_loader(object):
 
 
 class icon_loader(resource_loader):
+    _icon_cache = {}
     DEFAULT_ICON = "icons/default-widget.svg"
 
     def match(self, path):
@@ -177,10 +178,16 @@ class icon_loader(resource_loader):
         else:
             icons = [path]
 
+        icons = tuple(icons)
         icon = QIcon()
-        for path in icons:
-            icon.addFile(path)
-        return icon
+        if icons:
+            if icons not in self._icon_cache:
+                for path in icons:
+                    icon.addFile(path)
+                self._icon_cache[icons] = icon
+            else:
+                icon = self._icon_cache[icons]
+        return QIcon(icon)
 
     def open(self, name):
         raise NotImplementedError
