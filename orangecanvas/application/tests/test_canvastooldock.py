@@ -91,9 +91,9 @@ class TestPopupMenu(test.QAppTestCase):
     def test(self):
         reg = registry_tests.small_testing_registry()
         reg = QtWidgetRegistry(reg, parent=self.app)
-
-        item = reg.model().item(0)
+        model = reg.model()
 
         w = CategoryPopupMenu()
-        w.setCategoryItem(item)
+        w.setModel(model)
+        w.setRootIndex(model.index(0, 0))
         w.exec_()
