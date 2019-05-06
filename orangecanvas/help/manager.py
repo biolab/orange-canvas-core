@@ -70,7 +70,6 @@ class HelpManager(QObject):
 
             if provider:
                 providers.append((project, provider))
-                provider.setParent(self)
 
         self._providers.update(dict(providers))
         self._initialized = True
@@ -391,14 +390,20 @@ def create_html_inventory_provider(entry_point):
 
     return None
 
+
 _providers = {
     "intersphinx": create_intersphinx_provider,
     "html-simple": create_html_provider,
     "html-index": create_html_inventory_provider,
 }
 
+_providers_cache = {}  # type: Dict[str, provider.HelpProvider]
+
 
 def get_help_provider_for_distribution(dist):
+    # type: (pkg_resources.Distribution) -> provider.HelpProvider
+    if dist.project_name in _providers_cache:
+        return _providers_cache[dist.project_name]
     entry_points = dist.get_entry_map().get("orange.canvas.help", {})
     provider = None
     for name, entry_point in entry_points.items():
@@ -416,4 +421,6 @@ def get_help_provider_for_distribution(dist):
                          type(provider), dist)
                 break
 
+    if provider is not None:
+        _providers_cache[dist.project_name] = provider
     return provider
