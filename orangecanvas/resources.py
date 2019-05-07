@@ -36,13 +36,14 @@ def package(qualified_name):
         else:
             raise
 
-    if module.__package__ is not None:
-        # the modules enclosing package
+    if module.__package__:
+        # the module's enclosing package
         return module.__package__
     else:
         # 'qualified_name' is itself the package
-        assert(module.__name__ == qualified_name)
+        assert module.__name__ == qualified_name
         return qualified_name
+
 
 dirname = os.path.abspath(os.path.dirname(__file__))
 
