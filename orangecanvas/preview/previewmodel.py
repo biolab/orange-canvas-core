@@ -65,7 +65,7 @@ class PreviewModel(QStandardItemModel):
     def __process_next(self):
         index = self.__preview_index
         log.debug("delayedScanUpdate: Next %i", index + 1)
-        if not 0 <= index + 1 < self.rowCount() - 1:
+        if not 0 <= index + 1 < self.rowCount():
             self.__timer.stop()
             log.debug("delayedScanUpdate: Stop")
             return
