@@ -23,8 +23,8 @@ from AnyQt.QtGui import (
     QPainterPathStroker
 )
 from AnyQt.QtCore import (
-    Qt, QEvent, QPointF, QRectF, QRect, QSize, QTime, QTimer, QPropertyAnimation
-)
+    Qt, QEvent, QPointF, QRectF, QRect, QSize, QTime, QTimer, QPropertyAnimation,
+    QEasingCurve)
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
 from .graphicspathobject import GraphicsPathObject
@@ -590,7 +590,7 @@ def standard_icon(standard_pixmap):
     return style.standardIcon(standard_pixmap)
 
 
-class GraphicsIconItem(QGraphicsItem):
+class GraphicsIconItem(QGraphicsWidget):
     """
     A graphics item displaying an :class:`QIcon`.
     """
@@ -611,6 +611,15 @@ class GraphicsIconItem(QGraphicsItem):
         self.__iconSize = QSize(iconSize)
         self.__icon = QIcon(icon)
 
+        self._opacity = 1
+        self.anim = QPropertyAnimation(self, b"opacity")
+        self.anim.setDuration(350)
+        self.anim.setStartValue(1)
+        self.anim.setKeyValueAt(0.5, 0)
+        self.anim.setEndValue(1)
+        self.anim.setEasingCurve(QEasingCurve.OutQuad)
+        self.anim.setLoopCount(2)
+
     def setIcon(self, icon):
         """
         Set the icon (:class:`QIcon`).
@@ -618,6 +627,15 @@ class GraphicsIconItem(QGraphicsItem):
         if self.__icon != icon:
             self.__icon = QIcon(icon)
             self.update()
+
+    def getOpacity(self):
+        return self._opacity
+
+    def setOpacity(self, o):
+        self._opacity = o
+        self.update()
+
+    opacity = Property(float, fget=getOpacity, fset=setOpacity)
 
     def icon(self):
         """
@@ -676,6 +694,7 @@ class GraphicsIconItem(QGraphicsItem):
                 QPainter.SmoothPixmapTransform,
                 self.__transformationMode == Qt.SmoothTransformation
             )
+            painter.setOpacity(self._opacity)
             self.__icon.paint(painter, target, Qt.AlignCenter, mode)
 
 
@@ -1245,6 +1264,8 @@ class NodeItem(QGraphicsWidget):
         for (_, message_g), item in zip(messages, items):
             message = "<br/>".join(m.contents for m in message_g if m.contents)
             item.setVisible(bool(message))
+            if bool(message):
+                item.anim.start(QPropertyAnimation.KeepWhenStopped)
             item.setToolTip(message or "")
 
         shown = [item for item in items if item.isVisible()]
