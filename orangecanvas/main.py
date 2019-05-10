@@ -14,7 +14,7 @@ import shlex
 import shutil
 import io
 from urllib.request import getproxies
-from contextlib import ExitStack
+from contextlib import ExitStack, redirect_stdout, redirect_stderr
 
 import pkg_resources
 
@@ -27,8 +27,6 @@ from .application.outputview import TextStream, ExceptHook
 
 from . import utils, config
 from .gui.splashscreen import SplashScreen
-from .utils.redirect import redirect_stdout, redirect_stderr
-
 from .registry import qt
 from .registry import WidgetRegistry, set_global_registry
 from .registry import cache
