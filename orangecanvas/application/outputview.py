@@ -298,8 +298,8 @@ class ExceptHook(QObject):
             text = traceback.format_exception(exc_type, exc_value, tb)
             text.insert(0, '{:-^79}\n'.format(' ' + header + ' '))
             text.append('-' * 79 + '\n')
-            stream.writelines(text)
             try:
+                stream.writelines(text)
                 stream.flush()
             except Exception:
                 pass
