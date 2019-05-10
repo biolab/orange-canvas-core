@@ -121,8 +121,8 @@ class OutputView(QWidget):
         assert QThread.currentThread() is self.thread()
         self.writeWithFormat("".join(lines), charformat)
 
-    def formated(self, color=None, background=None, weight=None,
-                 italic=None, underline=None, font=None):
+    def formatted(self, color=None, background=None, weight=None,
+                  italic=None, underline=None, font=None):
         """
         Return a formatted file like object proxy.
         """
@@ -131,6 +131,12 @@ class OutputView(QWidget):
             italic, underline, font
         )
         return Formatter(self, charformat)
+
+    def formated(self, *args, **kwargs):
+        warnings.warn(
+            "'Use 'formatted'", DeprecationWarning, stacklevel=2
+        )
+        return self.formatted(*args, **kwargs)
 
 
 def update_char_format(baseformat, color=None, background=None, weight=None,
@@ -202,8 +208,8 @@ class Formatter(QObject):
     def flush(self):
         self.outputview.flush()
 
-    def formated(self, color=None, background=None, weight=None,
-                 italic=None, underline=None, font=None):
+    def formatted(self, color=None, background=None, weight=None,
+                  italic=None, underline=None, font=None):
         charformat = update_char_format(self.charformat, color, background,
                                         weight, italic, underline, font)
         return Formatter(self.outputview, charformat)
@@ -215,6 +221,12 @@ class Formatter(QObject):
         self.outputview = None
         self.charformat = None
         self.setParent(None)
+
+    def formated(self, *args, **kwargs):
+        warnings.warn(
+            "Use 'formatted'", DeprecationWarning, stacklevel=2
+        )
+        return self.formatted(*args, **kwargs)
 
 
 class formater(Formatter):

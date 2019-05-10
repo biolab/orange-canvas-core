@@ -48,13 +48,13 @@ class TestOutputView(QAppTestCase):
         output.show()
 
         output.write("A sword day, ")
-        with output.formated(color=Qt.red) as f:
+        with output.formatted(color=Qt.red) as f:
             f.write("a red day...\n")
 
-            with f.formated(color=Qt.green) as f:
+            with f.formatted(color=Qt.green) as f:
                 f.write("Actually sir, orcs bleed green.\n")
 
-        bold = output.formated(weight=100, underline=True)
+        bold = output.formatted(weight=100, underline=True)
         bold.write("Shutup")
 
         self.app.exec_()
@@ -64,8 +64,8 @@ class TestOutputView(QAppTestCase):
         output.resize(500, 300)
         output.show()
 
-        blue_formater = output.formated(color=Qt.blue)
-        red_formater = output.formated(color=Qt.red)
+        blue_formater = output.formatted(color=Qt.blue)
+        red_formater = output.formatted(color=Qt.red)
 
         correct = []
 
@@ -119,7 +119,7 @@ class TestOutputView(QAppTestCase):
         output.resize(500, 300)
         output.show()
 
-        red_formater = output.formated(color=Qt.red)
+        red_formater = output.formatted(color=Qt.red)
 
         red = TextStream()
         red.stream.connect(red_formater.write)
