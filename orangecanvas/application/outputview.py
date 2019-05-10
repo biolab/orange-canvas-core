@@ -241,18 +241,41 @@ class formater(Formatter):
 class TextStream(QObject):
     stream = Signal(str)
     flushed = Signal()
+    __closed = False
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
 
+    def close(self):
+        self.__closed = True
+
+    def closed(self):
+        return self.__closed
+
+    def isatty(self):
+        return False
+
     def write(self, string):
+        if self.__closed:
+            raise ValueError("write operation on a closed stream.")
         self.stream.emit(string)
 
     def writelines(self, lines):
+        if self.__closed:
+            raise ValueError("write operation on a closed stream.")
         self.stream.emit("".join(lines))
 
     def flush(self):
+        if self.__closed:
+            raise ValueError("write operation on a closed stream.")
         self.flushed.emit()
+
+    def writeable(self):
+        return True
+
+    def readable(self):
+        return False
+
 
 
 class ExceptHook(QObject):
