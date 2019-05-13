@@ -85,13 +85,12 @@ class LineEdit(QLineEdit):
             Position where to set the action (default: ``LeftPosition``).
 
         """
-
         curr = self.actionAt(position)
         if curr is not None:
             self.removeAction(position)
 
         # Add the action using QWidget.addAction (for shortcuts)
-        QLineEdit.addAction(self, action)
+        self.addAction(action)
 
         button = LineEditButton(self)
         button.setToolButtonStyle(Qt.ToolButtonIconOnly)
@@ -134,7 +133,7 @@ class LineEdit(QLineEdit):
 
         slot.button.hide()
         slot.button.deleteLater()
-        QLineEdit.removeAction(self, slot.action)
+        self.removeAction(slot.action)
         self.__layoutActions()
 
     def button(self, position):
