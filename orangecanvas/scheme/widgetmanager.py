@@ -234,7 +234,7 @@ class WidgetManager(QObject):
             )
             item.errorwidget = errorwidget
             node.set_state_message(UserMessage(text, UserMessage.Error, 0))
-            return
+            raise
         else:
             item.widget = w
             self.__item_for_widget[w] = item
@@ -313,11 +313,15 @@ class WidgetManager(QObject):
 
     @Slot()
     def __process_init_queue(self):
-        log.debug("__process_init_queue")
-        while self.__init_queue:
+        if self.__init_queue:
             node = self.__init_queue.popleft()
             assert node in self.__workflow.nodes
-            self.ensure_created(node)
+            log.debug("__process_init_queue: '%s'", node.title)
+            try:
+                self.ensure_created(node)
+            finally:
+                if self.__init_queue:
+                    self.__init_timer.start()
 
     def __on_link_added(self, link):  # type: (SchemeLink) -> None
         assert link.source_node in self.__workflow.nodes
