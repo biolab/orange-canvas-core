@@ -2,12 +2,8 @@
 A custom toolbar with linear uniform size layout.
 
 """
-import logging
-
 from AnyQt.QtWidgets import QToolBar
 from AnyQt.QtCore import Qt, QSize, QEvent
-
-log = logging.getLogger(__name__)
 
 
 class DynamicResizeToolBar(QToolBar):

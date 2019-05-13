@@ -1,5 +1,3 @@
-
-import logging
 from collections import OrderedDict
 from xml.sax.saxutils import escape
 
@@ -19,8 +17,6 @@ from AnyQt.QtCore import (
 from AnyQt.QtCore import (
     pyqtSignal as Signal, pyqtProperty as Property, pyqtSlot as Slot
 )
-
-log = logging.getLogger(__name__)
 
 from .graphicspathobject import GraphicsPathObject
 
