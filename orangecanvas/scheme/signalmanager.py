@@ -459,17 +459,14 @@ class SignalManager(QObject):
                   [node.title for node in node_update_front])
 
         if node_update_front:
-            node = node_update_front[0]
-            self._set_runtime_state(SignalManager.Processing)
-            try:
-                self.process_node(node)
-            finally:
-                self._set_runtime_state(SignalManager.Waiting)
+            self.process_node(node_update_front[0])
 
     def process_node(self, node):
         """
         Process pending input signals for `node`.
         """
+        assert self.__runtime_state != SignalManager.Processing
+
         signals_in = self.pending_input_signals(node)
         self.remove_pending_signals(node)
 
@@ -502,6 +499,8 @@ class SignalManager(QObject):
         signals_in = process_dynamic(signals_in)
         assert ({sig.link for sig in self.__input_queue}
                 .intersection({sig.link for sig in signals_in}) == set([]))
+
+        self._set_runtime_state(SignalManager.Processing)
         self.processingStarted.emit()
         self.processingStarted[SchemeNode].emit(node)
         try:
@@ -509,6 +508,7 @@ class SignalManager(QObject):
         finally:
             self.processingFinished.emit()
             self.processingFinished[SchemeNode].emit(node)
+            self._set_runtime_state(SignalManager.Waiting)
 
     def compress_signals(self, signals):
         # type: (List[Signal]) -> List[Signal]
