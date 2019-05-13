@@ -146,8 +146,6 @@ class SignalManager(QObject):
         self.__state = SignalManager.Running
         self.__runtime_state = SignalManager.Waiting
 
-        # A flag indicating if UpdateRequest event should be rescheduled
-        self.__reschedule = False
         self.__update_timer = QTimer(self, interval=100, singleShot=True)
         self.__update_timer.timeout.connect(self.__process_next)
 
@@ -686,7 +684,6 @@ class SignalManager(QObject):
             log.warning("Received 'UpdateRequest' while in 'process_queued'. "
                         "An update will be re-scheduled when exiting the "
                         "current update.")
-            self.__reschedule = True
             return
 
         nbusy = len(self.blocking_nodes())
@@ -695,18 +692,12 @@ class SignalManager(QObject):
                  len(self.__input_queue), nbusy, MAX_CONCURRENT)
 
         if self.__input_queue and nbusy < MAX_CONCURRENT:
-            self.process_queued()
-
-        if self.__reschedule and self.__state == SignalManager.Running:
-            self.__reschedule = False
-            log.debug("Rescheduling signal update")
-            self.__update_timer.start()
-
-        nbusy = len(self.blocking_nodes())
-        if self.node_update_front() and nbusy < MAX_CONCURRENT:
-            log.debug("More nodes are eligible for an update. "
-                      "Scheduling another update.")
-            self._update()
+            try:
+                self.process_queued()
+            finally:
+                # Schedule another update (will be a noop if nothing to do).
+                if self.__input_queue and self.__state == SignalManager.Running:
+                    self.__update_timer.start()
 
     def _update(self):
         """
