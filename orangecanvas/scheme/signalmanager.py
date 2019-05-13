@@ -103,7 +103,7 @@ class SignalManager(QObject):
     #: The manager is paused. It still tracks node output changes, but
     #: does not deliver new signals to dependent nodes. The pending signals
     #: will be delivered once it enters Running state again
-    Paused = Stopped.Paused
+    Paused = State.Paused
 
     # unused; back-compatibility
     Error = 3
