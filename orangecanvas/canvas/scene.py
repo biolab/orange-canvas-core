@@ -112,7 +112,6 @@ class CanvasScene(QGraphicsScene):
         self.position_change_mapper.mapped[QObject].connect(
             self._on_position_change
         )
-        log.info("'%s' intitialized." % self)
 
     def clear_scene(self):
         """
@@ -156,7 +155,6 @@ class CanvasScene(QGraphicsScene):
         self.user_interaction_handler = None
 
         self.clear()
-        log.info("'%s' cleared." % self)
 
     def set_scheme(self, scheme):
         """
@@ -172,8 +170,6 @@ class CanvasScene(QGraphicsScene):
         if self.scheme is not None:
             # Clear the old scheme
             self.clear_scene()
-
-        log.info("Setting scheme '%s' on '%s'" % (scheme, self))
 
         self.scheme = scheme
         if self.scheme is not None:
@@ -203,7 +199,6 @@ class CanvasScene(QGraphicsScene):
         """
         # TODO: Remove/Deprecate. Is used only to get the category/background
         # color. That should be part of the SchemeNode/WidgetDescription.
-        log.info("Setting registry '%s on '%s'." % (registry, self))
         self.registry = registry
 
     def set_anchor_layout(self, layout):
@@ -280,7 +275,6 @@ class CanvasScene(QGraphicsScene):
 
         self.node_item_added.emit(item)
 
-        log.info("Added item '%s' to '%s'" % (item, self))
         return item
 
     def add_node(self, node):
@@ -358,8 +352,6 @@ class CanvasScene(QGraphicsScene):
 
         self.node_item_removed.emit(item)
 
-        log.info("Removed item '%s' from '%s'" % (item, self))
-
     def remove_node(self, node):
         """
         Remove the :class:`.NodeItem` instance that was previously
@@ -394,9 +386,6 @@ class CanvasScene(QGraphicsScene):
         self.__link_items.append(item)
 
         self.link_item_added.emit(item)
-
-        log.info("Added link %r -> %r to '%s'" % \
-                 (item.sourceItem.title(), item.sinkItem.title(), self))
 
         self.__anchor_layout.invalidateLink(item)
 
@@ -482,9 +471,6 @@ class CanvasScene(QGraphicsScene):
         self.removeItem(item)
 
         self.link_item_removed.emit(item)
-
-        log.info("Removed link '%s' from '%s'" % (item, self))
-
         return item
 
     def remove_link(self, scheme_link):
@@ -615,8 +601,8 @@ class CanvasScene(QGraphicsScene):
             self.remove_node_item(item)
             raise
 
-        log.info("Commited node '%s' from '%s' to '%s'" % \
-                 (node, self, self.scheme))
+        log.debug("Commited node '%s' from '%s' to '%s'" % \
+                  (node, self, self.scheme))
 
     def commit_scheme_link(self, link):
         """
@@ -629,8 +615,8 @@ class CanvasScene(QGraphicsScene):
             raise ValueError("No 'LinkItem' for link.")
 
         self.scheme.add_link(link)
-        log.info("Commited link '%s' from '%s' to '%s'" % \
-                 (link, self, self.scheme))
+        log.debug("Commited link '%s' from '%s' to '%s'" % \
+                  (link, self, self.scheme))
 
     def node_for_item(self, item):
         """
@@ -807,7 +793,7 @@ class CanvasScene(QGraphicsScene):
                 not self.user_interaction_handler.isFinished():
             self.user_interaction_handler.cancel()
 
-        log.info("Setting interaction '%s' to '%s'" % (handler, self))
+        log.debug("Setting interaction '%s' to '%s'" % (handler, self))
 
         self.user_interaction_handler = handler
         if handler:
