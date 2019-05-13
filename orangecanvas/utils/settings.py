@@ -67,7 +67,7 @@ class SettingChangedEvent(QEvent):
         return self.__oldValue
 
 
-class QABCMeta(_QObjectType, abc.ABCMeta):
+class QABCMeta(_QObjectType, abc.ABCMeta):  # pylint: disable=all
     def __init__(self, name, bases, attr_dict):
         _QObjectType.__init__(self, name, bases, attr_dict)
         abc.ABCMeta.__init__(self, name, bases, attr_dict)
