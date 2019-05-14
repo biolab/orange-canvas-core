@@ -52,7 +52,7 @@ def widget_from_module_globals(module):
         # widget name.
         raise WidgetSpecificationError
 
-    qualified_name = "%s.%s" % (module.__name__, widget_class.__name__)
+    qualified_name = "%s.%s" % (module.__name__, widget_cls_name)
 
     id = getattr(module, "ID", module_name)
     inputs = getattr(module, "INPUTS", [])
@@ -77,13 +77,6 @@ def widget_from_module_globals(module):
 
     inputs = list(map(input_channel_from_args, inputs))
     outputs = list(map(output_channel_from_args, outputs))
-
-    # Convert all signal types into qualified names.
-    # This is to prevent any possible import problems when cached
-    # descriptions are unpickled (the relevant code using this lists
-    # should be able to handle missing types better).
-    for s in inputs + outputs:
-        s.type = "%s.%s" % (s.type.__module__, s.type.__name__)
 
     return WidgetDescription(
         name=name,

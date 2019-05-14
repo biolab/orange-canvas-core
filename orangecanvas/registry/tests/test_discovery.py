@@ -2,15 +2,13 @@
 Test widget discovery
 
 """
-
-import os
 import logging
 
 import unittest
 
 from ..discovery import WidgetDiscovery, widget_descriptions_from_package
-
 from ..description import CategoryDescription, WidgetDescription
+from ..utils import category_from_package_globals
 
 
 class TestDiscovery(unittest.TestCase):
@@ -64,7 +62,7 @@ class TestDiscovery(unittest.TestCase):
 
     def test_process_iter(self):
         disc = self.discovery_class()
-        cat_desc = CategoryDescription.from_package(
+        cat_desc = category_from_package_globals(
             self.operators.__name__,
         )
         # TODO: Fix (the widget_description_package does not iterate

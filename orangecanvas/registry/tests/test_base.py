@@ -8,6 +8,7 @@ import unittest
 
 from ..base import WidgetRegistry
 from .. import description
+from ..utils import category_from_package_globals, widget_from_module_globals
 
 
 class TestRegistry(unittest.TestCase):
@@ -28,12 +29,10 @@ class TestRegistry(unittest.TestCase):
     def test_registry_const(self):
         reg = WidgetRegistry()
 
-        const_cat = description.CategoryDescription.from_package(
-            self.constants.__name__)
+        const_cat = category_from_package_globals(self.constants.__name__)
         reg.register_category(const_cat)
 
-        zero_desc = description.WidgetDescription.from_module(
-            self.constants.zero.__name__)
+        zero_desc = widget_from_module_globals(self.constants.zero.__name__)
 
         reg.register_widget(zero_desc)
 
@@ -50,8 +49,7 @@ class TestRegistry(unittest.TestCase):
             )
             reg.register_widget(desc)
 
-        one_desc = description.WidgetDescription.from_module(
-            self.constants.one)
+        one_desc = widget_from_module_globals(self.constants.one)
         reg.register_widget(one_desc)
 
         self.assertTrue(reg.has_widget(one_desc.qualified_name))
@@ -60,8 +58,7 @@ class TestRegistry(unittest.TestCase):
         self.assertSetEqual(set(reg.widgets(self.constants.NAME)),
                             set([zero_desc, one_desc]))
 
-        op_cat = description.CategoryDescription.from_package(
-            self.operators.__name__)
+        op_cat = category_from_package_globals(self.operators.__name__)
         reg.register_category(op_cat)
 
         self.assertTrue(reg.has_category(op_cat.name))
@@ -69,18 +66,14 @@ class TestRegistry(unittest.TestCase):
         self.assertSetEqual(set(reg.categories()),
                             set([const_cat, op_cat]))
 
-        add_desc = description.WidgetDescription.from_module(
-            self.operators.add
-        )
+        add_desc = widget_from_module_globals(self.operators.add)
         reg.register_widget(add_desc)
 
         self.assertTrue(reg.has_widget(add_desc.qualified_name))
         self.assertIs(reg.widget(add_desc.qualified_name), add_desc)
         self.assertSequenceEqual(reg.widgets(self.operators.NAME), [add_desc])
 
-        sub_desc = description.WidgetDescription.from_module(
-            self.operators.sub)
-
+        sub_desc = widget_from_module_globals(self.operators.sub)
         reg.register_widget(sub_desc)
 
         # Test copy constructor
