@@ -1046,6 +1046,19 @@ class CanvasMainWindow(QMainWindow):
             window.freeze_action.setChecked(True)
         window.load_scheme(filename)
 
+    def open_example_scheme(self, path):  # type: (str) -> None
+        # open an workflow without filename/directory tracking.
+        if self.is_transient():
+            window = self
+        else:
+            window = self.create_new_window()
+            window.show()
+            window.raise_()
+            window.activateWindow()
+
+        new_scheme = window.new_scheme_from(path)
+        window.set_new_scheme(new_scheme)
+
     def _open_workflow_dialog(self):
         # type: () -> QFileDialog
         """
@@ -1426,7 +1439,7 @@ class CanvasMainWindow(QMainWindow):
 
         if status == QDialog.Accepted:
             selected = model.item(index)
-            self.open_scheme_file(selected.path())
+            self.open_example_scheme(selected.path())
         return status
 
     def welcome_dialog(self):
