@@ -362,7 +362,7 @@ spec = \
      ("mainwindow/show-scheme-shadow", bool, True,
       "Show shadow around the workflow view"),
 
-     ("mainwindow/toolbox-dock-exclusive", bool, True,
+     ("mainwindow/toolbox-dock-exclusive", bool, False,
       "Should the toolbox show only one expanded category at the time"),
 
      ("mainwindow/toolbox-dock-floatable", bool, False,

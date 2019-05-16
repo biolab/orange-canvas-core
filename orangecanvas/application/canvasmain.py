@@ -772,7 +772,7 @@ class CanvasMainWindow(QMainWindow):
             )
 
         self.widgets_tool_box.setExclusive(
-            settings.value("toolbox-dock-exclusive", True, type=bool)
+            settings.value("toolbox-dock-exclusive", False, type=bool)
         )
 
         self.toogle_margins_action.setChecked(
