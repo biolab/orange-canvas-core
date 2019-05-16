@@ -183,12 +183,12 @@ class SignalManager(QObject):
 
         if self.__workflow is not None:
             for link in self.__workflow.links:
-                link.enabled_changed.disconnect(self.link_enabled_changed)
+                link.enabled_changed.disconnect(self.__on_link_enabled_changed)
 
-            self.__workflow.node_added.disconnect(self.on_node_added)
-            self.__workflow.node_removed.disconnect(self.on_node_removed)
-            self.__workflow.link_added.disconnect(self.link_added)
-            self.__workflow.link_removed.disconnect(self.link_removed)
+            self.__workflow.node_added.disconnect(self.__on_node_added)
+            self.__workflow.node_removed.disconnect(self.__on_node_removed)
+            self.__workflow.link_added.disconnect(self.__on_link_added)
+            self.__workflow.link_removed.disconnect(self.__on_link_removed)
             self.__workflow.removeEventFilter(self)
             self.__node_outputs = {}
             self.__input_queue = []
@@ -196,14 +196,14 @@ class SignalManager(QObject):
         self.__workflow = workflow
 
         if workflow is not None:
-            workflow.node_added.connect(self.on_node_added)
-            workflow.node_removed.connect(self.on_node_removed)
-            workflow.link_added.connect(self.link_added)
-            workflow.link_removed.connect(self.link_removed)
+            workflow.node_added.connect(self.__on_node_added)
+            workflow.node_removed.connect(self.__on_node_removed)
+            workflow.link_added.connect(self.__on_link_added)
+            workflow.link_removed.connect(self.__on_link_removed)
             for node in workflow.nodes:
                 self.__node_outputs[node] = defaultdict(dict)
             for link in workflow.links:
-                link.enabled_changed.connect(self.link_enabled_changed)
+                link.enabled_changed.connect(self.__on_link_enabled_changed)
             workflow.installEventFilter(self)
 
     def has_pending(self):
@@ -297,7 +297,7 @@ class SignalManager(QObject):
         """
         return self.__runtime_state
 
-    def on_node_removed(self, node):
+    def __on_node_removed(self, node):
         # remove all pending input signals for node so we don't get
         # stale references in process_node.
         # NOTE: This does not remove output signals for this node. In
@@ -308,10 +308,10 @@ class SignalManager(QObject):
 
         del self.__node_outputs[node]
 
-    def on_node_added(self, node):
+    def __on_node_added(self, node):
         self.__node_outputs[node] = defaultdict(dict)
 
-    def link_added(self, link):
+    def __on_link_added(self, link):
         # push all current source values to the sink
         link.set_runtime_state(SchemeLink.Empty)
         if link.enabled:
@@ -319,15 +319,15 @@ class SignalManager(QObject):
             self._schedule(self.signals_on_link(link))
             self._update()
 
-        link.enabled_changed.connect(self.link_enabled_changed)
+        link.enabled_changed.connect(self.__on_link_enabled_changed)
 
-    def link_removed(self, link):
+    def __on_link_removed(self, link):
         # purge all values in sink's queue
         log.info("Scheduling signal data purge (%s).", link)
         self.purge_link(link)
-        link.enabled_changed.disconnect(self.link_enabled_changed)
+        link.enabled_changed.disconnect(self.__on_link_enabled_changed)
 
-    def link_enabled_changed(self, enabled):
+    def __on_link_enabled_changed(self, enabled):
         if enabled:
             link = self.sender()
             log.info("Link %s enabled. Scheduling signal data update.", link)
