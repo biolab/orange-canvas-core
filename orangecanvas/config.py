@@ -199,10 +199,6 @@ class Default(Config):
     ApplicationVersion = __version__
 
     @staticmethod
-    def init():
-        Config.init(Default)
-
-    @staticmethod
     def application_icon():
         """
         Return the main application icon.
