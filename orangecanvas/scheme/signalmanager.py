@@ -443,8 +443,8 @@ class SignalManager(QObject):
         """
         if not (max_nodes is None or max_nodes == 1):
             warnings.warn(
-                "`max_nodes` is deprecated and unused (will always equal 1)",
-                DeprecationWarning, stacklevel=2)
+                "`max_nodes` is deprecated and will be removed in the future",
+                FutureWarning, stacklevel=2)
 
         if self.__runtime_state == SignalManager.Processing:
             raise RuntimeError("Cannot re-enter 'process_queued'")
