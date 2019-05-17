@@ -52,3 +52,27 @@ class TestToolBox(test.QAppTestCase):
         self.assertIs(w.widget(3), p4)
 
         self.app.exec_()
+
+    def test_tool_box_exclusive(self):
+        w = toolbox.ToolBox()
+        w.setExclusive(True)
+        w.addItem(QLabel(), "A")
+        w.addItem(QLabel(), "B")
+        w.addItem(QLabel(), "C")
+        a0, a1 = w.tabAction(0), w.tabAction(1)
+        self.assertTrue(a0.isChecked())
+        a1.toggle()
+        self.assertFalse(a0.isChecked())
+        self.assertFalse(w.widget(0).isVisibleTo(w))
+        self.assertTrue(w.widget(1).isVisibleTo(w))
+
+        w.setExclusive(False)
+        a0.toggle()
+        self.assertTrue(a0.isChecked() and a1.isChecked())
+        self.assertTrue(w.widget(0).isVisibleTo(w))
+        self.assertTrue(w.widget(1).isVisibleTo(w))
+
+        w.setExclusive(True)
+        self.assertEqual(
+            sum([w.widget(i).isVisibleTo(w) for i in range(w.count())]), 1
+        )
