@@ -28,10 +28,18 @@ class TestSplashScreen(QAppTestCase):
         def advance_time():
             now = datetime.now()
             time = now.strftime("%c : %f")
-            w.showMessage(time, alignment=Qt.AlignCenter)
             i = now.second % 3
+            if i == 2:
+                w.setTextFormat(Qt.RichText)
+                time = "<i>" + time + "</i>"
+            else:
+                w.setTextFormat(Qt.PlainText)
+
+            w.showMessage(time, alignment=Qt.AlignCenter)
+
             rect = QRect(100, 100 + i * 20, 400, 50)
             w.setTextRect(rect)
+
             self.assertEqual(w.textRect(), rect)
 
         timer = QTimer(w, interval=1)

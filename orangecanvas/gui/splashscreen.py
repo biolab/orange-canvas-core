@@ -44,6 +44,7 @@ class SplashScreen(QSplashScreen):
         self.__color = Qt.black
         self.__alignment = Qt.AlignLeft
         self.__textFormat = textFormat
+        self.__pixmap = QPixmap()
 
         if pixmap is None:
             pixmap = QPixmap()
