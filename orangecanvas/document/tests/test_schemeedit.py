@@ -1,7 +1,11 @@
 """
 Tests for scheme document.
 """
+from AnyQt.QtTest import QSignalSpy, QTest
 
+from AnyQt.QtWidgets import QGraphicsWidget
+
+from AnyQt.QtCore import Qt
 from ..schemeedit import SchemeEditWidget
 from ...scheme import Scheme, SchemeNode, SchemeLink, SchemeTextAnnotation, \
                       SchemeArrowAnnotation
@@ -12,23 +16,38 @@ from ...gui.test import QAppTestCase
 
 
 class TestSchemeEdit(QAppTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.reg = small_testing_registry()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        del cls.reg
+
+    def setUp(self):
+        self.w = SchemeEditWidget()
+        self.w.setScheme(Scheme())
+
+    def tearDown(self):
+        del self.w
+
     def test_schemeedit(self):
-        reg = small_testing_registry()
-
-        w = SchemeEditWidget()
+        reg = self.reg
+        w = self.w
 
         scheme = Scheme()
-
         w.setScheme(scheme)
 
         self.assertIs(w.scheme(), scheme)
-        self.assertTrue(not w.isModified())
+        self.assertFalse(w.isModified())
 
         scheme = Scheme()
-
         w.setScheme(scheme)
+
         self.assertIs(w.scheme(), scheme)
-        self.assertTrue(not w.isModified())
+        self.assertFalse(w.isModified())
 
         w.show()
 
@@ -111,5 +130,126 @@ class TestSchemeEdit(QAppTestCase):
         stack.redo()
         self.assertSequenceEqual(annot_list, [annotation])
 
+        w.removeAnnotation(annotation)
+        self.assertSequenceEqual(annot_list, [])
+        stack.undo()
+        self.assertSequenceEqual(annot_list, [annotation])
+
+        self.assertTrue(w.isModified())
+        self.assertFalse(stack.isClean())
+        w.setModified(False)
+
+        self.assertFalse(w.isModified())
+        self.assertTrue(stack.isClean())
+        w.setModified(True)
+        self.assertTrue(w.isModified())
+
         w.resize(600, 400)
-        self.app.exec_()
+
+    def test_modified(self):
+        node = SchemeNode(
+            self.reg.widget("one"), title="title1", position=(100, 100))
+        self.w.addNode(node)
+        self.assertTrue(self.w.isModified())
+        self.w.setModified(False)
+        self.assertFalse(self.w.isModified())
+        self.w.setTitle("Title")
+        self.assertTrue(self.w.isModified())
+        self.w.setDescription("AAA")
+        self.assertTrue(self.w.isModified())
+        undo = self.w.undoStack()
+        undo.undo()
+        undo.undo()
+        self.assertFalse(self.w.isModified())
+
+    def test_path(self):
+        w = self.w
+        spy = QSignalSpy(w.pathChanged)
+        self.w.setPath("/dev/null")
+        self.assertSequenceEqual(list(spy), [["/dev/null"]])
+
+    def test_ensure_visible(self):
+        w = self.w
+        node = SchemeNode(
+            self.reg.widget("one"), title="title1", position=(10000, 100))
+        self.w.addNode(node)
+        w.show()
+        assert QTest.qWaitForWindowExposed(w, 500)
+        w.ensureVisible(node)
+        view = w.view()
+        viewrect = view.mapToScene(view.viewport().geometry()).boundingRect()
+        self.assertTrue(viewrect.contains(10000., 100.))
+
+    def test_select(self):
+        w = self.w
+        self.setup_test_workflow(w.scheme())
+        w.selectAll()
+        self.assertSequenceEqual(
+            w.selectedNodes(), w.scheme().nodes)
+        self.assertSequenceEqual(
+            w.selectedAnnotations(), w.scheme().annotations)
+
+        w.removeSelected()
+        self.assertEqual(w.scheme().nodes, [])
+        self.assertEqual(w.scheme().annotations, [])
+
+    def test_insert_node_on_link(self):
+        w = self.w
+        workflow = self.setup_test_workflow(w.scheme())
+        neg = SchemeNode(self.reg.widget("negate"))
+        target = workflow.links[0]
+        spyrem = QSignalSpy(workflow.link_removed)
+        spyadd = QSignalSpy(workflow.link_added)
+        w.insertNode(neg, target)
+        self.assertEqual(workflow.nodes[-1], neg)
+
+        self.assertSequenceEqual(list(spyrem), [[target]])
+        self.assertEqual(len(spyadd), 2)
+        w.undoStack().undo()
+
+    def test_align_to_grid(self):
+        w = self.w
+        self.setup_test_workflow(w.scheme())
+        w.alignToGrid()
+
+    def test_activate_node(self):
+        w = self.w
+        workflow = self.setup_test_workflow()
+        w.setScheme(workflow)
+
+        view, scene = w.view(), w.scene()
+        item = scene.item_for_node(workflow.nodes[0])  # type: QGraphicsWidget
+        item.setSelected(True)
+        item.setFocus(Qt.OtherFocusReason)
+        self.assertIs(w.focusNode(), workflow.nodes[0])
+        item.activated.emit()
+
+    @classmethod
+    def setup_test_workflow(cls, scheme=None):
+        # type: (Scheme) -> Scheme
+        if scheme is None:
+            scheme = Scheme()
+        reg = cls.reg
+
+        zero_desc = reg.widget("zero")
+        one_desc = reg.widget("one")
+        add_desc = reg.widget("add")
+        negate = reg.widget("negate")
+
+        zero_node = SchemeNode(zero_desc)
+        one_node = SchemeNode(one_desc)
+        add_node = SchemeNode(add_desc)
+        negate_node = SchemeNode(negate)
+
+        scheme.add_node(zero_node)
+        scheme.add_node(one_node)
+        scheme.add_node(add_node)
+        scheme.add_node(negate_node)
+
+        scheme.add_link(SchemeLink(zero_node, "value", add_node, "left"))
+        scheme.add_link(SchemeLink(one_node, "value", add_node, "right"))
+        scheme.add_link(SchemeLink(add_node, "result", negate_node, "value"))
+
+        scheme.add_annotation(SchemeArrowAnnotation((0, 0), (10, 10)))
+        scheme.add_annotation(SchemeTextAnnotation((0, 100, 200, 200), "$$"))
+        return scheme
