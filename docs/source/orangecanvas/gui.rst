@@ -15,7 +15,6 @@ GUI elements (``gui``)
    gui.lineedit
    gui.quickhelp
    gui.splashscreen
-   gui.stackedwidget
    gui.toolbar
    gui.toolbox
    gui.toolgrid

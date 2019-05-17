@@ -8,3 +8,5 @@ Collapsible Dock Widget (``dock``)
    :members:
    :member-order: bysource
    :show-inheritance:
+   :exclude-members:
+       setWidget, animationEnabled, setAnimationEnabled
