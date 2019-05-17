@@ -1,3 +1,5 @@
+import os
+import tempfile
 from unittest.mock import patch
 
 from AnyQt.QtWidgets import QToolButton, QDialog
@@ -12,7 +14,7 @@ class MainWindow(CanvasMainWindow):
     pass
 
 
-class TestMainWindow(QAppTestCase):
+class TestMainWindowBase(QAppTestCase):
     def setUp(self):
         self.w = MainWindow()
         self.registry = registry_tests.small_testing_registry()
@@ -22,6 +24,8 @@ class TestMainWindow(QAppTestCase):
         del self.w
         del self.registry
 
+
+class TestMainWindow(TestMainWindowBase):
     def test_create_new_window(self):
         w = self.w
         new = w.create_new_window()
@@ -72,3 +76,72 @@ class TestMainWindow(QAppTestCase):
         ):
             w.on_quick_category_action(a)
 
+    def test_recent_list(self):
+        w = self.w
+        w.clear_recent_schemes()
+        w.add_recent_scheme("This one", __file__)
+        new = w.create_new_window()
+        self.assertEqual(len(new.recent_schemes), 1)
+        w.clear_recent_schemes()
+
+
+class TestMainWindowLoad(TestMainWindowBase):
+    filename = ""
+
+    def setUp(self):
+        super().setUp()
+        fd, filename = tempfile.mkstemp()
+        self.file = os.fdopen(fd, "w+b")
+        self.filename = filename
+
+    def tearDown(self):
+        self.file.close()
+        os.remove(self.filename)
+
+    def test_open_example_scheme(self):
+        self.file.write(TEST_OWS)
+        self.file.flush()
+        self.w.open_example_scheme(self.filename)
+
+    def test_open_scheme_file(self):
+        self.file.write(TEST_OWS)
+        self.file.flush()
+        self.w.open_scheme_file(self.filename)
+
+    def test_save(self):
+        w = self.w
+        w.current_document().setPath(self.filename)
+        with patch.object(w, "save_scheme_as") as f:
+            w.save_scheme()
+            f.assert_not_called()
+
+        w.current_document().setPath("")
+        with patch("AnyQt.QtWidgets.QFileDialog.getSaveFileName",
+                   return_value=(self.filename, "")) as f:
+            w.save_scheme()
+            self.assertEqual(w.current_document().path(), self.filename)
+
+
+TEST_OWS = b"""\
+<?xml version='1.0' encoding='utf-8'?>
+<scheme description="" title="" version="2.0">
+    <nodes>
+        <node id="0" name="zero" position="(0, 0)" qualified_name="zero" />
+        <node id="1" name="one" position="(0, 0)" qualified_name="one" />
+        <node id="2" name="add" position="(0, 0)" qualified_name="add" />
+        <node id="3" name="negate" position="(0, 0)" qualified_name="negate" />
+    </nodes>
+    <links>
+        <link enabled="true" id="0" sink_channel="left"
+              sink_node_id="2" source_channel="value" source_node_id="0" />
+        <link enabled="true" id="1" sink_channel="right" sink_node_id="2"
+              source_channel="value" source_node_id="1" />
+        <link enabled="true" id="2" sink_channel="value" sink_node_id="3"
+              source_channel="result" source_node_id="2" />
+    </links>
+    <annotations>
+        <arrow end="(10, 10)" fill="red" id="0" start="(0, 0)" />
+        <text id="1" rect="(0, 100, 200, 200)" type="text/plain">$$</text>
+    </annotations>
+</scheme>
+"""
