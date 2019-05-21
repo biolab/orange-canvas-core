@@ -407,12 +407,12 @@ class CanvasScene(QGraphicsScene):
         item = self.new_link_item(source, scheme_link.source_channel,
                                   sink, scheme_link.sink_channel)
 
-        item.setEnabled(scheme_link.enabled)
+        item.setEnabled(scheme_link.is_enabled())
         scheme_link.enabled_changed.connect(item.setEnabled)
 
         if scheme_link.is_dynamic():
             item.setDynamic(True)
-            item.setDynamicEnabled(scheme_link.dynamic_enabled)
+            item.setDynamicEnabled(scheme_link.is_dynamic_enabled())
             scheme_link.dynamic_enabled_changed.connect(item.setDynamicEnabled)
 
         item.setRuntimeState(scheme_link.runtime_state())

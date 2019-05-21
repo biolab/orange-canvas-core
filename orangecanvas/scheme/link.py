@@ -159,13 +159,13 @@ class SchemeLink(QObject):
             self.__enabled = enabled
             self.enabled_changed.emit(enabled)
 
-    def enabled(self):
+    def is_enabled(self):
         """
         Is this link enabled.
         """
         return self.__enabled
 
-    enabled = Property(bool, fget=enabled, fset=set_enabled)
+    enabled = Property(bool, fget=is_enabled, fset=set_enabled)
 
     def set_dynamic_enabled(self, enabled):
         """
@@ -177,13 +177,13 @@ class SchemeLink(QObject):
             self.__dynamic_enabled = enabled
             self.dynamic_enabled_changed.emit(enabled)
 
-    def dynamic_enabled(self):
+    def is_dynamic_enabled(self):
         """
         Is this a dynamic link and is `dynamic_enabled` set to `True`
         """
         return self.is_dynamic() and self.__dynamic_enabled
 
-    dynamic_enabled = Property(bool, fget=dynamic_enabled,
+    dynamic_enabled = Property(bool, fget=is_dynamic_enabled,
                                fset=set_dynamic_enabled)
 
     def set_runtime_state(self, state):
