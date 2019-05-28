@@ -1474,40 +1474,40 @@ class CanvasMainWindow(QMainWindow):
             if self.examples_dialog() == QDialog.Accepted:
                 dialog.accept()
 
-        new_action = \
-            QAction(self.tr("New"), dialog,
-                    toolTip=self.tr("Open a new workflow."),
-                    triggered=new_scheme,
-                    shortcut=QKeySequence.New,
-                    icon=canvas_icons("New.svg")
-                    )
+        new_action = QAction(
+            self.tr("New"), dialog,
+            toolTip=self.tr("Open a new workflow."),
+            triggered=new_scheme,
+            shortcut=QKeySequence.New,
+            icon=canvas_icons("New.svg")
+        )
 
-        open_action = \
-            QAction(self.tr("Open"), dialog,
-                    objectName="welcome-action-open",
-                    toolTip=self.tr("Open a workflow."),
-                    triggered=open_scheme,
-                    shortcut=QKeySequence.Open,
-                    icon=canvas_icons("Open.svg")
-                    )
+        open_action = QAction(
+            self.tr("Open"), dialog,
+            objectName="welcome-action-open",
+            toolTip=self.tr("Open a workflow."),
+            triggered=open_scheme,
+            shortcut=QKeySequence.Open,
+            icon=canvas_icons("Open.svg")
+        )
 
-        recent_action = \
-            QAction(self.tr("Recent"), dialog,
-                    objectName="welcome-recent-action",
-                    toolTip=self.tr("Browse and open a recent workflow."),
-                    triggered=open_recent,
-                    shortcut=QKeySequence(Qt.ControlModifier | \
-                                          (Qt.ShiftModifier | Qt.Key_R)),
-                    icon=canvas_icons("Recent.svg")
-                    )
+        recent_action = QAction(
+            self.tr("Recent"), dialog,
+            objectName="welcome-recent-action",
+            toolTip=self.tr("Browse and open a recent workflow."),
+            triggered=open_recent,
+            shortcut=QKeySequence(Qt.ControlModifier |
+                                  (Qt.ShiftModifier | Qt.Key_R)),
+            icon=canvas_icons("Recent.svg")
+        )
 
-        examples_action = \
-            QAction(self.tr("Examples"), dialog,
-                    objectName="welcome-examples-action",
-                    toolTip=self.tr("Browse example workflows."),
-                    triggered=browse_examples,
-                    icon=canvas_icons("Examples.svg")
-                    )
+        examples_action = QAction(
+            self.tr("Examples"), dialog,
+            objectName="welcome-examples-action",
+            toolTip=self.tr("Browse example workflows."),
+            triggered=browse_examples,
+            icon=canvas_icons("Examples.svg")
+        )
 
         bottom_row = [self.get_started_action, examples_action,
                       self.documentation_action]
