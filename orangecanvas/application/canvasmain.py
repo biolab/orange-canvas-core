@@ -424,7 +424,6 @@ class CanvasMainWindow(QMainWindow):
         self.quit_action = QAction(
             self.tr("Quit"), self,
             objectName="quit-action",
-            toolTip=self.tr("Quit Orange Canvas."),
             triggered=QApplication.closeAllWindows,
             menuRole=QAction.QuitRole,
             shortcut=QKeySequence.Quit,
@@ -1445,9 +1444,12 @@ class CanvasMainWindow(QMainWindow):
     def welcome_dialog(self):
         """Show a modal welcome dialog for Orange Canvas.
         """
-        dialog = welcomedialog.WelcomeDialog(
-            self, windowTitle=self.tr("Welcome to Orange Data Mining")
-        )
+        name = QApplication.applicationName()
+        if name:
+            title = self.tr("Welcome to {}").format(name)
+        else:
+            title = self.tr("Welcome")
+        dialog = welcomedialog.WelcomeDialog(self, windowTitle=title)
         feedback = config.default.APPLICATION_URLS.get("Feedback", "")
         if feedback:
             dialog.setFeedbackUrl(feedback)
