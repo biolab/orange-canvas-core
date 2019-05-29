@@ -1895,14 +1895,7 @@ class CanvasMainWindow(QMainWindow):
             "help/open-in-external-browser", defaultValue=False, type=bool)
         if use_external or self.help_view is None:
             url = QUrl(url)
-            if not QDesktopServices.openUrl(url):
-                # Try fixing some common problems.
-                url = QUrl.fromUserInput(url.toString())
-                # 'fromUserInput' includes possible fragment into the path
-                # (which prevents it to open local files) so we reparse it
-                # again.
-                url = QUrl(url.toString())
-                QDesktopServices.openUrl(url)
+            QDesktopServices.openUrl(url)
         else:
             self.help_view.load(QUrl(url))
             self.help_dock.show()
