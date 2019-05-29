@@ -10,7 +10,7 @@ import io
 
 from functools import partial
 from types import SimpleNamespace
-from typing import Optional
+from typing import Optional, List, cast
 
 import pkg_resources
 
@@ -21,9 +21,9 @@ from AnyQt.QtWidgets import (
     QPlainTextDocumentLayout, QFileIconProvider
 )
 from AnyQt.QtGui import (
-    QColor, QIcon, QDesktopServices, QKeySequence, QTextDocument
+    QColor, QIcon, QDesktopServices, QKeySequence, QTextDocument,
+    QWhatsThisClickedEvent
 )
-
 from AnyQt.QtCore import (
     Qt, QObject, QEvent, QSize, QUrl, QTimer, QFile, QByteArray, QFileInfo,
     QSettings, QStandardPaths, QAbstractItemModel, QT_VERSION
@@ -260,13 +260,14 @@ class CanvasMainWindow(QMainWindow):
         self.dock_help = canvas_tool_dock.help
         self.dock_help.setMaximumHeight(150)
         self.dock_help.document().setDefaultStyleSheet("h3, a {color: orange;}")
-        default_help = "Select a widget to show its description." \
-                       "<br><br>" \
-                       "See <a href='orange://examples'>workflow examples</a>, " \
-                       "<a href='orange://tutorials'>YouTube tutorials</a>, " \
-                       "or open the <a href='orange://welcome'>welcome screen</a>."
-        self.dock_help.setDefaultText(default_help)
 
+        self.dock_help.setDefaultText(
+            "Select a widget to show its description."
+            "<br/><br/>"
+            "See <a href='action:examples-action'>workflow examples</a>, "
+            "<a href='action:screencasts-action'>YouTube tutorials</a>, "
+            "or open the <a href='action:welcome-action'>welcome screen</a>."
+        )
         self.dock_help_action = canvas_tool_dock.toogleQuickHelpAction()
         self.dock_help_action.setText(self.tr("Show Help"))
         self.dock_help_action.setIcon(canvas_icons("Info.svg"))
@@ -1863,9 +1864,8 @@ class CanvasMainWindow(QMainWindow):
             return True
 
         elif event.type() == QEvent.WhatsThisClicked:
-            ref = event.href()
-            url = QUrl(ref)
-
+            event = cast(QWhatsThisClickedEvent, event)
+            url = QUrl(event.href())
             if url.scheme() == "help" and url.authority() == "search":
                 try:
                     url = self.help.search(url)
@@ -1875,17 +1875,12 @@ class CanvasMainWindow(QMainWindow):
                     message_information(
                         self.tr("There is no documentation for this widget yet."),
                         parent=self)
-            elif url.scheme() == "orange":
-                target = url.host()
-                if target == "examples":
-                    self.examples_dialog()
-                elif target == "tutorials":
-                    self.get_started_screencasts_action.trigger()
-                elif target == "welcome":
-                    self.welcome_dialog()
+            elif url.scheme() == "action" and url.path():
+                action = self.findChild(QAction, url.path())
+                if action is not None:
+                    action.trigger()
                 else:
-                    log.error("No target found for %r", url)
-
+                    log.warning("No target action found for %r", url.toString())
             return True
 
         return super().event(event)
