@@ -14,7 +14,7 @@ import shlex
 import shutil
 import io
 from urllib.request import getproxies
-from contextlib import ExitStack, redirect_stdout, redirect_stderr
+from contextlib import ExitStack, redirect_stdout, redirect_stderr, closing
 
 import pkg_resources
 
@@ -412,17 +412,18 @@ def main(argv=None):
     if sys.stderr:
         stderr.stream.connect(sys.stderr.write)
         stderr.flushed.connect(sys.stderr.flush)
-    sys.excepthook = ExceptHook(stream=stderr)
 
     with ExitStack() as stack:
+        stack.enter_context(closing(stderr))
+        stack.enter_context(closing(stdout))
         stack.enter_context(redirect_stdout(stdout))
         stack.enter_context(redirect_stderr(stderr))
         log.info("Entering main event loop.")
+        sys.excepthook = ExceptHook(stream=stderr)
         try:
             status = app.exec_()
-        except BaseException:
-            log.error("Error in main event loop.", exc_info=True)
-            status = 42
+        finally:
+            sys.excepthook = sys.__excepthook__
 
     del canvas_window
 
