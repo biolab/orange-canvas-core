@@ -1873,7 +1873,7 @@ class CanvasMainWindow(QMainWindow):
                 except KeyError:
                     log.info("No help topic found for %r", url)
                     message_information(
-                        self.tr("There is no documentation for this widget yet."),
+                        self.tr("There is no documentation for this widget."),
                         parent=self)
             elif url.scheme() == "action" and url.path():
                 action = self.findChild(QAction, url.path())
