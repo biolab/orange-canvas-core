@@ -563,9 +563,7 @@ class ItemViewDragStartEventListener(QObject):
 
             if self._index.isValid():
                 # Map to a QModelIndex in the model.
-                index = self._index
-                index = index.model().index(index.row(), index.column(),
-                                            index.parent())
+                index = QModelIndex(self._index)
                 self._pos = None
                 self._index = None
 
