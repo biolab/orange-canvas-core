@@ -326,26 +326,26 @@ class WidgetManager(QObject):
     def __on_link_added(self, link):  # type: (SchemeLink) -> None
         assert link.source_node in self.__workflow.nodes
         assert link.sink_node in self.__workflow.nodes
-        source = self.__item_for_widget.get(link.source_node)
-        sink = self.__item_for_widget.get(link.sink_node)
+        source = self.__item_for_node.get(link.source_node)
+        sink = self.__item_for_node.get(link.sink_node)
         # notify the node gui of an added link
-        if source is not None:
+        if source is not None and source.widget is not None:
             ev = LinkEvent(LinkEvent.OutputLinkAdded, link)
             QCoreApplication.sendEvent(source.widget, ev)
-        if sink is not None:
+        if sink is not None and sink.widget is not None:
             ev = LinkEvent(LinkEvent.InputLinkAdded, link)
             QCoreApplication.sendEvent(sink.widget, ev)
 
     def __on_link_removed(self, link):  # type: (SchemeLink) -> None
         assert link.source_node in self.__workflow.nodes
         assert link.sink_node in self.__workflow.nodes
-        source = self.__item_for_widget.get(link.source_node)
-        sink = self.__item_for_widget.get(link.sink_node)
+        source = self.__item_for_node.get(link.source_node)
+        sink = self.__item_for_node.get(link.sink_node)
         # notify the node gui of an removed link
-        if source is not None:
+        if source is not None and source.widget is not None:
             ev = LinkEvent(LinkEvent.OutputLinkRemoved, link)
             QCoreApplication.sendEvent(source.widget, ev)
-        if sink is not None:
+        if sink is not None and sink.widget is not None:
             ev = LinkEvent(LinkEvent.InputLinkRemoved, link)
             QCoreApplication.sendEvent(sink.widget, ev)
 
