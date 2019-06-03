@@ -3,8 +3,7 @@ Scheme save/load routines.
 
 """
 import numbers
-import sys
-import types
+import traceback
 import warnings
 import base64
 import binascii
@@ -13,9 +12,8 @@ import itertools
 from xml.etree.ElementTree import TreeBuilder, Element, ElementTree, parse
 
 from collections import defaultdict
-from itertools import chain, count
+from itertools import chain
 
-import pickle
 import json
 import pprint
 
@@ -29,6 +27,7 @@ from typing import (
 )
 
 from . import SchemeNode, SchemeLink
+from .node import UserMessage
 from .annotations import SchemeTextAnnotation, SchemeArrowAnnotation
 from .errors import IncompatibleChannelTypeError
 
@@ -42,6 +41,14 @@ PICKLE_PROTOCOL = 4
 
 
 class UnknownWidgetDefinition(Exception):
+    pass
+
+
+class DeserializationWarning(UserWarning):
+    pass
+
+
+class PickleDataWarning(DeserializationWarning):
     pass
 
 
@@ -401,7 +408,19 @@ def resolve_replaced(scheme_desc: _scheme, registry: WidgetRegistry) -> _scheme:
     return scheme_desc._replace(nodes=nodes, links=links)
 
 
-def scheme_load(scheme, stream, registry=None, error_handler=None):
+def scheme_load(scheme, stream, registry=None, error_handler=None,
+                warning_handler=None, ):
+    """
+    Populate a Scheme instance with workflow read from an ows data stream.
+
+    Parameters
+    ----------
+    scheme: Scheme
+    stream: io.IOBase
+    registry: WidgetRegistry
+    error_handler:  Callable[[Exception], None]
+    warning_handler: Callable[[Warning], None]
+    """
     desc = parse_ows_stream(stream)  # type: _scheme
 
     if registry is None:
@@ -410,6 +429,9 @@ def scheme_load(scheme, stream, registry=None, error_handler=None):
     if error_handler is None:
         def error_handler(exc):
             raise exc
+
+    if warning_handler is None:
+        warning_handler = warnings.warn
 
     desc = resolve_replaced(desc, registry)
     nodes_not_found = []
@@ -432,14 +454,46 @@ def scheme_load(scheme, stream, registry=None, error_handler=None):
                 w_desc, title=node_d.title, position=node_d.position)
             data = node_d.data
 
-            if data:
+            if data and data.format != "pickle":
                 try:
                     properties = loads(data.data, data.format)
-                except Exception:
+                except Exception:  # pylint: disable=broad-except
                     log.error("Could not load properties for %r.", node.title,
                               exc_info=True)
+                    warning_handler(
+                        DeserializationWarning(
+                            "Could not load properties for %r.", node.title
+                        )
+                    )
+                    # TODO:
+                    #  * Ask for confirmation when saving to the same file
+                    #  * Clear the message once the workflow is saved again
+                    node.set_state_message(
+                        UserMessage(
+                            "Could not restore settings", UserMessage.Error,
+                            message_id="-settings-restore-error",
+                        )
+                    )
                 else:
                     node.properties = properties
+            elif data and data.format == "pickle":
+                warning_handler(
+                    PickleDataWarning(
+                        "The file contains pickle data. The settings were not "
+                        "restored."
+                    )
+                )
+                node.set_state_message(
+                    UserMessage(
+                        "Did not restore pickled settings", UserMessage.Info,
+                        message_id="settings-restore-has-pickle-data",
+                    )
+                )
+                # stash the binary data
+                node.setProperty(
+                    "__pickle_data_ows_2_0",
+                    base64.decodebytes(data.data.encode("ascii"))
+                )
 
             nodes.append(node)
             nodes_by_id[node_d.id] = node
@@ -596,11 +650,20 @@ def scheme_to_etree(scheme, data_format="literal", pickle_fallback=False):
         data = None
         if node.properties:
             try:
-                data, format = dumps(node.properties, format=data_format,
-                                     pickle_fallback=pickle_fallback)
+                data = dumps(node.properties, format=data_format, indent=2)
+                format = data_format
             except Exception:
                 log.error("Error serializing properties for node %r",
                           node.title, exc_info=True)
+                node.set_state_message(
+                    UserMessage(
+                        "Failed to save state state.", UserMessage.Error,
+                        "readwrite-save-error",
+                        data={
+                            "traceback": traceback.format_exc(),
+                        }
+                    )
+                )
             if data is not None:
                 builder.start("properties",
                               {"node_id": str(node_ids[node]),
@@ -644,7 +707,7 @@ def scheme_to_ows_stream(scheme, stream, pretty=False, pickle_fallback=False):
     pretty : bool, optional
         If `True` the output xml will be pretty printed (indented).
     pickle_fallback : bool, optional
-        If `True` allow scheme node properties to be saves using pickle
+        If `True` allow scheme node properties to be saved using pickle
         protocol if properties cannot be saved using the default
         notation.
 
@@ -685,51 +748,28 @@ def indent(element, level=0, indent="\t"):
     return indent_(element, level, True)
 
 
-def dumps(obj, format="literal", prettyprint=False, pickle_fallback=False):
+class UnsupportedFormatError(ValueError):
+    pass
+
+
+def dumps(obj, format="literal", indent=4):
     """
     Serialize `obj` using `format` ('json' or 'literal') and return its
-    string representation and the used serialization format ('literal',
-    'json' or 'pickle').
+    string representation.
 
-    If `pickle_fallback` is True and the serialization with `format`
-    fails object's pickle representation will be returned
-
+    Raises
+    ------
+    TypeError
+        If object is not a supported type for serialization format
+    ValueError
+        If object is a recursive structure
     """
     if format == "literal":
-        try:
-            return (literal_dumps(obj, indent=1 if prettyprint else None),
-                    "literal")
-        except (ValueError, TypeError) as ex:
-            if not pickle_fallback:
-                raise
-
-            log.warning("Could not serialize to a literal string",
-                        exc_info=True)
-
+        return literal_dumps(obj, indent=indent)
     elif format == "json":
-        try:
-            return (json.dumps(obj, indent=1 if prettyprint else None),
-                    "json")
-        except (ValueError, TypeError):
-            if not pickle_fallback:
-                raise
-
-            log.warning("Could not serialize to a json string",
-                        exc_info=True)
-
-    elif format == "pickle":
-        return base64.encodebytes(pickle.dumps(obj, protocol=PICKLE_PROTOCOL)). \
-                   decode('ascii'), "pickle"
-
+        return json.dumps(obj, indent=indent)
     else:
-        raise ValueError("Unsupported format %r" % format)
-
-    if pickle_fallback:
-        log.warning("Using pickle fallback")
-        return base64.encodebytes(pickle.dumps(obj, protocol=PICKLE_PROTOCOL)). \
-                   decode('ascii'), "pickle"
-    else:
-        raise Exception("Something strange happened.")
+        raise UnsupportedFormatError("Unsupported format %r" % format)
 
 
 def loads(string, format):
@@ -737,10 +777,8 @@ def loads(string, format):
         return literal_eval(string)
     elif format == "json":
         return json.loads(string)
-    elif format == "pickle":
-        return pickle.loads(base64.decodebytes(string.encode('ascii')))
     else:
-        raise ValueError("Unknown format")
+        raise UnsupportedFormatError("Unsupported format %r" % format)
 
 
 # This is a subset of PyON serialization.
@@ -847,4 +885,4 @@ def literal_dumps(obj, indent=None, relaxed_types=True):
 
 literal_loads = literal_eval
 
-from .scheme import Scheme  # pylint: disable=all
+from .scheme import Scheme  # pylint: disable=wrong-import-position
