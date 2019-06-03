@@ -8,6 +8,7 @@ import warnings
 import base64
 import binascii
 import itertools
+import pickle
 
 from xml.etree.ElementTree import TreeBuilder, Element, ElementTree, parse
 
@@ -409,17 +410,18 @@ def resolve_replaced(scheme_desc: _scheme, registry: WidgetRegistry) -> _scheme:
 
 
 def scheme_load(scheme, stream, registry=None, error_handler=None,
-                warning_handler=None, ):
+                warning_handler=None, allow_pickle_data=False):
     """
     Populate a Scheme instance with workflow read from an ows data stream.
 
     Parameters
     ----------
     scheme: Scheme
-    stream: io.IOBase
+    stream: typing.IO
     registry: WidgetRegistry
     error_handler:  Callable[[Exception], None]
     warning_handler: Callable[[Warning], None]
+    allow_pickle_data: bool
     """
     desc = parse_ows_stream(stream)  # type: _scheme
 
@@ -476,11 +478,19 @@ def scheme_load(scheme, stream, registry=None, error_handler=None,
                     )
                 else:
                     node.properties = properties
-            elif data and data.format == "pickle":
+            elif data and data.format == "pickle" and allow_pickle_data:
+                try:
+                    node.properties = pickle.loads(
+                        base64.decodebytes(data.data.encode("ascii"))
+                    )
+                except Exception as err:
+                    log.error("Error", exc_info=True)
+                    error_handler(err)
+            elif data and data.format == "pickle" and not allow_pickle_data:
                 warning_handler(
                     PickleDataWarning(
-                        "The file contains pickle data. The settings were not "
-                        "restored."
+                        "The file contains pickle data. The settings for '{}' "
+                        "were not restored.".format(node_d.title)
                     )
                 )
                 node.set_state_message(
