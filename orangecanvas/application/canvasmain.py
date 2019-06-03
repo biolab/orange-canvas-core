@@ -1246,6 +1246,7 @@ class CanvasMainWindow(QMainWindow):
                 fileobj, registry=self.widget_registry,
                 error_handler=errors.append,
                 warning_handler=warn,
+                allow_pickle_data=False,
             )
         except readwrite.PickleDataWarning:
             mbox = QMessageBox(
@@ -1253,21 +1254,45 @@ class CanvasMainWindow(QMainWindow):
                 windowTitle=self.tr("Security Warning"),
                 text=self.tr(
                     "The file contains pickled data that can run "
-                    "arbitrary commands on this computer.<br/>"
-                    "Would you like to load it anyway?"
+                    "arbitrary commands on this computer.\n"
+                    "Would you like to load the unsafe content anyway?"
                 ),
                 informativeText=self.tr(
-                    "Only select Yes if you know and trust the source."
+                    "Only select Load unsafe if you trust the source."
                 ),
-                standardButtons=QMessageBox.Yes | QMessageBox.No,
+                textFormat=Qt.PlainText,
+                standardButtons=QMessageBox.Yes | QMessageBox.No |
+                                QMessageBox.Abort | QMessageBox.Help
             )
+            mbox.setDefaultButton(QMessageBox.Abort)
+            yes = mbox.button(QMessageBox.Yes)
+            yes.setText(self.tr("Load unsafe"))
+            yes.setToolTip(self.tr(
+                "Load the complete file. Only select this if you trust "
+                "the origin of the file."
+            ))
+            no = mbox.button(QMessageBox.No)
+            no.setText(self.tr("Load partial"))
+            no.setToolTip(self.tr(
+                "Load the file only partially, striping out all the "
+                "unsafe content."
+            ))
             res = mbox.exec()
             if res == QMessageBox.Yes:
                 new_scheme.clear()
                 fileobj.seek(pos, os.SEEK_SET)
                 new_scheme.load_from(
                     fileobj, registry=self.widget_registry,
-                    error_handler=errors.append, warning_handler=None
+                    error_handler=errors.append, warning_handler=None,
+                    allow_pickle_data=True,
+                )
+            elif res == QMessageBox.No:
+                new_scheme.clear()
+                fileobj.seek(pos, os.SEEK_SET)
+                new_scheme.load_from(
+                    fileobj, registry=self.widget_registry,
+                    error_handler=errors.append, warning_handler=None,
+                    allow_pickle_data=False,
                 )
             else:
                 return None
