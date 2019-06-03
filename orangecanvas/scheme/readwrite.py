@@ -5,12 +5,9 @@ Scheme save/load routines.
 import numbers
 import base64
 import binascii
-import itertools
 import math
 
 from xml.etree.ElementTree import TreeBuilder, Element, ElementTree, parse
-
-from collections import defaultdict
 from itertools import chain
 
 import pickle
@@ -273,7 +270,7 @@ def parse_ows_etree_v_2_0(tree):
 
     for annot in tree.findall("annotations/*"):
         if annot.tag == "text":
-            rect = tuple_eval(annot.get("rect", "(0.0, 0.0, 20.0, 20.0)"))
+            rect = tuple_eval(annot.get("rect", "0.0, 0.0, 20.0, 20.0"))
 
             font_family = annot.get("font-family", "").strip()
             font_size = annot.get("font-size", "").strip()
@@ -293,8 +290,8 @@ def parse_ows_etree_v_2_0(tree):
                     rect, annot.text or "", font,  content_type),
             )
         elif annot.tag == "arrow":
-            start = tuple_eval(annot.get("start", "(0, 0)"))
-            end = tuple_eval(annot.get("end", "(0, 0)"))
+            start = tuple_eval(annot.get("start", "0, 0"))
+            end = tuple_eval(annot.get("end", "0, 0"))
             color = annot.get("fill", "red")
             annotation = _annotation(
                 id=annot.get("id"),
@@ -578,148 +575,207 @@ def _find_sink_channel(node: SchemeNode, link: _link) -> InputSignal:
     )
 
 
-def scheme_to_etree(scheme, data_format="literal", pickle_fallback=False):
+def scheme_to_interm(scheme, data_format="literal", pickle_fallback=False):
+    # type: (Scheme, str, bool) -> _scheme
+    """
+    Return a workflow scheme in its intermediate representation for
+    serialization.
+    """
+    node_ids = {}  # type: Dict[SchemeNode, str]
+    nodes = []
+    links = []
+    annotations = []
+    window_presets = []
+
+    # Nodes
+    for node_id, node in enumerate(scheme.nodes):  # type: SchemeNode
+        desc = node.description
+        if node.properties:
+            try:
+                data = dumps(node.properties, format=data_format,
+                             pickle_fallback=pickle_fallback)
+                data = _data(data_format, data)
+            except Exception:
+                log.error("Error serializing properties for node %r",
+                          node.title, exc_info=True)
+                raise
+        else:
+            data = None
+
+        inode = _node(
+            id=str(node_id),
+            title=node.title,
+            name=node.description.name,
+            position=node.position,
+            qualified_name=desc.qualified_name,
+            project_name=desc.project_name or "",
+            version=desc.version or "",
+            data=data,
+        )
+        node_ids[node] = str(node_id)
+        nodes.append(inode)
+
+    for link_id, link in enumerate(scheme.links):
+        ilink = _link(
+            id=str(link_id),
+            source_node_id=node_ids[link.source_node],
+            source_channel=link.source_channel.name,
+            source_channel_id=link.source_channel.id,
+            sink_node_id=node_ids[link.sink_node],
+            sink_channel=link.sink_channel.name,
+            sink_channel_id=link.sink_channel.id,
+            enabled=link.enabled,
+        )
+        links.append(ilink)
+
+    for annot_id, annot in enumerate(scheme.annotations):
+        if isinstance(annot, SchemeTextAnnotation):
+            atype = "text"
+            params = _text_params(
+                geometry=annot.geometry,
+                text=annot.text,
+                content_type=annot.content_type,
+                font={},  # deprecated.
+            )
+        elif isinstance(annot, SchemeArrowAnnotation):
+            atype = "arrow"
+            params = _arrow_params(
+                geometry=annot.geometry,
+                color=annot.color,
+            )
+        else:
+            assert False
+
+        iannot = _annotation(
+            str(annot_id), type=atype, params=params,
+        )
+        annotations.append(iannot)
+
+    for preset in scheme.window_group_presets(): # type: Scheme.WindowGroup
+        state = [(node_ids[n], state) for n, state in preset.state]
+        window_presets.append(
+            _window_group(preset.name, preset.default, state)
+        )
+
+    return _scheme(
+        scheme.title, "2.0", scheme.description, nodes, links, annotations,
+        session_state=_session_data(window_presets),
+    )
+
+
+def scheme_to_etree_2_0(scheme, data_format="literal", pickle_fallback=False):
     """
     Return an `xml.etree.ElementTree` representation of the `scheme`.
     """
+    scheme = scheme_to_interm(scheme, data_format=data_format,
+                              pickle_fallback=pickle_fallback)
     builder = TreeBuilder(element_factory=Element)
-    builder.start("scheme", {"version": "2.0",
-                             "title": scheme.title or "",
-                             "description": scheme.description or ""})
+    builder.start(
+        "scheme", {
+            "version": "2.0",
+            "title": scheme.title,
+            "description": scheme.description,
+        }
+    )
 
     # Nodes
-    node_ids = defaultdict(lambda c=itertools.count(): next(c))
     builder.start("nodes", {})
-    for node in scheme.nodes:  # type: SchemeNode
-        desc = node.description
-        attrs = {"id": str(node_ids[node]),
-                 "name": desc.name,
-                 "qualified_name": desc.qualified_name,
-                 "project_name": desc.project_name or "",
-                 "version": desc.version or "",
-                 "title": node.title,
-                 }
-        if node.position is not None:
-            attrs["position"] = str(node.position)
-
-        if type(node) is not SchemeNode:
-            attrs["scheme_node_type"] = "%s.%s" % (type(node).__name__,
-                                                   type(node).__module__)
-        input_defs = output_defs = []
-        if node.input_channels() != desc.inputs:
-            input_defs = node.input_channels()[len(desc.inputs):]
-        if node.output_channels() != desc.outputs:
-            output_defs = node.output_channels()[len(desc.outputs):]
-        builder.start("node", attrs)
-        for input_def in input_defs:
-            builder.start("added_input", {
-                "name": input_def.name,
-                "type": input_def.type,
-            })
-            builder.end("added_input")
-        for output_def in output_defs:
-            builder.start("added_output", {
-                "name": output_def.name,
-                "type": output_def.type,
-            })
-            builder.end("added_output")
+    for node in scheme.nodes:  # type: _node
+        builder.start(
+            "node", {
+                "id": node.id,
+                "name": node.name,
+                "qualified_name": node.qualified_name,
+                "project_name": node.project_name,
+                "version": node.version,
+                "title": node.title,
+                "position": node.position,
+            }
+        )
         builder.end("node")
 
     builder.end("nodes")
 
     # Links
-    link_ids = defaultdict(lambda c=itertools.count(): next(c))
     builder.start("links", {})
     for link in scheme.links:
-        source = link.source_node
-        sink = link.sink_node
-        source_id = node_ids[source]
-        sink_id = node_ids[sink]
-        attrs = {"id": str(link_ids[link]),
-                 "source_node_id": str(source_id),
-                 "sink_node_id": str(sink_id),
-                 "source_channel": link.source_channel.name,
-                 "sink_channel": link.sink_channel.name,
-                 "enabled": "true" if link.enabled else "false",
-                 }
-        if link.source_channel.id:
-            attrs["source_channel_id"] = link.source_channel.id
-        if link.sink_channel.id:
-            attrs["sink_channel_id"] = link.sink_channel.id
-        builder.start("link", attrs)
+        extra = {}
+        if link.source_channel_id:
+            extra["source_channel_id"] = link.source_channel_id
+        if link.sink_channel_id:
+            extra["sink_channel_id"] = link.sink_channel_id
+        builder.start(
+            "link", {
+                "id": link.id,
+                "source_node_id": link.source_node_id,
+                "sink_node_id": link.sink_node_id,
+                "source_channel": link.source_channel,
+                "sink_channel": link.sink_channel,
+                "enabled": "true" if link.enabled else "false",
+                **extra
+            }
+        )
         builder.end("link")
-
     builder.end("links")
 
     # Annotations
-    annotation_ids = defaultdict(lambda c=itertools.count(): next(c))
     builder.start("annotations", {})
     for annotation in scheme.annotations:
-        annot_id = annotation_ids[annotation]
-        attrs = {"id": str(annot_id)}
-        data = None
-        if isinstance(annotation, SchemeTextAnnotation):
-            tag = "text"
-            attrs.update({"type": annotation.content_type})
-            attrs.update({"rect": repr(annotation.rect)})
-
+        attrs = {"id": annotation.id}
+        if annotation.type == "text":
+            params = annotation.params  # type: _text_params
+            assert isinstance(params, _text_params)
+            attrs.update({
+                "type": params.content_type,
+                "rect": "{!r}, {!r}, {!r}, {!r}".format(*params.geometry)
+            })
             # Save the font attributes
-            font = annotation.font
-            attrs.update({"font-family": font.get("family", None),
-                          "font-size": font.get("size", None)})
-            attrs = [(key, value) for key, value in attrs.items()
-                     if value is not None]
-            attrs = dict((key, str(value)) for key, value in attrs)
-            data = annotation.content
-        elif isinstance(annotation, SchemeArrowAnnotation):
-            tag = "arrow"
-            attrs.update({"start": repr(annotation.start_pos),
-                          "end": repr(annotation.end_pos),
-                          "fill": annotation.color})
+            attrs.update({key: str(value) for key, value in params.font.items()
+                          if value is not None})
+            data = params.text
+        elif annotation.type == "arrow":
+            params = annotation.params  # type: _arrow_params
+            start, end = params.geometry
+            attrs.update({
+                "start": "{!r}, {!r}".format(*start),
+                "end": "{!r}, {!r}".format(*end),
+                "fill": params.color
+            })
             data = None
         else:
             log.warning("Can't save %r", annotation)
             continue
-        builder.start(tag, attrs)
+        builder.start(annotation.type, attrs)
         if data is not None:
             builder.data(data)
-        builder.end(tag)
+        builder.end(annotation.type)
 
     builder.end("annotations")
-
-    builder.start("thumbnail", {})
-    builder.end("thumbnail")
 
     # Node properties/settings
     builder.start("node_properties", {})
     for node in scheme.nodes:
-        data = None
-        if node.properties:
-            try:
-                data, format = dumps(node.properties, format=data_format,
-                                     pickle_fallback=pickle_fallback)
-            except Exception:
-                log.error("Error serializing properties for node %r",
-                          node.title, exc_info=True)
-            if data is not None:
-                builder.start("properties",
-                              {"node_id": str(node_ids[node]),
-                               "format": format})
-                builder.data(data)
-                builder.end("properties")
+        if node.data is not None:
+            data = node.data
+            builder.start(
+                "properties", {
+                    "node_id": node.id,
+                    "format": data.format
+                }
+            )
+            builder.data(data.data)
+            builder.end("properties")
 
     builder.end("node_properties")
     builder.start("session_state", {})
     builder.start("window_groups", {})
 
-    for g in scheme.window_group_presets():
+    for g in scheme.session_state.groups:  # type: _window_group
         builder.start(
             "group", {"name": g.name, "default": str(g.default).lower()}
         )
-        for node, data in g.state:
-            if node not in node_ids:
-                continue
-            builder.start("window_state", {"node_id": str(node_ids[node])})
+        for node_id, data in g.state:
+            builder.start("window_state", {"node_id": node_id})
             builder.data(base64.encodebytes(data).decode("ascii"))
             builder.end("window_state")
         builder.end("group")
@@ -729,6 +785,10 @@ def scheme_to_etree(scheme, data_format="literal", pickle_fallback=False):
     root = builder.close()
     tree = ElementTree(root)
     return tree
+
+
+# back-compatibility alias
+scheme_to_etree = scheme_to_etree_2_0
 
 
 def scheme_to_ows_stream(scheme, stream, pretty=False, pickle_fallback=False):
@@ -749,8 +809,8 @@ def scheme_to_ows_stream(scheme, stream, pretty=False, pickle_fallback=False):
         notation.
 
     """
-    tree = scheme_to_etree(scheme, data_format="literal",
-                           pickle_fallback=pickle_fallback)
+    tree = scheme_to_etree_2_0(scheme, data_format="literal",
+                               pickle_fallback=pickle_fallback)
     if pretty:
         indent(tree.getroot(), 0)
     tree.write(stream, encoding="utf-8", xml_declaration=True)
