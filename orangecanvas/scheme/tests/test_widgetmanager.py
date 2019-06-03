@@ -114,6 +114,14 @@ class TestWidgetManager(unittest.TestCase):
 
         wm.restore_window_state(state)
 
+    def test_set_model(self):
+        workflow = self.scheme
+        wm = TestingWidgetManager()
+        wm.set_workflow(workflow)
+        wm.set_workflow(workflow)
+        wm.set_creation_policy(WidgetManager.Immediate)
+        wm.set_workflow(Scheme())
+
     def test_event_dispatch(self):
         workflow = self.scheme
         nodes = workflow.nodes
