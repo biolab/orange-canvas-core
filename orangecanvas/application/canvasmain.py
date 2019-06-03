@@ -1235,11 +1235,42 @@ class CanvasMainWindow(QMainWindow):
         new_scheme.set_runtime_env(
             "basedir", os.path.abspath(os.path.dirname(path)))
         errors = []  # type: List[Exception]
+
+        def warn(warning):
+            if isinstance(warning, readwrite.PickleDataWarning):
+                raise warning
+        pos = -1
         try:
+            pos = fileobj.tell()
             new_scheme.load_from(
                 fileobj, registry=self.widget_registry,
-                error_handler=errors.append
+                error_handler=errors.append,
+                warning_handler=warn,
             )
+        except readwrite.PickleDataWarning:
+            mbox = QMessageBox(
+                self, icon=QMessageBox.Warning,
+                windowTitle=self.tr("Security Warning"),
+                text=self.tr(
+                    "The file contains pickled data that can run "
+                    "arbitrary commands on this computer.<br/>"
+                    "Would you like to load it anyway?"
+                ),
+                informativeText=self.tr(
+                    "Only select Yes if you know and trust the source."
+                ),
+                standardButtons=QMessageBox.Yes | QMessageBox.No,
+            )
+            res = mbox.exec()
+            if res == QMessageBox.Yes:
+                new_scheme.clear()
+                fileobj.seek(pos, os.SEEK_SET)
+                new_scheme.load_from(
+                    fileobj, registry=self.widget_registry,
+                    error_handler=errors.append, warning_handler=None
+                )
+            else:
+                return None
         except Exception:  # pylint: disable=broad-except
             log.exception("")
             message_critical(
@@ -1508,7 +1539,7 @@ class CanvasMainWindow(QMainWindow):
         buffer = io.BytesIO()
         try:
             scheme.set_runtime_env("basedir", os.path.abspath(dirname))
-            scheme.save_to(buffer, pretty=True, pickle_fallback=True)
+            scheme.save_to(buffer, pretty=True)
         except Exception:
             log.error("Error saving %r to %r", scheme, filename, exc_info=True)
             message_critical(
