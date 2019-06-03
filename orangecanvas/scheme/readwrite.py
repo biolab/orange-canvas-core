@@ -24,7 +24,7 @@ from ast import literal_eval
 import logging
 
 from typing import (
-    NamedTuple, Dict, Tuple, List, Union, Any, Optional, AnyStr, IO
+    NamedTuple, Dict, Tuple, List, Union, Any, Optional, AnyStr, IO, Callable
 )
 
 from . import SchemeNode, SchemeLink
@@ -563,8 +563,20 @@ def scheme_load(scheme, stream, registry=None, error_handler=None,
     return scheme
 
 
-def scheme_to_interm(scheme, data_format="literal"):
-    # type: (Scheme, str) -> _scheme
+def default_error_handler(err: Exception):
+    raise err
+
+
+def default_warning_handler(err: Warning):
+    warnings.warn(err, stacklevel=2)
+
+
+def scheme_to_interm(
+        scheme, data_format="literal", allow_pickle_data=False,
+        warning_handler=None,
+        error_handler=None,
+):
+    # type: (Scheme, str, bool, Callable[[Exception], None], Callable[[Warning], None]) -> _scheme
     """
     Return a workflow scheme in its intermediate representation for
     serialization.
@@ -575,20 +587,55 @@ def scheme_to_interm(scheme, data_format="literal"):
     annotations = []
     window_presets = []
 
-    # Nodes
-    for node_id, node in enumerate(scheme.nodes):  # type: SchemeNode
-        desc = node.description
+    if warning_handler is None:
+        warning_handler = warnings.warn
+
+    if error_handler is None:
+        error_handler = default_error_handler
+
+    def serializer(node: SchemeNode) -> Optional[Tuple[AnyStr, str]]:
+        data, format_ = None, data_format
         if node.properties:
             try:
-                data = dumps(node.properties, format=data_format)
-                data = _data(data_format, data)
-            except Exception:
-                log.error("Error serializing properties for node %r",
-                          node.title, exc_info=True)
-                raise
+                data = dumps(node.properties, format=format_)
+            except (UnserializableTypeError, UnserializableValueError) as err:
+                if allow_pickle_data:
+                    try:
+                        data = pickle.dumps(node.properties, protocol=PICKLE_PROTOCOL)
+                        format_ = "pickle"
+                    except Exception as err:
+                        log.error("", exc_info=True)
+                        error_handler(err)
+                        data = None
+                else:
+                    log.error("Error serializing properties for node %r",
+                              node.title, exc_info=False)
+                    error_handler(err)
+                    data = None
+        if data is not None:
+            return data, format_
         else:
-            data = None
+            return None
 
+    custom_serializer = getattr(scheme, "__node_properties_serializer", None)
+
+    if custom_serializer is not None:
+        serializer = custom_serializer
+
+    # Nodes
+    for node_id, node in enumerate(scheme.nodes):  # type: SchemeNode
+        data_payload = None
+        try:
+            data_payload_ = serializer(node)
+        except Exception as err:
+            error_handler(err)
+            data_payload = None
+        else:
+            if data_payload_ is not None:
+                assert len(data_payload_) == 2
+                data_, format_ = data_payload_
+                data_payload = _data(format_, data_)
+        desc = node.description
         inode = _node(
             id=str(node_id),
             title=node.title,
@@ -597,7 +644,7 @@ def scheme_to_interm(scheme, data_format="literal"):
             qualified_name=desc.qualified_name,
             project_name=desc.project_name or "",
             version=desc.version or "",
-            data=data,
+            data=data_payload,
         )
         node_ids[node] = str(node_id)
         nodes.append(inode)
@@ -636,7 +683,7 @@ def scheme_to_interm(scheme, data_format="literal"):
         )
         annotations.append(iannot)
 
-    for preset in scheme.window_group_presets(): # type: Scheme.WindowGroup
+    for preset in scheme.window_group_presets():  # type: Scheme.WindowGroup
         state = [(node_ids[n], state) for n, state in preset.state]
         window_presets.append(
             _window_group(preset.name, preset.default, state)
@@ -648,8 +695,10 @@ def scheme_to_interm(scheme, data_format="literal"):
     )
 
 
-def scheme_to_etree_2_0(scheme, data_format="literal", ):
-    scheme = scheme_to_interm(scheme, data_format=data_format)
+def scheme_to_etree_2_0(scheme, data_format="literal", allow_pickle_data=False):
+    scheme = scheme_to_interm(
+        scheme, data_format=data_format, allow_pickle_data=allow_pickle_data
+    )
     builder = TreeBuilder(element_factory=Element)
     builder.start(
         "scheme", {
@@ -920,8 +969,9 @@ def scheme_to_ows_stream(scheme, stream, pretty=False, pickle_fallback=False):
         notation.
 
     """
-    tree = scheme_to_etree_2_0(scheme, data_format="literal",)
-                                # pickle_fallback=pickle_fallback)
+    tree = scheme_to_etree_2_0(
+        scheme, data_format="literal", allow_pickle_data=pickle_fallback,
+    )
     if pretty:
         indent(tree.getroot(), 0)
     tree.write(stream, encoding="utf-8", xml_declaration=True)
