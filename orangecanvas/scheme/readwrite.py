@@ -263,7 +263,7 @@ def parse_ows_etree_v_2_0(tree):
 
     for annot in tree.findall("annotations/*"):
         if annot.tag == "text":
-            rect = tuple_eval(annot.get("rect", "(0.0, 0.0, 20.0, 20.0)"))
+            rect = tuple_eval(annot.get("rect", "0.0, 0.0, 20.0, 20.0"))
 
             font_family = annot.get("font-family", "").strip()
             font_size = annot.get("font-size", "").strip()
@@ -283,8 +283,8 @@ def parse_ows_etree_v_2_0(tree):
                     rect, annot.text or "", font,  content_type),
             )
         elif annot.tag == "arrow":
-            start = tuple_eval(annot.get("start", "(0, 0)"))
-            end = tuple_eval(annot.get("end", "(0, 0)"))
+            start = tuple_eval(annot.get("start", "0, 0"))
+            end = tuple_eval(annot.get("end", "0, 0"))
             color = annot.get("fill", "red")
             annotation = _annotation(
                 id=annot.get("id"),
@@ -563,6 +563,204 @@ def scheme_load(scheme, stream, registry=None, error_handler=None,
     return scheme
 
 
+def scheme_to_interm(scheme, data_format="literal"):
+    # type: (Scheme, str) -> _scheme
+    """
+    Return a workflow scheme in its intermediate representation for
+    serialization.
+    """
+    node_ids = {}  # type: Dict[SchemeNode, str]
+    nodes = []
+    links = []
+    annotations = []
+    window_presets = []
+
+    # Nodes
+    for node_id, node in enumerate(scheme.nodes):  # type: SchemeNode
+        desc = node.description
+        if node.properties:
+            try:
+                data = dumps(node.properties, format=data_format)
+                data = _data(data_format, data)
+            except Exception:
+                log.error("Error serializing properties for node %r",
+                          node.title, exc_info=True)
+                raise
+        else:
+            data = None
+
+        inode = _node(
+            id=str(node_id),
+            title=node.title,
+            name=node.description.name,
+            position=node.position,
+            qualified_name=desc.qualified_name,
+            project_name=desc.project_name or "",
+            version=desc.version or "",
+            data=data,
+        )
+        node_ids[node] = str(node_id)
+        nodes.append(inode)
+
+    for link_id, link in enumerate(scheme.links):
+        ilink = _link(
+            id=str(link_id),
+            source_node_id=node_ids[link.source_node],
+            source_channel=link.source_channel.name,
+            sink_node_id=node_ids[link.sink_node],
+            sink_channel=link.sink_channel.name,
+            enabled=link.enabled,
+        )
+        links.append(ilink)
+
+    for annot_id, annot in enumerate(scheme.annotations):
+        if isinstance(annot, SchemeTextAnnotation):
+            atype = "text"
+            params = _text_params(
+                geometry=annot.geometry,
+                text=annot.text,
+                content_type=annot.content_type,
+                font={},  # deprecated.
+            )
+        elif isinstance(annot, SchemeArrowAnnotation):
+            atype = "arrow"
+            params = _arrow_params(
+                geometry=annot.geometry,
+                color=annot.color,
+            )
+        else:
+            assert False
+
+        iannot = _annotation(
+            str(annot_id), type=atype, params=params,
+        )
+        annotations.append(iannot)
+
+    for preset in scheme.window_group_presets(): # type: Scheme.WindowGroup
+        state = [(node_ids[n], state) for n, state in preset.state]
+        window_presets.append(
+            _window_group(preset.name, preset.default, state)
+        )
+
+    return _scheme(
+        scheme.title, "2.0", scheme.description, nodes, links, annotations,
+        session_state=_session_data(window_presets),
+    )
+
+
+def scheme_to_etree_2_0(scheme, data_format="literal", ):
+    scheme = scheme_to_interm(scheme, data_format=data_format)
+    builder = TreeBuilder(element_factory=Element)
+    builder.start(
+        "scheme", {
+            "version": "2.0",
+            "title": scheme.title,
+            "description": scheme.description,
+        }
+    )
+
+    # Nodes
+    builder.start("nodes", {})
+    for node in scheme.nodes:  # type: _node
+        builder.start(
+            "node", {
+                "id": node.id,
+                "name": node.name,
+                "qualified_name": node.qualified_name,
+                "project_name": node.project_name,
+                "version": node.version,
+                "title": node.title,
+                "position": node.position,
+            }
+        )
+        builder.end("node")
+
+    builder.end("nodes")
+
+    # Links
+    builder.start("links", {})
+    for link in scheme.links:
+        builder.start(
+            "link", {
+                "id": link.id,
+                "source_node_id": link.source_node_id,
+                "sink_node_id": link.sink_node_id,
+                "source_channel": link.source_channel,
+                "sink_channel": link.sink_channel,
+                "enabled": "true" if link.enabled else "false",
+            }
+        )
+        builder.end("link")
+    builder.end("links")
+
+    # Annotations
+    builder.start("annotations", {})
+    for annotation in scheme.annotations:
+        attrs = {"id": annotation.id}
+        if annotation.type == "text":
+            tag = "text"
+            params = annotation.params  # type: _text_params
+            assert isinstance(params, _text_params)
+            attrs.update({
+                "type": params.content_type,
+                "rect": "{!r}, {!r}, {!r}, {!r}".format(*params.geometry)
+            })
+            data = params.text
+        elif annotation.type == "arrow":
+            tag = "arrow"
+            params = annotation.params  # type: _arrow_params
+            start, end = params.geometry
+            attrs.update({
+                "start": "{!r}, {!r}".format(*start),
+                "end": "{!r}, {!r}".format(*end),
+                "fill": params.color
+            })
+            data = None
+        else:
+            log.warning("Can't save %r", annotation)
+            continue
+        builder.start(annotation.type, attrs)
+        if data is not None:
+            builder.data(data)
+        builder.end(tag)
+
+    builder.end("annotations")
+
+    # Node properties/settings
+    builder.start("node_properties", {})
+    for node in scheme.nodes:
+        if node.data is not None:
+            data = node.data
+            builder.start(
+                "properties", {
+                    "node_id": node.id,
+                    "format": data.format
+                }
+            )
+            builder.data(data.data)
+            builder.end("properties")
+
+    builder.end("node_properties")
+    builder.start("session_state", {})
+    builder.start("window_groups", {})
+
+    for g in scheme.session_state.groups:  # type: _window_group
+        builder.start(
+            "group", {"name": g.name, "default": str(g.default).lower()}
+        )
+        for node_id, data in g.state:
+            builder.start("window_state", {"node_id": node_id})
+            builder.data(base64.encodebytes(data).decode("ascii"))
+            builder.end("window_state")
+        builder.end("group")
+    builder.end("window_group")
+    builder.end("session_state")
+    builder.end("scheme")
+    root = builder.close()
+    tree = ElementTree(root)
+    return tree
+
+
 def scheme_to_etree(scheme, data_format="literal", pickle_fallback=False):
     """
     Return an `xml.etree.ElementTree` representation of the `scheme`.
@@ -722,8 +920,8 @@ def scheme_to_ows_stream(scheme, stream, pretty=False, pickle_fallback=False):
         notation.
 
     """
-    tree = scheme_to_etree(scheme, data_format="literal",
-                           pickle_fallback=pickle_fallback)
+    tree = scheme_to_etree_2_0(scheme, data_format="literal",)
+                                # pickle_fallback=pickle_fallback)
     if pretty:
         indent(tree.getroot(), 0)
     tree.write(stream, encoding="utf-8", xml_declaration=True)
