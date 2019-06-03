@@ -268,7 +268,7 @@ class CanvasMainWindow(QMainWindow):
             "<a href='action:screencasts-action'>YouTube tutorials</a>, "
             "or open the <a href='action:welcome-action'>welcome screen</a>."
         )
-        self.dock_help_action = canvas_tool_dock.toogleQuickHelpAction()
+        self.dock_help_action = canvas_tool_dock.toggleQuickHelpAction()
         self.dock_help_action.setText(self.tr("Show Help"))
         self.dock_help_action.setIcon(canvas_icons("Info.svg"))
 

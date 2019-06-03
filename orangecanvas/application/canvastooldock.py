@@ -43,7 +43,7 @@ class SplitterResizer(QObject):
         self.__animation = QPropertyAnimation(
             self, b"size_", self, duration=200
         )
-        self.__action = QAction("toogle-expanded", self, checkable=True)
+        self.__action = QAction("toggle-expanded", self, checkable=True)
         self.__action.triggered[bool].connect(self.setExpanded)
 
     def setSize(self, size):
@@ -109,10 +109,17 @@ class SplitterResizer(QObject):
         elif not self.__expanded and size > 0:
             self.close()
 
-    def toogleExpandedAction(self):
+    def toggleExpandedAction(self):
         """Return a QAction that can be used to toggle expanded state.
         """
         return self.__action
+
+    def toogleExpandedAction(self):
+        warnings.warn(
+            "'toogleExpandedAction is deprecated, use 'toggleExpandedAction' "
+            "instead.", DeprecationWarning, stacklevel=2
+        )
+        return self.toggleExpandedAction()
 
     def open(self):
         """Open the controlled widget (expand it to sizeHint).
@@ -267,10 +274,18 @@ class CanvasToolDock(QWidget):
         """
         self.__splitterResizer.setAnimationEnabled(enabled)
 
-    def toogleQuickHelpAction(self):
+    def toggleQuickHelpAction(self):
         """Return a checkable QAction for help show/hide.
         """
-        return self.__splitterResizer.toogleExpandedAction()
+        return self.__splitterResizer.toggleExpandedAction()
+
+    def toogleQuickHelpAction(self):
+        warnings.warn(
+            "'toogleQuickHelpAction' is deprecated, use "
+            "'toggleQuickHelpAction' instead.", DeprecationWarning,
+            stacklevel=2
+        )
+        return self.toggleQuickHelpAction()
 
 
 class QuickCategoryToolbar(ToolGrid):
