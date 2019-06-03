@@ -113,3 +113,46 @@ class TestWidgetManager(unittest.TestCase):
         wm.raise_widgets_to_front()
 
         wm.restore_window_state(state)
+
+    def test_event_dispatch(self):
+        workflow = self.scheme
+        nodes = workflow.nodes
+        links = workflow.links
+
+        class Widget(QWidget):
+            def __init__(self, *a):
+                self._evt = []
+                super().__init__(*a)
+
+            def event(self, event):
+                # record all event types
+                self._evt.append(event.type())
+                return super().event(event)
+
+        class WidgetManager(TestingWidgetManager):
+            def create_widget_for_node(self, node):
+                w = Widget()
+                w._evt = []
+                return w
+
+        wm = WidgetManager()
+        wm.set_creation_policy(WidgetManager.OnDemand)
+        wm.set_workflow(workflow)
+        n1, n2, n3 = nodes[:3]
+        l1, l2 = links[:2]
+        w1 = wm.widget_for_node(n1)
+
+        self.assertIn(NodeEvent.OutputLinkAdded, w1._evt)
+        w1._evt.clear()
+        workflow.remove_link(l1)
+
+        self.assertIn(NodeEvent.OutputLinkRemoved, w1._evt)
+        w3 = wm.widget_for_node(n3)
+        w3._evt.clear()
+        workflow.add_link(l1)
+        self.assertIn(NodeEvent.OutputLinkAdded, w1._evt)
+        self.assertIn(NodeEvent.InputLinkAdded, w3._evt)
+
+        w1._evt.clear()
+        workflow.set_runtime_env("tt", "aaa")
+        self.assertIn(NodeEvent.WorkflowEnvironmentChange, w1._evt)
