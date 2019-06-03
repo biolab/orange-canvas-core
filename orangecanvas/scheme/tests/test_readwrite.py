@@ -7,11 +7,14 @@ from xml.etree import ElementTree as ET
 from ...gui import test
 from ...registry import WidgetRegistry, WidgetDescription, CategoryDescription
 from ...registry import tests as registry_tests
+from ...registry import OutputSignal, InputSignal
 
 from .. import Scheme, SchemeNode, SchemeLink, \
                SchemeArrowAnnotation, SchemeTextAnnotation
 
 from .. import readwrite
+from ..readwrite import scheme_to_interm
+from ...registry.tests import small_testing_registry
 
 
 class TestReadWrite(test.QAppTestCase):
@@ -139,8 +142,21 @@ class TestReadWrite(test.QAppTestCase):
         projects = [node.project_name for node in parsed.nodes]
         self.assertSetEqual(set(projects), set(["Foo", "Bar"]))
 
+    def test_scheme_to_interm(self):
+        workflow = Scheme()
+        workflow.load_from(
+            io.BytesIO(FOOBAR_v20.encode()),
+            registry=foo_registry(with_replaces=False),
+        )
 
-def foo_registry():
+        tree = ET.parse(io.BytesIO(FOOBAR_v20.encode()))
+        parsed = readwrite.parse_ows_etree_v_2_0(tree)
+
+        interm = scheme_to_interm(workflow)
+        self.assertEqual(parsed, interm)
+
+
+def foo_registry(with_replaces=True):
     reg = WidgetRegistry()
     reg.register_category(CategoryDescription("Quack"))
     reg.register_widget(
@@ -150,44 +166,36 @@ def foo_registry():
             qualified_name="package.foo",
             project_name="Foo",
             category="Quack",
+            outputs=[
+                OutputSignal("foo", "str"),
+                OutputSignal("foo1", "int"),
+            ]
         )
     )
     reg.register_widget(
         WidgetDescription(
             name="Bar",
             id="barrr",
-            qualified_name="frob.bar",
+            qualified_name="frob.bar" if with_replaces else "package.bar",
             project_name="Bar",
-            replaces=["package.bar"],
+            replaces=["package.bar"] if with_replaces else [],
             category="Quack",
+            inputs=[
+                InputSignal("bar", "str", "bar"),
+                InputSignal("bar1", "int", "bar1"),
+            ]
         )
     )
     return reg
 
 
-FOOBAR_v10 = """<?xml version="1.0" ?>
-<schema>
-    <widgets>
-        <widget caption="Foo" widgetName="foo" xPos="1" yPos="2"/>
-        <widget caption="Bar" widgetName="bar" xPos="2" yPos="3"/>
-    </widgets>
-    <channels>
-        <channel enabled="1" inWidgetCaption="Foo" outWidgetCaption="Bar"
-                 signals="[('foo', 'bar')]"/>
-        <channel enabled="0" inWidgetCaption="Foo" outWidgetCaption="Bar"
-                 signals="[('foo1', 'bar1')]"/>
-    </channels>
-    <settings settingsDictionary="{}"/>
-</schema>
-"""
-
 FOOBAR_v20 = """<?xml version="1.0" ?>
 <scheme title="FooBar" description="Foo to the bar" version="2.0">
     <nodes>
         <node id="0" title="Foo" position="1, 2" project_name="Foo"
-              qualified_name="package.foo" />
-        <node id="1" title="Bar" position="2, 3" project_name="Foo"
-              qualified_name="package.bar" />
+              qualified_name="package.foo" name="Foo" />
+        <node id="1" title="Bar" position="2, 3" project_name="Bar"
+              qualified_name="package.bar" name="Bar" />
     </nodes>
     <links>
         <link enabled="true" id="0" sink_channel="bar" sink_node_id="1"
@@ -195,5 +203,9 @@ FOOBAR_v20 = """<?xml version="1.0" ?>
         <link enabled="false" id="1" sink_channel="bar1" sink_node_id="1"
               source_channel="foo1" source_node_id="0" />
     </links>
+    <annotations>
+        <text id="0" rect="10, 10, 30, 30" type="text/plain">Hello World</text>
+        <arrow id="1" start="30, 30" end="60, 60" fill="red" />
+    </annotations>
 </scheme>
 """
