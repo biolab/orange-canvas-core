@@ -832,8 +832,9 @@ class SchemeEditWidget(QWidget):
         """
         Rename a `node` (:class:`.SchemeNode`) to `title`.
         """
-        command = commands.RenameNodeCommand(self.__scheme, node, title)
-        self.__undoStack.push(command)
+        self.__undoStack.push(
+            commands.RenameNodeCommand(self.__scheme, node, node.title, title)
+        )
 
     def addLink(self, link):
         """
