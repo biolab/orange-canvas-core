@@ -53,35 +53,6 @@ from . import quickmenu
 log = logging.getLogger(__name__)
 
 
-# TODO: Should this be moved to CanvasScene?
-class GraphicsSceneFocusEventListener(QGraphicsObject):
-
-    itemFocusedIn = Signal(object)
-    itemFocusedOut = Signal(object)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setFlag(QGraphicsItem.ItemHasNoContents)
-
-    def sceneEventFilter(self, obj, event):
-        if event.type() == QEvent.FocusIn and \
-                obj.flags() & QGraphicsItem.ItemIsFocusable:
-            obj.focusInEvent(event)
-            if obj.hasFocus():
-                self.itemFocusedIn.emit(obj)
-            return True
-        elif event.type() == QEvent.FocusOut:
-            obj.focusOutEvent(event)
-            if not obj.hasFocus():
-                self.itemFocusedOut.emit(obj)
-            return True
-
-        return super().sceneEventFilter(obj, event)
-
-    def boundingRect(self):
-        return QRectF()
-
-
 class SchemeEditWidget(QWidget):
     """
     A widget for editing a :class:`~.scheme.Scheme` instance.
@@ -459,40 +430,17 @@ class SchemeEditWidget(QWidget):
         scene.installEventFilter(self)
 
         scene.set_registry(self.__registry)
-
-        # Focus listener
-        self.__focusListener = GraphicsSceneFocusEventListener()
-        self.__focusListener.itemFocusedIn.connect(
-            self.__onItemFocusedIn
-        )
-        self.__focusListener.itemFocusedOut.connect(
-            self.__onItemFocusedOut
-        )
-        scene.addItem(self.__focusListener)
-
-        scene.selectionChanged.connect(
-            self.__onSelectionChanged
-        )
-
-        scene.node_item_activated.connect(
-            self.__onNodeActivate
-        )
-
-        scene.annotation_added.connect(
-            self.__onAnnotationAdded
-        )
-
-        scene.annotation_removed.connect(
-            self.__onAnnotationRemoved
-        )
-
+        scene.focusItemChanged.connect(self.__onFocusItemChanged)
+        scene.selectionChanged.connect(self.__onSelectionChanged)
+        scene.node_item_activated.connect(self.__onNodeActivate)
+        scene.annotation_added.connect(self.__onAnnotationAdded)
+        scene.annotation_removed.connect(self.__onAnnotationRemoved)
         self.__annotationGeomChanged = QSignalMapper(self)
 
     def __teardownScene(self, scene):
         """
         Tear down an instance of :class:`CanvasScene` that was used by the
         editor.
-
         """
         # Clear the current item selection in the scene so edit action
         # states are updated accordingly.
@@ -504,18 +452,8 @@ class SchemeEditWidget(QWidget):
         # Clear the annotation mapper
         self.__annotationGeomChanged.deleteLater()
         self.__annotationGeomChanged = None
-
-        self.__focusListener.itemFocusedIn.disconnect(
-            self.__onItemFocusedIn
-        )
-        self.__focusListener.itemFocusedOut.disconnect(
-            self.__onItemFocusedOut
-        )
-
-        scene.selectionChanged.disconnect(
-            self.__onSelectionChanged
-        )
-
+        scene.focusItemChanged.disconnect(self.__onFocusItemChanged)
+        scene.selectionChanged.disconnect(self.__onSelectionChanged)
         scene.removeEventFilter(self)
 
         # Clear all items from the scene
@@ -1498,8 +1436,6 @@ class SchemeEditWidget(QWidget):
         item.setFlag(QGraphicsItem.ItemIsMovable)
         item.setFlag(QGraphicsItem.ItemIsFocusable)
 
-        item.installSceneEventFilter(self.__focusListener)
-
         if isinstance(item, items.ArrowAnnotation):
             pass
         elif isinstance(item, items.TextAnnotation):
@@ -1525,25 +1461,19 @@ class SchemeEditWidget(QWidget):
                 self.__editFinishedMapper.map
             )
 
-        item.removeSceneEventFilter(self.__focusListener)
-
         self.__annotationGeomChanged.removeMappings(item)
         item.geometryChanged.disconnect(
             self.__annotationGeomChanged.map
         )
 
-    def __onItemFocusedIn(self, item):
-        """
-        Annotation item has gained focus.
-        """
-        if not self.__scene.user_interaction_handler:
-            self.__startControlPointEdit(item)
+    def __onFocusItemChanged(self, newFocusItem, oldFocusItem):
+        # type: (Optional[QGraphicsItem], Optional[QGraphicsItem]) -> None
 
-    def __onItemFocusedOut(self, item):
-        """
-        Annotation item lost focus.
-        """
-        self.__endControlPointEdit()
+        if isinstance(oldFocusItem, items.annotationitem.Annotation):
+            self.__endControlPointEdit()
+        if isinstance(newFocusItem, items.annotationitem.Annotation):
+            if not self.__scene.user_interaction_handler:
+                self.__startControlPointEdit(newFocusItem)
 
     def __onEditingFinished(self, item):
         """
