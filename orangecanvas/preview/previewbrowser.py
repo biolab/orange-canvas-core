@@ -8,7 +8,7 @@ from xml.sax.saxutils import escape
 
 from AnyQt.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout
 from AnyQt.QtSvg import QSvgWidget
-from AnyQt.QtCore import Qt, QByteArray, QModelIndex
+from AnyQt.QtCore import Qt, QByteArray, QModelIndex, QAbstractItemModel
 from AnyQt.QtCore import pyqtSignal as Signal
 
 from ..gui.dropshadow import DropShadowFrame
@@ -35,7 +35,8 @@ PREVIEW_SIZE = (440, 295)
 
 
 class PreviewBrowser(QWidget):
-    """A Preview Browser for recent/premade scheme selection.
+    """
+    A Preview Browser for recent/example workflow selection.
     """
     # Emitted when the current previewed item changes
     currentIndexChanged = Signal(int)
@@ -44,7 +45,7 @@ class PreviewBrowser(QWidget):
     activated = Signal(int)
 
     def __init__(self, *args, heading="", previewMargins=12, **kwargs):
-        super().__init__(*args)
+        super().__init__(*args, **kwargs)
         self.__model = None
         self.__currentIndex = -1
         self.__template = DESCRIPTION_TEMPLATE
@@ -113,6 +114,15 @@ class PreviewBrowser(QWidget):
         self.setLayout(vlayout)
 
     def setHeading(self, text):
+        # type: (str) -> None
+        """
+        Set the heading text.
+
+        Parameters
+        ----------
+        text: str
+            The new heading text. If empty the heading is hidden.
+        """
         self.__heading.setVisible(bool(text))
         self.__heading.setText(text)
 
@@ -134,7 +144,13 @@ class PreviewBrowser(QWidget):
             layout.setContentsMargins(margin, margin, margin, 0)
 
     def setModel(self, model):
-        """Set the item model for preview.
+        # type: (QAbstractItemModel) -> None
+        """
+        Set the item model for preview.
+
+        Parameters
+        ----------
+        model : QAbstractItemModel
         """
         if self.__model != model:
             if self.__model:
@@ -154,21 +170,25 @@ class PreviewBrowser(QWidget):
                 self.setCurrentIndex(0)
 
     def model(self):
-        """Return the item model.
+        # type: () -> QAbstractItemModel
+        """
+        Return the item model.
         """
         return self.__model
-
-    def setPreviewDelegate(self, delegate):
-        """Set the delegate to render the preview images.
-        """
-        raise NotImplementedError
 
     def setDescriptionTemplate(self, template):
         self.__template = template
         self.__update()
 
     def setCurrentIndex(self, index):
-        """Set the selected preview item index.
+        # type: (int) -> None
+        """
+        Set the selected preview item index.
+
+        Parameters
+        ----------
+        index : int
+            The current selected index.
         """
         if self.__model is not None and self.__model.rowCount():
             index = min(index, self.__model.rowCount() - 1)
@@ -177,48 +197,48 @@ class PreviewBrowser(QWidget):
             # This emits selectionChanged signal and triggers
             # __onSelectionChanged, currentIndex is updated there.
             sel_model.select(index, sel_model.ClearAndSelect)
-
         elif self.__currentIndex != -1:
             self.__currentIndex = -1
             self.__update()
             self.currentIndexChanged.emit(-1)
 
-    def currentIndex(self):
-        """Return the current selected index.
+    def currentIndex(self):  # type: () -> int
+        """
+        Return the current selected index.
         """
         return self.__currentIndex
 
-    def __onSelectionChanged(self, *args):
+    def __onSelectionChanged(self):
+        # type: () -> None
         """Selected item in the preview list has changed.
         Set the new description and large preview image.
-
         """
         rows = self.__previewList.selectedIndexes()
         if rows:
             index = rows[0]
             self.__currentIndex = index.row()
         else:
-            index = QModelIndex()
             self.__currentIndex = -1
 
         self.__update()
         self.currentIndexChanged.emit(self.__currentIndex)
 
-    def __onDataChanged(self, topleft, bottomRight):
+    def __onDataChanged(self, topLeft, bottomRight):
+        # type: (QModelIndex, QModelIndex) -> None
         """Data changed, update the preview if current index in the changed
         range.
-
         """
-        if self.__currentIndex <= topleft.row() and \
-                self.__currentIndex >= bottomRight.row():
+        if topLeft.row() <= self.__currentIndex <= bottomRight.row():
             self.__update()
 
     def __onDoubleClicked(self, index):
+        # type: (QModelIndex) -> None
         """Double click on an item in the preview item list.
         """
         self.activated.emit(index.row())
 
     def __update(self):
+        # type: () -> None
         """Update the current description.
         """
         if self.__currentIndex != -1:
