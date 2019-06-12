@@ -9,6 +9,8 @@ from urllib.parse import urljoin
 from html import parser
 from xml.etree.ElementTree import TreeBuilder, Element
 
+import typing
+
 from AnyQt.QtCore import QObject, QUrl
 
 from AnyQt.QtNetwork import (
@@ -19,11 +21,16 @@ from .intersphinx import read_inventory_v1, read_inventory_v2
 
 from .. import config
 
+if typing.TYPE_CHECKING:
+    from ..registry import WidgetDescription
+
+
 log = logging.getLogger(__name__)
 
 
 class HelpProvider(QObject):
     def search(self, description):
+        # type: (WidgetDescription) -> QUrl
         raise NotImplementedError
 
 
@@ -107,21 +114,21 @@ class IntersphinxHelpProvider(BaseInventoryProvider):
         entry = labels.get(ref.lower(), None)
         if entry is not None:
             _, _, url, _ = entry
-            return url
+            return QUrl(url)
         else:
             raise KeyError(ref)
 
     def _load_inventory(self, stream):
         version = stream.readline().rstrip()
         if self.inventory.isLocalFile():
-            join = os.path.join
+            target = QUrl.fromLocalFile(self.target).toString()
         else:
-            join = urljoin
+            target = self.target
 
         if version == b"# Sphinx inventory version 1":
-            items = read_inventory_v1(stream, self.target, join)
+            items = read_inventory_v1(stream, target, urljoin)
         elif version == b"# Sphinx inventory version 2":
-            items = read_inventory_v2(stream, self.target, join)
+            items = read_inventory_v2(stream, target, urljoin)
         else:
             log.error("Invalid/unknown intersphinx inventory format.")
             self._error = (ValueError,
@@ -138,6 +145,7 @@ class SimpleHelpProvider(HelpProvider):
         self.baseurl = baseurl
 
     def search(self, description):
+        # type: (WidgetDescription) -> QUrl
         if description.help_ref:
             ref = description.help_ref
         else:
@@ -218,6 +226,7 @@ class HtmlIndexProvider(BaseInventoryProvider):
         return items
 
     def search(self, desc):
+        # type: (WidgetDescription) -> QUrl
         if not self.inventory.isLocalFile() and not self._reply.isFinished():
             self._reply.waitForReadyRead(2000)
 
