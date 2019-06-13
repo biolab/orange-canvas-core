@@ -1,5 +1,7 @@
 import enum
 import itertools
+from functools import partial
+
 import logging
 import sys
 import traceback
@@ -11,7 +13,7 @@ from typing import Iterable, Dict, Deque, Optional, List, Tuple
 from AnyQt.QtCore import Qt, QObject, QEvent, QTimer, QCoreApplication
 from AnyQt.QtCore import Slot, Signal
 from AnyQt.QtGui import QKeySequence
-from AnyQt.QtWidgets import QWidget, QLabel, QShortcut, QAction
+from AnyQt.QtWidgets import QWidget, QLabel, QAction
 
 from orangecanvas.resources import icon_loader
 from orangecanvas.scheme import (
@@ -261,10 +263,34 @@ class WidgetManager(QObject):
             w.setWindowTitle(node.title)
 
         w.installEventFilter(self.__activation_monitor)
-        # Up shortcut (activate/open parent)
-        up_shortcut = QShortcut(
-            QKeySequence(Qt.ControlModifier + Qt.Key_Up), w)
-        up_shortcut.activated.connect(self.__on_activate_parent)
+        raise_canvas = QAction(
+            self.tr("Raise Canvas to Front"), w,
+            objectName="action-canvas-raise-canvas",
+            toolTip=self.tr("Raise containing canvas workflow window"),
+            shortcut=QKeySequence(Qt.ControlModifier | Qt.Key_Up)
+        )
+        raise_canvas.triggered.connect(self.__on_activate_parent)
+        raise_descendants = QAction(
+            self.tr("Raise Descendants"), w,
+            objectName="action-canvas-raise-descendants",
+            toolTip=self.tr("Raise all immediate descendants of this node"),
+            shortcut=QKeySequence(
+                Qt.ControlModifier | Qt.ShiftModifier | Qt.Key_Right)
+        )
+        raise_descendants.triggered.connect(
+            partial(self.__on_raise_descendants, node)
+        )
+        raise_ancestors = QAction(
+            self.tr("Raise Ancestors"), w,
+            objectName="action-canvas-raise-ancestors",
+            toolTip=self.tr("Raise all immediate ancestors of this node"),
+            shortcut=QKeySequence(
+                Qt.ControlModifier | Qt.ShiftModifier | Qt.Key_Left)
+        )
+        raise_ancestors.triggered.connect(
+            partial(self.__on_raise_ancestors, node)
+        )
+        w.addActions([raise_canvas, raise_descendants, raise_ancestors])
 
         # send all the post creation notification events
         workflow = self.__workflow
@@ -494,6 +520,34 @@ class WidgetManager(QObject):
         The default implementation does nothing.
         """
         return False
+
+    @Slot(SchemeNode)
+    def __on_raise_ancestors(self, node):
+        # type: (SchemeNode) -> None
+        """
+        Raise all the ancestor widgets of `widget`.
+        """
+        item = self.__item_for_node.get(node)
+        if item is not None:
+            scheme = self.scheme()
+            assert scheme is not None
+            ancestors = [self.__item_for_node.get(p)
+                         for p in scheme.parents(item.node)]
+            self.__raise_and_activate(filter(None, reversed(ancestors)))
+
+    @Slot(SchemeNode)
+    def __on_raise_descendants(self, node):
+        # type: (SchemeNode) -> None
+        """
+        Raise all the descendants widgets of `widget`.
+        """
+        item = self.__item_for_node.get(node)
+        if item is not None:
+            scheme = self.scheme()
+            assert scheme is not None
+            descendants = [self.__item_for_node.get(p)
+                           for p in scheme.children(item.node)]
+            self.__raise_and_activate(filter(None, reversed(descendants)))
 
     def __raise_and_activate(self, items):
         # type: (Iterable[Item]) -> None
