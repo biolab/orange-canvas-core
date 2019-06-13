@@ -86,6 +86,20 @@ class StackLayout(QStackedLayout):
         else:
             return super().maximumSize()
 
+    def hasHeightForWidth(self) -> bool:
+        current = self.currentWidget()
+        if current is not None:
+            return current.hasHeightForWidth()
+        else:
+            return False
+
+    def heightForWidth(self, width: int) -> int:
+        current = self.currentWidget()
+        if current is not None:
+            return current.heightForWidth(width)
+        else:
+            return -1
+
     def geometry(self):
         # Reimplemented due to QTBUG-47107.
         return QRect(self.__rect)
