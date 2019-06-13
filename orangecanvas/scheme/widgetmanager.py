@@ -13,6 +13,7 @@ from AnyQt.QtCore import Slot, Signal
 from AnyQt.QtGui import QKeySequence
 from AnyQt.QtWidgets import QWidget, QLabel, QShortcut, QAction
 
+from orangecanvas.resources import icon_loader
 from orangecanvas.scheme import (
     SchemeNode, Scheme, NodeEvent, SchemeLink, LinkEvent
 )
@@ -240,6 +241,14 @@ class WidgetManager(QObject):
             self.__item_for_widget[w] = item
 
         self.__set_float_on_top_flag(w)
+
+        if w.windowIcon().isNull():
+            desc = node.description
+            w.setWindowIcon(
+                icon_loader.from_description(desc).get(desc.icon)
+            )
+        if not w.windowTitle():
+            w.setWindowTitle(node.title)
 
         w.installEventFilter(self.__activation_monitor)
         # Up shortcut (activate/open parent)
