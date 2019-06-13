@@ -1,18 +1,28 @@
 """
 Tests for scheme document.
 """
+from typing import Iterable
+
 from AnyQt.QtTest import QSignalSpy, QTest
 
-from AnyQt.QtWidgets import QGraphicsWidget
+from AnyQt.QtWidgets import QGraphicsWidget, QAction
 
-from AnyQt.QtCore import Qt
+from AnyQt.QtCore import Qt, QObject, QPoint
 from ..schemeedit import SchemeEditWidget
 from ...scheme import Scheme, SchemeNode, SchemeLink, SchemeTextAnnotation, \
                       SchemeArrowAnnotation
 
 from ...registry.tests import small_testing_registry
 
-from ...gui.test import QAppTestCase
+from ...gui.test import QAppTestCase, mouseMove
+
+
+def action_by_name(actions, name):
+    # type: (Iterable[QAction], str) -> QAction
+    for a in actions:
+        if a.objectName() == name:
+            return a
+    raise LookupError(name)
 
 
 class TestSchemeEdit(QAppTestCase):
@@ -112,6 +122,13 @@ class TestSchemeEdit(QAppTestCase):
         self.assertSequenceEqual(link_list, [link])
         self.assertSequenceEqual(node_list, [node, node1])
 
+        spy = QSignalSpy(node.title_changed)
+        w.renameNode(node, "foo bar")
+        self.assertSequenceEqual(list(spy), [["foo bar"]])
+        self.assertTrue(w.isModified())
+        stack.undo()
+        self.assertSequenceEqual(list(spy), [["foo bar"], ["title1"]])
+
         w.removeLink(link)
 
         self.assertSequenceEqual(link_list, [])
@@ -162,6 +179,51 @@ class TestSchemeEdit(QAppTestCase):
         undo.undo()
         self.assertFalse(self.w.isModified())
 
+    def test_teardown(self):
+        w = self.w
+        w.undoStack().isClean()
+        new = Scheme()
+        w.setScheme(new)
+
+    def test_actions(self):
+        w = self.w
+        actions = w.toolbarActions()
+
+        action_by_name(actions, "action-zoom-in").trigger()
+        action_by_name(actions, "action-zoom-out").trigger()
+        action_by_name(actions, "action-zoom-reset").trigger()
+
+    def test_arrow_annotation_action(self):
+        w = self.w
+        workflow = w.scheme()
+        workflow.clear()
+        view = w.view()
+        w.resize(300, 300)
+        actions = w.toolbarActions()
+        action_by_name(actions, "new-arrow-action").trigger()
+        QTest.mousePress(view.viewport(), Qt.LeftButton, pos=QPoint(50, 50))
+        mouseMove(view.viewport(), Qt.LeftButton, pos=QPoint(100, 100))
+        QTest.mouseRelease(view.viewport(), Qt.LeftButton, pos=QPoint(100, 100))
+        self.assertEqual(len(workflow.annotations), 1)
+        self.assertIsInstance(workflow.annotations[0], SchemeArrowAnnotation)
+
+    def test_text_annotation_action(self):
+        w = self.w
+        workflow = w.scheme()
+        workflow.clear()
+        view = w.view()
+        w.resize(300, 300)
+        actions = w.toolbarActions()
+        action_by_name(actions, "new-text-action").trigger()
+        QTest.mousePress(view.viewport(), Qt.LeftButton, pos=QPoint(50, 50))
+        mouseMove(view.viewport(), Qt.LeftButton, pos=QPoint(100, 100))
+        QTest.mouseRelease(view.viewport(), Qt.LeftButton, pos=QPoint(100, 100))
+        # need to steal focus from the item for it to be commited.
+        w.scene().setFocusItem(None)
+
+        self.assertEqual(len(workflow.annotations), 1)
+        self.assertIsInstance(workflow.annotations[0], SchemeTextAnnotation)
+
     def test_path(self):
         w = self.w
         spy = QSignalSpy(w.pathChanged)
@@ -192,6 +254,12 @@ class TestSchemeEdit(QAppTestCase):
         w.removeSelected()
         self.assertEqual(w.scheme().nodes, [])
         self.assertEqual(w.scheme().annotations, [])
+
+    def test_open_selected(self):
+        w = self.w
+        w.setScheme(self.setup_test_workflow())
+        w.selectAll()
+        w.openSelected()
 
     def test_insert_node_on_link(self):
         w = self.w

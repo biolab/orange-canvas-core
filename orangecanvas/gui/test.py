@@ -6,8 +6,9 @@ import unittest
 
 import gc
 
-from AnyQt.QtWidgets import QApplication
-from AnyQt.QtCore import QCoreApplication, QTimer, QStandardPaths
+from AnyQt.QtWidgets import QApplication, QWidget
+from AnyQt.QtCore import QCoreApplication, QTimer, QStandardPaths, QPoint, Qt
+from AnyQt.QtGui import QMouseEvent
 from AnyQt.QtTest import QTest
 
 
@@ -58,3 +59,28 @@ class QAppTestCase(QCoreAppTestCase):
     def tearDown(self):
         QTest.qWait(10)
         super(QAppTestCase, self).tearDown()
+
+
+def mouseMove(widget, buttons, modifier=Qt.NoModifier, pos=QPoint(), delay=-1):
+    # type: (QWidget, Qt.MouseButtons, Qt.KeyboardModifier, QPoint, int) -> None
+    """
+    Like QTest.mouseMove, but with `buttons` and `modifier` parameters.
+
+    Parameters
+    ----------
+    widget : QWidget
+    buttons: Qt.MouseButtons
+    modifier : Qt.KeyboardModifiers
+    pos : QPoint
+    delay : int
+    """
+    if pos.isNull():
+        pos = widget.rect().center()
+    me = QMouseEvent(
+        QMouseEvent.MouseMove, pos, widget.mapToGlobal(pos), Qt.NoButton,
+        buttons, modifier
+    )
+    if delay > 0:
+        QTest.qWait(delay)
+
+    QCoreApplication.sendEvent(widget, me)
