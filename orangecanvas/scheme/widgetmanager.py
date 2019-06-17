@@ -24,6 +24,9 @@ log = logging.getLogger(__name__)
 
 __all__ = ["WidgetManager"]
 
+Workflow = Scheme
+Node = SchemeNode
+
 
 class Item:
     def __init__(self, node, widget, activation_order=-1, errorwidget=None):
@@ -138,6 +141,7 @@ class WidgetManager(QObject):
             self.__add_node(node)
 
     def workflow(self):
+        # type: () -> Optional[Workflow]
         return self.__workflow
 
     scheme = workflow
@@ -180,6 +184,7 @@ class WidgetManager(QObject):
         raise NotImplementedError()
 
     def delete_widget_for_node(self, node, widget):
+        # type: (SchemeNode, QWidget) -> None
         """
         Remove and delete widget for node.
 
@@ -212,6 +217,9 @@ class WidgetManager(QObject):
         item = self.__item_for_node.get(node)
         if item is not None:
             return
+        if self.__workflow is None:
+            return
+
         if node not in self.__workflow.nodes:
             return
 
@@ -234,7 +242,9 @@ class WidgetManager(QObject):
                 text="<pre>" + escape(text) + "</pre>"
             )
             item.errorwidget = errorwidget
-            node.set_state_message(UserMessage(text, UserMessage.Error, 0))
+            node.set_state_message(
+                UserMessage(text, UserMessage.Error, "")
+            )
             raise
         else:
             item.widget = w
@@ -275,19 +285,23 @@ class WidgetManager(QObject):
         """
         Ensure that the widget for node is created.
         """
+        if self.__workflow is None:
+            return
         if node not in self.__workflow.nodes:
             return
         item = self.__item_for_node.get(node)
         if item is None:
             self.__add_widget_for_node(node)
 
-    def __on_node_added(self, node):  # type: (SchemeNode) -> None
+    def __on_node_added(self, node):
+        # type: (SchemeNode) -> None
         assert self.__workflow is not None
         assert node in self.__workflow.nodes
         assert node not in self.__item_for_node
         self.__add_node(node)
 
-    def __add_node(self, node): # type: (SchemeNode) -> None
+    def __add_node(self, node):
+        # type: (SchemeNode) -> None
         # add node for tracking
         node.installEventFilter(self)
         if self.__creation_policy == WidgetManager.Immediate:
@@ -324,6 +338,7 @@ class WidgetManager(QObject):
     def __process_init_queue(self):
         if self.__init_queue:
             node = self.__init_queue.popleft()
+            assert self.__workflow is not None
             assert node in self.__workflow.nodes
             log.debug("__process_init_queue: '%s'", node.title)
             try:
@@ -333,6 +348,7 @@ class WidgetManager(QObject):
                     self.__init_timer.start()
 
     def __on_link_added(self, link):  # type: (SchemeLink) -> None
+        assert self.__workflow is not None
         assert link.source_node in self.__workflow.nodes
         assert link.sink_node in self.__workflow.nodes
         source = self.__item_for_node.get(link.source_node)
@@ -346,6 +362,7 @@ class WidgetManager(QObject):
             QCoreApplication.sendEvent(sink.widget, ev)
 
     def __on_link_removed(self, link):  # type: (SchemeLink) -> None
+        assert self.__workflow is not None
         assert link.source_node in self.__workflow.nodes
         assert link.sink_node in self.__workflow.nodes
         source = self.__item_for_node.get(link.source_node)
@@ -412,6 +429,9 @@ class WidgetManager(QObject):
         """
         Save current open window arrangement.
         """
+        if self.__workflow is None:
+            return []
+
         workflow = self.__workflow  # type: Scheme
         state = []
         for node in workflow.nodes:  # type: SchemeNode
@@ -423,15 +443,15 @@ class WidgetManager(QObject):
                 data = self.save_widget_geometry(node, item.widget)
                 state.append((stackorder, node, data))
 
-        state = [(node, data)
-                 for _, node, data in sorted(state, key=lambda t: t[0])]
-        return state
+        return [(node, data)
+                for _, node, data in sorted(state, key=lambda t: t[0])]
 
     def restore_window_state(self, state):
-        # type: (List[Tuple[SchemeNode, bytes]]) -> None
+        # type: (List[Tuple[Node, bytes]]) -> None
         """
         Restore the window state.
         """
+        assert self.__workflow is not None
         workflow = self.__workflow  # type: Scheme
         visible = {node for node, _ in state}
         # first hide all other widgets
@@ -445,11 +465,11 @@ class WidgetManager(QObject):
         # restore state for visible group; windows are stacked as they appear
         # in the state list.
         w = None
-        for node, state in filter(lambda t: t[0] in allnodes, state):
+        for node, node_state in filter(lambda t: t[0] in allnodes, state):
             w = self.widget_for_node(node)  # also create it if needed
             if w is not None:
                 w.show()
-                self.restore_widget_geometry(node, w, state)
+                self.restore_widget_geometry(node, w, node_state)
                 w.raise_()
                 self.__mark_activated(w)
 
@@ -519,6 +539,7 @@ class WidgetManager(QObject):
         return False
 
     def __set_float_on_top_flag(self, widget):
+        # type: (QWidget) -> None
         """Set or unset widget's float on top flag"""
         should_float_on_top = self.__float_widgets_on_top
         float_on_top = bool(widget.windowFlags() & Qt.WindowStaysOnTopHint)

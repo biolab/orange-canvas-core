@@ -18,7 +18,9 @@ from operator import attrgetter
 from functools import partial, reduce
 
 import typing
-from typing import Any, Optional, List, Tuple, NamedTuple, Iterable, Callable
+from typing import (
+    Any, Optional, List, Tuple, NamedTuple, Iterable, Callable, Set, Dict
+)
 
 from AnyQt.QtCore import QObject, QTimer, QEvent
 from AnyQt.QtCore import pyqtSignal, pyqtSlot as Slot
@@ -141,7 +143,7 @@ class SignalManager(QObject):
         self.__input_queue = []  # type: List[Signal]
 
         # mapping a node to its current outputs
-        self.__node_outputs = {}  # type: Dict[Node, Dict[OutputSignal, Dict[Any, Any]]]
+        self.__node_outputs = {}  # type: Dict[SchemeNode, Dict[OutputSignal, Dict[Any, Any]]]
 
         self.__state = SignalManager.Running
         self.__runtime_state = SignalManager.Waiting
@@ -152,7 +154,7 @@ class SignalManager(QObject):
         if isinstance(parent, Scheme):
             self.set_workflow(parent)
 
-    def _can_process(self):
+    def _can_process(self):  # type: () -> bool
         """
         Return a bool indicating if the manger can enter the main
         processing loop.
@@ -161,7 +163,7 @@ class SignalManager(QObject):
         return self.__state not in [SignalManager.Error, SignalManager.Stopped]
 
     def workflow(self):
-        # type: () -> Scheme
+        # type: () -> Optional[Scheme]
         """
         Return the :class:`Scheme` instance.
         """
@@ -206,13 +208,13 @@ class SignalManager(QObject):
                 link.enabled_changed.connect(self.__on_link_enabled_changed)
             workflow.installEventFilter(self)
 
-    def has_pending(self):
+    def has_pending(self):  # type: () -> bool
         """
         Does the manager have any signals to deliver?
         """
         return bool(self.__input_queue)
 
-    def start(self):
+    def start(self):  # type: () -> None
         """
         Start the update loop.
 
@@ -226,7 +228,7 @@ class SignalManager(QObject):
             self.stateChanged.emit(SignalManager.Running)
             self._update()
 
-    def stop(self):
+    def stop(self):  # type: () -> None
         """
         Stop the update loop.
 
@@ -241,7 +243,7 @@ class SignalManager(QObject):
             self.stateChanged.emit(SignalManager.Stopped)
             self.__update_timer.stop()
 
-    def pause(self):
+    def pause(self):  # type: () -> None
         """
         Pause the delivery of signals.
         """
@@ -251,6 +253,7 @@ class SignalManager(QObject):
             self.__update_timer.stop()
 
     def resume(self):
+        # type: () -> None
         """
         Resume the delivery of signals.
         """
@@ -260,6 +263,7 @@ class SignalManager(QObject):
             self._update()
 
     def step(self):
+        # type: () -> None
         """
         Deliver signals to a single node (only applicable while the `state()`
         is `Paused`).
@@ -279,6 +283,7 @@ class SignalManager(QObject):
         return self.__state
 
     def _set_runtime_state(self, state):
+        # type: (RuntimeState) -> None
         """
         Set the runtime state.
 
@@ -337,7 +342,7 @@ class SignalManager(QObject):
         # type: (SchemeLink) -> List[Signal]
         """
         Return :class:`Signal` instances representing the current values
-        present on the link.
+        present on the `link`.
         """
         items = self.link_contents(link)
         signals = []
@@ -348,8 +353,9 @@ class SignalManager(QObject):
         return signals
 
     def link_contents(self, link):
+        # type: (SchemeLink) -> Dict[Any, Any]
         """
-        Return the contents on link.
+        Return the contents on the `link`.
         """
         node, channel = link.source_node, link.source_channel
 
@@ -381,16 +387,20 @@ class SignalManager(QObject):
         id : Any
             Signal id.
         """
+        if self.__workflow is None:
+            raise RuntimeError("'send' called with no workflow!.")
+
         log.debug("%r sending %r (id: %r) on channel %r",
                   node.title, type(value), id, channel.name)
 
-        scheme = self.scheme()
+        scheme = self.__workflow
 
         self.__node_outputs[node][channel][id] = value
 
-        links = scheme.find_links(source_node=node, source_channel=channel)
-        links = filter(is_enabled, links)
-
+        links = filter(
+            is_enabled,
+            scheme.find_links(source_node=node, source_channel=channel)
+        )
         signals = []
         for link in links:
             signals.append(Signal(link, value, id))
@@ -398,6 +408,7 @@ class SignalManager(QObject):
         self._schedule(signals)
 
     def purge_link(self, link):
+        # type: (SchemeLink) -> None
         """
         Purge the link (send None for all ids currently present)
         """
@@ -408,6 +419,7 @@ class SignalManager(QObject):
         self._schedule(signals)
 
     def _schedule(self, signals):
+        # type: (List[Signal]) -> None
         """
         Schedule a list of :class:`Signal` for delivery.
         """
@@ -428,6 +440,7 @@ class SignalManager(QObject):
         self._update()
 
     def _update_link(self, link):
+        # type: (SchemeLink) -> None
         """
         Schedule update of a single link.
         """
@@ -435,6 +448,7 @@ class SignalManager(QObject):
         self._schedule(signals)
 
     def process_queued(self, max_nodes=None):
+        # type: (Any) -> None
         """
         Process queued signals.
 
@@ -462,6 +476,7 @@ class SignalManager(QObject):
             self.process_node(node_update_front[0])
 
     def process_node(self, node):
+        # type: (SchemeNode) -> None
         """
         Process pending input signals for `node`.
         """
@@ -490,9 +505,10 @@ class SignalManager(QObject):
                 # Check and update the dynamic link state
                 link = sig.link
                 if sig.link.is_dynamic():
-                    link.dynamic_enabled = can_enable_dynamic(link, sig.value)
-                    if not link.dynamic_enabled:
-                        # Send None instead
+                    enabled = can_enable_dynamic(link, sig.value)
+                    link.set_dynamic_enabled(enabled)
+                    if not enabled:
+                        # Send None instead (clear the link)
                         sig = Signal(link, None, sig.id)
                 res.append(sig)
             return res
@@ -603,8 +619,11 @@ class SignalManager(QObject):
         """
         Return a list of nodes in a blocking state.
         """
-        scheme = self.scheme()
-        return [node for node in scheme.nodes if self.is_blocking(node)]
+        workflow = self.__workflow
+        if workflow is None:
+            return []
+        else:
+            return [node for node in workflow.nodes if self.is_blocking(node)]
 
     def is_blocking(self, node):
         # type: (SchemeNode) -> bool
@@ -631,7 +650,9 @@ class SignalManager(QObject):
         ----
         The node's ancestors are only computed over enabled links.
         """
-        scheme = self.scheme()
+        scheme = self.__workflow
+        if scheme is None:
+            return []
 
         def expand(node):
             return [link.sink_node
@@ -642,6 +663,7 @@ class SignalManager(QObject):
         node_scc = {node: scc for scc in components for node in scc}
 
         def isincycle(node):
+            # type: (SchemeNode) -> bool
             return len(node_scc[node]) > 1
 
         # a list of all nodes currently active/executing a task.
@@ -699,7 +721,7 @@ class SignalManager(QObject):
                 if self.__input_queue and self.__state == SignalManager.Running:
                     self.__update_timer.start()
 
-    def _update(self):
+    def _update(self):  # type: () -> None
         """
         Schedule processing at a later time.
         """
@@ -741,6 +763,7 @@ class _FutureRuntimeWarning(FutureWarning, RuntimeWarning):
 
 
 def can_enable_dynamic(link, value):
+    # type: (SchemeLink, Any) -> bool
     """
     Can the a dynamic `link` (:class:`SchemeLink`) be enabled for`value`.
     """
@@ -769,6 +792,7 @@ def compress_signals(signals):
     signals = []
 
     def has_none(signals):
+        # type: (List[Signal]) -> bool
         return any(sig.value is None for sig in signals)
 
     for (link, id), signals_grouped in groups:
@@ -815,7 +839,7 @@ def traverse_bf(start, expand):
         A function returning children of a node.
     """
     queue = deque([start])
-    visited = set()
+    visited = set()  # type: Set[T]
     while queue:
         item = queue.popleft()
         if item not in visited:
@@ -827,12 +851,13 @@ def traverse_bf(start, expand):
 def group_by_all(sequence, key=None):
     # type: (Iterable[V], Callable[[V], K]) -> List[Tuple[K, List[V]]]
     order_seen = []
-    groups = {}
+    groups = {}  # type: Dict[K, List[V]]
+
     for item in sequence:
         if key is not None:
             item_key = key(item)
         else:
-            item_key = item
+            item_key = item  # type: ignore
         if item_key in groups:
             groups[item_key].append(item)
         else:
@@ -843,15 +868,16 @@ def group_by_all(sequence, key=None):
 
 
 def strongly_connected_components(nodes, expand):
+    # type: (Iterable[H], Callable[[H], Iterable[H]]) -> List[List[H]]
     """
     Return a list of strongly connected components.
 
     Implementation of Tarjan's SCC algorithm.
     """
     # SCC found
-    components = []
+    components = []  # type: List[List[H]]
     # node stack in BFS
-    stack = []
+    stack = []       # type: List[H]
     # == set(stack) : a set of all nodes in stack (for faster lookup)
     stackset = set()
 
@@ -863,12 +889,14 @@ def strongly_connected_components(nodes, expand):
     indexgen = itertools.count()
 
     def push_node(v):
+        # type: (H) -> None
         """Push node onto the stack."""
         stack.append(v)
         stackset.add(v)
         index[v] = lowlink[v] = next(indexgen)
 
     def pop_scc(v):
+        # type: (H) -> List[H]
         """Pop from the stack a SCC rooted at node v."""
         i = stack.index(v)
         scc = stack[i:]
@@ -876,9 +904,11 @@ def strongly_connected_components(nodes, expand):
         stackset.difference_update(scc)
         return scc
 
-    isvisited = lambda node: node in index
+    def isvisited(node):  # type: (H) -> bool
+        return node in index
 
     def strong_connect(v):
+        # type: (H) -> None
         push_node(v)
 
         for w in expand(v):

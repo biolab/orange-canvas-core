@@ -4,6 +4,7 @@ Scheme save/load routines.
 """
 import numbers
 import sys
+import types
 import warnings
 import base64
 import binascii
@@ -23,7 +24,7 @@ from ast import literal_eval
 
 import logging
 
-from typing import NamedTuple, Dict, Tuple, List, Union, Any
+from typing import NamedTuple, Dict, Tuple, List, Union, Any, Optional
 
 from . import SchemeNode, SchemeLink
 from .annotations import SchemeTextAnnotation, SchemeArrowAnnotation
@@ -39,7 +40,15 @@ class UnknownWidgetDefinition(Exception):
     pass
 
 
+def _ast_parse_expr(source):
+    # type: (str) -> ast.Expression
+    node = ast.parse(source, "<source>", mode="eval")
+    assert isinstance(node, ast.Expression)
+    return node
+
+
 def string_eval(source):
+    # type: (str) -> str
     """
     Evaluate a python string literal `source`. Raise ValueError if
     `source` is not a string literal.
@@ -48,24 +57,24 @@ def string_eval(source):
     a string
 
     """
-    node = ast.parse(source, "<source>", mode="eval")
+    node = _ast_parse_expr(source)
     if not isinstance(node.body, ast.Str):
         raise ValueError("%r is not a string literal" % source)
     return node.body.s
 
 
 def tuple_eval(source):
+    # type: (str) -> tuple
     """
     Evaluate a python tuple literal `source` where the elements are
     constrained to be int, float or string. Raise ValueError if not
     a tuple literal.
 
-    >>> tuple_eval("(1, 2, "3")")
+    >>> tuple_eval("(1, 2, '3')")
     (1, 2, '3')
 
     """
-    node = ast.parse(source, "<source>", mode="eval")
-
+    node = _ast_parse_expr(source)
     if not isinstance(node.body, ast.Tuple):
         raise ValueError("%r is not a tuple literal" % source)
 
@@ -81,6 +90,7 @@ def tuple_eval(source):
 
 
 def terminal_eval(source):
+    # type: (str) -> Union[str, bytes, int, float, complex,  bool, None]
     """
     Evaluate a python 'constant' (string, number, None, True, False)
     `source`. Raise ValueError is not a terminal literal.
@@ -89,21 +99,19 @@ def terminal_eval(source):
     True
 
     """
-    node = ast.parse(source, "<source>", mode="eval")
+    node = _ast_parse_expr(source)
     return _terminal_value(node.body)
 
 
 def _terminal_value(node):
+    # type: (ast.AST) -> Union[str, bytes, int, float, complex, None]
     if isinstance(node, ast.Str):
         return node.s
-    elif sys.version_info >= (3,) and isinstance(node, ast.Bytes):
+    elif isinstance(node, ast.Bytes):
         return node.s
     elif isinstance(node, ast.Num):
         return node.n
-    elif isinstance(node, ast.Name) and \
-            node.id in ["True", "False", "None"]:
-        return __builtins__[node.id]
-    elif sys.version_info >= (3, 4) and isinstance(node, ast.NameConstant):
+    elif isinstance(node, ast.NameConstant):
         return node.value
 
     raise ValueError("Not a terminal")
@@ -131,14 +139,14 @@ _node = NamedTuple(
         ("project_name", str),
         ("qualified_name", str),
         ("version", str),
-        ("data", '_data')
+        ("data", Optional['_data'])
     ]
 )
 
 _data = NamedTuple(
     "_data", [
         ("format", str),
-        ("data", bytes)
+        ("data", Union[bytes, str])
     ]
 )
 
@@ -172,7 +180,7 @@ _text_params = NamedTuple(
 
 _arrow_params = NamedTuple(
     "_arrow_params", [
-        ("geometry", str),
+        ("geometry", Tuple[float, float]),
         ("color", str),
     ])
 
@@ -202,30 +210,32 @@ def parse_ows_etree_v_2_0(tree):
     nodes, links, annotations = [], [], []
 
     # First collect all properties
-    properties = {}
+    properties = {}  # type: Dict[str, _data]
     for property in tree.findall("node_properties/properties"):
-        node_id = property.get("node_id")
+        node_id = property.get("node_id")  # type: str
         format = property.get("format")
         if version == "2.0" and "data" in property.attrib:
-            data = property.get("data")
+            data_str = property.get("data", default="")
         else:
-            data = property.text
-        properties[node_id] = _data(format, data)
+            data_str = property.text or ""
+        properties[node_id] = _data(format, data_str)
 
     # Collect all nodes
     for node in tree.findall("nodes/node"):
         node_id = node.get("id")
-        node = _node(
-            id=node_id,
-            title=node.get("title"),
-            name=node.get("name"),
-            position=tuple_eval(node.get("position")),
-            project_name=node.get("project_name"),
-            qualified_name=node.get("qualified_name"),
-            version=node.get("version", ""),
-            data=properties.get(node_id, None)
+        _px, _py = tuple_eval(node.get("position"))
+        nodes.append(
+            _node(  # type: ignore
+                id=node_id,
+                title=node.get("title"),
+                name=node.get("name"),
+                position=(_px, _py),
+                project_name=node.get("project_name"),
+                qualified_name=node.get("qualified_name"),
+                version=node.get("version", ""),
+                data=properties.get(node_id, None)
+            )
         )
-        nodes.append(node)
 
     for link in tree.findall("links/link"):
         params = _link(
@@ -245,7 +255,7 @@ def parse_ows_etree_v_2_0(tree):
             font_family = annot.get("font-family", "").strip()
             font_size = annot.get("font-size", "").strip()
 
-            font = {}
+            font = {}  # type: Dict[str, Any]
             if font_family:
                 font["family"] = font_family
             if font_size:
@@ -256,8 +266,8 @@ def parse_ows_etree_v_2_0(tree):
             annotation = _annotation(
                 id=annot.get("id"),
                 type="text",
-                params=_text_params(rect, annot.text or "", font,
-                                    content_type),
+                params=_text_params(  # type: ignore
+                    rect, annot.text or "", font,  content_type),
             )
         elif annot.tag == "arrow":
             start = tuple_eval(annot.get("start", "(0, 0)"))
@@ -266,7 +276,7 @@ def parse_ows_etree_v_2_0(tree):
             annotation = _annotation(
                 id=annot.get("id"),
                 type="arrow",
-                params=_arrow_params((start, end), color)
+                params=_arrow_params((start, end), color)  # type: ignore
             )
         else:
             log.warning("Unknown annotation '%s'. Skipping.", annot.tag)
@@ -274,17 +284,20 @@ def parse_ows_etree_v_2_0(tree):
         annotations.append(annotation)
 
     window_presets = []
+
     for window_group in tree.findall("session_state/window_groups/group"):
         name = window_group.get("name")  # type: str
         default = window_group.get("default", "false") == "true"
         state = []
         for state_ in window_group.findall("window_state"):
-            node_id = state_.get("node_id")  # type: str
-            try:
-                data = base64.decodebytes(state_.text.encode("ascii"))
-            except binascii.Error:
-                data = b''
-            except UnicodeDecodeError:
+            node_id = state_.get("node_id")
+            text_ = state_.text
+            if text_ is not None:
+                try:
+                    data = base64.decodebytes(text_.encode("ascii"))
+                except (binascii.Error, UnicodeDecodeError):
+                    data = b''
+            else:
                 data = b''
             state.append((node_id, data))
 
@@ -764,9 +777,8 @@ def literal_dumps(obj, indent=None, relaxed_types=True):
         If obj is a recursive structure.
     """
     memo = {}
-    NoneType = type(None)
     # non compounds
-    builtins = {int, float, bool, NoneType, str, bytes}
+    builtins = {int, float, bool, type(None), str, bytes}
     # sequences
     builtins_seq = {list, tuple}
     # mappings

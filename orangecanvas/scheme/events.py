@@ -7,10 +7,9 @@ instance.
 
 """
 import typing
+from typing import Any
 
 from AnyQt.QtCore import QEvent
-
-from typing import Any
 
 if typing.TYPE_CHECKING:
     from orangecanvas.scheme import SchemeLink, SchemeNode, BaseSchemeAnnotation
@@ -133,6 +132,7 @@ class WorkflowEnvChanged(WorkflowEvent):
     Scheme.runtime_env
     """
     def __init__(self, name, newValue, oldValue):
+        # type: (str, Any, Any) -> None
         super().__init__(WorkflowEvent.WorkflowEnvironmentChange)
         self.__name = name
         self.__oldValue = oldValue

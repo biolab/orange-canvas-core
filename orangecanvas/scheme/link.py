@@ -5,22 +5,30 @@ Scheme Link
 
 """
 import enum
+import typing
+from typing import List, Tuple, Union
 
 from AnyQt.QtCore import QObject
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
-from ..utils import name_lookup
+from ..utils import type_lookup, type_lookup_
 from .errors import IncompatibleChannelTypeError
+
+if typing.TYPE_CHECKING:
+    from ..registry import OutputSignal as Output, InputSignal as Input
+    from . import SchemeNode as Node
 
 
 def compatible_channels(source_channel, sink_channel):
+    # type: (Output, Input) -> bool
     """
     Do the channels in link have compatible types, i.e. can they be
     connected based on their type.
-
     """
-    source_type = name_lookup(source_channel.type)
-    sink_type = name_lookup(sink_channel.type)
+    source_type = type_lookup_(source_channel.type)
+    sink_type = type_lookup_(sink_channel.type)
+    if source_type is None or sink_type is None:
+        return False
     ret = issubclass(source_type, sink_type)
     if source_channel.dynamic:
         ret = ret or issubclass(sink_type, source_type)
@@ -28,6 +36,7 @@ def compatible_channels(source_channel, sink_channel):
 
 
 def can_connect(source_node, sink_node):
+    # type: (Node, Node) -> bool
     """
     Return True if any output from `source_node` can be connected to
     any input of `sink_node`.
@@ -37,6 +46,7 @@ def can_connect(source_node, sink_node):
 
 
 def possible_links(source_node, sink_node):
+    # type: (Node, Node) -> List[Tuple[Output, Input]]
     """
     Return a list of (OutputSignal, InputSignal) tuples, that
     can connect the two nodes.
@@ -48,6 +58,18 @@ def possible_links(source_node, sink_node):
             if compatible_channels(source, sink):
                 possible.append((source, sink))
     return possible
+
+
+def _get_type(arg):
+    # type: (Union[str, type]) -> type
+    """get a type instance qualified name"""
+    if isinstance(arg, type):
+        return arg
+    rv = type_lookup(arg)
+    if rv is not None:
+        return rv
+    else:
+        raise TypeError("{!r} does not resolve to a type")
 
 
 class SchemeLink(QObject):
@@ -93,11 +115,15 @@ class SchemeLink(QObject):
         #: of a change (note that Empty|Pending is a valid state)
         Pending = 4
 
-    NoState, Empty, Active, Pending = State
+    NoState = State.NoState
+    Empty = State.Empty
+    Active = State.Active
+    Pending = State.Pending
 
     def __init__(self, source_node, source_channel,
-                 sink_node, sink_channel, enabled=True, properties=None,
-                 parent=None):
+                 sink_node, sink_channel,
+                 enabled=True, properties=None, parent=None):
+        # type: (Node, Output, Node, Input, bool, dict, QObject) -> None
         super().__init__(parent)
         self.source_node = source_node
 
@@ -121,9 +147,9 @@ class SchemeLink(QObject):
 
         if not compatible_channels(source_channel, sink_channel):
             raise IncompatibleChannelTypeError(
-                    "Cannot connect %r to %r" \
-                    % (source_channel.type, sink_channel.type)
-                )
+                "Cannot connect %r to %r"
+                % (source_channel.type, sink_channel.type)
+            )
 
         self.__enabled = enabled
         self.__dynamic_enabled = False
@@ -132,26 +158,30 @@ class SchemeLink(QObject):
         self.properties = properties or {}
 
     def source_type(self):
+        # type: () -> type
         """
         Return the type of the source channel.
         """
-        return name_lookup(self.source_channel.type)
+        return _get_type(self.source_channel.type)
 
     def sink_type(self):
+        # type: () -> type
         """
         Return the type of the sink channel.
         """
-        return name_lookup(self.sink_channel.type)
+        return _get_type(self.sink_channel.type)
 
     def is_dynamic(self):
+        # type: () -> bool
         """
         Is this link dynamic.
         """
         return self.source_channel.dynamic and \
-            issubclass(self.sink_type(), self.source_type()) and \
-            not (self.sink_type() is self.source_type())
+               issubclass(self.sink_type(), self.source_type()) and \
+               not (self.sink_type() is self.source_type())
 
     def set_enabled(self, enabled):
+        # type: (bool) -> None
         """
         Enable/disable the link.
         """
@@ -160,6 +190,7 @@ class SchemeLink(QObject):
             self.enabled_changed.emit(enabled)
 
     def is_enabled(self):
+        # type: () -> bool
         """
         Is this link enabled.
         """
@@ -168,16 +199,17 @@ class SchemeLink(QObject):
     enabled = Property(bool, fget=is_enabled, fset=set_enabled)
 
     def set_dynamic_enabled(self, enabled):
+        # type: (bool) -> None
         """
         Enable/disable the dynamic link. Has no effect if the link
         is not dynamic.
-
         """
         if self.is_dynamic() and self.__dynamic_enabled != enabled:
             self.__dynamic_enabled = enabled
             self.dynamic_enabled_changed.emit(enabled)
 
     def is_dynamic_enabled(self):
+        # type: () -> bool
         """
         Is this a dynamic link and is `dynamic_enabled` set to `True`
         """
@@ -187,6 +219,7 @@ class SchemeLink(QObject):
                                fset=set_dynamic_enabled)
 
     def set_runtime_state(self, state):
+        # type: (State) -> None
         """
         Set the link's runtime state.
 
@@ -199,6 +232,7 @@ class SchemeLink(QObject):
             self.state_changed.emit(state)
 
     def runtime_state(self):
+        # type: () -> State
         """
         Returns
         -------
@@ -207,6 +241,7 @@ class SchemeLink(QObject):
         return self.__state
 
     def set_tool_tip(self, tool_tip):
+        # type: (str) -> None
         """
         Set the link tool tip.
         """
@@ -214,12 +249,13 @@ class SchemeLink(QObject):
             self.__tool_tip = tool_tip
 
     def tool_tip(self):
+        # type: () -> str
         """
         Link tool tip.
         """
         return self.__tool_tip
 
-    tool_tip = Property(str, fget=tool_tip,
+    tool_tip = Property(str, fget=tool_tip,  # type: ignore
                         fset=set_tool_tip)
 
     def __str__(self):

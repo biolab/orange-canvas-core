@@ -1,7 +1,8 @@
+import types
 from functools import reduce
 
 import typing
-from typing import Iterable
+from typing import Iterable, Set, Any, Optional, Union, Tuple
 
 from .qtcompat import toPyObject
 
@@ -10,6 +11,7 @@ if typing.TYPE_CHECKING:
 
 
 def dotted_getattr(obj, name):
+    # type: (Any, str) -> Any
     """
     `getattr` like function accepting a dotted name for attribute lookup.
     """
@@ -17,6 +19,7 @@ def dotted_getattr(obj, name):
 
 
 def qualified_name(obj):
+    # type: (Union[types.FunctionType, type]) -> str
     """
     Return a qualified name for `obj` (type or function).
     """
@@ -27,6 +30,7 @@ def qualified_name(obj):
 
 
 def name_lookup(qualified_name):
+    # type: (str) -> Any
     """
     Return the object referenced by a qualified name (dotted name).
     """
@@ -38,7 +42,25 @@ def name_lookup(qualified_name):
     return getattr(module, class_name)
 
 
+def type_lookup(qualified_name):
+    # type: (str) -> Optional[type]
+    T = name_lookup(qualified_name)
+    if isinstance(T, type):
+        return T
+    else:
+        return None
+
+
+def type_lookup_(tspec):
+    # type: (Union[str, type]) -> Optional[type]
+    if isinstance(tspec, str):
+        return type_lookup(tspec)
+    else:
+        return tspec
+
+
 def asmodule(module):
+    # type: (Union[str, types.ModuleType]) -> types.ModuleType
     """
     Return the :class:`module` instance named by `module`.
 
@@ -47,8 +69,9 @@ def asmodule(module):
 
     """
     if isinstance(module, str):
-        module = __import__(module, fromlist=[])
-    return module
+        return __import__(module, fromlist=[])
+    else:
+        return module
 
 
 def check_type(obj, type_or_tuple):
@@ -57,11 +80,13 @@ def check_type(obj, type_or_tuple):
 
 
 def check_subclass(cls, class_or_tuple):
+    # type: (type, Union[type, Tuple[type, ...]]) -> None
     if not issubclass(cls, class_or_tuple):
         raise TypeError("Expected %r. Got %r" % (class_or_tuple, type(cls)))
 
 
 def check_arg(pred, value):
+    # type: (bool, str) -> None
     if not pred:
         raise ValueError(value)
 
@@ -80,9 +105,9 @@ def unique(iterable):
     unique : Iterable
         Unique elements from `iterable`.
     """
-    seen = set()
+    seen = set()  # type: Set[H]
 
-    def observed(el):
+    def observed(el):  # type: (H) -> bool
         observed = el in seen
         seen.add(el)
         return observed
