@@ -12,6 +12,7 @@ The :class:`WidgetDiscovery` can be used to populate the registry.
 
 
 """
+from typing import Dict
 
 import logging
 
@@ -55,7 +56,7 @@ from .discovery import WidgetDiscovery
 log = logging.getLogger(__name__)
 
 
-__GLOBAL_REGISTRY = {}
+__GLOBAL_REGISTRY = {}  # type: Dict[str, WidgetRegistry]
 
 
 def global_registry(entry_point_group="_default"):

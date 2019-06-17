@@ -5,6 +5,8 @@ Qt Model classes for widget registry.
 import bisect
 import warnings
 
+from typing import Union
+
 from xml.sax.saxutils import escape
 from urllib.parse import urlencode
 
@@ -67,16 +69,16 @@ class QtWidgetRegistry(QObject, WidgetRegistry):
 
     """
 
-    CATEGORY_DESC_ROLE = Qt.UserRole + 1
+    CATEGORY_DESC_ROLE = Qt.ItemDataRole(Qt.UserRole + 1)
     """Category Description Role"""
 
-    WIDGET_DESC_ROLE = Qt.UserRole + 2
+    WIDGET_DESC_ROLE = Qt.ItemDataRole(Qt.UserRole + 2)
     """Widget Description Role"""
 
-    WIDGET_ACTION_ROLE = Qt.UserRole + 3
+    WIDGET_ACTION_ROLE = Qt.ItemDataRole(Qt.UserRole + 3)
     """Widget Action Role"""
 
-    BACKGROUND_ROLE = Qt.UserRole + 4
+    BACKGROUND_ROLE = Qt.ItemDataRole(Qt.UserRole + 4)
     """Background color for widget/category in the canvas
     (different from Qt.BackgroundRole)
     """
@@ -112,6 +114,7 @@ class QtWidgetRegistry(QObject, WidgetRegistry):
                 cat_item.insertRow(j, widget_item)
 
     def model(self):
+        # type: () -> QStandardItemModel
         """
         Return the widget descriptions in a Qt Item Model instance
         (QStandardItemModel).
@@ -122,17 +125,19 @@ class QtWidgetRegistry(QObject, WidgetRegistry):
         return self.__item_model
 
     def item_for_widget(self, widget):
+        # type: (Union[str, WidgetDescription]) -> QStandardItem
         """Return the QStandardItem for the widget.
         """
         if isinstance(widget, str):
             widget = self.widget(widget)
-        cat = self.category(widget.category)
+        cat = self.category(widget.category or "Unspecified")
         cat_ind = self.categories().index(cat)
         cat_item = self.model().item(cat_ind)
         widget_ind = self.widgets(cat).index(widget)
         return cat_item.child(widget_ind)
 
     def action_for_widget(self, widget):
+        # type: (Union[str, WidgetDescription]) -> QAction
         """
         Return the QAction instance for the widget (can be a string or
         a WidgetDescription instance).
@@ -142,6 +147,7 @@ class QtWidgetRegistry(QObject, WidgetRegistry):
         return item.data(self.WIDGET_ACTION_ROLE)
 
     def create_action_for_item(self, item):
+        # type: (QStandardItem) -> QAction
         """
         Create a QAction instance for the widget description item.
         """
@@ -159,6 +165,7 @@ class QtWidgetRegistry(QObject, WidgetRegistry):
         return action
 
     def _insert_category(self, desc):
+        # type: (CategoryDescription) -> None
         """
         Override to update the item model and emit the signals.
         """
@@ -174,10 +181,11 @@ class QtWidgetRegistry(QObject, WidgetRegistry):
         self.category_added.emit(desc.name, desc)
 
     def _insert_widget(self, category, desc):
+        # type: (CategoryDescription, WidgetDescription) -> None
         """
         Override to update the item model and emit the signals.
         """
-        assert(isinstance(category, CategoryDescription))
+        assert isinstance(category, CategoryDescription)
         categories = self.categories()
         cat_i = categories.index(category)
         _, widgets = self._categories_dict[category.name]
@@ -194,6 +202,7 @@ class QtWidgetRegistry(QObject, WidgetRegistry):
         self.widget_added.emit(category.name, desc.name, desc)
 
     def _cat_desc_to_std_item(self, desc):
+        # type: (CategoryDescription) -> QStandardItem
         """
         Create a QStandardItem for the category description.
         """
@@ -226,6 +235,7 @@ class QtWidgetRegistry(QObject, WidgetRegistry):
         return item
 
     def _widget_desc_to_std_item(self, desc, category):
+        # type: (WidgetDescription, CategoryDescription) -> QStandardItem
         """
         Create a QStandardItem for the widget description.
         """
@@ -283,6 +293,7 @@ TOOLTIP_TEMPLATE = """\
 
 
 def tooltip_helper(desc):
+    # type: (WidgetDescription) -> str
     """Widget tooltip construction helper.
 
     """
@@ -299,7 +310,10 @@ def tooltip_helper(desc):
     inputs_fmt = "<li>{name} ({class_name})</li>"
 
     def type_str(type_name):
-        if type_name.startswith("builtins."):
+        # type: (Union[str, type]) -> str
+        if isinstance(type_name, type):
+            return type_str("{0.__module__}.{0.__qualname__}".format(type_name))
+        elif type_name.startswith("builtins."):
             return type_name[len("builtins."):]
         else:
             return type_name
@@ -324,6 +338,7 @@ def tooltip_helper(desc):
 
 
 def whats_this_helper(desc, include_more_link=False):
+    # type: (WidgetDescription, bool) -> str
     """
     A `What's this` text construction helper. If `include_more_link` is
     True then the text will include a `more...` link.

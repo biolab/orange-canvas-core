@@ -10,7 +10,14 @@ import bisect
 
 from operator import attrgetter
 
+import typing
+from typing import Optional, List, Tuple, Dict, Union
+
+from . description import CategoryDescription, WidgetDescription
 from . import description
+
+if typing.TYPE_CHECKING:
+    CategoryWidgetsPair = Tuple[CategoryDescription, List[WidgetDescription]]
 
 log = logging.getLogger(__name__)
 
@@ -22,15 +29,6 @@ class WidgetRegistry(object):
     """
     A container for widget and category descriptions.
 
-    >>> reg = WidgetRegistry()
-    >>> file_desc = WidgetDescription.from_module(
-    ...     "Orange.OrangeWidgets.Data.OWFile"
-    ... )
-    ...
-    >>> reg.register_widget(file_desc)  # register the description
-    >>> print reg.widgets()
-    [...
-
     Parameters
     ----------
     other : :class:`WidgetRegistry`, optional
@@ -39,18 +37,17 @@ class WidgetRegistry(object):
     See also
     --------
     WidgetDiscovery
-
     """
-
     def __init__(self, other=None):
+        # type: (Optional[WidgetRegistry]) -> None
         # A list of (category, widgets_list) tuples ordered by priority.
-        self.registry = []
+        self.registry = []  # type: List[CategoryWidgetsPair]
 
         # tuples from 'registry' indexed by name
-        self._categories_dict = {}
+        self._categories_dict = {}  # type: Dict[str, CategoryWidgetsPair]
 
-        # WidgetDecriptions by qualified name
-        self._widgets_dict = {}
+        # WidgetDescriptions by qualified name
+        self._widgets_dict = {}  # type: Dict[str, WidgetDescription]
 
         if other is not None:
             if not isinstance(other, WidgetRegistry):
@@ -62,6 +59,7 @@ class WidgetRegistry(object):
             self._widgets_dict = dict(other._widgets_dict)
 
     def categories(self):
+        # type: () -> List[CategoryDescription]
         """
         Return a list all top level :class:`CategoryDescription` instances
         ordered by `priority`.
@@ -70,6 +68,7 @@ class WidgetRegistry(object):
         return [c for c, _ in self.registry]
 
     def category(self, name):
+        # type: (str) -> CategoryDescription
         """
         Find and return a :class:`CategoryDescription` by its `name`.
 
@@ -85,6 +84,7 @@ class WidgetRegistry(object):
         return self._categories_dict[name][0]
 
     def has_category(self, name):
+        # type: (str) -> bool
         """
         Return ``True`` if a category with `name` exist in this registry.
 
@@ -97,6 +97,7 @@ class WidgetRegistry(object):
         return name in self._categories_dict
 
     def widgets(self, category=None):
+        # type: (Union[CategoryDescription, str, None]) -> List[WidgetDescription]
         """
         Return a list of all widgets in the registry. If `category` is
         specified return only widgets which belong to the category.
@@ -124,6 +125,7 @@ class WidgetRegistry(object):
         return widgets
 
     def widget(self, qualified_name):
+        # type: (str) -> WidgetDescription
         """
         Return a :class:`WidgetDescription` identified by `qualified_name`.
 
@@ -138,6 +140,7 @@ class WidgetRegistry(object):
         return self._widgets_dict[qualified_name]
 
     def has_widget(self, qualified_name):
+        # type: (str) -> bool
         """
         Return ``True`` if the widget with `qualified_name` exists in
         this registry.
@@ -146,6 +149,7 @@ class WidgetRegistry(object):
         return qualified_name in self._widgets_dict
 
     def register_widget(self, desc):
+        # type: (WidgetDescription) -> None
         """
         Register a :class:`WidgetDescription` instance.
         """
@@ -171,6 +175,7 @@ class WidgetRegistry(object):
         self._insert_widget(cat_desc, desc)
 
     def register_category(self, desc):
+        # type: (CategoryDescription) -> None
         """
         Register a :class:`CategoryDescription` instance.
 
@@ -194,6 +199,7 @@ class WidgetRegistry(object):
         self._insert_category(desc)
 
     def _insert_category(self, desc):
+        # type: (CategoryDescription) -> None
         """
         Insert category description into 'registry' list
         """
@@ -201,15 +207,16 @@ class WidgetRegistry(object):
         priorities = [c.priority for c, _ in self.registry]
         insertion_i = bisect.bisect_right(priorities, priority)
 
-        item = (desc, [])
+        item = (desc, [])  # type: CategoryWidgetsPair
         self.registry.insert(insertion_i, item)
         self._categories_dict[desc.name] = item
 
     def _insert_widget(self, category, desc):
+        # type: (CategoryDescription, WidgetDescription) -> None
         """
         Insert widget description `desc` into `category`.
         """
-        assert(isinstance(category, description.CategoryDescription))
+        assert isinstance(category, description.CategoryDescription)
         _, widgets = self._categories_dict[category.name]
 
         priority = desc.priority

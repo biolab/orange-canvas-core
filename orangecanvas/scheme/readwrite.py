@@ -171,7 +171,7 @@ _annotation = NamedTuple(
 
 _text_params = NamedTuple(
     "_text_params", [
-        ("geometry", str),
+        ("geometry", Tuple[float, float, float, float]),
         ("text", str),
         ("font", Dict[str, Any]),
         ("content_type", str),
@@ -180,7 +180,7 @@ _text_params = NamedTuple(
 
 _arrow_params = NamedTuple(
     "_arrow_params", [
-        ("geometry", Tuple[float, float]),
+        ("geometry", Tuple[Tuple[float, float], Tuple[float, float]]),
         ("color", str),
     ])
 

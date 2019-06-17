@@ -7,9 +7,28 @@ Widget meta description classes
 import sys
 import copy
 import warnings
-from typing import Union
+
+import typing
+from typing import Union, Optional, List, Iterable
 
 from orangecanvas.utils import qualified_name
+
+__all__ = [
+    "DescriptionError",
+    "WidgetSpecificationError",
+    "SignalSpecificationError",
+    "CategorySpecificationError",
+    "Single",
+    "Multiple",
+    "Default",
+    "NonDefault",
+    "Explicit",
+    "Dynamic",
+    "InputSignal",
+    "OutputSignal",
+    "WidgetDescription",
+    "CategoryDescription",
+]
 
 # Exceptions
 
@@ -54,6 +73,11 @@ Dynamic = 64
 # Input/output signal (channel) description
 
 
+if typing.TYPE_CHECKING:
+    #: Specification of a input/output type
+    TypeSpec = Union[type, str]
+
+
 class InputSignal(object):
     """
     Description of an input channel.
@@ -66,17 +90,30 @@ class InputSignal(object):
         Type of the accepted signals.
     handler : str
         Name of the handler method for the signal.
-    flags : int, optional
+    flags : int
         Channel flags.
-    id : str
+    id : str, optional
         A unique id of the input signal.
     doc : str, optional
         A docstring documenting the channel.
-    replaces : List[str]
+    replaces : Iterable[str]
         A list of names this input replaces.
     """
+    name = ""  # type: str
+    type = ""  # type: TypeSpec
+    handler = ""  # type: str
+    id = None   # type: Optional[str]
+    doc = None  # type: Optional[str]
+    replaces = None  # type: List[str]
+
+    flags = None     # type: int
+    single = None    # type: bool
+    default = None   # type: bool
+    explicit = None  # type: bool
+
     def __init__(self, name, type, handler, flags=Single + NonDefault,
-                 id=None, doc=None, replaces=[]):
+                 id=None, doc=None, replaces=()):
+        # type: (str, TypeSpec, str, int, Optional[str], Optional[str], Iterable[str]) -> None
         self.name = name
         self.type = type
         self.handler = handler
@@ -90,14 +127,14 @@ class InputSignal(object):
         if not (flags & Default or flags & NonDefault):
             flags += NonDefault
 
-        self.single = flags & Single
-        self.default = flags & Default
-        self.explicit = flags & Explicit
+        self.single = bool(flags & Single)
+        self.default = bool(flags & Default)
+        self.explicit = bool(flags & Explicit)
         self.flags = flags
 
     def __str__(self):
-        fmt = ("{0.__name__}(name={name!r}, type={type!s}, "
-               "handler={handler}, ...)")
+        fmt = ("{0.__name__}(name={name!r}, type={type!r}, "
+               "handler={handler!r}, ...)")
         return fmt.format(type(self), **self.__dict__)
 
     __repr__ = __str__
@@ -134,8 +171,21 @@ class OutputSignal(object):
     replaces : List[str]
         A list of names this output replaces.
     """
+
+    name = ""  # type: str
+    type = ""  # type: TypeSpec
+    id = None   # type: Optional[str]
+    doc = None  # type: Optional[str]
+    replaces = None  # type: List[str]
+
+    single = None    # type: bool
+    default = None   # type: bool
+    explicit = None  # type: bool
+    dynamic = None   # type: bool
+
     def __init__(self, name, type, flags=Single + NonDefault,
-                 id=None, doc=None, replaces=[]):
+                 id=None, doc=None, replaces=()):
+        # type: (str, TypeSpec, int, Optional[str], Optional[str], Iterable[str]) -> None
         self.name = name
         self.type = type
         self.id = id
@@ -148,19 +198,19 @@ class OutputSignal(object):
         if not (flags & Default or flags & NonDefault):
             flags += NonDefault
 
-        self.single = flags & Single
-        self.default = flags & Default
-        self.explicit = flags & Explicit
-        self.dynamic = flags & Dynamic
+        self.single = bool(flags & Single)
+        self.default = bool(flags & Default)
+        self.explicit = bool(flags & Explicit)
+        self.dynamic = bool(flags & Dynamic)
         self.flags = flags
 
         if self.dynamic and not self.single:
             raise SignalSpecificationError(
                 "Output signal can not be 'Multiple' and 'Dynamic'."
-                )
+            )
 
     def __str__(self):
-        fmt = ("{0.__name__}(name={name!r}, type={type!s}, "
+        fmt = ("{0.__name__}(name={name!r}, type={type!r}, "
                "...)")
         return fmt.format(type(self), **self.__dict__)
 
@@ -168,6 +218,7 @@ class OutputSignal(object):
 
 
 def output_channel_from_args(args):
+    # type: (...) -> OutputSignal
     if isinstance(args, tuple):
         return OutputSignal(*args)
     elif isinstance(args, dict):
@@ -180,7 +231,7 @@ def output_channel_from_args(args):
 
 
 def normalize_type(type_):
-    # type: (Union[type, str]) -> str
+    # type: (TypeSpec) -> str
     if isinstance(type_, type):
         return qualified_name(type_)
     elif isinstance(type_, str):
@@ -216,9 +267,9 @@ class WidgetDescription(object):
         A package name where the widget is implemented.
     project_name : str, optional
         The distribution name that provides the widget.
-    inputs : list of :class:`InputSignal`
+    inputs : List[InputSignal]
         A list of input channels provided by the widget.
-    outputs : list of :class:`OutputSignal`
+    outputs : List[OutputSignal]
         A list of output channels provided by the widget.
     help : str, optional
         URL or an Resource template of a detailed widget help page.
@@ -243,8 +294,21 @@ class WidgetDescription(object):
         Widget's background color (in the canvas GUI).
     replaces : list of `str`, optional
         A list of ids this widget replaces (optional).
-
     """
+    name = ""  # type: str
+    id = ""    # type: str
+    qualified_name = None  # type: str
+
+    description = ""  # type: str
+    category = None      # type: Optional[str]
+    project_name = None  # type: Optional[str]
+
+    inputs = []  # type: List[InputSignal]
+    output = []  # type: List[OutputSignal]
+
+    replaces = []  # type: List[str]
+    keywords = []  # type: List[str]
+
     def __init__(self, name, id, category=None, version=None,
                  description=None, long_description=None,
                  qualified_name=None, package=None, project_name=None,
@@ -298,7 +362,7 @@ class WidgetDescription(object):
         self.priority = priority
         self.icon = icon
         self.background = background
-        self.replaces = replaces
+        self.replaces = list(replaces) if replaces else []
 
     def __str__(self):
         return ("WidgetDescription(name=%(name)r, id=%(id)r), "
@@ -347,6 +411,12 @@ class CategoryDescription(object):
         Is this category (by default) hidden in the canvas gui.
 
     """
+    name = ""  # type: str
+    qualified_name = ""  # type: str
+    project_name = ""  # type: str
+    priority = None  # type: int
+    icon = ""  # type: str
+
     def __init__(self, name=None, version=None,
                  description=None, long_description=None,
                  qualified_name=None, package=None,
