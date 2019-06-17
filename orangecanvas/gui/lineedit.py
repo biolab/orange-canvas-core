@@ -87,7 +87,7 @@ class LineEdit(QLineEdit):
         """
         curr = self.actionAt(position)
         if curr is not None:
-            self.removeAction(position)
+            self.removeActionAt(position)
 
         # Add the action using QWidget.addAction (for shortcuts)
         self.addAction(action)
