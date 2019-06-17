@@ -3,6 +3,7 @@ Qt Model classes for widget registry.
 
 """
 import bisect
+import warnings
 
 from xml.sax.saxutils import escape
 from urllib.parse import urlencode
@@ -352,11 +353,10 @@ def whats_this_helper(desc, include_more_link=False):
 
 
 def run_discovery(entry_points_iter, cached=False):
-    """
-    Run the default discovery and return an instance of
-    :class:`QtWidgetRegistry`.
-
-    """
+    warnings.warn(
+        "run_discovery is deprecated and will be removed.",
+        FutureWarning, stacklevel=2
+    )
     reg_cache = {}
     if cached:
         reg_cache = cache.registry_cache()
