@@ -11,7 +11,7 @@ import warnings
 from distutils.version import LooseVersion
 import typing
 
-from typing import Dict, Optional, Tuple, List, Union, Iterable
+from typing import Dict, Optional, Tuple, List, Union, Iterable, Any
 
 import pkg_resources
 
@@ -27,6 +27,7 @@ from .utils.settings import Settings, config_slot
 
 if typing.TYPE_CHECKING:
     import requests
+    from .scheme import Scheme
 
 EntryPoint = pkg_resources.EntryPoint
 Distribution = pkg_resources.Distribution
@@ -56,10 +57,10 @@ def standard_location(type):
     return QStandardPaths.writableLocation(type)
 
 
-standard_location.DesktopLocation = QStandardPaths.DesktopLocation
-standard_location.DataLocation = QStandardPaths.DataLocation
-standard_location.CacheLocation = QStandardPaths.CacheLocation
-standard_location.DocumentsLocation = QStandardPaths.DocumentsLocation
+standard_location.DesktopLocation = QStandardPaths.DesktopLocation      # type: ignore
+standard_location.DataLocation = QStandardPaths.DataLocation            # type: ignore
+standard_location.CacheLocation = QStandardPaths.CacheLocation          # type: ignore
+standard_location.DocumentsLocation = QStandardPaths.DocumentsLocation  # type: ignore
 
 
 class Config:
@@ -171,6 +172,7 @@ class Config:
         raise NotImplementedError
 
     def workflow_constructor(self, *args, **kwargs):
+        # type: (Any, Any) -> Scheme
         """
         The default workflow constructor.
         """
@@ -340,7 +342,7 @@ def init():
     init = lambda: None
 
 
-rc = {}
+rc = {}  # type: ignore
 
 
 spec = \
@@ -536,6 +538,7 @@ def widget_discovery(*args, **kwargs):
 
 
 def workflow_constructor(*args, **kwargs):
+    # type: (Any, Any) -> Scheme
     return default.workflow_constructor(*args, **kwargs)
 
 
