@@ -148,15 +148,10 @@ class QtWidgetRegistry(QObject, WidgetRegistry):
         tooltip = item.toolTip()
         whatsThis = item.whatsThis()
         icon = item.icon()
-        if icon:
-            action = QAction(icon, name, self, toolTip=tooltip,
-                             whatsThis=whatsThis,
-                             statusTip=name)
-        else:
-            action = QAction(name, self, toolTip=tooltip,
-                             whatsThis=whatsThis,
-                             statusTip=name)
-
+        action = QAction(
+            icon, name, self, toolTip=tooltip, whatsThis=whatsThis,
+            statusTip=name
+        )
         widget_desc = item.data(self.WIDGET_DESC_ROLE)
         action.setData(widget_desc)
         action.setProperty("item", item)
