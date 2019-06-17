@@ -1,6 +1,5 @@
 """
 A frameless window widget
-
 """
 
 from AnyQt.QtWidgets import QWidget, QStyleOption
@@ -14,13 +13,12 @@ class FramelessWindow(QWidget):
     """
     A basic frameless window widget with rounded corners (if supported by
     the windowing system).
-
     """
-    def __init__(self, parent=None, **kwargs):
+    def __init__(self, parent=None, radius=6, **kwargs):
         super().__init__(parent, **kwargs)
         self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint)
 
-        self.__radius = 6
+        self.__radius = radius
         self.__isTransparencySupported = is_transparency_supported()
         self.setAttribute(Qt.WA_TranslucentBackground,
                           self.__isTransparencySupported)
