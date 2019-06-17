@@ -1,5 +1,3 @@
-from collections.abc import Callable
-
 from AnyQt.QtWidgets import QTextBrowser
 from AnyQt.QtGui import QStatusTipEvent, QWhatsThisClickedEvent
 from AnyQt.QtCore import QObject, QCoreApplication, QEvent, QTimer, QUrl
@@ -132,7 +130,7 @@ class StatusTipPromoter(QObject):
         if event.type() == QEvent.StatusTip and \
                 not isinstance(event, QuickHelpTipEvent) and \
                 hasattr(obj, "whatsThis") and \
-                isinstance(obj.whatsThis, Callable):
+                callable(obj.whatsThis):
             tip = event.tip()
 
             try:
