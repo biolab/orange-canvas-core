@@ -2,8 +2,11 @@
 A custom toolbar with linear uniform size layout.
 
 """
-from AnyQt.QtWidgets import QToolBar
-from AnyQt.QtCore import Qt, QSize, QEvent
+from typing import List
+
+from AnyQt.QtCore import Qt, QSize, QEvent, QRect
+from AnyQt.QtGui import QResizeEvent, QActionEvent
+from AnyQt.QtWidgets import QToolBar, QWidget
 
 
 class DynamicResizeToolBar(QToolBar):
@@ -16,17 +19,20 @@ class DynamicResizeToolBar(QToolBar):
 
     """
     def resizeEvent(self, event):
+        # type: (QResizeEvent) -> None
         super().resizeEvent(event)
         size = event.size()
         self.__layout(size)
 
     def actionEvent(self, event):
+        # type: (QActionEvent) -> None
         super().actionEvent(event)
         if event.type() == QEvent.ActionAdded or \
                 event.type() == QEvent.ActionRemoved:
             self.__layout(self.size())
 
     def sizeHint(self):
+        # type: () -> QSize
         hint = super().sizeHint()
         width, height = hint.width(), hint.height()
         dx1, dy1, dw1, dh1 = self.getContentsMargins()
@@ -45,6 +51,7 @@ class DynamicResizeToolBar(QToolBar):
         return QSize(width, height)
 
     def __layout(self, size):
+        # type: (QSize) -> None
         """Layout the buttons to fit inside size.
         """
         mygeom = self.geometry()
@@ -58,13 +65,13 @@ class DynamicResizeToolBar(QToolBar):
         mygeom.adjust(dx, dy, -dw, -dh)
 
         actions = self.actions()
-        widgets = map(self.widgetForAction, actions)
+        widgets_it = map(self.widgetForAction, actions)
 
         orientation = self.orientation()
         if orientation == Qt.Horizontal:
-            widgets = sorted(widgets, key=lambda w: w.pos().x())
+            widgets = sorted(widgets_it, key=lambda w: w.pos().x())
         else:
-            widgets = sorted(widgets, key=lambda w: w.pos().y())
+            widgets = sorted(widgets_it, key=lambda w: w.pos().y())
 
         spacing = self.layout().spacing()
         uniform_layout_helper(widgets, mygeom, orientation,
@@ -72,6 +79,7 @@ class DynamicResizeToolBar(QToolBar):
 
 
 def uniform_layout_helper(items, contents_rect, expanding, spacing):
+    # type: (List[QWidget], QRect, Qt.Orientation, int) -> None
     """Set fixed sizes on 'items' so they can be lay out in
     contents rect anf fil the whole space.
 
@@ -82,13 +90,15 @@ def uniform_layout_helper(items, contents_rect, expanding, spacing):
     spacing_space = (len(items) - 1) * spacing
 
     if expanding == Qt.Horizontal:
+        def setter(w, s):  # type: (QWidget, int) -> None
+            w.setFixedWidth(max(s, 0))
         space = contents_rect.width() - spacing_space
-        setter = lambda w, s: w.setFixedWidth(max(s, 0))
     else:
+        def setter(w, s):  # type: (QWidget, int) -> None
+            w.setFixedHeight(max(s, 0))
         space = contents_rect.height() - spacing_space
-        setter = lambda w, s: w.setFixedHeight(max(s, 0))
 
-    base_size = space / len(items)
+    base_size = space // len(items)
     remainder = space % len(items)
 
     for i, item in enumerate(items):

@@ -7,20 +7,24 @@ A widget providing a drop shadow (gaussian blur effect) around another
 widget.
 
 """
+from typing import Optional, Any, Union, List
 
 from AnyQt.QtWidgets import (
     QWidget, QGraphicsScene, QGraphicsRectItem, QGraphicsDropShadowEffect,
     QStyleOption, QAbstractScrollArea, QToolBar
 )
-from AnyQt.QtGui import QPainter, QPixmap, QColor, QPen, QPalette, QRegion
+from AnyQt.QtGui import (
+    QPainter, QPixmap, QColor, QPen, QPalette, QRegion,  QPaintEvent
+)
 from AnyQt.QtCore import (
-    Qt, QPoint, QPointF, QRect, QRectF, QSize, QSizeF, QEvent
+    Qt, QPoint, QPointF, QRect, QRectF, QSize, QSizeF, QEvent, QObject
 )
 from AnyQt.QtCore import pyqtProperty as Property
 
 
 def render_drop_shadow_frame(pixmap, shadow_rect, shadow_color,
                              offset, radius, rect_fill_color):
+    # type: (QPixmap, QRectF, QColor, QPointF, float, QColor) -> QPixmap
     pixmap.fill(Qt.transparent)
     scene = QGraphicsScene()
     rect = QGraphicsRectItem(shadow_rect)
@@ -58,6 +62,7 @@ class DropShadowFrame(QWidget):
     """
     def __init__(self, parent=None, color=QColor(), radius=5,
                  **kwargs):
+        # type: (Optional[QWidget], QColor, int, Any) -> None
         super().__init__(parent, **kwargs)
         self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         self.setAttribute(Qt.WA_NoChildEventsForParent, True)
@@ -67,11 +72,12 @@ class DropShadowFrame(QWidget):
         self.__radius = radius
         self.__offset = QPoint(0, 0)
 
-        self.__widget = None
-        self.__widgetParent = None
+        self.__widget = None  # type: Optional[QWidget]
+        self.__widgetParent = None   # type: Optional[QWidget]
         self.__updatePixmap()
 
     def setColor(self, color):
+        # type: (Union[QColor, Qt.GlobalColor]) -> None
         """
         Set the color of the shadow.
         """
@@ -83,6 +89,7 @@ class DropShadowFrame(QWidget):
             self.__updatePixmap()
 
     def color(self):
+        # type: () -> QColor
         """
         Return the color of the drop shadow.
 
@@ -98,6 +105,7 @@ class DropShadowFrame(QWidget):
                       doc="Drop shadow color")
 
     def setRadius(self, radius):
+        # type: (int) -> None
         """
         Set the drop shadow's blur radius.
         """
@@ -107,6 +115,7 @@ class DropShadowFrame(QWidget):
             self.__updatePixmap()
 
     def radius(self):
+        # type: () -> int
         """
         Return the shadow blur radius.
         """
@@ -116,18 +125,21 @@ class DropShadowFrame(QWidget):
                        doc="Drop shadow blur radius.")
 
     def setOffset(self, offset):
+        # type: (QPoint) -> None
         if self.__offset != QPoint(offset):
             self.__offset = QPoint(offset)
             self.__updateGeometry()
             self.__updatePixmap()
 
     def offset(self):
+        # type: () -> QPoint
         return QPoint(self.__offset)
 
     offset_ = Property(QPoint, fget=offset, fset=setOffset, designable=True,
                        doc="Drop shadow offset.")
 
     def setWidget(self, widget):
+        # type: (Optional[QWidget]) -> None
         """
         Set the widget around which to show the shadow.
         """
@@ -136,8 +148,8 @@ class DropShadowFrame(QWidget):
 
         self.__widget = widget
 
-        if self.__widget:
-            self.__widget.installEventFilter(self)
+        if widget is not None:
+            widget.installEventFilter(self)
             # Find the parent for the frame
             # This is the top level window a toolbar or a viewport
             # of a scroll area
@@ -156,13 +168,17 @@ class DropShadowFrame(QWidget):
             self.setVisible(widget.isVisible())
 
     def widget(self):
+        # type: () -> Optional[QWidget]
         """
         Return the widget that was set by `setWidget`.
         """
         return self.__widget
 
     def paintEvent(self, event):
+        # type: (QPaintEvent) -> None
         # TODO: Use QPainter.drawPixmapFragments on Qt 4.7
+        if self.__widget is None:
+            return
         opt = QStyleOption()
         opt.initFrom(self)
         radius = self.radius_
@@ -172,7 +188,7 @@ class DropShadowFrame(QWidget):
         pixr = pixmap.devicePixelRatio()
         assert pixr == self.devicePixelRatio()
         shadow_rect = QRectF(opt.rect)
-        widget_rect = QRectF(self.widget().geometry())
+        widget_rect = QRectF(self.__widget.geometry())
         widget_rect.moveTo(radius - offset.x(), radius - offset.y())
 
         left = top = right = bottom = radius * pixr
@@ -191,6 +207,7 @@ class DropShadowFrame(QWidget):
         painter.end()
 
     def eventFilter(self, obj, event):
+        # type: (QObject, QEvent) -> bool
         etype = event.type()
         if etype == QEvent.Move or etype == QEvent.Resize:
             self.__updateGeometry()
@@ -202,17 +219,18 @@ class DropShadowFrame(QWidget):
         return super().eventFilter(obj, event)
 
     def __updateGeometry(self):
+        # type: () -> None
         """
         Update the shadow geometry to fit the widget's changed
         geometry.
-
         """
+        assert self.__widget is not None
         widget = self.__widget
         parent = self.__widgetParent
         radius = self.radius_
         offset = self.__offset
         pos = widget.pos()
-        if parent != widget.parentWidget():
+        if parent is not None and parent != widget.parentWidget():
             pos = widget.parentWidget().mapTo(parent, pos)
 
         geom = QRect(pos, widget.size())
@@ -232,6 +250,7 @@ class DropShadowFrame(QWidget):
         self.setMask(mask)
 
     def __updatePixmap(self):
+        # type: () -> None
         """
         Update the cached shadow pixmap.
         """
@@ -260,6 +279,7 @@ class DropShadowFrame(QWidget):
         self.update()
 
     def __shadowPixmapFragments(self, pixmap_rect, shadow_rect):
+        # type: (QRect, QRect) -> List[QRectF]
         """
         Return a list of 8 QRectF fragments for drawing a shadow.
         """

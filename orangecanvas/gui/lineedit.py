@@ -1,24 +1,28 @@
 """
 A LineEdit class with a button on left/right side.
 """
+
 from collections import namedtuple
+
+from typing import Any, Optional, List, NamedTuple
 
 from AnyQt.QtWidgets import (
     QLineEdit, QToolButton, QStyleOptionToolButton, QStylePainter,
-    QStyle, QAction
+    QStyle, QAction, QWidget,
 )
+from AnyQt.QtGui import QPaintEvent
 from AnyQt.QtCore import Qt, QSize, QRect
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
 
-_ActionSlot = \
-    namedtuple(
-        "_AcitonSlot",
-        ["position",  # Left/Right position
-         "action",    # QAction
-         "button",    # LineEditButton instance
-         "autoHide"]  # Auto hide when line edit is empty.
-        )
+_ActionSlot = NamedTuple(
+    "_ActionSlot", [
+        ("position", 'int'),  # Left/Right position
+        ("action", 'QAction'),  # QAction
+        ("button", 'LineEditButton'),   # LineEditButton instance
+        ("autoHide", 'Any'),  # Auto hide when line edit is empty (unused??)
+    ]
+)
 
 
 class LineEditButton(QToolButton):
@@ -26,22 +30,26 @@ class LineEditButton(QToolButton):
     A button in the :class:`LineEdit`.
     """
     def __init__(self, parent=None, flat=True, **kwargs):
+        # type: (Optional[QWidget], bool, Any) -> None
         super().__init__(parent, **kwargs)
 
         self.__flat = flat
 
     def setFlat(self, flat):
+        # type: (bool) -> None
         if self.__flat != flat:
             self.__flat = flat
             self.update()
 
     def flat(self):
+        # type: () -> bool
         return self.__flat
 
     flat_ = Property(bool, fget=flat, fset=setFlat,
                      designable=True)
 
     def paintEvent(self, event):
+        # type: (QPaintEvent) -> None
         if self.__flat:
             opt = QStyleOptionToolButton()
             self.initStyleOption(opt)
@@ -69,11 +77,13 @@ class LineEdit(QLineEdit):
     #: The right action was triggered.
     rightTriggered = Signal()
 
-    def __init__(self, parent=None, **kwargs):
-        super().__init__(parent, **kwargs)
-        self.__actions = [None, None]
+    def __init__(self, *args, **kwargs):
+        # type: (Any, Any) -> None
+        super().__init__(*args, **kwargs)
+        self.__actions = [None, None]  # type: List[Optional[_ActionSlot]]
 
     def setAction(self, action, position=LeftPosition):
+        # type: (QAction, int) -> None
         """
         Set `action` to be displayed at `position`. Existing action
         (if present) will be removed.
@@ -83,7 +93,6 @@ class LineEdit(QLineEdit):
         action : :class:`QAction`
         position : int
             Position where to set the action (default: ``LeftPosition``).
-
         """
         curr = self.actionAt(position)
         if curr is not None:
@@ -112,6 +121,7 @@ class LineEdit(QLineEdit):
         self.__layoutActions()
 
     def actionAt(self, position):
+        # type: (int) -> Optional[QAction]
         """
         Return :class:`QAction` at `position`.
         """
@@ -123,6 +133,7 @@ class LineEdit(QLineEdit):
             return None
 
     def removeActionAt(self, position):
+        # type: (int) -> None
         """
         Remove the action at position.
         """
@@ -130,13 +141,14 @@ class LineEdit(QLineEdit):
 
         slot = self.__actions[position - 1]
         self.__actions[position - 1] = None
-
-        slot.button.hide()
-        slot.button.deleteLater()
-        self.removeAction(slot.action)
-        self.__layoutActions()
+        if slot is not None:
+            slot.button.hide()
+            slot.button.deleteLater()
+            self.removeAction(slot.action)
+            self.__layoutActions()
 
     def button(self, position):
+        # type: (int) -> Optional[LineEditButton]
         """
         Return the button (:class:`LineEditButton`) for the action
         at `position`.
@@ -144,12 +156,13 @@ class LineEdit(QLineEdit):
         """
         self._checkPosition(position)
         slot = self.__actions[position - 1]
-        if slot:
+        if slot is not None:
             return slot.button
         else:
             return None
 
     def _checkPosition(self, position):
+        # type: (int) -> None
         if position not in [self.LeftPosition, self.RightPosition]:
             raise ValueError("Invalid position")
 
@@ -157,7 +170,7 @@ class LineEdit(QLineEdit):
         super().resizeEvent(event)
         self.__layoutActions()
 
-    def __layoutActions(self):
+    def __layoutActions(self):  # type: () -> None
         left, right = self.__actions
 
         contents = self.contentsRect()
@@ -178,6 +191,7 @@ class LineEdit(QLineEdit):
         self.setTextMargins(margins)
 
     def __onTriggered(self, action):
+        # type: (QAction) -> None
         left, right = self.__actions
         if left and action == left.action:
             self.leftTriggered.emit()

@@ -7,13 +7,15 @@ A ToolTree widget presenting the user with a set of actions
 organized in a tree structure.
 
 """
+import enum
+from typing import Any, Dict, Tuple, List, Optional
 
 from AnyQt.QtWidgets import (
     QTreeView, QWidget, QVBoxLayout, QSizePolicy, QStyle, QAction,
 )
 from AnyQt.QtGui import QStandardItemModel
 from AnyQt.QtCore import (
-    Qt, QEvent, QModelIndex, QAbstractItemModel, QAbstractProxyModel
+    Qt, QEvent, QModelIndex, QAbstractItemModel, QAbstractProxyModel, QObject
 )
 from AnyQt.QtCore import pyqtSignal as Signal
 
@@ -30,18 +32,15 @@ class ToolTree(QWidget):
     hovered = Signal(QAction)
 
     def __init__(self, parent=None, **kwargs):
+        # type: (Optional[QWidget], Any) -> None
         super().__init__(parent, **kwargs)
         self.setSizePolicy(QSizePolicy.MinimumExpanding,
                            QSizePolicy.Expanding)
 
-        self.__model = QStandardItemModel()
+        self.__model = QStandardItemModel()  # type: QAbstractItemModel
         self.__flattened = False
         self.__actionRole = Qt.UserRole
-        self.__view = None
 
-        self.__setupUi()
-
-    def __setupUi(self):
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
 
@@ -60,13 +59,14 @@ class ToolTree(QWidget):
 
         view.installEventFilter(self)
 
-        self.__view = view
+        self.__view = view  # type: QTreeView
 
         layout.addWidget(view)
 
         self.setLayout(layout)
 
     def setFlattened(self, flatten):
+        # type: (bool) -> None
         """
         Show the actions in a flattened view.
         """
@@ -81,6 +81,7 @@ class ToolTree(QWidget):
             self.__view.setModel(model)
 
     def flattened(self):
+        # type: () -> bool
         """
         Are actions shown in a flattened tree (a list).
         """
@@ -102,39 +103,44 @@ class ToolTree(QWidget):
         return self.__model
 
     def setRootIndex(self, index):
+        # type: (QModelIndex) -> None
         """Set the root index
         """
         self.__view.setRootIndex(index)
 
     def rootIndex(self):
+        # type: () -> QModelIndex
         """Return the root index.
         """
         return self.__view.rootIndex()
 
     def view(self):
+        # type: () -> QTreeView
         """Return the QTreeView instance used.
         """
         return self.__view
 
     def setActionRole(self, role):
-        """Set the action role. By default this is UserRole
+        # type: (Qt.ItemDataRole) -> None
+        """Set the action role. By default this is Qt.UserRole
         """
         self.__actionRole = role
 
     def actionRole(self):
+        # type: () -> Qt.ItemDataRole
         return self.__actionRole
 
     def __actionForIndex(self, index):
+        # type: (QModelIndex) -> Optional[QAction]
         val = index.data(self.__actionRole)
         if isinstance(val, QAction):
             return val
         else:
-            log.debug("index does not have an QAction")
+            return None
 
     def __onActivated(self, index):
-        """The item was activated, if index has an action we
-        need to trigger it.
-
+        # type: (QModelIndex) -> None
+        """The item was activated, if index has an action we need to trigger it.
         """
         if index.isValid():
             action = self.__actionForIndex(index)
@@ -143,6 +149,7 @@ class ToolTree(QWidget):
                 self.triggered.emit(action)
 
     def __onEntered(self, index):
+        # type: (QModelIndex) -> None
         if index.isValid():
             action = self.__actionForIndex(index)
             if action is not None:
@@ -150,6 +157,7 @@ class ToolTree(QWidget):
                 self.hovered.emit(action)
 
     def ensureCurrent(self):
+        # type: () -> None
         """Ensure the view has a current item if one is available.
         """
         model = self.__view.model()
@@ -162,6 +170,7 @@ class ToolTree(QWidget):
                     break
 
     def eventFilter(self, obj, event):
+        # type: (QObject, QEvent) -> bool
         if obj is self.__view and event.type() == QEvent.KeyPress:
             key = event.key()
 
@@ -186,20 +195,27 @@ class FlattenedTreeItemModel(QAbstractProxyModel):
     like item model.
 
     """
-    Default = 1
-    InternalNodesDisabled = 2
-    LeavesOnly = 4
+    class Mode(enum.IntEnum):
+        Default = 1
+        InternalNodesDisabled = 2
+        LeavesOnly = 4
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    Default = Mode.Default
+    InternalNodesDisabled = Mode.InternalNodesDisabled
+    LeavesOnly = Mode.LeavesOnly
+
+    def __init__(self, parent=None, **kwargs):
+        # type: (QObject, Any) -> None
+        super().__init__(parent, **kwargs)
         self.__sourceColumn = 0
-        self.__flatteningMode = 1
+        self.__flatteningMode = FlattenedTreeItemModel.Default
         self.__sourceRootIndex = QModelIndex()
 
-        self._source_key = {}
-        self._source_offset = {}
+        self._source_key = []     # type: List[Tuple[int, ...]]
+        self._source_offset = {}  # type: Dict[Tuple[int, ...], int]
 
     def setSourceModel(self, model):
+        # type: (QAbstractItemModel) -> None
         self.beginResetModel()
 
         curr_model = self.sourceModel()
@@ -232,6 +248,7 @@ class FlattenedTreeItemModel(QAbstractProxyModel):
         return self.__sourceColumn
 
     def setSourceRootIndex(self, rootIndex):
+        # type: (QModelIndex) -> None
         """Set the source root index.
         """
         self.beginResetModel()
@@ -240,11 +257,13 @@ class FlattenedTreeItemModel(QAbstractProxyModel):
         self.endResetModel()
 
     def sourceRootIndex(self):
+        # type: () -> QModelIndex
         """Return the source root index.
         """
         return self.__sourceRootIndex
 
     def setFlatteningMode(self, mode):
+        # type: (Mode) -> None
         """Set the flattening mode.
         """
         if mode != self.__flatteningMode:
@@ -254,11 +273,13 @@ class FlattenedTreeItemModel(QAbstractProxyModel):
             self.endResetModel()
 
     def flatteningMode(self):
+        # type: () -> Mode
         """Return the flattening mode.
         """
         return self.__flatteningMode
 
     def mapFromSource(self, sourceIndex):
+        # type: (QModelIndex) -> QModelIndex
         if sourceIndex.isValid():
             key = self._indexKey(sourceIndex)
             offset = self._source_offset[key]
@@ -268,6 +289,7 @@ class FlattenedTreeItemModel(QAbstractProxyModel):
             return sourceIndex
 
     def mapToSource(self, index):
+        # type: (QModelIndex) -> QModelIndex
         if index.isValid():
             row = index.row()
             source_key_path = self._source_key[row]
@@ -276,27 +298,31 @@ class FlattenedTreeItemModel(QAbstractProxyModel):
             return index
 
     def index(self, row, column=0, parent=QModelIndex()):
+        # type: (int, int, QModelIndex) -> QModelIndex
         if not parent.isValid():
             return self.createIndex(row, column, object=row)
         else:
             return QModelIndex()
 
-    def parent(self, child):
+    def parent(self, child):  # type: ignore
         return QModelIndex()
 
     def rowCount(self, parent=QModelIndex()):
+        # type: (QModelIndex) -> int
         if parent.isValid():
             return 0
         else:
             return len(self._source_key)
 
     def columnCount(self, parent=QModelIndex()):
+        # type: (QModelIndex) -> int
         if parent.isValid():
             return 0
         else:
             return 1
 
     def flags(self, index):
+        # type: (QModelIndex) -> Qt.ItemFlags
         flags = super().flags(index)
         if self.__flatteningMode == self.InternalNodesDisabled:
             sourceIndex = self.mapToSource(index)
@@ -304,10 +330,11 @@ class FlattenedTreeItemModel(QAbstractProxyModel):
             if sourceModel.rowCount(sourceIndex) > 0 and \
                     flags & Qt.ItemIsEnabled:
                 # Internal node, enabled in the source model, disable it
-                flags ^= Qt.ItemIsEnabled
+                flags ^= Qt.ItemIsEnabled  # type: ignore
         return flags
 
     def _indexKey(self, index):
+        # type: (QModelIndex) -> Tuple[int, ...]
         """Return a key for `index` from the source model into
         the _source_offset map. The key is a tuple of row indices on
         the path from the top if the model to the `index`.
@@ -321,6 +348,7 @@ class FlattenedTreeItemModel(QAbstractProxyModel):
         return tuple(reversed(key_path))
 
     def _indexFromKey(self, key_path):
+        # type: (Tuple[int, ...]) -> QModelIndex
         """Return an source QModelIndex for the given key.
         """
         index = self.sourceModel().index(key_path[0], 0)
@@ -329,12 +357,14 @@ class FlattenedTreeItemModel(QAbstractProxyModel):
         return index
 
     def _updateRowMapping(self):
+        # type: () -> None
         source = self.sourceModel()
 
-        source_key = []
-        source_offset_map = {}
+        source_key = []         # type: List[Tuple[int, ...]]
+        source_offset_map = {}  # type: Dict[Tuple[int, ...], int]
 
         def create_mapping(index, key_path):
+            # type: (QModelIndex, Tuple[int, ...]) -> None
             if source.rowCount(index) > 0:
                 if self.__flatteningMode != self.LeavesOnly:
                     source_offset_map[key_path] = len(source_offset_map)
@@ -354,6 +384,7 @@ class FlattenedTreeItemModel(QAbstractProxyModel):
         self._source_offset = source_offset_map
 
     def _sourceDataChanged(self, top, bottom):
+        # type: (QModelIndex, QModelIndex) -> None
         changed_indexes = []
         for i in range(top.row(), bottom.row() + 1):
             source_ind = top.sibling(i, 0)
@@ -363,17 +394,20 @@ class FlattenedTreeItemModel(QAbstractProxyModel):
             self.dataChanged.emit(ind, ind)
 
     def _sourceRowsInserted(self, parent, start, end):
+        # type: (QModelIndex, int, int) -> None
         self.beginResetModel()
         self._updateRowMapping()
         self.endResetModel()
 
     def _sourceRowsRemoved(self, parent, start, end):
+        # type: (QModelIndex, int, int) -> None
         self.beginResetModel()
         self._updateRowMapping()
         self.endResetModel()
 
     def _sourceRowsMoved(self, sourceParent, sourceStart, sourceEnd,
                          destParent, destRow):
+        # type: (QModelIndex, int, int, QModelIndex, int) -> None
         self.beginResetModel()
         self._updateRowMapping()
         self.endResetModel()

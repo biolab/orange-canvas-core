@@ -1,7 +1,9 @@
+from typing import Any, Optional, Iterable
+
 from AnyQt.QtWidgets import (
-    QListView, QSizePolicy, QStyle, QStyleOptionViewItem
+    QListView, QSizePolicy, QStyle, QStyleOptionViewItem, QWidget
 )
-from AnyQt.QtCore import Qt, QSize
+from AnyQt.QtCore import Qt, QSize, QModelIndex
 
 
 class LinearIconView(QListView):
@@ -10,8 +12,9 @@ class LinearIconView(QListView):
 
     Suitable for displaying large(ish) icons with text in a single row/column.
     """
-    def __init__(self, *args, iconSize=QSize(120, 80), **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, parent=None, iconSize=QSize(120, 80), **kwargs):
+        # type: (Optional[QWidget], QSize, Any)-> None
+        super().__init__(parent, **kwargs)
         self.setViewMode(QListView.IconMode)
         self.setWrapping(False)
         self.setWordWrap(True)
@@ -36,9 +39,12 @@ class LinearIconView(QListView):
         if self.model() is None or not self.model().rowCount():
             style = self.style()
             opt = self.viewOptions()
-            opt.features |= (QStyleOptionViewItem.HasDecoration |
-                             QStyleOptionViewItem.HasDisplay |
-                             QStyleOptionViewItem.WrapText)
+            opt.features = QStyleOptionViewItem.ViewItemFeature(
+                opt.features |
+                QStyleOptionViewItem.HasDecoration |
+                QStyleOptionViewItem.HasDisplay |
+                QStyleOptionViewItem.WrapText
+            )
             opt.text = "X" * 12 + "\nX"
             sh = style.sizeFromContents(
                 QStyle.CT_ItemViewItem, opt, QSize(), self)
@@ -72,11 +78,13 @@ class LinearIconView(QListView):
             return sh
 
     def updateGeometries(self):
+        # type: () -> None
         """Reimplemented"""
         super().updateGeometries()
         self.updateGeometry()
 
-    def dataChanged(self, topLeft, bottomRight, roles=[]):
+    def dataChanged(self, topLeft, bottomRight, roles=()):
+        # type: (QModelIndex, QModelIndex, Iterable[int]) -> None
         """Reimplemented"""
         super().dataChanged(topLeft, bottomRight, roles)
         self.updateGeometry()

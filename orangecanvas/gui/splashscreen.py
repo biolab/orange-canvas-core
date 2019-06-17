@@ -2,12 +2,13 @@
 A splash screen widget with support for positioning of the message text.
 
 """
+from typing import Union
 
-from AnyQt.QtWidgets import QSplashScreen,  QWidget, QApplication
+from AnyQt.QtWidgets import QSplashScreen, QWidget
 from AnyQt.QtGui import (
-    QPixmap, QPainter, QTextDocument, QTextBlockFormat, QTextCursor
+    QPixmap, QPainter, QTextDocument, QTextBlockFormat, QTextCursor, QColor
 )
-from AnyQt.QtCore import Qt
+from AnyQt.QtCore import Qt, QRect, QEvent
 
 from .utils import is_transparency_supported
 
@@ -39,7 +40,7 @@ class SplashScreen(QSplashScreen):
     def __init__(self, parent=None, pixmap=None, textRect=None,
                  textFormat=Qt.PlainText, **kwargs):
         super().__init__(parent, **kwargs)
-        self.__textRect = textRect
+        self.__textRect = textRect or QRect()
         self.__message = ""
         self.__color = Qt.black
         self.__alignment = Qt.AlignLeft
@@ -52,27 +53,31 @@ class SplashScreen(QSplashScreen):
         self.setPixmap(pixmap)
 
         self.setAutoFillBackground(False)
-        # Also set FramelesWindowHint (if not already set)
+        # Also set FramelessWindowHint (if not already set)
         self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint)
 
     def setTextRect(self, rect):
+        # type: (QRect) -> None
         """
         Set the rectangle (:class:`QRect`) in which to show the message text.
         """
         if self.__textRect != rect:
-            self.__textRect = rect
+            self.__textRect = QRect(rect)
             self.update()
 
     def textRect(self):
+        # type: () -> QRect
         """
         Return the text message rectangle.
         """
-        return self.__textRect
+        return QRect(self.__textRect)
 
     def textFormat(self):
+        # type: () -> Qt.TextFormat
         return self.__textFormat
 
     def setTextFormat(self, format):
+        # type: (Qt.TextFormat) -> None
         if format != self.__textFormat:
             self.__textFormat = format
             self.update()
@@ -83,15 +88,15 @@ class SplashScreen(QSplashScreen):
         self.raise_()
 
     def drawContents(self, painter):
+        # type: (QPainter) -> None
         """
-        Reimplementation of drawContents to limit the drawing
-        inside `textRext`.
-
+        Reimplementation of drawContents to limit the drawing inside
+        `textRect`.
         """
         painter.setPen(self.__color)
         painter.setFont(self.font())
 
-        if self.__textRect:
+        if self.__textRect.isValid():
             rect = self.__textRect
         else:
             rect = self.rect().adjusted(5, 5, -5, -5)
@@ -121,29 +126,32 @@ class SplashScreen(QSplashScreen):
             painter.drawText(rect, self.__alignment, self.__message)
 
     def showMessage(self, message, alignment=Qt.AlignLeft, color=Qt.black):
+        # type: (str, int, Union[QColor, Qt.GlobalColor]) -> None
         """
         Show the `message` with `color` and `alignment`.
         """
         # Need to store all this arguments for drawContents (no access
         # methods)
         self.__alignment = alignment
-        self.__color = color
+        self.__color = QColor(color)
         self.__message = message
         super().showMessage(message, alignment, color)
 
     # Reimplemented to allow graceful fall back if the windowing system
     # does not support transparency.
     def setPixmap(self, pixmap):
+        # type: (QPixmap) -> None
         self.setAttribute(Qt.WA_TranslucentBackground,
                           pixmap.hasAlpha() and is_transparency_supported())
 
-        self.__pixmap = pixmap
+        self.__pixmap = QPixmap(pixmap)
         super().setPixmap(pixmap)
         if pixmap.hasAlpha() and not is_transparency_supported():
             self.setMask(pixmap.createHeuristicMask())
 
     def event(self, event):
-        if event.type() == event.Paint:
+        # type: (QEvent) -> bool
+        if event.type() == QEvent.Paint:
             pixmap = self.__pixmap
             painter = QPainter(self)
             if not pixmap.isNull():

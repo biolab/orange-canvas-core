@@ -7,10 +7,13 @@ A widget similar to :class:`QStackedWidget` supporting animated
 transitions between widgets.
 
 """
+from typing import Any, Union
 
 import logging
 
-from AnyQt.QtWidgets import QWidget, QFrame, QStackedLayout, QSizePolicy
+from AnyQt.QtWidgets import (
+    QWidget, QFrame, QStackedLayout, QSizePolicy, QLayout
+)
 from AnyQt.QtGui import QPixmap, QPainter
 from AnyQt.QtCore import Qt, QPoint, QRect, QSize, QPropertyAnimation
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
@@ -21,6 +24,7 @@ log = logging.getLogger(__name__)
 
 
 def clipMinMax(size, minSize, maxSize):
+    # type: (QSize, QSize, QSize) -> QSize
     """
     Clip the size so it is bigger then minSize but smaller than maxSize.
     """
@@ -28,6 +32,7 @@ def clipMinMax(size, minSize, maxSize):
 
 
 def fixSizePolicy(size, hint, policy):
+    # type: (QSize, QSize, QSizePolicy) -> QSize
     """
     Fix size so it conforms to the size policy and the given size hint.
     """
@@ -56,12 +61,17 @@ class StackLayout(QStackedLayout):
     `current` widget.
 
     """
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, **kwargs):
+        # type: (Union[QWidget, QLayout, None], Any) -> None
         self.__rect = QRect()
-        super().__init__(parent)
+        if parent is not None:
+            super().__init__(parent, **kwargs)
+        else:
+            super().__init__(**kwargs)
         self.currentChanged.connect(self._onCurrentChanged)
 
     def sizeHint(self):
+        # type: () -> QSize
         current = self.currentWidget()
         if current:
             hint = current.sizeHint()
@@ -73,6 +83,7 @@ class StackLayout(QStackedLayout):
             return super().sizeHint()
 
     def minimumSize(self):
+        # type: () -> QSize
         current = self.currentWidget()
         if current:
             return current.minimumSize()
@@ -80,6 +91,7 @@ class StackLayout(QStackedLayout):
             return super().minimumSize()
 
     def maximumSize(self):
+        # type: () -> QSize
         current = self.currentWidget()
         if current:
             return current.maximumSize()
@@ -101,16 +113,14 @@ class StackLayout(QStackedLayout):
             return -1
 
     def geometry(self):
+        # type: () -> QRect
         # Reimplemented due to QTBUG-47107.
         return QRect(self.__rect)
 
     def setGeometry(self, rect):
-        if not isinstance(rect, QRect):
-            raise TypeError("QRect required")
-
+        # type: (QRect) -> None
         if rect == self.__rect:
             return
-
         self.__rect = QRect(rect)
 
         super().setGeometry(rect)

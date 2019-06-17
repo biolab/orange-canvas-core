@@ -8,7 +8,8 @@ in a single :class:`QScrollArea` instance and can keep multiple open tabs.
 """
 from operator import eq, attrgetter
 
-from typing import NamedTuple, List, Optional, Any
+import typing
+from typing import NamedTuple, List, Iterable, Optional, Any, Callable
 
 from AnyQt.QtWidgets import (
     QWidget, QFrame, QSizePolicy, QStyle, QStyleOptionToolButton,
@@ -199,11 +200,12 @@ class ToolBoxTabButton(QToolButton):
 
 class _ToolBoxLayout(QVBoxLayout):
     def __init__(self, *args, **kwargs):
+        # type: (Any, Any) -> None
         self.__minimumSize = None  # type: Optional[QSize]
         self.__maximumSize = None  # type: Optional[QSize]
         super().__init__(*args, **kwargs)
 
-    def minimumSize(self):
+    def minimumSize(self):  # type: () -> QSize
         """Reimplemented from `QBoxLayout.minimumSize`."""
         if self.__minimumSize is None:
             msize = super().minimumSize()
@@ -219,7 +221,7 @@ class _ToolBoxLayout(QVBoxLayout):
 
         return self.__minimumSize
 
-    def maximumSize(self):
+    def maximumSize(self):  # type: () -> QSize
         """Reimplemented from `QBoxLayout.maximumSize`."""
         msize = super().maximumSize()
         # Allow the contents to grow horizontally (expand within the
@@ -230,7 +232,7 @@ class _ToolBoxLayout(QVBoxLayout):
         msize.setWidth(QWIDGETSIZE_MAX)
         return msize
 
-    def invalidate(self):
+    def invalidate(self):  # type: () -> None
         """Reimplemented from `QVBoxLayout.invalidate`."""
         self.__minimumSize = None
         self.__maximumSize = None
@@ -244,7 +246,9 @@ class ToolBox(QFrame):
     # Signal emitted when a tab is toggled.
     tabToggled = Signal(int, bool)
 
-    def setExclusive(self, exclusive):
+    __exclusive = False  # type: bool
+
+    def setExclusive(self, exclusive):  # type: (bool) -> None
         """
         Set exclusive tabs (only one tab can be open at a time).
         """
@@ -266,7 +270,7 @@ class ToolBox(QFrame):
                     if checked != page.action and page.action.isChecked():
                         page.action.trigger()
 
-    def exclusive(self):
+    def exclusive(self):  # type: () -> bool
         """
         Are the tabs in the toolbox exclusive.
         """
@@ -380,14 +384,14 @@ class ToolBox(QFrame):
 
         Parameters
         ----------
-        widget : :class:`QWidget`
+        widget : QWidget
             A widget to be inserted. The toolbox takes ownership
             of the widget.
         text : str
             Name/title of the new tab.
-        icon : :class:`QIcon`, optional
+        icon : QIcon
             An icon for the tab button.
-        toolTip : str, optional
+        toolTip : str
             Tool tip for the tab button.
 
         Returns
@@ -542,22 +546,15 @@ class ToolBox(QFrame):
         if index > 0:
             # Update the `previous` tab buttons style hints
             previous = self.__pages[index - 1].button
-            flag = QStyleOptionToolBox.NextIsSelected
-            if on:
-                previous.selected |= flag
-            else:
-                previous.selected &= ~flag
-
+            previous.selected = set_flag(
+                previous.selected, QStyleOptionToolBox.NextIsSelected, on
+            )
             previous.update()
-
         if index < self.count() - 1:
             next = self.__pages[index + 1].button
-            flag = QStyleOptionToolBox.PreviousIsSelected
-            if on:
-                next.selected |= flag
-            else:
-                next.selected &= ~flag
-
+            next.selected = set_flag(
+                next.selected, QStyleOptionToolBox.PreviousIsSelected, on
+            )
             next.update()
 
         self.tabToggled.emit(index, on)
@@ -573,16 +570,16 @@ class ToolBox(QFrame):
 
         def update(button, next_sel, prev_sel):
             # type: (ToolBoxTabButton, bool, bool) -> None
-            if next_sel:
-                button.selected |= QStyleOptionToolBox.NextIsSelected
-            else:
-                button.selected &= ~QStyleOptionToolBox.NextIsSelected
-
-            if prev_sel:
-                button.selected |= QStyleOptionToolBox.PreviousIsSelected
-            else:
-                button.selected &= ~ QStyleOptionToolBox.PreviousIsSelected
-
+            button.selected = set_flag(
+                button.selected,
+                QStyleOptionToolBox.NextIsSelected,
+                next_sel
+            )
+            button.selected = set_flag(
+                button.selected,
+                QStyleOptionToolBox.PreviousIsSelected,
+                prev_sel
+            )
             button.update()
 
         if self.count() == 1:
@@ -612,17 +609,30 @@ class ToolBox(QFrame):
             p.button.update()
 
 
+if typing.TYPE_CHECKING:
+    A = typing.TypeVar("A")
+    B = typing.TypeVar("B")
+    C = typing.TypeVar("C")
+    F = typing.TypeVar("F", bound=int)
+
+
+def set_flag(flags, mask, on=True):
+    # type: (F, F, bool) -> F
+    if on:
+        return type(flags)(flags | mask)
+    else:
+        return type(flags)(flags & ~mask)
+
+
 def identity(arg):
     return arg
 
 
-def find(iterable, *what, **kwargs):
+def find(iterable, what, key=identity, predicate=eq):
+    # type: (Iterable[A], B, Callable[[A], C], Callable[[C, B], bool]) -> A
     """
-    find(iterable, [what, [key=None, [predicate=operator.eq]]])
+    find(iterable, what, [key=None, [predicate=operator.eq]])
     """
-    if what:
-        what = what[0]
-    key, predicate = kwargs.get("key", identity), kwargs.get("predicate", eq)
     for item in iterable:
         item_key = key(item)
         if predicate(item_key, what):

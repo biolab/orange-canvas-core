@@ -2,9 +2,9 @@
 Helper utilities
 
 """
-
 import sys
 import traceback
+import ctypes
 
 from contextlib import contextmanager
 
@@ -12,10 +12,10 @@ from AnyQt.QtWidgets import (
     QWidget, QMessageBox, QStyleOption, QStyle
 )
 from AnyQt.QtGui import (
-    QGradient, QLinearGradient, QRadialGradient, QBrush, QPainter
+    QGradient, QLinearGradient, QRadialGradient, QBrush, QPainter,
+    QPaintEvent, QColor
 )
 from AnyQt.QtCore import QPointF
-
 
 import sip
 
@@ -60,6 +60,7 @@ def disabled(qobject):
 
 
 def StyledWidget_paintEvent(self, event):
+    # type: (QWidget, QPaintEvent) -> None
     """A default styled QWidget subclass  paintEvent function.
     """
     opt = QStyleOption()
@@ -71,12 +72,11 @@ def StyledWidget_paintEvent(self, event):
 class StyledWidget(QWidget):
     """
     """
-    paintEvent = StyledWidget_paintEvent
+    paintEvent = StyledWidget_paintEvent  # type: ignore
 
 
-def is_transparency_supported():
+def is_transparency_supported():  # type: () -> bool
     """Is window transparency supported by the current windowing system.
-
     """
     if sys.platform == "win32":
         return is_dwm_compositing_enabled()
@@ -99,9 +99,8 @@ def is_transparency_supported():
         return False
 
 
-def has_x11():
-    """
-    Is Qt build against X11 server.
+def has_x11():  # type: () -> bool
+    """Is Qt build against X11 server.
     """
     try:
         from AnyQt.QtX11Extras import QX11Info
@@ -110,7 +109,7 @@ def has_x11():
         return False
 
 
-def is_x11_compositing_enabled():
+def is_x11_compositing_enabled():  # type: () -> bool
     """Is X11 compositing manager running.
     """
     try:
@@ -124,14 +123,13 @@ def is_x11_compositing_enabled():
         return False  # ?
 
 
-def is_dwm_compositing_enabled():
+def is_dwm_compositing_enabled():  # type: () -> bool
     """Is Desktop Window Manager compositing (Aero) enabled.
     """
-    import ctypes
-
-    enabled = ctypes.c_bool()
+    enabled = ctypes.c_bool(False)
     try:
-        DwmIsCompositionEnabled = ctypes.windll.dwmapi.DwmIsCompositionEnabled
+        DwmIsCompositionEnabled = \
+            ctypes.windll.dwmapi.DwmIsCompositionEnabled  # type: ignore
     except (AttributeError, WindowsError):
         # dwmapi or DwmIsCompositionEnabled is not present
         return False
@@ -142,6 +140,7 @@ def is_dwm_compositing_enabled():
 
 
 def gradient_darker(grad, factor):
+    # type: (QGradient, float) -> QGradient
     """Return a copy of the QGradient darkened by factor.
 
     .. note:: Only QLinearGradeint and QRadialGradient are supported.
@@ -169,7 +168,7 @@ def gradient_darker(grad, factor):
     return new_grad
 
 
-def brush_darker(brush, factor):
+def brush_darker(brush: QBrush, factor: bool) -> QBrush:
     """Return a copy of the brush darkened by factor.
     """
     grad = brush.gradient()
@@ -181,11 +180,10 @@ def brush_darker(brush, factor):
         return brush
 
 
-def create_gradient(base_color, stop=QPointF(0, 0),
-                    finalStop=QPointF(0, 1)):
+def create_gradient(base_color: QColor, stop=QPointF(0, 0),
+                    finalStop=QPointF(0, 1)) -> QLinearGradient:
     """
     Create a default linear gradient using `base_color` .
-
     """
     grad = QLinearGradient(stop, finalStop)
     grad.setStops([(0.0, base_color),
@@ -197,8 +195,8 @@ def create_gradient(base_color, stop=QPointF(0, 0),
     return grad
 
 
-def create_css_gradient(base_color, stop=QPointF(0, 0),
-                        finalStop=QPointF(0, 1)):
+def create_css_gradient(base_color: QColor, stop=QPointF(0, 0),
+                        finalStop=QPointF(0, 1)) -> str:
     """
     Create a Qt css linear gradient fragment based on the `base_color`.
     """
@@ -206,11 +204,10 @@ def create_css_gradient(base_color, stop=QPointF(0, 0),
     return css_gradient(gradient)
 
 
-def css_gradient(gradient):
+def css_gradient(gradient: QLinearGradient) -> str:
     """
     Given an instance of a `QLinearGradient` return an equivalent qt css
     gradient fragment.
-
     """
     stop, finalStop = gradient.start(), gradient.finalStop()
     x1, y1, x2, y2 = stop.x(), stop.y(), finalStop.x(), finalStop.y()

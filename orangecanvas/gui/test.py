@@ -14,6 +14,7 @@ from AnyQt.QtTest import QTest
 
 class QCoreAppTestCase(unittest.TestCase):
     _AppClass = QCoreApplication
+    app = None  # type: QCoreApplication
 
     __appdomain = ""
     __appname = ""
@@ -55,6 +56,7 @@ class QCoreAppTestCase(unittest.TestCase):
 
 class QAppTestCase(QCoreAppTestCase):
     _AppClass = QApplication
+    app = None  # type: QApplication
 
     def tearDown(self):
         QTest.qWait(10)

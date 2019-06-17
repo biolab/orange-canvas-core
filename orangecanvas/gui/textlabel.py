@@ -80,7 +80,7 @@ class TextLabel(QWidget):
             self.__update()
         super().changeEvent(event)
 
-    def __update(self):
+    def __update(self) -> None:
         self.__sizeHint = None
         self.updateGeometry()
         self.update()

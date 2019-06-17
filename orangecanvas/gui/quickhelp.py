@@ -1,3 +1,5 @@
+from typing import Any
+
 from AnyQt.QtWidgets import QTextBrowser
 from AnyQt.QtGui import QStatusTipEvent, QWhatsThisClickedEvent
 from AnyQt.QtCore import QObject, QCoreApplication, QEvent, QTimer, QUrl
@@ -10,6 +12,7 @@ class QuickHelp(QTextBrowser):
     textChanged = Signal()
 
     def __init__(self, *args, **kwargs):
+        # type: (Any, Any) -> None
         super().__init__(*args, **kwargs)
 
         self.setOpenExternalLinks(False)
@@ -24,6 +27,7 @@ class QuickHelp(QTextBrowser):
         self.anchorClicked.connect(self.__on_anchorClicked)
 
     def showHelp(self, text, timeout=0):
+        # type: (str, int) -> None
         """
         Show help for `timeout` milliseconds. if timeout is 0 then
         show the text until it is cleared with clearHelp or showHelp is
@@ -39,6 +43,7 @@ class QuickHelp(QTextBrowser):
             self.__timer.start(timeout)
 
     def clearHelp(self):
+        # type: () -> None
         """
         Clear help text previously set with `showHelp`.
         """
@@ -46,10 +51,10 @@ class QuickHelp(QTextBrowser):
         self.showHelp("")
 
     def showPermanentHelp(self, text):
+        # type: (str) -> None
         """
         Set permanent help text. The text may be temporarily overridden
         by showHelp but will be shown again when that is cleared.
-
         """
         if self.__permanentText != text:
             self.__permanentText = text
@@ -57,10 +62,10 @@ class QuickHelp(QTextBrowser):
             self.textChanged.emit()
 
     def setDefaultText(self, text):
+        # type: (str) -> None
         """
         Set default help text. The text is overriden by normal and permanent help messages,
         but is show again after such messages are cleared.
-
         """
         if self.__defaultText != text:
             self.__defaultText = text
@@ -68,12 +73,14 @@ class QuickHelp(QTextBrowser):
             self.textChanged.emit()
 
     def currentText(self):
+        # type: () -> str
         """
         Return the current shown text.
         """
         return self.__text or self.__permanentText
 
     def __update(self):
+        # type: () -> None
         if self.__text:
             self.setHtml(self.__text)
         elif self.__permanentText:
@@ -82,12 +89,14 @@ class QuickHelp(QTextBrowser):
             self.setHtml(self.__defaultText)
 
     def __on_timeout(self):
+        # type: () -> None
         if self.__text:
             self.__text = ""
             self.__update()
             self.textChanged.emit()
 
     def __on_anchorClicked(self, anchor):
+        # type: (QUrl) -> None
         ev = QuickHelpDetailRequestEvent(anchor.toString(), anchor)
         QCoreApplication.postEvent(self, ev)
 
@@ -95,28 +104,34 @@ class QuickHelp(QTextBrowser):
 class QuickHelpTipEvent(QStatusTipEvent):
     Temporary, Normal, Permanent = range(1, 4)
 
-    def __init__(self, tip, html=None, priority=Normal, timeout=None):
+    def __init__(self, tip, html="", priority=Normal, timeout=0):
+        # type: (str, str, int, int) -> None
         super().__init__(tip)
         self.__html = html or ""
         self.__priority = priority
         self.__timeout = timeout
 
     def html(self):
+        # type: () -> str
         return self.__html
 
     def priority(self):
+        # type: () -> int
         return self.__priority
 
     def timeout(self):
+        # type: () -> int
         return self.__timeout
 
 
 class QuickHelpDetailRequestEvent(QWhatsThisClickedEvent):
     def __init__(self, href, url):
+        # type: (str, QUrl) -> None
         super().__init__(href)
         self.__url = QUrl(url)
 
     def url(self):
+        # type: () -> QUrl
         return QUrl(self.__url)
 
 
@@ -127,12 +142,13 @@ class StatusTipPromoter(QObject):
 
     """
     def eventFilter(self, obj, event):
+        # type: (QObject, QEvent) -> bool
         if event.type() == QEvent.StatusTip and \
                 not isinstance(event, QuickHelpTipEvent) and \
                 hasattr(obj, "whatsThis") and \
                 callable(obj.whatsThis):
+            assert isinstance(event, QStatusTipEvent)
             tip = event.tip()
-
             try:
                 text = obj.whatsThis()
             except Exception:
