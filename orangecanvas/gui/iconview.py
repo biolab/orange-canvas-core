@@ -78,5 +78,5 @@ class LinearIconView(QListView):
 
     def dataChanged(self, topLeft, bottomRight, roles=[]):
         """Reimplemented"""
-        super().dataChanged(topLeft, bottomRight)
+        super().dataChanged(topLeft, bottomRight, roles)
         self.updateGeometry()
