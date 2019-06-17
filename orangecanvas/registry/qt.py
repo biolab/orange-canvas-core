@@ -298,8 +298,8 @@ def tooltip_helper(desc):
     inputs_fmt = "<li>{name} ({class_name})</li>"
 
     def type_str(type_name):
-        if type_name.startswith("__builtin__."):
-            return type_name[len("__builtin__."):]
+        if type_name.startswith("builtins."):
+            return type_name[len("builtins."):]
         else:
             return type_name
 
