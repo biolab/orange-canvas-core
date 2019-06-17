@@ -805,24 +805,6 @@ class NodeItem(QGraphicsWidget):
         self.setFlag(QGraphicsItem.ItemIsMovable, True)
         self.setFlag(QGraphicsItem.ItemIsFocusable, True)
 
-        # central body shape item
-        self.shapeItem = None
-
-        # in/output anchor items
-        self.inputAnchorItem = None
-        self.outputAnchorItem = None
-
-        # title text item
-        self.captionTextItem = None
-
-        # error, warning, info items
-        self.errorItem = None
-        self.warningItem = None
-        self.infoItem = None
-
-        # background when selected
-        self.backgroundItem = None
-
         self.mousePressTime = QTime()
         self.mousePressTime.start()
 
@@ -839,35 +821,7 @@ class NodeItem(QGraphicsWidget):
         self.__animationEnabled = False
 
         self.setZValue(self.Z_VALUE)
-        self.setupGraphics()
 
-        self.setWidgetDescription(widget_description)
-
-    @classmethod
-    def from_node(cls, node):
-        """
-        Create an :class:`NodeItem` instance and initialize it from a
-        :class:`SchemeNode` instance.
-
-        """
-        self = cls()
-        self.setWidgetDescription(node.description)
-#        self.setCategoryDescription(node.category)
-        return self
-
-    @classmethod
-    def from_node_meta(cls, meta_description):
-        """
-        Create an `NodeItem` instance from a node meta description.
-        """
-        self = cls()
-        self.setWidgetDescription(meta_description)
-        return self
-
-    def setupGraphics(self):
-        """
-        Set up the graphics.
-        """
         shape_rect = QRectF(-24, -24, 48, 48)
 
         self.shapeItem = NodeBodyItem(self)
@@ -922,6 +876,29 @@ class NodeItem(QGraphicsWidget):
 
         self.prepareGeometryChange()
         self.__boundingRect = None
+
+        self.setWidgetDescription(widget_description)
+
+    @classmethod
+    def from_node(cls, node):
+        """
+        Create an :class:`NodeItem` instance and initialize it from a
+        :class:`SchemeNode` instance.
+
+        """
+        self = cls()
+        self.setWidgetDescription(node.description)
+#        self.setCategoryDescription(node.category)
+        return self
+
+    @classmethod
+    def from_node_meta(cls, meta_description):
+        """
+        Create an `NodeItem` instance from a node meta description.
+        """
+        self = cls()
+        self.setWidgetDescription(meta_description)
+        return self
 
     # TODO: Remove the set[Widget|Category]Description. The user should
     # handle setting of icons, title, ...
