@@ -1,9 +1,7 @@
-"""
-"""
 import warnings
-from AnyQt.QtCore import QSettings
 
-QSettings = QSettings
+# Back-compatibility. Should not be imported from here
+from AnyQt.QtCore import QSettings  # pylint: disable=unused-import
 
 
 def toPyObject(variant):

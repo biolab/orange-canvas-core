@@ -16,6 +16,8 @@ from AnyQt.QtCore import QObject, QEvent, QMetaProperty
 
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
+from typing import Optional, Any, List, Dict, Tuple
+
 
 def find_meta_property(obj, name):
     # type: (QObject, str) -> QMetaProperty
@@ -34,6 +36,7 @@ def find_meta_property(obj, name):
 
 
 def find_notifier(obj, name):
+    # type: (QObject, str) -> str
     """
     Return the notifier signal name (`str`) for the property of
     `object` (instance of `QObject`).
@@ -57,40 +60,50 @@ class AbstractBoundProperty(QObject):
     """Emited when the property changes"""
 
     def __init__(self, obj, propertyName, parent=None):
+        # type: (QObject, str, Optional[QObject]) -> None
         super().__init__(parent)
 
-        self.obj = obj
+        self.obj = obj  # type: Optional[QObject]
         self.propertyName = propertyName
         self.obj.destroyed.connect(self._on_destroyed)
-        self._source = None
+        self._source = None  # type: Optional[AbstractBoundProperty]
 
     def set(self, value):
+        # type: (Any) -> bool
         """
         Set `value` to the property.
         """
-        return self.obj.setProperty(self.propertyName, value)
+        if self.obj is not None:
+            return self.obj.setProperty(self.propertyName, value)
+        else:
+            return False
 
     def get(self):
+        # type: () -> Any
         """
         Return the property value.
         """
-        return self.obj.property(self.propertyName)
+        if self.obj is not None:
+            return self.obj.property(self.propertyName)
+        else:
+            return None
 
     @Slot()
     def notifyChanged(self):
         """
         Notify the binding of a change in the property value.
         The default implementation emits the `changed` signals.
-
         """
         val = self.get()
         self.changed.emit()
         self.changed[object].emit(val)
 
     def _on_destroyed(self):
+        # type: () -> None
         self.obj = None
 
     def bindTo(self, source):
+        # type: (AbstractBoundProperty) -> None
         """
         Bind this property to `source` (instance of `AbstractBoundProperty`).
         """
@@ -106,14 +119,17 @@ class AbstractBoundProperty(QObject):
             self.notifyChanged()
 
     def unbind(self):
+        # type: () -> None
         """
         Unbind the currently bound property (set with `bindTo`).
         """
-        self._source.destroyed.disconnect(self.unbind)
-        self._source.changed.disconnect(self.update)
-        self._source = None
+        if self._source is not None:
+            self._source.destroyed.disconnect(self.unbind)
+            self._source.changed.disconnect(self.update)
+            self._source = None
 
     def update(self):
+        # type: () -> None
         """
         Update the property value from `source` property (`bindTo`).
         """
@@ -142,7 +158,7 @@ class PropertyBindingExpr(AbstractBoundProperty):
         self.expression = expression
         self.globals = dict(globals)
         self.locals = dict(locals)
-        self._sources = {}
+        self._sources = {}  # type: Dict[str, AbstractBoundProperty]
 
         names = self.code.co_names
         for name in names:
@@ -153,16 +169,17 @@ class PropertyBindingExpr(AbstractBoundProperty):
                 v.destroyed.connect(self._on_destroyed)
 
     def sources(self):
+        # type: () -> List[AbstractBoundProperty]
         """Return all source property bindings appearing in the
         expression namespace.
-
         """
-        return list(self._sources)
+        return list(self._sources.values())
 
     def set(self, value):
         raise NotImplementedError("Cannot set a value of an expression")
 
     def get(self):
+        # type: () -> Any
         locals = dict(self.locals)
         locals.update(dict((name, source.get())
                            for name, source in self._sources.items()))
@@ -176,8 +193,11 @@ class PropertyBindingExpr(AbstractBoundProperty):
         raise NotImplementedError("Cannot bind an expression")
 
     def _on_destroyed(self):
+        # type: () -> None
         source = self.sender()
-        self._sources.remove(source)
+        for name, obj in list(self._sources.items()):
+            if obj is source:
+                del self._sources[name]
 
 
 class PropertyBinding(AbstractBoundProperty):
@@ -205,8 +225,8 @@ class PropertyBinding(AbstractBoundProperty):
         super()._on_destroyed()
 
     def reset(self):
-        meta_prop = find_meta_property(self, self.obj, self.propertyName)
-        if meta_prop.isResetable():
+        meta_prop = find_meta_property(self.obj, self.propertyName)
+        if meta_prop.isResettable():
             meta_prop.reset(self.obj)
         else:
             return super().reset()

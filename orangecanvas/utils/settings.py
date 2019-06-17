@@ -9,14 +9,12 @@ import abc
 import logging
 
 import typing
-from typing import List, Dict, Tuple, Union, Any, Type
+from typing import List, Dict, Tuple, Union, Any, Type, Optional
 
 from collections import namedtuple, MutableMapping
 
 from AnyQt.QtCore import QObject, QEvent, QCoreApplication, QSettings
 from AnyQt.QtCore import pyqtSignal as Signal
-
-_QObjectType = type(QObject)
 
 
 log = logging.getLogger(__name__)
@@ -67,7 +65,10 @@ class SettingChangedEvent(QEvent):
         return self.__oldValue
 
 
-class QABCMeta(_QObjectType, abc.ABCMeta):  # pylint: disable=all
+_QObjectType = type(QObject)
+
+
+class QABCMeta(_QObjectType, abc.ABCMeta):  # type: ignore # pylint: disable=all
     def __init__(self, name, bases, attr_dict):
         _QObjectType.__init__(self, name, bases, attr_dict)
         abc.ABCMeta.__init__(self, name, bases, attr_dict)
@@ -192,8 +193,10 @@ class Settings(QObject, MutableMapping, metaclass=QABCMeta):
 
         if self.__store.contains(fullkey):
             value = self.__value(fullkey, slot.value_type if slot else None)
-        else:
+        elif slot is not None:
             value = slot.default_value
+        else:
+            raise KeyError()
 
         return value
 
@@ -366,6 +369,7 @@ def QSettings_readArray(settings, key, scheme):
     count = settings.beginReadArray(key)
 
     def normalize_spec(spec):
+        # type: (ValueSpec) -> Tuple[Type[_T], Optional[_T]]
         if isinstance(spec, tuple):
             if len(spec) != 2:
                 raise ValueError("len(spec) != 2")
