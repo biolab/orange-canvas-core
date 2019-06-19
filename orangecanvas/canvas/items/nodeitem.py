@@ -611,7 +611,6 @@ class GraphicsIconItem(QGraphicsWidget):
         self.__iconSize = QSize(iconSize)
         self.__icon = QIcon(icon)
 
-        self._opacity = 1
         self.anim = QPropertyAnimation(self, b"opacity")
         self.anim.setDuration(350)
         self.anim.setStartValue(1)
@@ -627,15 +626,6 @@ class GraphicsIconItem(QGraphicsWidget):
         if self.__icon != icon:
             self.__icon = QIcon(icon)
             self.update()
-
-    def getOpacity(self):
-        return self._opacity
-
-    def setOpacity(self, o):
-        self._opacity = o
-        self.update()
-
-    opacity = Property(float, fget=getOpacity, fset=setOpacity)
 
     def icon(self):
         """
@@ -694,7 +684,6 @@ class GraphicsIconItem(QGraphicsWidget):
                 QPainter.SmoothPixmapTransform,
                 self.__transformationMode == Qt.SmoothTransformation
             )
-            painter.setOpacity(self._opacity)
             self.__icon.paint(painter, target, Qt.AlignCenter, mode)
 
 
