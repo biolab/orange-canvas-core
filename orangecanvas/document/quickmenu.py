@@ -254,7 +254,7 @@ class SuggestMenuPage(MenuPage):
         flat.setFlatteningMode(flat.InternalNodesDisabled)
         flat.setFlatteningMode(flat.LeavesOnly)
         proxy = SortFilterProxyModel(self)
-        proxy.setFilterCaseSensitivity(False)
+        proxy.setFilterCaseSensitivity(Qt.CaseSensitive)
         proxy.setSourceModel(flat)
         # bypass MenuPage.setModel and its own proxy
         # TODO: store my self.__proxy
