@@ -9,14 +9,17 @@ organized in a tree structure.
 """
 
 from AnyQt.QtWidgets import (
-    QTreeView, QWidget, QVBoxLayout, QSizePolicy, QStyledItemDelegate,
-    QStyle, QAction,
+    QTreeView, QWidget, QVBoxLayout, QSizePolicy, QStyle, QAction,
 )
 from AnyQt.QtGui import QStandardItemModel
 from AnyQt.QtCore import (
     Qt, QEvent, QModelIndex, QAbstractItemModel, QAbstractProxyModel
 )
 from AnyQt.QtCore import pyqtSignal as Signal
+
+__all__ = [
+    "ToolTree", "FlattenedTreeItemModel"
+]
 
 
 class ToolTree(QWidget):
@@ -50,7 +53,6 @@ class ToolTree(QWidget):
         view.setHeaderHidden(True)
         view.setItemsExpandable(True)
         view.setEditTriggers(QTreeView.NoEditTriggers)
-        view.setItemDelegate(ToolTreeItemDelegate(self))
 
         view.activated.connect(self.__onActivated)
         view.clicked.connect(self.__onActivated)
@@ -177,11 +179,6 @@ class ToolTree(QWidget):
                 return True
 
         return super().eventFilter(obj, event)
-
-
-class ToolTreeItemDelegate(QStyledItemDelegate):
-    def paint(self, painter, option, index):
-        super().paint(painter, option, index)
 
 
 class FlattenedTreeItemModel(QAbstractProxyModel):
