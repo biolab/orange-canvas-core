@@ -1,18 +1,23 @@
 from collections import OrderedDict
 from xml.sax.saxutils import escape
 
+from typing import Dict, Callable, Optional, Union, Any, Tuple
+
 import docutils.core
 
 from AnyQt.QtWidgets import (
     QGraphicsItem, QGraphicsPathItem, QGraphicsWidget, QGraphicsTextItem,
-    QGraphicsDropShadowEffect, QMenu, QAction, QActionGroup
+    QGraphicsDropShadowEffect, QMenu, QAction, QActionGroup,
+    QStyleOptionGraphicsItem, QWidget, QGraphicsSceneHoverEvent,
+    QGraphicsSceneMouseEvent, QGraphicsSceneResizeEvent,
+    QGraphicsSceneContextMenuEvent
 )
 from AnyQt.QtGui import (
     QPainterPath, QPainterPathStroker, QPolygonF, QColor, QPen, QBrush,
-    QPalette
+    QPalette, QPainter, QTextDocument, QTextCursor, QFocusEvent
 )
 from AnyQt.QtCore import (
-    Qt, QPointF, QSizeF, QRectF, QLineF, QEvent, QMetaObject
+    Qt, QPointF, QSizeF, QRectF, QLineF, QEvent, QMetaObject, QObject
 )
 from AnyQt.QtCore import (
     pyqtSignal as Signal, pyqtProperty as Property, pyqtSlot as Slot
@@ -22,10 +27,9 @@ from .graphicspathobject import GraphicsPathObject
 
 
 class Annotation(QGraphicsWidget):
-    """Base class for annotations in the canvas scheme.
     """
-    def __init__(self, parent=None, **kwargs):
-        super().__init__(parent, **kwargs)
+    Base class for annotations in the canvas scheme.
+    """
 
 
 class GraphicsTextEdit(QGraphicsTextItem):
@@ -40,13 +44,15 @@ class GraphicsTextEdit(QGraphicsTextItem):
     #: Signal emitted when editing operation ends (the item loses edit focus)
     editingFinished = Signal()
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, placeholderText="", **kwargs):
+        # type: (Any, str, Any) -> None
         super().__init__(*args, **kwargs)
         self.setAcceptHoverEvents(True)
-        self.__placeholderText = ""
+        self.__placeholderText = placeholderText
         self.__editing = False  # text editing in progress
 
     def setPlaceholderText(self, text):
+        # type: (str) -> None
         """
         Set the placeholder text. This is shown when the item has no text,
         i.e when `toPlainText()` returns an empty string.
@@ -58,6 +64,7 @@ class GraphicsTextEdit(QGraphicsTextItem):
                 self.update()
 
     def placeholderText(self):
+        # type: () -> str
         """
         Return the placeholder text.
         """
@@ -67,6 +74,7 @@ class GraphicsTextEdit(QGraphicsTextItem):
                                 doc="Placeholder text")
 
     def paint(self, painter, option, widget=None):
+        # type: (QPainter, QStyleOptionGraphicsItem, Optional[QWidget]) -> None
         super().paint(painter, option, widget)
 
         # Draw placeholder text if necessary
@@ -85,6 +93,7 @@ class GraphicsTextEdit(QGraphicsTextItem):
             painter.drawText(brect, Qt.AlignTop | Qt.AlignLeft, text)
 
     def hoverMoveEvent(self, event):
+        # type: (QGraphicsSceneHoverEvent) -> None
         layout = self.document().documentLayout()
         if layout.anchorAt(event.pos()):
             self.setCursor(Qt.PointingHandCursor)
@@ -93,6 +102,7 @@ class GraphicsTextEdit(QGraphicsTextItem):
         super().hoverMoveEvent(event)
 
     def mousePressEvent(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> None
         flags = self.textInteractionFlags()
         if flags & Qt.LinksAccessibleByMouse \
                 and not flags & Qt.TextSelectableByMouse \
@@ -108,12 +118,14 @@ class GraphicsTextEdit(QGraphicsTextItem):
             super().mousePressEvent(event)
 
     def setTextInteractionFlags(self, flags):
+        # type: (Union[Qt.TextInteractionFlag, Qt.TextInteractionFlags]) -> None
         super().setTextInteractionFlags(flags)
         if self.hasFocus() and flags & Qt.TextEditable and not self.__editing:
             self.__editing = True
             self.editingStarted.emit()
 
     def focusInEvent(self, event):
+        # type: (QFocusEvent) -> None
         super().focusInEvent(event)
         if self.textInteractionFlags() & Qt.TextEditable and \
                 not self.__editing:
@@ -121,6 +133,7 @@ class GraphicsTextEdit(QGraphicsTextItem):
             self.editingStarted.emit()
 
     def focusOutEvent(self, event):
+        # type: (QFocusEvent) -> None
         super().focusOutEvent(event)
         if self.__editing and \
                 event.reason() not in {Qt.ActiveWindowFocusReason,
@@ -130,6 +143,7 @@ class GraphicsTextEdit(QGraphicsTextItem):
 
 
 def render_plain(content):
+    # type: (str) -> str
     """
     Return a html fragment for a plain pre-formatted text
 
@@ -146,6 +160,7 @@ def render_plain(content):
 
 
 def render_html(content):
+    # type: (str) -> str
     """
     Return a html fragment unchanged.
 
@@ -162,6 +177,7 @@ def render_html(content):
 
 
 def render_markdown(content):
+    # type: (str) -> str
     """
     Return a html fragment from markdown text content
 
@@ -185,6 +201,7 @@ def render_markdown(content):
 
 
 def render_rst(content):
+    # type: (str) -> str
     """
     Return a html fragment from a RST text content
 
@@ -231,9 +248,10 @@ class TextAnnotation(Annotation):
         ("text/rst", render_rst),
         ("text/markdown", render_markdown),
         ("text/html", render_html),
-    ])  # type: Dict[str, Callable[[str], [str]]]
+    ])  # type: Dict[str, Callable[[str], str]]
 
     def __init__(self, parent=None, **kwargs):
+        # type: (Optional[QGraphicsItem], Any) -> None
         super().__init__(None, **kwargs)
         self.setFlag(QGraphicsItem.ItemIsMovable)
         self.setFlag(QGraphicsItem.ItemIsSelectable)
@@ -242,13 +260,13 @@ class TextAnnotation(Annotation):
 
         self.__contentType = "text/plain"
         self.__content = ""
-        self.__renderer = render_plain
+        self.__renderer = render_plain  # type: Callable[[str], str]
 
         self.__textMargins = (2, 2, 2, 2)
         self.__textInteractionFlags = Qt.NoTextInteraction
-        self.__defaultInteractionFlags = (
-            Qt.LinksAccessibleByMouse | Qt.LinksAccessibleByKeyboard)
-
+        self.__defaultInteractionFlags = Qt.TextInteractionFlags(
+            Qt.LinksAccessibleByMouse | Qt.LinksAccessibleByKeyboard
+        )
         rect = self.geometry().translated(-self.pos())
         self.__framePen = QPen(Qt.NoPen)
         self.__framePathItem = QGraphicsPathItem(self)
@@ -278,6 +296,7 @@ class TextAnnotation(Annotation):
             self.setParentItem(parent)
 
     def itemChange(self, change, value):
+        # type: (QGraphicsItem.GraphicsItemChange, Any) -> Any
         if change == QGraphicsItem.ItemSceneHasChanged:
             if self.__textItem.scene() is not None:
                 self.__textItem.installSceneEventFilter(self)
@@ -286,6 +305,7 @@ class TextAnnotation(Annotation):
         return super().itemChange(change, value)
 
     def adjustSize(self):
+        # type: () -> None
         """Resize to a reasonable size.
         """
         self.__textItem.setTextWidth(-1)
@@ -296,6 +316,7 @@ class TextAnnotation(Annotation):
         self.setGeometry(geom)
 
     def setFramePen(self, pen):
+        # type: (QPen) -> None
         """Set the frame pen. By default Qt.NoPen is used (i.e. the frame
         is not shown).
         """
@@ -304,21 +325,25 @@ class TextAnnotation(Annotation):
             self.__updateFrameStyle()
 
     def framePen(self):
+        # type: () -> QPen
         """Return the frame pen.
         """
         return QPen(self.__framePen)
 
     def setFrameBrush(self, brush):
+        # type: (QBrush) -> None
         """Set the frame brush.
         """
         self.__framePathItem.setBrush(brush)
 
     def frameBrush(self):
+        # type: () -> QBrush
         """Return the frame brush.
         """
         return self.__framePathItem.brush()
 
     def __updateFrameStyle(self):
+        # type: () -> None
         if self.isSelected():
             pen = QPen(QColor(96, 158, 215), 1.25, Qt.DashDotLine)
         else:
@@ -327,9 +352,11 @@ class TextAnnotation(Annotation):
         self.__framePathItem.setPen(pen)
 
     def contentType(self):
+        # type: () -> str
         return self.__contentType
 
     def setContent(self, content, contentType="text/plain"):
+        # type: (str, str) -> None
         if self.__content != content or self.__contentType != contentType:
             self.__contentType = contentType
             self.__content = content
@@ -337,33 +364,41 @@ class TextAnnotation(Annotation):
             self.contentChanged.emit()
 
     def content(self):
+        # type: () -> str
         return self.__content
 
     def setPlainText(self, text):
+        # type: (str) -> None
         """Set the annotation text as plain text.
         """
         self.setContent(text, "text/plain")
 
     def toPlainText(self):
+        # type: () -> str
         return self.__textItem.toPlainText()
 
     def setHtml(self, text):
+        # type: (str) -> None
         """Set the annotation text as html.
         """
         self.setContent(text, "text/html")
 
     def toHtml(self):
+        # type: () -> str
         return self.__textItem.toHtml()
 
     def setDefaultTextColor(self, color):
+        # type: (QColor) -> None
         """Set the default text color.
         """
         self.__textItem.setDefaultTextColor(color)
 
     def defaultTextColor(self):
+        # type: () -> QColor
         return self.__textItem.defaultTextColor()
 
     def setTextMargins(self, left, top, right, bottom):
+        # type: (int, int, int, int) -> None
         """Set the text margins.
         """
         margins = (left, top, right, bottom)
@@ -375,31 +410,39 @@ class TextAnnotation(Annotation):
             )
 
     def textMargins(self):
+        # type: () -> Tuple[int, int, int, int]
         """Return the text margins.
         """
         return self.__textMargins
 
     def document(self):
+        # type: () -> QTextDocument
         """Return the QTextDocument instance used internally.
         """
         return self.__textItem.document()
 
     def setTextCursor(self, cursor):
+        # type: (QTextCursor) -> None
         self.__textItem.setTextCursor(cursor)
 
     def textCursor(self):
+        # type: () -> QTextCursor
         return self.__textItem.textCursor()
 
     def setTextInteractionFlags(self, flags):
-        self.__textInteractionFlags = flags
+        # type: (Union[Qt.TextInteractionFlags, Qt.TextInteractionFlag]) -> None
+        self.__textInteractionFlags = Qt.TextInteractionFlags(flags)
 
     def textInteractionFlags(self):
-        return self.__textInteractionFlags
+        # type: () -> Qt.TextInteractionFlags
+        return Qt.TextInteractionFlags(self.__textInteractionFlags)
 
     def setDefaultStyleSheet(self, stylesheet):
+        # type: (str) -> None
         self.document().setDefaultStyleSheet(stylesheet)
 
     def mouseDoubleClickEvent(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> None
         super().mouseDoubleClickEvent(event)
 
         if event.buttons() == Qt.LeftButton and \
@@ -407,6 +450,7 @@ class TextAnnotation(Annotation):
             self.startEdit()
 
     def startEdit(self):
+        # type: () -> None
         """Start the annotation text edit process.
         """
         self.__textItem.setPlainText(self.__content)
@@ -417,6 +461,7 @@ class TextAnnotation(Annotation):
         )
 
     def endEdit(self):
+        # type: () -> None
         """End the annotation edit.
         """
         content = self.__textItem.toPlainText()
@@ -438,6 +483,7 @@ class TextAnnotation(Annotation):
             self, "__updateRenderedContent", Qt.QueuedConnection)
 
     def __onDocumentSizeChanged(self, size):
+        # type: (QSizeF) -> None
         # The size of the text document has changed. Expand the text
         # control rect's height if the text no longer fits inside.
         rect = self.geometry()
@@ -447,6 +493,7 @@ class TextAnnotation(Annotation):
             self.setGeometry(rect)
 
     def __updateFrame(self):
+        # type: () -> None
         rect = self.geometry()
         rect.moveTo(0, 0)
         path = QPainterPath()
@@ -454,6 +501,7 @@ class TextAnnotation(Annotation):
         self.__framePathItem.setPath(path)
 
     def resizeEvent(self, event):
+        # type: (QGraphicsSceneResizeEvent) -> None
         width = event.newSize().width()
         left, _, right, _ = self.textMargins()
         self.__textItem.setTextWidth(max(width - left - right, 0))
@@ -461,9 +509,11 @@ class TextAnnotation(Annotation):
         super().resizeEvent(event)
 
     def __textEditingFinished(self):
+        # type: () -> None
         self.endEdit()
 
     def sceneEventFilter(self, obj, event):
+        # type: (QGraphicsItem, QEvent) -> bool
         if obj is self.__textItem and \
                 not (self.__textItem.hasFocus() and
                      self.__textItem.textInteractionFlags() & Qt.TextEditable) and \
@@ -476,6 +526,7 @@ class TextAnnotation(Annotation):
         return super().sceneEventFilter(obj, event)
 
     def changeEvent(self, event):
+        # type: (QEvent) -> None
         if event.type() == QEvent.FontChange:
             self.__textItem.setFont(self.font())
         elif event.type() == QEvent.PaletteChange:
@@ -486,6 +537,7 @@ class TextAnnotation(Annotation):
 
     @Slot()
     def __updateRenderedContent(self):
+        # type: () -> None
         try:
             renderer = TextAnnotation.ContentRenderer[self.__contentType]
         except KeyError:
@@ -493,6 +545,7 @@ class TextAnnotation(Annotation):
         self.__textItem.setHtml(renderer(self.__content))
 
     def contextMenuEvent(self, event):
+        # type: (QGraphicsSceneContextMenuEvent) -> None
         if event.modifiers() & Qt.AltModifier:
             menu = QMenu(event.widget())
             menu.setAttribute(Qt.WA_DeleteOnClose)
@@ -500,6 +553,7 @@ class TextAnnotation(Annotation):
             group = QActionGroup(self, exclusive=True)
 
             def makeaction(text, parent, data=None, **kwargs):
+                # type: (str, QObject, Any, Any) -> QAction
                 action = QAction(text, parent, **kwargs)
                 if data is not None:
                     action.setData(data)
@@ -525,6 +579,7 @@ class TextAnnotation(Annotation):
                 formatmenu.addAction(action)
 
             def ontriggered(action):
+                # type: (QAction) -> None
                 mimetype = action.data()
                 content = self.content()
                 self.setContent(content, mimetype)
@@ -542,7 +597,8 @@ class ArrowItem(GraphicsPathObject):
     #: Arrow Style
     Plain, Concave = 1, 2
 
-    def __init__(self, parent=None, line=None, lineWidth=4, **kwargs):
+    def __init__(self, parent=None, line=None, lineWidth=4., **kwargs):
+        # type: (Optional[QGraphicsItem], Optional[QLineF], float, Any) -> None
         super().__init__(parent, **kwargs)
 
         if line is None:
@@ -557,6 +613,7 @@ class ArrowItem(GraphicsPathObject):
         self.__updateArrowPath()
 
     def setLine(self, line):
+        # type: (QLineF) -> None
         """Set the baseline of the arrow (:class:`QLineF`).
         """
         if self.__line != line:
@@ -564,11 +621,13 @@ class ArrowItem(GraphicsPathObject):
             self.__updateArrowPath()
 
     def line(self):
+        # type: () -> QLineF
         """Return the baseline of the arrow.
         """
         return QLineF(self.__line)
 
     def setLineWidth(self, lineWidth):
+        # type: (float) -> None
         """Set the width of the arrow.
         """
         if self.__lineWidth != lineWidth:
@@ -576,11 +635,13 @@ class ArrowItem(GraphicsPathObject):
             self.__updateArrowPath()
 
     def lineWidth(self):
+        # type: () -> float
         """Return the width of the arrow.
         """
         return self.__lineWidth
 
     def setArrowStyle(self, style):
+        # type: (int) -> None
         """Set the arrow style (`ArrowItem.Plain` or `ArrowItem.Concave`)
         """
         if self.__arrowStyle != style:
@@ -588,11 +649,13 @@ class ArrowItem(GraphicsPathObject):
             self.__updateArrowPath()
 
     def arrowStyle(self):
+        # type: () -> int
         """Return the arrow style
         """
         return self.__arrowStyle
 
     def __updateArrowPath(self):
+        # type: () -> None
         if self.__arrowStyle == ArrowItem.Plain:
             path = arrow_path_plain(self.__line, self.__lineWidth)
         else:
@@ -601,6 +664,7 @@ class ArrowItem(GraphicsPathObject):
 
 
 def arrow_path_plain(line, width):
+    # type: (QLineF, float) -> QPainterPath
     """
     Return an :class:`QPainterPath` of a plain looking arrow.
     """
@@ -640,6 +704,7 @@ def arrow_path_plain(line, width):
 
 
 def arrow_path_concave(line, width):
+    # type: (QLineF, float) -> QPainterPath
     """
     Return a :class:`QPainterPath` of a pretty looking arrow.
     """
@@ -690,6 +755,7 @@ def arrow_path_concave(line, width):
 
 class ArrowAnnotation(Annotation):
     def __init__(self, parent=None, line=None, **kwargs):
+        # type: (Optional[QGraphicsItem], Optional[QLineF], Any) -> None
         super().__init__(parent, **kwargs)
         self.setFlag(QGraphicsItem.ItemIsMovable)
         self.setFlag(QGraphicsItem.ItemIsSelectable)
@@ -728,26 +794,27 @@ class ArrowAnnotation(Annotation):
         self.__autoAdjustGeometry = True
 
     def setAutoAdjustGeometry(self, autoAdjust):
+        # type: (bool) -> None
         """
         If set to `True` then the geometry will be adjusted whenever
         the arrow is changed with `setLine`. Otherwise the geometry
         of the item is only updated so the `line` lies within the
         `geometry()` rect (i.e. it only grows). True by default
-
         """
         self.__autoAdjustGeometry = autoAdjust
         if autoAdjust:
             self.adjustGeometry()
 
     def autoAdjustGeometry(self):
+        # type: () -> bool
         """
         Should the geometry of the item be adjusted automatically when
         `setLine` is called.
-
         """
         return self.__autoAdjustGeometry
 
     def setLine(self, line):
+        # type: (QLineF) -> None
         """
         Set the arrow base line (a `QLineF` in object coordinates).
         """
@@ -782,12 +849,14 @@ class ArrowAnnotation(Annotation):
             self.setGeometry(geom)
 
     def line(self):
+        # type: () -> QLineF
         """
         Return the arrow base line (`QLineF` in object coordinates).
         """
         return QLineF(self.__line)
 
     def setColor(self, color):
+        # type: (QColor) -> None
         """
         Set arrow brush color.
         """
@@ -796,12 +865,14 @@ class ArrowAnnotation(Annotation):
             self.__updateStyleState()
 
     def color(self):
+        # type: () -> QColor
         """
         Return the arrow brush color.
         """
         return QColor(self.__color)
 
     def setLineWidth(self, lineWidth):
+        # type: (float) -> None
         """
         Set the arrow line width.
         """
@@ -809,12 +880,14 @@ class ArrowAnnotation(Annotation):
         self.__arrowShadowBase.setLineWidth(lineWidth)
 
     def lineWidth(self):
+        # type: () -> float
         """
         Return the arrow line width.
         """
         return self.__arrowItem.lineWidth()
 
     def adjustGeometry(self):
+        # type: () -> None
         """
         Adjust the widget geometry to exactly fit the arrow inside
         while preserving the arrow path scene geometry.
@@ -840,16 +913,19 @@ class ArrowAnnotation(Annotation):
         self.setLine(line)
 
     def shape(self):
+        # type: () -> QPainterPath
         arrow_shape = self.__arrowItem.shape()
         return self.mapFromItem(self.__arrowItem, arrow_shape)
 
     def itemChange(self, change, value):
+        # type: (QGraphicsItem.GraphicsItemChange, Any) -> Any
         if change == QGraphicsItem.ItemSelectedHasChanged:
             self.__updateStyleState()
 
         return super().itemChange(change, value)
 
     def __updateStyleState(self):
+        # type: () -> None
         """
         Update the arrows' brush, pen, ... based on it's state
         """

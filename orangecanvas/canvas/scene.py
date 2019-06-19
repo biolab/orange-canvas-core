@@ -4,6 +4,8 @@ Canvas Graphics Scene
 =====================
 
 """
+import typing
+from typing import Dict, List, Optional, Any, Type, Tuple, Union
 
 import logging
 import itertools
@@ -21,9 +23,26 @@ from AnyQt.QtCore import (
 from AnyQt.QtSvg import QSvgGenerator
 from AnyQt.QtCore import pyqtSignal as Signal
 
+from ..registry import (
+    WidgetRegistry, WidgetDescription, CategoryDescription,
+    InputSignal, OutputSignal
+)
 from .. import scheme
+from ..scheme import Scheme, SchemeNode, SchemeLink, BaseSchemeAnnotation
 from . import items
+from .items import NodeItem, LinkItem
+from .items.annotationitem import Annotation
+
 from .layout import AnchorLayout
+
+if typing.TYPE_CHECKING:
+    from ..document.interactions import UserInteraction
+    T = typing.TypeVar("T", bound=QGraphicsItem)
+
+
+__all__ = [
+    "CanvasScene", "grab_svg"
+]
 
 log = logging.getLogger(__name__)
 
@@ -69,24 +88,25 @@ class CanvasScene(QGraphicsScene):
     link_item_hovered = Signal(object)
 
     def __init__(self, *args, **kwargs):
+        # type: (Any, Any) -> None
         super().__init__(*args, **kwargs)
 
-        self.scheme = None
-        self.registry = None
+        self.scheme = None    # type: Optional[Scheme]
+        self.registry = None  # type: Optional[WidgetRegistry]
 
         # All node items
-        self.__node_items = []
+        self.__node_items = []  # type: List[NodeItem]
         # Mapping from SchemeNodes to canvas items
-        self.__item_for_node = {}
+        self.__item_for_node = {}  # type: Dict[SchemeNode, NodeItem]
         # All link items
-        self.__link_items = []
+        self.__link_items = []  # type: List[LinkItem]
         # Mapping from SchemeLinks to canvas items.
-        self.__item_for_link = {}
+        self.__item_for_link = {}  # type: Dict[SchemeLink, LinkItem]
 
         # All annotation items
-        self.__annotation_items = []
+        self.__annotation_items = []  # type: List[Annotation]
         # Mapping from SchemeAnnotations to canvas items.
-        self.__item_for_annotation = {}
+        self.__item_for_annotation = {}  # type: Dict[BaseSchemeAnnotation, Annotation]
 
         # Is the scene editable
         self.editable = True
@@ -98,7 +118,7 @@ class CanvasScene(QGraphicsScene):
         self.__channel_names_visible = True
         self.__node_animation_enabled = True
 
-        self.user_interaction_handler = None
+        self.user_interaction_handler = None  # type: Optional[UserInteraction]
 
         self.activated_mapper = QSignalMapper(self)
         self.activated_mapper.mapped[QObject].connect(
@@ -113,7 +133,7 @@ class CanvasScene(QGraphicsScene):
             self._on_position_change
         )
 
-    def clear_scene(self):
+    def clear_scene(self):  # type: () -> None
         """
         Clear (reset) the scene.
         """
@@ -157,6 +177,7 @@ class CanvasScene(QGraphicsScene):
         self.clear()
 
     def set_scheme(self, scheme):
+        # type: (Scheme) -> None
         """
         Set the scheme to display. Populates the scene with nodes and links
         already in the scheme. Any further change to the scheme will be
@@ -194,6 +215,7 @@ class CanvasScene(QGraphicsScene):
         self.__anchor_layout.activate()
 
     def set_registry(self, registry):
+        # type: (WidgetRegistry) -> None
         """
         Set the widget registry.
         """
@@ -219,6 +241,7 @@ class CanvasScene(QGraphicsScene):
         return self.__anchor_layout
 
     def set_channel_names_visible(self, visible):
+        # type: (bool) -> None
         """
         Set the channel names visibility.
         """
@@ -227,12 +250,14 @@ class CanvasScene(QGraphicsScene):
             link.setChannelNamesVisible(visible)
 
     def channel_names_visible(self):
+        # type: () -> bool
         """
         Return the channel names visibility state.
         """
         return self.__channel_names_visible
 
     def set_node_animation_enabled(self, enabled):
+        # type: (bool) -> None
         """
         Set node animation enabled state.
         """
@@ -243,6 +268,7 @@ class CanvasScene(QGraphicsScene):
                 node.setAnimationEnabled(enabled)
 
     def add_node_item(self, item):
+        # type: (NodeItem) -> NodeItem
         """
         Add a :class:`.NodeItem` instance to the scene.
         """
@@ -278,6 +304,7 @@ class CanvasScene(QGraphicsScene):
         return item
 
     def add_node(self, node):
+        # type: (SchemeNode) -> NodeItem
         """
         Add and return a default constructed :class:`.NodeItem` for a
         :class:`SchemeNode` instance `node`. If the `node` is already in
@@ -291,12 +318,12 @@ class CanvasScene(QGraphicsScene):
         item = self.new_node_item(node.description)
 
         if node.position:
-            pos = QPointF(*node.position)
+            pos = QPointF(*node.position)  # type: ignore
             item.setPos(pos)
 
         item.setTitle(node.title)
-        item.setProcessingState(node.processing_state)
-        item.setProgress(node.progress)
+        item.setProcessingState(node.processing_state)  # type: ignore
+        item.setProgress(node.progress)  # type: ignore
 
         for message in node.state_messages():
             item.setStateMessage(message)
@@ -315,6 +342,7 @@ class CanvasScene(QGraphicsScene):
         return self.add_node_item(item)
 
     def new_node_item(self, widget_desc, category_desc=None):
+        # type: (WidgetDescription, Optional[CategoryDescription]) -> NodeItem
         """
         Construct an new :class:`.NodeItem` from a `WidgetDescription`.
         Optionally also set `CategoryDescription`.
@@ -339,6 +367,7 @@ class CanvasScene(QGraphicsScene):
         return item
 
     def remove_node_item(self, item):
+        # type: (NodeItem) -> None
         """
         Remove `item` (:class:`.NodeItem`) from the scene.
         """
@@ -353,6 +382,7 @@ class CanvasScene(QGraphicsScene):
         self.node_item_removed.emit(item)
 
     def remove_node(self, node):
+        # type: (SchemeNode) -> None
         """
         Remove the :class:`.NodeItem` instance that was previously
         constructed for a :class:`SchemeNode` `node` using the `add_node`
@@ -370,12 +400,14 @@ class CanvasScene(QGraphicsScene):
         self.remove_node_item(item)
 
     def node_items(self):
+        # type: () -> List[NodeItem]
         """
         Return all :class:`.NodeItem` instances in the scene.
         """
         return list(self.__node_items)
 
     def add_link_item(self, item):
+        # type: (LinkItem) -> LinkItem
         """
         Add a link (:class:`.LinkItem`) to the scene.
         """
@@ -392,6 +424,7 @@ class CanvasScene(QGraphicsScene):
         return item
 
     def add_link(self, scheme_link):
+        # type: (SchemeLink) -> LinkItem
         """
         Create and add a :class:`.LinkItem` instance for a
         :class:`SchemeLink` instance. If the link is already in the scene
@@ -424,6 +457,7 @@ class CanvasScene(QGraphicsScene):
 
     def new_link_item(self, source_item, source_channel,
                       sink_item, sink_channel):
+        # type: (NodeItem, OutputSignal, NodeItem, InputSignal) -> LinkItem
         """
         Construct and return a new :class:`.LinkItem`
         """
@@ -432,6 +466,7 @@ class CanvasScene(QGraphicsScene):
         item.setSinkItem(sink_item)
 
         def channel_name(channel):
+            # type: (Union[OutputSignal, InputSignal, str]) -> str
             if isinstance(channel, str):
                 return channel
             else:
@@ -453,17 +488,12 @@ class CanvasScene(QGraphicsScene):
         return item
 
     def remove_link_item(self, item):
+        # type: (LinkItem) -> LinkItem
         """
         Remove a link (:class:`.LinkItem`) from the scene.
         """
         # Invalidate the anchor layout.
-        self.__anchor_layout.invalidateAnchorItem(
-            item.sourceItem.outputAnchorItem
-        )
-        self.__anchor_layout.invalidateAnchorItem(
-            item.sinkItem.inputAnchorItem
-        )
-
+        self.__anchor_layout.invalidateLink(item)
         self.__link_items.remove(item)
 
         # Remove the anchor points.
@@ -474,6 +504,7 @@ class CanvasScene(QGraphicsScene):
         return item
 
     def remove_link(self, scheme_link):
+        # type: (SchemeLink) -> None
         """
         Remove a :class:`.LinkItem` instance that was previously constructed
         for a :class:`SchemeLink` instance `link` using the `add_link` method.
@@ -490,12 +521,14 @@ class CanvasScene(QGraphicsScene):
         self.remove_link_item(item)
 
     def link_items(self):
+        # type: () -> List[LinkItem]
         """
-        Return all :class:`.LinkItem`\s in the scene.
+        Return all :class:`.LinkItem` s in the scene.
         """
         return list(self.__link_items)
 
     def add_annotation_item(self, annotation):
+        # type: (Annotation) -> Annotation
         """
         Add an :class:`.Annotation` item to the scene.
         """
@@ -505,6 +538,7 @@ class CanvasScene(QGraphicsScene):
         return annotation
 
     def add_annotation(self, scheme_annot):
+        # type: (BaseSchemeAnnotation) -> Annotation
         """
         Create a new item for :class:`SchemeAnnotation` and add it
         to the scene. If the `scheme_annot` is already in the scene do
@@ -517,19 +551,19 @@ class CanvasScene(QGraphicsScene):
 
         if isinstance(scheme_annot, scheme.SchemeTextAnnotation):
             item = items.TextAnnotation()
-            x, y, w, h = scheme_annot.rect
+            x, y, w, h = scheme_annot.rect  # type: ignore
             item.setPos(x, y)
             item.resize(w, h)
             item.setTextInteractionFlags(Qt.TextEditorInteraction)
 
-            font = font_from_dict(scheme_annot.font, item.font())
+            font = font_from_dict(scheme_annot.font, item.font()) # type: ignore
             item.setFont(font)
             item.setContent(scheme_annot.content, scheme_annot.content_type)
             scheme_annot.content_changed.connect(item.setContent)
         elif isinstance(scheme_annot, scheme.SchemeArrowAnnotation):
             item = items.ArrowAnnotation()
             start, end = scheme_annot.start_pos, scheme_annot.end_pos
-            item.setLine(QLineF(QPointF(*start), QPointF(*end)))
+            item.setLine(QLineF(QPointF(*start), QPointF(*end)))  # type: ignore
             item.setColor(QColor(scheme_annot.color))
 
         scheme_annot.geometry_changed.connect(
@@ -542,6 +576,7 @@ class CanvasScene(QGraphicsScene):
         return item
 
     def remove_annotation_item(self, annotation):
+        # type: (Annotation) -> None
         """
         Remove an :class:`.Annotation` instance from the scene.
 
@@ -551,6 +586,7 @@ class CanvasScene(QGraphicsScene):
         self.annotation_removed.emit(annotation)
 
     def remove_annotation(self, scheme_annotation):
+        # type: (BaseSchemeAnnotation) -> None
         """
         Remove an :class:`.Annotation` instance that was previously added
         using :func:`add_anotation`.
@@ -567,17 +603,19 @@ class CanvasScene(QGraphicsScene):
         self.remove_annotation_item(item)
 
     def annotation_items(self):
+        # type: () -> List[Annotation]
         """
         Return all :class:`.Annotation` items in the scene.
         """
-        return self.__annotation_items
+        return self.__annotation_items.copy()
 
     def item_for_annotation(self, scheme_annotation):
+        # type: (BaseSchemeAnnotation) -> Annotation
         return self.__item_for_annotation[scheme_annotation]
 
     def annotation_for_item(self, item):
-        rev = dict(reversed(item) \
-                   for item in self.__item_for_annotation.items())
+        # type: (Annotation) -> BaseSchemeAnnotation
+        rev = {v: k for k, v in self.__item_for_annotation.items()}
         return rev[item]
 
     def commit_scheme_node(self, node):
@@ -619,6 +657,7 @@ class CanvasScene(QGraphicsScene):
                   (link, self, self.scheme))
 
     def node_for_item(self, item):
+        # type: (NodeItem) -> SchemeNode
         """
         Return the `SchemeNode` for the `item`.
         """
@@ -626,12 +665,14 @@ class CanvasScene(QGraphicsScene):
         return rev[item]
 
     def item_for_node(self, node):
+        # type: (SchemeNode) -> NodeItem
         """
         Return the :class:`NodeItem` instance for a :class:`SchemeNode`.
         """
         return self.__item_for_node[node]
 
     def link_for_item(self, item):
+        # type: (LinkItem) -> SchemeLink
         """
         Return the `SchemeLink for `item` (:class:`LinkItem`).
         """
@@ -639,24 +680,28 @@ class CanvasScene(QGraphicsScene):
         return rev[item]
 
     def item_for_link(self, link):
+        # type: (SchemeLink) -> LinkItem
         """
         Return the :class:`LinkItem` for a :class:`SchemeLink`
         """
         return self.__item_for_link[link]
 
     def selected_node_items(self):
+        # type: () -> List[NodeItem]
         """
         Return the selected :class:`NodeItem`'s.
         """
         return [item for item in self.__node_items if item.isSelected()]
 
     def selected_annotation_items(self):
+        # type: () -> List[Annotation]
         """
         Return the selected :class:`Annotation`'s
         """
         return [item for item in self.__annotation_items if item.isSelected()]
 
     def node_links(self, node_item):
+        # type: (NodeItem) -> List[LinkItem]
         """
         Return all links from the `node_item` (:class:`NodeItem`).
         """
@@ -664,6 +709,7 @@ class CanvasScene(QGraphicsScene):
                self.node_input_links(node_item)
 
     def node_output_links(self, node_item):
+        # type: (NodeItem) -> List[LinkItem]
         """
         Return a list of all output links from `node_item`.
         """
@@ -671,6 +717,7 @@ class CanvasScene(QGraphicsScene):
                 if link.sourceItem == node_item]
 
     def node_input_links(self, node_item):
+        # type: (NodeItem) -> List[LinkItem]
         """
         Return a list of all input links for `node_item`.
         """
@@ -678,6 +725,7 @@ class CanvasScene(QGraphicsScene):
                 if link.sinkItem == node_item]
 
     def neighbor_nodes(self, node_item):
+        # type: (NodeItem) -> List[NodeItem]
         """
         Return a list of `node_item`'s (class:`NodeItem`) neighbor nodes.
         """
@@ -689,44 +737,46 @@ class CanvasScene(QGraphicsScene):
         return neighbors
 
     def _on_position_change(self, item):
-        # Invalidate the anchor point layout and schedule a layout.
+        # type: (NodeItem) -> None
+        # Invalidate the anchor point layout for the node and schedule a layout.
         self.__anchor_layout.invalidateNode(item)
-
         self.node_item_position_changed.emit(item, item.pos())
 
     def __on_node_pos_changed(self, pos):
+        # type: (Tuple[float, float]) -> None
         node = self.sender()
         item = self.__item_for_node[node]
         item.setPos(*pos)
 
     def __on_scheme_annot_geometry_change(self):
+        # type: () -> None
         annot = self.sender()
         item = self.__item_for_annotation[annot]
         if isinstance(annot, scheme.SchemeTextAnnotation):
-            item.setGeometry(QRectF(*annot.rect))
+            item.setGeometry(QRectF(*annot.rect))              # type: ignore
         elif isinstance(annot, scheme.SchemeArrowAnnotation):
-            p1 = item.mapFromScene(QPointF(*annot.start_pos))
-            p2 = item.mapFromScene(QPointF(*annot.end_pos))
+            p1 = item.mapFromScene(QPointF(*annot.start_pos))  # type: ignore
+            p2 = item.mapFromScene(QPointF(*annot.end_pos))    # type: ignore
             item.setLine(QLineF(p1, p2))
         else:
             pass
 
-    def item_at(self, pos, type_or_tuple=None, buttons=0):
+    def item_at(self, pos, type_or_tuple=None, buttons=Qt.NoButton):
+        # type: (QPointF, Optional[Type[T]], Qt.MouseButtons) -> Optional[T]
         """Return the item at `pos` that is an instance of the specified
         type (`type_or_tuple`). If `buttons` (`Qt.MouseButtons`) is given
         only return the item if it is the top level item that would
         accept any of the buttons (`QGraphicsItem.acceptedMouseButtons`).
-
         """
         rect = QRectF(pos, QSizeF(1, 1))
         items = self.items(rect)
 
         if buttons:
-            items = itertools.dropwhile(
+            items_iter = itertools.dropwhile(
                 lambda item: not item.acceptedMouseButtons() & buttons,
                 items
             )
-            items = list(items)[:1]
+            items = list(items_iter)[:1]
 
         if type_or_tuple:
             items = [i for i in items if isinstance(i, type_or_tuple)]
@@ -789,6 +839,7 @@ class CanvasScene(QGraphicsScene):
         super().contextMenuEvent(event)
 
     def set_user_interaction_handler(self, handler):
+        # type: (UserInteraction) -> None
         if self.user_interaction_handler and \
                 not self.user_interaction_handler.isFinished():
             self.user_interaction_handler.cancel()
@@ -805,6 +856,7 @@ class CanvasScene(QGraphicsScene):
 
 
 def font_from_dict(font_dict, font=None):
+    # type: (dict, Optional[QFont]) -> QFont
     if font is None:
         font = QFont()
     else:
@@ -822,15 +874,19 @@ def font_from_dict(font_dict, font=None):
 if QT_VERSION >= 0x50900 and \
       QSvgGenerator().metric(QSvgGenerator.PdmDevicePixelRatioScaled) == 1:
     # QTBUG-63159
-    class QSvgGenerator(QSvgGenerator):
+    class _QSvgGenerator(QSvgGenerator):  # type: ignore
         def metric(self, metric):
             if metric == QSvgGenerator.PdmDevicePixelRatioScaled:
                 return int(1 * QSvgGenerator.devicePixelRatioFScale())
             else:
                 return super().metric(metric)
 
+else:
+    _QSvgGenerator = QSvgGenerator  # type: ignore
+
 
 def grab_svg(scene):
+    # type: (QGraphicsScene) -> str
     """
     Return a SVG rendering of the scene contents.
 
@@ -840,7 +896,7 @@ def grab_svg(scene):
 
     """
     svg_buffer = QBuffer()
-    gen = QSvgGenerator()
+    gen = _QSvgGenerator()
     gen.setOutputDevice(svg_buffer)
 
     items_rect = scene.itemsBoundingRect().adjusted(-10, -10, 10, 10)

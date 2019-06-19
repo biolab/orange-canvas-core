@@ -4,31 +4,43 @@ Node/Link layout.
 """
 from operator import attrgetter
 
+import typing
+from typing import Optional, Any, List
+
 import sip
 
-from AnyQt.QtWidgets import QGraphicsObject, QApplication
-from AnyQt.QtCore import QRectF, QLineF, QEvent
+from AnyQt.QtWidgets import QGraphicsObject, QApplication, QGraphicsItem
+from AnyQt.QtCore import QRectF, QLineF, QEvent, QPointF
 
-from .items import LinkItem, SourceAnchorItem, SinkAnchorItem
+from .items import (
+    NodeItem, LinkItem, NodeAnchorItem, SourceAnchorItem, SinkAnchorItem
+)
 from .items.utils import (
     invert_permutation_indices, argsort, composition, linspace_trunc
 )
 
+if typing.TYPE_CHECKING:
+    from .scene import CanvasScene
+
 
 class AnchorLayout(QGraphicsObject):
     def __init__(self, parent=None, **kwargs):
+        # type: (Optional[QGraphicsItem], Any) -> None
         super().__init__(parent, **kwargs)
         self.setFlag(QGraphicsObject.ItemHasNoContents)
 
         self.__layoutPending = False
         self.__isActive = False
-        self.__invalidatedAnchors = []
+        self.__invalidatedAnchors = []  # type: List[NodeAnchorItem]
         self.__enabled = True
 
-    def boundingRect(self):
+    def boundingRect(self):  # type: () -> QRectF
         return QRectF()
 
-    def activate(self):
+    def activate(self):  # type: () -> None
+        """
+        Immediately layout all anchors.
+        """
         if self.isEnabled() and not self.__isActive:
             self.__isActive = True
             try:
@@ -37,17 +49,23 @@ class AnchorLayout(QGraphicsObject):
                 self.__isActive = False
                 self.__layoutPending = False
 
-    def isActivated(self):
+    def isActivated(self):  # type: () -> bool
+        """
+        Is the layout currently activated (in :func:`activate()`)
+        """
         return self.__isActive
 
-    def _doLayout(self):
+    def _doLayout(self):  # type: () -> None
         if not self.isEnabled():
             return
 
         scene = self.scene()
         items = scene.items()
         links = [item for item in items if isinstance(item, LinkItem)]
-        point_pairs = [(link.sourceAnchor, link.sinkAnchor) for link in links]
+        point_pairs = [(link.sourceAnchor, link.sinkAnchor)
+                       for link in links
+                       if link.sourceAnchor is not None
+                          and link.sinkAnchor is not None]
         point_pairs += [(a, b) for b, a in point_pairs]
         to_other = dict(point_pairs)
 
@@ -79,27 +97,54 @@ class AnchorLayout(QGraphicsObject):
         self.__invalidatedAnchors = []
 
     def invalidateLink(self, link):
-        self.invalidateAnchorItem(link.sourceItem.outputAnchorItem)
-        self.invalidateAnchorItem(link.sinkItem.inputAnchorItem)
+        # type: (LinkItem) -> None
+        """
+        Invalidate the anchors on `link` and schedule an update.
 
-        self.scheduleDelayedActivate()
+        Parameters
+        ----------
+        link : LinkItem
+        """
+        if link.sourceItem is not None:
+            self.invalidateAnchorItem(link.sourceItem.outputAnchorItem)
+        if link.sinkItem is not None:
+            self.invalidateAnchorItem(link.sinkItem.inputAnchorItem)
 
     def invalidateNode(self, node):
+        # type: (NodeItem) -> None
+        """
+        Invalidate the anchors on `node` and schedule an update.
+
+        Parameters
+        ----------
+        node : NodeItem
+        """
         self.invalidateAnchorItem(node.inputAnchorItem)
         self.invalidateAnchorItem(node.outputAnchorItem)
 
         self.scheduleDelayedActivate()
 
     def invalidateAnchorItem(self, anchor):
+        # type: (NodeAnchorItem) -> None
+        """
+        Invalidate the all links on `anchor`.
+
+        Parameters
+        ----------
+        anchor : NodeAnchorItem
+        """
         self.__invalidatedAnchors.append(anchor)
 
-        scene = self.scene()
+        scene = self.scene()  # type: CanvasScene
+        node = anchor.parentNodeItem()
+        if node is None:
+            return
         if isinstance(anchor, SourceAnchorItem):
-            links = scene.node_output_links(anchor.parentNodeItem())
+            links = scene.node_output_links(node)
             getter = composition(attrgetter("sinkItem"),
                                  attrgetter("inputAnchorItem"))
         elif isinstance(anchor, SinkAnchorItem):
-            links = scene.node_input_links(anchor.parentNodeItem())
+            links = scene.node_input_links(node)
             getter = composition(attrgetter("sourceItem"),
                                  attrgetter("outputAnchorItem"))
         else:
@@ -110,24 +155,31 @@ class AnchorLayout(QGraphicsObject):
         self.scheduleDelayedActivate()
 
     def scheduleDelayedActivate(self):
+        # type: () -> None
+        """
+        Schedule an layout pass
+        """
         if self.isEnabled() and not self.__layoutPending:
             self.__layoutPending = True
             QApplication.postEvent(self, QEvent(QEvent.LayoutRequest))
 
     def __delayedActivate(self):
+        # type: () -> None
         if self.__layoutPending:
             self.activate()
 
     def event(self, event):
+        # type: (QEvent)->bool
         if event.type() == QEvent.LayoutRequest:
             self.activate()
             return True
-
         return super().event(event)
 
 
 def angle(point1, point2):
-    """Return the angle between the two points in range from -180 to 180.
+    # type: (QPointF, QPointF) -> float
+    """
+    Return the angle between the two points in range from -180 to 180.
     """
     angle = QLineF(point1, point2).angle()
     if angle > 180:

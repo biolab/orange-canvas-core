@@ -3,13 +3,14 @@ from itertools import islice, count
 from operator import itemgetter
 
 import typing
-from typing import List, Iterable, Optional, Callable, Any
+from typing import List, Iterable, Optional, Callable, Any, Union
 
 from AnyQt.QtCore import QPointF
 from AnyQt.QtGui import (
-    QColor, QRadialGradient, QPainterPathStroker, QPainterPath
+    QColor, QRadialGradient, QPainterPathStroker, QPainterPath, QPen
 )
 
+from AnyQt.QtWidgets import QGraphicsItem
 
 if typing.TYPE_CHECKING:
     T = typing.TypeVar("T")
@@ -93,6 +94,7 @@ def sample_path(path, num=10):
 
 
 def saturated(color, factor=150):
+    # type: (QColor, int) -> QColor
     """Return a saturated color.
     """
     h = color.hsvHueF()
@@ -105,6 +107,7 @@ def saturated(color, factor=150):
 
 
 def radial_gradient(color, color_light=50):
+    # type: (QColor, Union[int, QColor]) -> QRadialGradient
     """
     radial_gradient(QColor, QColor)
     radial_gradient(QColor, int)
@@ -131,7 +134,6 @@ def toGraphicsObjectIfPossible(item):
     versions of PyQt (< 4.9), where methods returning 'QGraphicsItem *'
     lose the type of the QGraphicsObject subclasses and instead return
     generic QGraphicsItem wrappers.
-
     """
     if item is None:
         return None
@@ -141,6 +143,7 @@ def toGraphicsObjectIfPossible(item):
 
 
 def uniform_linear_layout_trunc(points):
+    # type: (List[float]) -> List[float]
     """
     Layout the points (a list of floats in 0..1 range) in a uniform
     linear space (truncated) while preserving the existing sorting order.
@@ -163,6 +166,7 @@ def invert_permutation_indices(indices):
 
 
 def stroke_path(path, pen):
+    # type: (QPainterPath, QPen) -> QPainterPath
     """Create a QPainterPath stroke from the `path` drawn with `pen`.
     """
     stroker = QPainterPathStroker()

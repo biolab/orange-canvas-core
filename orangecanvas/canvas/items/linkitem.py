@@ -7,19 +7,26 @@ Link Item
 import math
 from xml.sax.saxutils import escape
 
+import typing
+from typing import List, Tuple, Optional, Any
+
 from AnyQt.QtWidgets import (
     QGraphicsItem, QGraphicsEllipseItem, QGraphicsPathItem, QGraphicsWidget,
-    QGraphicsTextItem, QGraphicsDropShadowEffect
+    QGraphicsTextItem, QGraphicsDropShadowEffect, QStyleOptionGraphicsItem,
+    QGraphicsSceneHoverEvent, QWidget,
 )
 from AnyQt.QtGui import (
-    QPen, QBrush, QColor, QPainterPath, QTransform, QPalette
+    QPen, QBrush, QColor, QPainterPath, QTransform, QPalette, QPainter
 )
 from AnyQt.QtCore import Qt, QPointF, QRectF, QLineF, QEvent
 
-from .nodeitem import SHADOW_COLOR
+from .nodeitem import AnchorPoint, SHADOW_COLOR
 from .utils import stroke_path
 
 from ...scheme import SchemeLink
+
+if typing.TYPE_CHECKING:
+    from . import NodeItem, AnchorPoint
 
 
 class LinkCurveItem(QGraphicsPathItem):
@@ -27,6 +34,7 @@ class LinkCurveItem(QGraphicsPathItem):
     Link curve item. The main component of a :class:`LinkItem`.
     """
     def __init__(self, parent):
+        # type: (QGraphicsItem) -> None
         super().__init__(parent)
         self.setAcceptedMouseButtons(Qt.NoButton)
         self.setAcceptHoverEvents(True)
@@ -41,13 +49,14 @@ class LinkCurveItem(QGraphicsPathItem):
 
         self.__hover = False
         self.__enabled = True
-        self.__shape = None
+        self.__shape = None  # type: Optional[QPainterPath]
         self.__curvepath = QPainterPath()
-        self.__curvepath_disabled = None
+        self.__curvepath_disabled = None  # type: Optional[QPainterPath]
         self.__pen = self.pen()
         self.setPen(QPen(QBrush(QColor("#9CACB4")), 2.0))
 
     def setCurvePath(self, path):
+        # type: (QPainterPath) -> None
         if path != self.__curvepath:
             self.prepareGeometryChange()
             self.__curvepath = QPainterPath(path)
@@ -56,22 +65,27 @@ class LinkCurveItem(QGraphicsPathItem):
             self.__update()
 
     def curvePath(self):
+        # type: () -> QPainterPath
         return QPainterPath(self.__curvepath)
 
     def setHoverState(self, state):
+        # type: (bool) -> None
         self.prepareGeometryChange()
         self.__hover = state
         self.__update()
 
     def setLinkEnabled(self, state):
+        # type: (bool) -> None
         self.prepareGeometryChange()
         self.__enabled = state
         self.__update()
 
     def isLinkEnabled(self):
+        # type: () -> bool
         return self.__enabled
 
     def setPen(self, pen):
+        # type: (QPen) -> None
         if self.__pen != pen:
             self.prepareGeometryChange()
             self.__pen = QPen(pen)
@@ -79,6 +93,7 @@ class LinkCurveItem(QGraphicsPathItem):
             super().setPen(self.__pen)
 
     def shape(self):
+        # type: () -> QPainterPath
         if self.__shape is None:
             path = self.curvePath()
             pen = QPen(self.pen())
@@ -88,10 +103,12 @@ class LinkCurveItem(QGraphicsPathItem):
         return self.__shape
 
     def setPath(self, path):
+        # type: (QPainterPath) -> None
         self.__shape = None
         super().setPath(path)
 
     def __update(self):
+        # type: () -> None
         shadow_enabled = self.__hover
         if self.shadow.isEnabled() != shadow_enabled:
             self.shadow.setEnabled(shadow_enabled)
@@ -108,6 +125,7 @@ class LinkCurveItem(QGraphicsPathItem):
 
 
 def bezier_subdivide(cp, t):
+    # type: (List[QPointF], float) -> Tuple[List[QPointF], List[QPointF]]
     """
     Subdivide a cubic bezier curve defined by the control points `cp`.
 
@@ -142,6 +160,7 @@ def bezier_subdivide(cp, t):
 
 
 def qpainterpath_simple_split(path, t):
+    # type: (QPainterPath, float) -> Tuple[QPainterPath, QPainterPath]
     """
     Split a QPainterPath defined simple curve.
 
@@ -197,6 +216,7 @@ def qpainterpath_simple_split(path, t):
 
 
 def path_link_disabled(basepath):
+    # type: (QPainterPath) -> QPainterPath
     """
     Return a QPainterPath 'styled' to indicate a 'disabled' link.
 
@@ -233,6 +253,7 @@ def path_link_disabled(basepath):
     p1.addPath(p2)
 
     def QPainterPath_addLine(path, line):
+        # type: (QPainterPath, QLineF) -> None
         path.moveTo(line.p1())
         path.lineTo(line.p2())
 
@@ -247,23 +268,25 @@ class LinkAnchorIndicator(QGraphicsEllipseItem):
     of the :class:`LinkItem`.
 
     """
-    def __init__(self, *args):
-        super().__init__(*args)
+    def __init__(self, parent=None):
+        # type: (Optional[QGraphicsItem]) -> None
+        super().__init__(parent)
         self.setRect(-3.5, -3.5, 7., 7.)
         self.setPen(QPen(Qt.NoPen))
         self.setBrush(QBrush(QColor("#9CACB4")))
         self.__hover = False
 
     def setHoverState(self, state):
+        # type: (bool) -> None
         """
         The hover state is set by the LinkItem.
         """
-
         if self.__hover != state:
             self.__hover = state
             self.update()
 
     def paint(self, painter, option, widget=None):
+        # type: (QPainter, QStyleOptionGraphicsItem, Optional[QWidget]) -> None
         brush = self.brush()
 
         if self.__hover:
@@ -272,6 +295,9 @@ class LinkAnchorIndicator(QGraphicsEllipseItem):
         painter.setBrush(brush)
         painter.setPen(self.pen())
         painter.drawEllipse(self.rect())
+
+
+_State = SchemeLink.State
 
 
 class LinkItem(QGraphicsWidget):
@@ -304,18 +330,19 @@ class LinkItem(QGraphicsWidget):
     #: The link is pending; the sink node is scheduled for update
     Pending = SchemeLink.Pending
 
-    def __init__(self, *args):
-        self.__boundingRect = None
-        super().__init__(*args)
+    def __init__(self, parent=None, **kwargs):
+        # type: (Optional[QGraphicsItem], Any) -> None
+        self.__boundingRect = None  # type: Optional[QRectF]
+        super().__init__(parent, **kwargs)
         self.setAcceptedMouseButtons(Qt.RightButton | Qt.LeftButton)
         self.setAcceptHoverEvents(True)
 
         self.setZValue(self.Z_VALUE)
 
-        self.sourceItem = None
-        self.sourceAnchor = None
-        self.sinkItem = None
-        self.sinkAnchor = None
+        self.sourceItem = None    # type: Optional[NodeItem]
+        self.sourceAnchor = None  # type: Optional[AnchorPoint]
+        self.sinkItem = None      # type: Optional[NodeItem]
+        self.sinkAnchor = None    # type: Optional[AnchorPoint]
 
         self.curveItem = LinkCurveItem(self)
 
@@ -337,11 +364,11 @@ class LinkItem(QGraphicsWidget):
 
         self.prepareGeometryChange()
         self.__updatePen()
-        self.__boundingRect = None
         self.__updatePalette()
         self.__updateFont()
 
     def setSourceItem(self, item, anchor=None):
+        # type: (Optional[NodeItem], Optional[AnchorPoint]) -> None
         """
         Set the source `item` (:class:`.NodeItem`). Use `anchor`
         (:class:`.AnchorPoint`) as the curve start point (if ``None`` a new
@@ -349,7 +376,6 @@ class LinkItem(QGraphicsWidget):
 
         Setting item to ``None`` and a valid anchor is a valid operation
         (for instance while mouse dragging one end of the link).
-
         """
         if item is not None and anchor is not None:
             if anchor not in item.outputAnchors():
@@ -392,6 +418,7 @@ class LinkItem(QGraphicsWidget):
         self.__updateCurve()
 
     def setSinkItem(self, item, anchor=None):
+        # type: (Optional[NodeItem], Optional[AnchorPoint]) -> None
         """
         Set the sink `item` (:class:`.NodeItem`). Use `anchor`
         (:class:`.AnchorPoint`) as the curve end point (if ``None`` a new
@@ -399,7 +426,6 @@ class LinkItem(QGraphicsWidget):
 
         Setting item to ``None`` and a valid anchor is a valid operation
         (for instance while mouse dragging one and of the link).
-
         """
         if item is not None and anchor is not None:
             if anchor not in item.inputAnchors():
@@ -442,12 +468,14 @@ class LinkItem(QGraphicsWidget):
         self.__updateCurve()
 
     def setChannelNamesVisible(self, visible):
+        # type: (bool) -> None
         """
         Set the visibility of the channel name text.
         """
         self.linkTextItem.setVisible(visible)
 
     def setSourceName(self, name):
+        # type: (str) -> None
         """
         Set the name of the source (used in channel name text).
         """
@@ -456,12 +484,14 @@ class LinkItem(QGraphicsWidget):
             self.__updateText()
 
     def sourceName(self):
+        # type: () -> str
         """
         Return the source name.
         """
         return self.__sourceName
 
     def setSinkName(self, name):
+        # type: (str) -> None
         """
         Set the name of the sink (used in channel name text).
         """
@@ -470,6 +500,7 @@ class LinkItem(QGraphicsWidget):
             self.__updateText()
 
     def sinkName(self):
+        # type: () -> str
         """
         Return the sink name.
         """
@@ -482,6 +513,7 @@ class LinkItem(QGraphicsWidget):
         self.__updateCurve()
 
     def __updateCurve(self):
+        # type: () -> None
         self.prepareGeometryChange()
         self.__boundingRect = None
         if self.sourceAnchor and self.sinkAnchor:
@@ -513,6 +545,7 @@ class LinkItem(QGraphicsWidget):
             self.curveItem.setPath(QPainterPath())
 
     def __updateText(self):
+        # type: () -> None
         self.prepareGeometryChange()
         self.__boundingRect = None
 
@@ -571,11 +604,13 @@ class LinkItem(QGraphicsWidget):
             self.linkTextItem.setTransform(transform)
 
     def removeLink(self):
+        # type: () -> None
         self.setSinkItem(None)
         self.setSourceItem(None)
         self.__updateCurve()
 
     def setHoverState(self, state):
+        # type: (bool) -> None
         if self.hover != state:
             self.prepareGeometryChange()
             self.__boundingRect = None
@@ -586,6 +621,7 @@ class LinkItem(QGraphicsWidget):
             self.__updatePen()
 
     def hoverEnterEvent(self, event):
+        # type: (QGraphicsSceneHoverEvent) -> None
         # Hover enter event happens when the mouse enters any child object
         # but we only want to show the 'hovered' shadow when the mouse
         # is over the 'curveItem', so we install self as an event filter
@@ -594,12 +630,14 @@ class LinkItem(QGraphicsWidget):
         return super().hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event):
+        # type: (QGraphicsSceneHoverEvent) -> None
         # Remove the event filter to prevent unnecessary work in
         # scene event filter when not needed
         self.curveItem.removeSceneEventFilter(self)
         return super().hoverLeaveEvent(event)
 
     def changeEvent(self, event):
+        # type: (QEvent) -> None
         if event.type() == QEvent.PaletteChange:
             self.__updatePalette()
         elif event.type() == QEvent.FontChange:
@@ -607,6 +645,7 @@ class LinkItem(QGraphicsWidget):
         super().changeEvent(event)
 
     def sceneEventFilter(self, obj, event):
+        # type: (QGraphicsItem, QEvent) -> bool
         if obj is self.curveItem:
             if event.type() == QEvent.GraphicsSceneHoverEnter:
                 self.setHoverState(True)
@@ -616,14 +655,17 @@ class LinkItem(QGraphicsWidget):
         return super().sceneEventFilter(obj, event)
 
     def boundingRect(self):
+        # type: () -> QRectF
         if self.__boundingRect is None:
             self.__boundingRect = self.childrenBoundingRect()
         return self.__boundingRect
 
     def shape(self):
+        # type: () -> QPainterPath
         return self.curveItem.shape()
 
     def setEnabled(self, enabled):
+        # type: (bool) -> None
         """
         Reimplemented from :class:`QGraphicWidget`
 
@@ -636,9 +678,11 @@ class LinkItem(QGraphicsWidget):
         self.curveItem.setLinkEnabled(enabled)
 
     def isEnabled(self):
+        # type: () -> bool
         return self.curveItem.isLinkEnabled()
 
     def setDynamicEnabled(self, enabled):
+        # type: (bool) -> None
         """
         Set the link's dynamic enabled state.
 
@@ -652,12 +696,14 @@ class LinkItem(QGraphicsWidget):
                 self.__updatePen()
 
     def isDynamicEnabled(self):
+        # type: () -> bool
         """
         Is the link dynamic enabled.
         """
         return self.__dynamicEnabled
 
     def setDynamic(self, dynamic):
+        # type: (bool) -> None
         """
         Mark the link as dynamic (i.e. it responds to
         :func:`setDynamicEnabled`).
@@ -668,12 +714,14 @@ class LinkItem(QGraphicsWidget):
             self.__updatePen()
 
     def isDynamic(self):
+        # type: () -> bool
         """
         Is the link dynamic.
         """
         return self.__dynamic
 
     def setRuntimeState(self, state):
+        # type: (_State) -> None
         """
         Style the link appropriate to the LinkItem.State
 
@@ -691,9 +739,11 @@ class LinkItem(QGraphicsWidget):
             self.__updatePen()
 
     def runtimeState(self):
+        # type: () -> _State
         return self.__state
 
     def __updatePen(self):
+        # type: () -> None
         self.prepareGeometryChange()
         self.__boundingRect = None
         if self.__dynamic:
@@ -724,8 +774,10 @@ class LinkItem(QGraphicsWidget):
         self.curveItem.setPen(pen)
 
     def __updatePalette(self):
+        # type: () -> None
         self.linkTextItem.setDefaultTextColor(
             self.palette().color(QPalette.Text))
 
     def __updateFont(self):
+        # type: () -> None
         self.linkTextItem.setFont(self.font())

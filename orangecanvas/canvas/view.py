@@ -121,6 +121,7 @@ class CanvasView(QGraphicsView):
         self.__setZoomLevel(level)
 
     def __setZoomLevel(self, scale):
+        # type: (float) -> None
         self.__zoomLevel = max(30, min(scale, 300))
         scale = round(self.__zoomLevel)
         self.__zoomOutAction.setEnabled(scale != 30)
