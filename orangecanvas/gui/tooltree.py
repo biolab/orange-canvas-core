@@ -8,8 +8,6 @@ organized in a tree structure.
 
 """
 
-import logging
-
 from AnyQt.QtWidgets import (
     QTreeView, QWidget, QVBoxLayout, QSizePolicy, QStyledItemDelegate,
     QStyle, QAction,
@@ -19,8 +17,6 @@ from AnyQt.QtCore import (
     Qt, QEvent, QModelIndex, QAbstractItemModel, QAbstractProxyModel
 )
 from AnyQt.QtCore import pyqtSignal as Signal
-
-log = logging.getLogger(__name__)
 
 
 class ToolTree(QWidget):
