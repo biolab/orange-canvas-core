@@ -5,6 +5,7 @@ Preview Browser Widget.
 import os
 from xml.sax.saxutils import escape
 
+from typing import Optional, Any
 
 from AnyQt.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout
 from AnyQt.QtSvg import QSvgWidget
@@ -45,15 +46,13 @@ class PreviewBrowser(QWidget):
     activated = Signal(int)
 
     def __init__(self, *args, heading="", previewMargins=12, **kwargs):
+        # type: (Any, str, int, Any) -> None
         super().__init__(*args, **kwargs)
-        self.__model = None
+        self.__model = None  # type: Optional[QAbstractItemModel]
         self.__currentIndex = -1
         self.__template = DESCRIPTION_TEMPLATE
         self.__margin = previewMargins
-        self.__setupUi()
-        self.setHeading(heading)
 
-    def __setupUi(self):
         vlayout = QVBoxLayout()
         vlayout.setContentsMargins(0, 0, 0, 0)
         top_layout = QVBoxLayout(objectName="top-layout")
@@ -113,6 +112,8 @@ class PreviewBrowser(QWidget):
         vlayout.addWidget(self.__previewList)
         self.setLayout(vlayout)
 
+        self.setHeading(heading)
+
     def setHeading(self, text):
         # type: (str) -> None
         """
@@ -170,7 +171,7 @@ class PreviewBrowser(QWidget):
                 self.setCurrentIndex(0)
 
     def model(self):
-        # type: () -> QAbstractItemModel
+        # type: () -> Optional[QAbstractItemModel]
         """
         Return the item model.
         """
@@ -241,8 +242,8 @@ class PreviewBrowser(QWidget):
         # type: () -> None
         """Update the current description.
         """
-        if self.__currentIndex != -1:
-            index = self.model().index(self.__currentIndex, 0)
+        if self.__currentIndex != -1 and self.__model is not None:
+            index = self.__model.index(self.__currentIndex, 0)
         else:
             index = QModelIndex()
 

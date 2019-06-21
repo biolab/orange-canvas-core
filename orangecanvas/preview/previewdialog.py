@@ -1,11 +1,12 @@
 """
 A dialog widget for selecting an item.
 """
+from typing import Iterable, Optional, Any
 
 from AnyQt.QtWidgets import (
     QDialog, QWidget, QVBoxLayout, QDialogButtonBox, QSizePolicy
 )
-from AnyQt.QtCore import Qt, QStringListModel
+from AnyQt.QtCore import Qt, QStringListModel, QAbstractItemModel
 from AnyQt.QtCore import pyqtSignal as Signal
 
 from . import previewbrowser
@@ -18,6 +19,7 @@ class PreviewDialog(QDialog):
 
     def __init__(self, parent=None, flags=Qt.WindowFlags(0),
                  model=None, **kwargs):
+        # type: (Optional[QWidget], int, Optional[QAbstractItemModel], Any) -> None
         super().__init__(parent, flags, **kwargs)
 
         self.__setupUi()
@@ -66,33 +68,38 @@ class PreviewDialog(QDialog):
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
     def setItems(self, items):
+        # type: (Iterable[str]) -> None
         """Set the items (a list of strings) for preview/selection.
         """
         model = QStringListModel(items)
         self.setModel(model)
 
     def setModel(self, model):
+        # type: (QAbstractItemModel) -> None
         """Set the model for preview/selection.
         """
         self.__browser.setModel(model)
 
     def model(self):
+        # type: () -> QAbstractItemModel
         """Return the model.
         """
         return self.__browser.model()
 
     def currentIndex(self):
+        # type: () -> int
         return self.__browser.currentIndex()
 
     def setCurrentIndex(self, index):
+        # type: (int) -> None
         """Set the current selected (shown) index.
         """
         self.__browser.setCurrentIndex(index)
 
     def setHeading(self, heading):
+        # type: (str) -> None
         """Set `heading` as the heading string ('<h3>Preview</h3>'
         by default).
-
         """
         self.__browser.setHeading(heading)
 
@@ -100,11 +107,13 @@ class PreviewDialog(QDialog):
         """Return the heading string.
         """
     def __on_currentIndexChanged(self, index):
+        # type: (int) -> None
         button = self.__buttons.button(QDialogButtonBox.Open)
         button.setEnabled(index >= 0)
         self.currentIndexChanged.emit(index)
 
     def __on_activated(self, index):
+        # type: (int) -> None
         if self.currentIndex() != index:
             self.setCurrentIndex(index)
 

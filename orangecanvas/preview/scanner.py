@@ -4,15 +4,22 @@ Scheme file preview parser.
 """
 import io
 import logging
+import typing
 
 from xml.sax import make_parser, handler, saxutils, SAXParseException
+from typing import BinaryIO, Tuple, List
 
 from ..scheme.readwrite import scheme_load
+
+if typing.TYPE_CHECKING:
+    from .previewmodel import PreviewItem
+
 log = logging.getLogger(__name__)
 
 
 class PreviewHandler(handler.ContentHandler):
     def __init__(self):
+        super().__init__()
         self._in_name = False
         self._in_description = False
         self._in_thumbnail = False
@@ -49,6 +56,7 @@ class PreviewHandler(handler.ContentHandler):
 
 
 def preview_parse(scheme_file):
+    # type: (str) -> Tuple[str, str, str]
     """Return the title, description, and thumbnail svg image data from a
     `scheme_file` (can be a file path or a file-like object).
 
@@ -68,7 +76,7 @@ def preview_parse(scheme_file):
 
 
 def filter_properties(stream):
-    # type: (io.BinaryIO) -> bytes
+    # type: (BinaryIO) -> bytes
     """
     Filter out the '<properties>' section from the .ows xml stream.
 
@@ -112,17 +120,17 @@ def filter_properties(stream):
 
 
 def scheme_svg_thumbnail(scheme_file):
-    """Load the scheme scheme from a file and return it's svg image
+    # type: (str) -> str
+    """Load the scheme scheme from a file and return its svg image
     representation.
-
     """
-    from .. import scheme
+    from ..scheme import Scheme
     from ..canvas import scene
     from ..registry import global_registry
 
-    scheme = scheme.Scheme()
+    scheme = Scheme()
     scheme.set_loop_flags(scheme.AllowLoops | scheme.AllowSelfLoops)
-    errors = []
+    errors = []  # type: List[Exception]
 
     with open(scheme_file, "rb") as f:
         filtered_contents = filter_properties(f)
@@ -144,8 +152,9 @@ def scheme_svg_thumbnail(scheme_file):
 
 
 def scan_update(item):
+    # type: (PreviewItem) -> None
     """Given a preview item, scan the scheme file ('item.path') and update the
-    items contents.
+    item's contents.
     """
 
     path = item.path()
