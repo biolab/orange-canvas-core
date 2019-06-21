@@ -12,28 +12,49 @@ All interactions are subclasses of :class:`UserInteraction`.
 
 
 """
+import typing
+from typing import Optional, Any, Tuple, List, Set, Iterable
 
 import logging
 from functools import reduce
 
-from AnyQt.QtWidgets import QApplication, QGraphicsRectItem, QUndoCommand
-from AnyQt.QtGui import QPen, QBrush, QColor, QFontMetrics
-from AnyQt.QtCore import (
-    Qt, QObject, QCoreApplication, QSizeF, QPointF, QRect, QRectF, QLineF
-)
 
+
+from AnyQt.QtWidgets import (
+    QApplication, QGraphicsRectItem, QUndoCommand, QGraphicsSceneMouseEvent,
+    QGraphicsSceneContextMenuEvent, QWidget, QGraphicsItem,
+)
+from AnyQt.QtGui import QPen, QBrush, QColor, QFontMetrics, QKeyEvent, QFont
+from AnyQt.QtCore import (
+    Qt, QObject, QCoreApplication, QSizeF, QPointF, QRect, QRectF, QLineF,
+    QPoint,
+)
 from AnyQt.QtCore import pyqtSignal as Signal
 
-from ..registry.description import WidgetDescription
+from ..registry.description import WidgetDescription, OutputSignal, InputSignal
 from ..registry.qt import QtWidgetRegistry
 from .. import scheme
+from ..scheme import SchemeNode as Node, SchemeLink as Link, Scheme
 from ..canvas import items
 from ..canvas.items import controlpoints
 from ..gui.quickhelp import QuickHelpTipEvent
 from . import commands
 from .editlinksdialog import EditLinksDialog
 
+if typing.TYPE_CHECKING:
+    from .schemeedit import SchemeEditWidget
+
+    A = typing.TypeVar("A")
+    #: Output/Input pair of a link
+    OIPair = Tuple[OutputSignal, InputSignal]
+
 log = logging.getLogger(__name__)
+
+
+def assert_not_none(optional):
+    # type: (Optional[A]) -> A
+    assert optional is not None
+    return optional
 
 
 class UserInteraction(QObject):
@@ -77,10 +98,13 @@ class UserInteraction(QObject):
     canceled = Signal([], [int])
 
     def __init__(self, document, parent=None, deleteOnEnd=True):
+        # type: ('SchemeEditWidget', Optional[QObject], bool) -> None
         super().__init__(parent)
         self.document = document
         self.scene = document.scene()
-        self.scheme = document.scheme()
+        scheme_ = document.scheme()
+        assert scheme_ is not None
+        self.scheme = scheme_  # type: scheme.Scheme
         self.suggestions = document.suggestions()
         self.deleteOnEnd = deleteOnEnd
 
@@ -91,6 +115,7 @@ class UserInteraction(QObject):
         self.__cancelReason = self.NoReason
 
     def start(self):
+        # type: () -> None
         """
         Start the interaction. This is called by the :class:`CanvasScene` when
         the interaction is installed.
@@ -101,6 +126,7 @@ class UserInteraction(QObject):
         self.started.emit()
 
     def end(self):
+        # type: () -> None
         """
         Finish the interaction. Restore any leftover state in this method.
 
@@ -125,6 +151,7 @@ class UserInteraction(QObject):
             self.deleteLater()
 
     def cancel(self, reason=OtherReason):
+        # type: (int) -> None
         """
         Cancel the interaction with `reason`.
         """
@@ -135,48 +162,56 @@ class UserInteraction(QObject):
         self.end()
 
     def isFinished(self):
+        # type: () -> bool
         """
         Is the interaction finished.
         """
         return self.__finished
 
     def isCanceled(self):
+        # type: () -> bool
         """
         Was the interaction canceled.
         """
         return self.__canceled
 
     def cancelReason(self):
+        # type: () -> int
         """
         Return the reason the interaction was canceled.
         """
         return self.__cancelReason
 
     def mousePressEvent(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> bool
         """
         Handle a `QGraphicsScene.mousePressEvent`.
         """
         return False
 
     def mouseMoveEvent(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> bool
         """
         Handle a `GraphicsScene.mouseMoveEvent`.
         """
         return False
 
     def mouseReleaseEvent(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> bool
         """
         Handle a `QGraphicsScene.mouseReleaseEvent`.
         """
         return False
 
     def mouseDoubleClickEvent(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> bool
         """
         Handle a `QGraphicsScene.mouseDoubleClickEvent`.
         """
         return False
 
     def keyPressEvent(self, event):
+        # type: (QKeyEvent) -> bool
         """
         Handle a `QGraphicsScene.keyPressEvent`
         """
@@ -185,12 +220,14 @@ class UserInteraction(QObject):
         return False
 
     def keyReleaseEvent(self, event):
+        # type: (QKeyEvent) -> bool
         """
         Handle a `QGraphicsScene.keyPressEvent`
         """
         return False
 
     def contextMenuEvent(self, event):
+        # type: (QGraphicsSceneContextMenuEvent) -> bool
         """
         Handle a `QGraphicsScene.contextMenuEvent`
         """
@@ -228,28 +265,31 @@ class NewLinkAction(UserInteraction):
 
     def __init__(self, document, *args, **kwargs):
         super().__init__(document, *args, **kwargs)
-        self.source_item = None
-        self.sink_item = None
-        self.from_item = None
-        self.direction = None
+        self.source_item = None  # type: Optional[items.NodeItem]
+        self.sink_item = None    # type: Optional[items.NodeItem]
+        self.from_item = None    # type: Optional[items.NodeItem]
+        self.direction = 0   # type: int
         self.force_link_dialog = False
 
         # An `NodeItem` currently under the mouse as a possible
         # link drop target.
-        self.current_target_item = None
+        self.current_target_item = None  # type: Optional[items.NodeItem]
         # A temporary `LinkItem` used while dragging.
-        self.tmp_link_item = None
+        self.tmp_link_item = None        # type: Optional[items.LinkItem]
         # An temporary `AnchorPoint` inserted into `current_target_item`
-        self.tmp_anchor_point = None
+        self.tmp_anchor_point = None     # type: Optional[items.AnchorPoint]
         # An `AnchorPoint` following the mouse cursor
-        self.cursor_anchor_point = None
+        self.cursor_anchor_point = None  # type: Optional[items.AnchorPoint]
         # An QUndoCommand
-        self.macro = None
+        self.macro = None  # type: Optional[QUndoCommand]
 
     def remove_tmp_anchor(self):
+        # type: () -> None
         """
         Remove a temporary anchor point from the current target item.
         """
+        assert self.current_target_item is not None
+        assert self.tmp_anchor_point is not None
         if self.direction == self.FROM_SOURCE:
             self.current_target_item.removeInputAnchor(self.tmp_anchor_point)
         else:
@@ -257,21 +297,24 @@ class NewLinkAction(UserInteraction):
         self.tmp_anchor_point = None
 
     def create_tmp_anchor(self, item):
+        # type: (items.NodeItem) -> None
         """
         Create a new tmp anchor at the `item` (:class:`NodeItem`).
         """
-        assert(self.tmp_anchor_point is None)
+        assert self.tmp_anchor_point is None
         if self.direction == self.FROM_SOURCE:
             self.tmp_anchor_point = item.newInputAnchor()
         else:
             self.tmp_anchor_point = item.newOutputAnchor()
 
     def can_connect(self, target_item):
+        # type: (items.NodeItem) -> bool
         """
         Is the connection between `self.from_item` (item where the drag
         started) and `target_item` possible.
-
         """
+        if self.from_item is None:
+            return False
         node1 = self.scene.node_for_item(self.from_item)
         node2 = self.scene.node_for_item(target_item)
 
@@ -281,19 +324,21 @@ class NewLinkAction(UserInteraction):
             return bool(self.scheme.propose_links(node2, node1))
 
     def set_link_target_anchor(self, anchor):
+        # type: (items.AnchorPoint) -> None
         """
         Set the temp line target anchor.
         """
+        assert self.tmp_link_item is not None
         if self.direction == self.FROM_SOURCE:
             self.tmp_link_item.setSinkItem(None, anchor)
         else:
             self.tmp_link_item.setSourceItem(None, anchor)
 
     def target_node_item_at(self, pos):
+        # type: (QPointF) -> Optional[items.NodeItem]
         """
         Return a suitable :class:`NodeItem` at position `pos` on which
         a link can be dropped.
-
         """
         # Test for a suitable `NodeAnchorItem` or `NodeItem` at pos.
         if self.direction == self.FROM_SOURCE:
@@ -304,15 +349,18 @@ class NewLinkAction(UserInteraction):
         item = self.scene.item_at(pos, (anchor_type, items.NodeItem))
 
         if isinstance(item, anchor_type):
-            item = item.parentNodeItem()
-
-        return item
+            return item.parentNodeItem()
+        elif isinstance(item, items.NodeItem):
+            return item
+        else:
+            return None
 
     def mousePressEvent(self, event):
-        anchor_item = self.scene.item_at(event.scenePos(),
-                                         items.NodeAnchorItem,
-                                         buttons=Qt.LeftButton)
-        if anchor_item and event.button() == Qt.LeftButton:
+        # type: (QGraphicsSceneMouseEvent) -> bool
+        anchor_item = self.scene.item_at(
+            event.scenePos(), items.NodeAnchorItem, buttons=Qt.LeftButton
+        )
+        if anchor_item is not None and event.button() == Qt.LeftButton:
             # Start a new link starting at item
             self.from_item = anchor_item.parentNodeItem()
             if isinstance(anchor_item, items.SourceAnchorItem):
@@ -336,7 +384,6 @@ class NewLinkAction(UserInteraction):
                         )
             )
             QCoreApplication.postEvent(self.document, helpevent)
-
             return True
         else:
             # Whoever put us in charge did not know what he was doing.
@@ -344,7 +391,8 @@ class NewLinkAction(UserInteraction):
             return False
 
     def mouseMoveEvent(self, event):
-        if not self.tmp_link_item:
+        # type: (QGraphicsSceneMouseEvent) -> bool
+        if self.tmp_link_item is None:
             # On first mouse move event create the temp link item and
             # initialize it to follow the `cursor_anchor_point`.
             self.tmp_link_item = items.LinkItem()
@@ -360,6 +408,8 @@ class NewLinkAction(UserInteraction):
 
             self.set_link_target_anchor(self.cursor_anchor_point)
             self.scene.addItem(self.tmp_link_item)
+
+        assert self.cursor_anchor_point is not None
 
         # `NodeItem` at the cursor position
         item = self.target_node_item_at(event.scenePos())
@@ -382,7 +432,9 @@ class NewLinkAction(UserInteraction):
                 # Grab a new anchor
                 log.info("%r is the new target.", item)
                 self.create_tmp_anchor(item)
-                self.set_link_target_anchor(self.tmp_anchor_point)
+                self.set_link_target_anchor(
+                    assert_not_none(self.tmp_anchor_point)
+                )
                 self.current_target_item = item
             else:
                 log.info("%r does not have compatible channels", item)
@@ -398,10 +450,11 @@ class NewLinkAction(UserInteraction):
         return True
 
     def mouseReleaseEvent(self, event):
-        if self.tmp_link_item:
+        # type: (QGraphicsSceneMouseEvent) -> bool
+        if self.tmp_link_item is not None:
             self.force_link_dialog = bool(event.modifiers() & Qt.ShiftModifier)
             item = self.target_node_item_at(event.scenePos())
-            node = None
+            node = None  # type: Optional[Node]
             stack = self.document.undoStack()
 
             self.macro = QUndoCommand(self.tr("Add link"))
@@ -439,12 +492,13 @@ class NewLinkAction(UserInteraction):
                     stack.push(self.macro)
 
             self.end()
-
+            return True
         else:
             self.end()
             return False
 
     def create_new(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> Optional[Node]
         """
         Create and return a new node with a `QuickMenu`.
         """
@@ -454,8 +508,9 @@ class NewLinkAction(UserInteraction):
         from_desc = node.description
 
         def is_compatible(source, sink):
-            return any(scheme.compatible_channels(output, input) \
-                       for output in source.outputs \
+            # type: (WidgetDescription, WidgetDescription) -> bool
+            return any(scheme.compatible_channels(output, input)
+                       for output in source.outputs
                        for input in sink.inputs)
 
         if self.direction == self.FROM_SINK:
@@ -496,8 +551,11 @@ class NewLinkAction(UserInteraction):
                                                position=(pos.x() + offset,
                                                          pos.y()))
             return node
+        else:
+            return None
 
     def connect_nodes(self, source_node, sink_node):
+        # type: (Node, Node) -> None
         """
         Connect `source_node` to `sink_node`. If there are more then one
         equally weighted and non conflicting links possible present a
@@ -517,8 +575,8 @@ class NewLinkAction(UserInteraction):
 
             # just a list of signal tuples for now, will be converted
             # to SchemeLinks later
-            links_to_add = [(source, sink)]
-            links_to_remove = []
+            links_to_add = []     # type: List[Link]
+            links_to_remove = []  # type: List[Link]
             show_link_dialog = self.force_link_dialog
 
             # Ambiguous new link request.
@@ -556,12 +614,9 @@ class NewLinkAction(UserInteraction):
                     raise UserCanceledError
             else:
                 # links_to_add now needs to be a list of actual SchemeLinks
-                links_to_add = [scheme.SchemeLink(
-                                    source_node, source_channel,
-                                    sink_node, sink_channel)
-                                for source_channel, sink_channel
-                                in links_to_add]
-
+                links_to_add = [
+                    scheme.SchemeLink(source_node, source, sink_node, sink)
+                ]
                 links_to_add, links_to_remove = \
                     add_links_plan(self.scheme, links_to_add)
 
@@ -603,7 +658,12 @@ class NewLinkAction(UserInteraction):
         finally:
             self.force_link_dialog = False
 
-    def edit_links(self, source_node, sink_node, initial_links=None):
+    def edit_links(
+            self,
+            source_node: Node,
+            sink_node: Node,
+            initial_links: 'Optional[List[OIPair]]' = None
+    ) -> 'Tuple[int, List[Link], List[Link]]':
         """
         Show and execute the `EditLinksDialog`.
         Optional `initial_links` list can provide a list of initial
@@ -612,25 +672,28 @@ class NewLinkAction(UserInteraction):
         an empty list will disable all initial links).
 
         """
-        status, links_to_add, links_to_remove = \
+        status, links_to_add_spec, links_to_remove_spec = \
             edit_links(
                 self.scheme, source_node, sink_node, initial_links,
                 parent=self.document
             )
 
         if status == EditLinksDialog.Accepted:
-            links_to_add = [scheme.SchemeLink(
-                                source_node, source_channel,
-                                sink_node, sink_channel)
-                            for source_channel, sink_channel in links_to_add]
-
-            links_to_remove = [self.scheme.find_links(
-                                   source_node, source_channel,
-                                   sink_node, sink_channel)
-                               for source_channel, sink_channel
-                               in links_to_remove]
-
-            links_to_remove = reduce(list.__add__, links_to_remove, [])
+            links_to_add = [
+                scheme.SchemeLink(
+                    source_node, source_channel,
+                    sink_node, sink_channel
+                ) for source_channel, sink_channel in links_to_add_spec
+            ]
+            links_to_remove = list(reduce(
+                list.__iadd__, (
+                    self.scheme.find_links(
+                        source_node, source_channel,
+                        sink_node, sink_channel
+                    ) for source_channel, sink_channel in links_to_remove_spec
+                ),
+                []
+            ))  # type: List[Link]
             conflicting = [conflicting_single_link(self.scheme, link)
                            for link in links_to_add]
             conflicting = [link for link in conflicting if link is not None]
@@ -643,6 +706,7 @@ class NewLinkAction(UserInteraction):
             return status, [], []
 
     def end(self):
+        # type: () -> None
         self.cleanup()
         # Remove the help tip set in mousePressEvent
         self.macro = None
@@ -651,10 +715,12 @@ class NewLinkAction(UserInteraction):
         super().end()
 
     def cancel(self, reason=UserInteraction.OtherReason):
+        # type: (int) -> None
         self.cleanup()
         super().cancel(reason)
 
     def cleanup(self):
+        # type: () -> None
         """
         Cleanup all temporary items in the scene that are left.
         """
@@ -676,8 +742,13 @@ class NewLinkAction(UserInteraction):
             self.cursor_anchor_point = None
 
 
-def edit_links(scheme, source_node, sink_node, initial_links=None,
-               parent=None):
+def edit_links(
+        scheme: Scheme,
+        source_node: Node,
+        sink_node: Node,
+        initial_links: 'Optional[List[OIPair]]' = None,
+        parent: 'Optional[QWidget]' = None
+) -> 'Tuple[int, List[OIPair], List[OIPair]]':
     """
     Show and execute the `EditLinksDialog`.
     Optional `initial_links` list can provide a list of initial
@@ -716,6 +787,7 @@ def edit_links(scheme, source_node, sink_node, initial_links=None,
 
 
 def add_links_plan(scheme, links, force_replace=False):
+    # type: (Scheme, Iterable[Link], bool) -> Tuple[List[Link], List[Link]]
     """
     Return a plan for adding a list of links to the scheme.
     """
@@ -731,14 +803,13 @@ def add_links_plan(scheme, links, force_replace=False):
 
 
 def conflicting_single_link(scheme, link):
+    # type: (Scheme, Link) -> Optional[Link]
     """
     Find and return an existing link in `scheme` connected to the same
     input channel as `link` if the channel has the 'single' flag.
     If no such channel exists (or sink channel is not 'single')
     return `None`.
-
     """
-
     if link.sink_channel.single:
         existing = scheme.find_links(
             sink_node=link.sink_node,
@@ -752,7 +823,9 @@ def conflicting_single_link(scheme, link):
 
 
 def remove_duplicates(links_to_add, links_to_remove):
+    # type: (List[Link], List[Link]) -> Tuple[List[Link], List[Link]]
     def link_key(link):
+        # type: (Link) -> Tuple[Node, OutputSignal, Node, InputSignal]
         return (link.source_node, link.source_channel,
                 link.sink_node, link.sink_channel)
 
@@ -761,6 +834,7 @@ def remove_duplicates(links_to_add, links_to_remove):
     duplicate_keys = set(add_keys).intersection(remove_keys)
 
     def not_duplicate(link):
+        # type: (Link) -> bool
         return link_key(link) not in duplicate_keys
 
     links_to_add = list(filter(not_duplicate, links_to_add))
@@ -772,19 +846,19 @@ class NewNodeAction(UserInteraction):
     """
     Present the user with a quick menu for node selection and
     create the selected node.
-
     """
-
     def mousePressEvent(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> bool
         if event.button() == Qt.RightButton:
             self.create_new(event.screenPos())
             self.end()
+        return True
 
     def create_new(self, pos, search_text=""):
+        # type: (QPoint, str) -> Optional[Node]
         """
-        Create a new widget with a `QuickMenu` at `pos` (in screen
-        coordinates).
-
+        Create and add new node to the workflow using `QuickMenu` popup at
+        `pos` (in screen coordinates).
         """
         menu = self.document.quickMenu()
         menu.setFilterFunc(None)
@@ -810,6 +884,8 @@ class NewNodeAction(UserInteraction):
                                                position=(pos.x(), pos.y()))
             self.document.addNode(node)
             return node
+        else:
+            return None
 
 
 class RectangleSelectionAction(UserInteraction):
@@ -817,17 +893,20 @@ class RectangleSelectionAction(UserInteraction):
     Select items in the scene using a Rectangle selection
     """
     def __init__(self, document, *args, **kwargs):
+        # type: (SchemeEditWidget, Any, Any) -> None
         super().__init__(document, *args, **kwargs)
         # The initial selection at drag start
-        self.initial_selection = None
+        self.initial_selection = None  # type: Optional[Set[QGraphicsItem]]
         # Selection when last updated in a mouseMoveEvent
-        self.last_selection = None
+        self.last_selection = None     # type: Optional[Set[QGraphicsItem]]
         # A selection rect (`QRectF`)
-        self.selection_rect = None
+        self.selection_rect = None     # type: Optional[QRectF]
         # Keyboard modifiers
-        self.modifiers = 0
+        self.modifiers = Qt.NoModifier
+        self.rect_item = None          # type: Optional[QGraphicsRectItem]
 
     def mousePressEvent(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> bool
         pos = event.scenePos()
         any_item = self.scene.item_at(pos)
         if not any_item and event.button() & Qt.LeftButton:
@@ -862,13 +941,15 @@ class RectangleSelectionAction(UserInteraction):
             return False
 
     def mouseMoveEvent(self, event):
-        if not self.rect_item.scene():
+        # type: (QGraphicsSceneMouseEvent) -> bool
+        if self.rect_item is not None and not self.rect_item.scene():
             # Add the rect item to the scene when the mouse moves.
             self.scene.addItem(self.rect_item)
         self.update_selection(event)
         return True
 
     def mouseReleaseEvent(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> bool
         if event.button() == Qt.LeftButton:
             if self.initial_selection is None:
                 # A single click.
@@ -879,14 +960,19 @@ class RectangleSelectionAction(UserInteraction):
         return True
 
     def update_selection(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> None
         """
         Update the selection rectangle from a QGraphicsSceneMouseEvent
         `event` instance.
-
         """
         if self.initial_selection is None:
             self.initial_selection = set(self.scene.selectedItems())
             self.last_selection = self.initial_selection
+
+        assert self.selection_rect is not None
+        assert self.rect_item is not None
+        assert self.initial_selection is not None
+        assert self.last_selection is not None
 
         pos = event.scenePos()
         self.selection_rect = QRectF(self.selection_rect.topLeft(), pos)
@@ -920,16 +1006,18 @@ class RectangleSelectionAction(UserInteraction):
         self.last_selection = set(self.scene.selectedItems())
 
     def end(self):
+        # type: () -> None
         self.initial_selection = None
         self.last_selection = None
-        self.modifiers = 0
-
-        self.rect_item.hide()
-        if self.rect_item.scene() is not None:
-            self.scene.removeItem(self.rect_item)
+        self.modifiers = Qt.NoModifier
+        if self.rect_item is not None:
+            self.rect_item.hide()
+            if self.rect_item.scene() is not None:
+                self.scene.removeItem(self.rect_item)
         super().end()
 
     def viewport_rect(self):
+        # type: () -> QRectF
         """
         Return the bounding rect of the document's viewport on the scene.
         """
@@ -939,6 +1027,7 @@ class RectangleSelectionAction(UserInteraction):
         return view.mapToScene(viewportrect).boundingRect()
 
     def _bound_selection_rect(self, rect):
+        # type: (QRectF) -> QRectF
         """
         Bound the selection `rect` to a sensible size.
         """
@@ -964,11 +1053,13 @@ class EditNodeLinksAction(UserInteraction):
 
     """
     def __init__(self, document, source_node, sink_node, *args, **kwargs):
+        # type: (SchemeEditWidget, Node, Node, Any, Any) -> None
         super().__init__(document, *args, **kwargs)
         self.source_node = source_node
         self.sink_node = sink_node
 
     def edit_links(self, initial_links=None):
+        # type: (Optional[List[OIPair]]) -> None
         """
         Show and execute the `EditLinksDialog`.
         Optional `initial_links` list can provide a list of initial
@@ -996,10 +1087,10 @@ class EditNodeLinksAction(UserInteraction):
         rval = dlg.exec_()
 
         if rval == EditLinksDialog.Accepted:
-            links = dlg.links()
+            links_spec = dlg.links()
 
-            links_to_add = set(links) - set(existing_links)
-            links_to_remove = set(existing_links) - set(links)
+            links_to_add = set(links_spec) - set(existing_links)
+            links_to_remove = set(existing_links) - set(links_spec)
 
             stack = self.document.undoStack()
             stack.beginMacro("Edit Links")
@@ -1039,6 +1130,7 @@ class EditNodeLinksAction(UserInteraction):
 
 
 def point_to_tuple(point):
+    # type: (QPointF) -> Tuple[float, float]
     """
     Convert a QPointF into a (x, y) tuple.
     """
@@ -1050,13 +1142,15 @@ class NewArrowAnnotation(UserInteraction):
     Create a new arrow annotation handler.
     """
     def __init__(self, document, *args, **kwargs):
+        # type: (SchemeEditWidget, Any, Any) -> None
         super().__init__(document, *args, **kwargs)
-        self.down_pos = None
-        self.arrow_item = None
-        self.annotation = None
+        self.down_pos = None  # type: Optional[QPointF]
+        self.arrow_item = None  # type: Optional[items.ArrowAnnotation]
+        self.annotation = None  # type: Optional[scheme.SchemeArrowAnnotation]
         self.color = "red"
 
     def start(self):
+        # type: () -> None
         self.document.view().setCursor(Qt.CrossCursor)
 
         helpevent = QuickHelpTipEvent(
@@ -1078,13 +1172,18 @@ class NewArrowAnnotation(UserInteraction):
         self.color = color
 
     def mousePressEvent(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> bool
         if event.button() == Qt.LeftButton:
             self.down_pos = event.scenePos()
             event.accept()
             return True
+        else:
+            return super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> bool
         if event.buttons() & Qt.LeftButton:
+            assert self.down_pos is not None
             if self.arrow_item is None and \
                     (self.down_pos - event.scenePos()).manhattanLength() > \
                     QApplication.instance().startDragDistance():
@@ -1106,12 +1205,15 @@ class NewArrowAnnotation(UserInteraction):
 
             event.accept()
             return True
+        else:
+            return super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> bool
         if event.button() == Qt.LeftButton:
             if self.arrow_item is not None:
+                assert self.down_pos is not None and self.annotation is not None
                 p1, p2 = self.down_pos, event.scenePos()
-
                 # Commit the annotation to the scheme
                 self.annotation.set_line(point_to_tuple(p1),
                                          point_to_tuple(p2))
@@ -1123,8 +1225,11 @@ class NewArrowAnnotation(UserInteraction):
 
             self.end()
             return True
+        else:
+            return super().mouseReleaseEvent(event)
 
     def end(self):
+        # type: () -> None
         self.down_pos = None
         self.arrow_item = None
         self.annotation = None
@@ -1138,6 +1243,7 @@ class NewArrowAnnotation(UserInteraction):
 
 
 def rect_to_tuple(rect):
+    # type: (QRectF) -> Tuple[float, float, float, float]
     """
     Convert a QRectF into a (x, y, width, height) tuple.
     """
@@ -1149,17 +1255,20 @@ class NewTextAnnotation(UserInteraction):
     A New Text Annotation interaction handler
     """
     def __init__(self, document, *args, **kwargs):
+        # type: (SchemeEditWidget, Any, Any) -> None
         super().__init__(document, *args, **kwargs)
-        self.down_pos = None
-        self.annotation_item = None
-        self.annotation = None
-        self.control = None
-        self.font = document.font()
+        self.down_pos = None  # type: Optional[QPointF]
+        self.annotation_item = None  # type: Optional[items.TextAnnotation]
+        self.annotation = None  # type: Optional[scheme.SchemeTextAnnotation]
+        self.control = None  # type: Optional[controlpoints.ControlPointRect]
+        self.font = document.font()  # type: QFont
 
     def setFont(self, font):
-        self.font = font
+        # type: (QFont) -> None
+        self.font = QFont(font)
 
     def start(self):
+        # type: () -> None
         self.document.view().setCursor(Qt.CrossCursor)
 
         helpevent = QuickHelpTipEvent(
@@ -1176,6 +1285,7 @@ class NewTextAnnotation(UserInteraction):
         super().start()
 
     def createNewAnnotation(self, rect):
+        # type: (QRectF) -> None
         """
         Create a new TextAnnotation at with `rect` as the geometry.
         """
@@ -1191,18 +1301,20 @@ class NewTextAnnotation(UserInteraction):
         self.annotation_item = item
         self.annotation = annot
         self.control = controlpoints.ControlPointRect()
-        self.control.rectChanged.connect(
-            self.annotation_item.setGeometry
-        )
+        self.control.rectChanged.connect(item.setGeometry)
         self.scene.addItem(self.control)
 
     def mousePressEvent(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> bool
         if event.button() == Qt.LeftButton:
             self.down_pos = event.scenePos()
             return True
+        return super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> bool
         if event.buttons() & Qt.LeftButton:
+            assert self.down_pos is not None
             if self.annotation_item is None and \
                     (self.down_pos - event.scenePos()).manhattanLength() > \
                     QApplication.instance().startDragDistance():
@@ -1210,23 +1322,27 @@ class NewTextAnnotation(UserInteraction):
                 self.createNewAnnotation(rect)
 
             if self.annotation_item is not None:
+                assert self.control is not None
                 rect = QRectF(self.down_pos, event.scenePos()).normalized()
                 self.control.setRect(rect)
-
             return True
+        return super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> bool
         if event.button() == Qt.LeftButton:
             if self.annotation_item is None:
                 self.createNewAnnotation(QRectF(event.scenePos(),
                                                 event.scenePos()))
                 rect = self.defaultTextGeometry(event.scenePos())
-
             else:
+                assert self.down_pos is not None
                 rect = QRectF(self.down_pos, event.scenePos()).normalized()
-
+            assert self.annotation_item is not None
+            assert self.control is not None
+            assert self.annotation is not None
             # Commit the annotation to the scheme.
-            self.annotation.rect = rect_to_tuple(rect)
+            self.annotation.rect = rect_to_tuple(rect)  # type: ignore
 
             self.document.addAnnotation(self.annotation)
 
@@ -1243,13 +1359,16 @@ class NewTextAnnotation(UserInteraction):
             self.annotation_item.startEdit()
 
             self.end()
+            return True
+        return super().mouseMoveEvent(event)
 
     def defaultTextGeometry(self, point):
+        # type: (QPointF) -> QRectF
         """
         Return the default text geometry. Used in case the user single
         clicked in the scene.
-
         """
+        assert self.annotation_item is not None
         font = self.annotation_item.font()
         metrics = QFontMetrics(font)
         spacing = metrics.lineSpacing()
@@ -1260,6 +1379,7 @@ class NewTextAnnotation(UserInteraction):
         return rect
 
     def end(self):
+        # type: () -> None
         if self.control is not None:
             self.scene.removeItem(self.control)
 
@@ -1281,24 +1401,26 @@ class ResizeTextAnnotation(UserInteraction):
     Resize a Text Annotation interaction handler.
     """
     def __init__(self, document, *args, **kwargs):
+        # type: (SchemeEditWidget, Any, Any) -> None
         super().__init__(document, *args, **kwargs)
-        self.item = None
-        self.annotation = None
-        self.control = None
-        self.savedFramePen = None
-        self.savedRect = None
+        self.item = None        # type: Optional[items.TextAnnotation]
+        self.annotation = None  # type: Optional[scheme.SchemeTextAnnotation]
+        self.control = None     # type: Optional[controlpoints.ControlPointRect]
+        self.savedFramePen = None  # type: Optional[QPen]
+        self.savedRect = None      # type: Optional[QRectF]
 
     def mousePressEvent(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> bool
         pos = event.scenePos()
         if event.button() & Qt.LeftButton and self.item is None:
             item = self.scene.item_at(pos, items.TextAnnotation)
             if item is not None and not item.hasFocus():
                 self.editItem(item)
                 return False
-
         return super().mousePressEvent(event)
 
     def editItem(self, item):
+        # type: (items.TextAnnotation) -> None
         annotation = self.scene.annotation_for_item(item)
         rect = item.geometry()  # TODO: map to scene if item has a parent.
         control = controlpoints.ControlPointRect(rect=rect)
@@ -1319,9 +1441,12 @@ class ResizeTextAnnotation(UserInteraction):
         self.control = control
 
     def commit(self):
+        # type: () -> None
         """
         Commit the current item geometry state to the document.
         """
+        if self.item is None:
+            return
         rect = self.item.geometry()
         if self.savedRect != rect:
             command = commands.SetAttrCommand(
@@ -1333,28 +1458,35 @@ class ResizeTextAnnotation(UserInteraction):
             self.savedRect = rect
 
     def __on_editingFinished(self):
+        # type: () -> None
         self.commit()
         self.end()
 
     def __on_rectEdited(self, rect):
+        # type: (QRectF) -> None
+        assert self.item is not None
         self.item.setGeometry(rect)
 
     def __on_textGeometryChanged(self):
+        # type: () -> None
+        assert self.control is not None and self.item is not None
         if not self.control.isControlActive():
             rect = self.item.geometry()
             self.control.setRect(rect)
 
     def cancel(self, reason=UserInteraction.OtherReason):
+        # type: (int) -> None
         log.debug("ResizeTextAnnotation.cancel(%s)", reason)
         if self.item is not None and self.savedRect is not None:
             self.item.setGeometry(self.savedRect)
         super().cancel(reason)
 
     def end(self):
+        # type: () -> None
         if self.control is not None:
             self.scene.removeItem(self.control)
 
-        if self.item is not None:
+        if self.item is not None and self.savedFramePen is not None:
             self.item.setFramePen(self.savedFramePen)
 
         self.item = None
@@ -1369,13 +1501,15 @@ class ResizeArrowAnnotation(UserInteraction):
     Resize an Arrow Annotation interaction handler.
     """
     def __init__(self, document, *args, **kwargs):
+        # type: (SchemeEditWidget, Any, Any) -> None
         super().__init__(document, *args, **kwargs)
-        self.item = None
-        self.annotation = None
-        self.control = None
-        self.savedLine = None
+        self.item = None        # type: Optional[items.ArrowAnnotation]
+        self.annotation = None  # type: Optional[scheme.SchemeArrowAnnotation]
+        self.control = None     # type: Optional[controlpoints.ControlPointLine]
+        self.savedLine = None   # type: Optional[QLineF]
 
     def mousePressEvent(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> bool
         pos = event.scenePos()
         if self.item is None:
             item = self.scene.item_at(pos, items.ArrowAnnotation)
@@ -1386,6 +1520,7 @@ class ResizeArrowAnnotation(UserInteraction):
         return super().mousePressEvent(event)
 
     def editItem(self, item):
+        # type: (items.ArrowAnnotation) -> None
         annotation = self.scene.annotation_for_item(item)
         control = controlpoints.ControlPointLine()
         self.scene.addItem(control)
@@ -1406,11 +1541,13 @@ class ResizeArrowAnnotation(UserInteraction):
         self.control = control
 
     def commit(self):
+        # type: () -> None
         """Commit the current geometry of the item to the document.
 
-        .. note:: Does nothing if the actual geometry is not changed.
-
+        Does nothing if the actual geometry has not changed.
         """
+        if self.control is None or self.item is None:
+            return
         line = self.control.line()
         p1, p2 = line.p1(), line.p2()
 
@@ -1425,22 +1562,29 @@ class ResizeArrowAnnotation(UserInteraction):
             self.savedLine = self.item.line()
 
     def __on_editingFinished(self):
+        # type: () -> None
         self.commit()
         self.end()
 
     def __on_lineEdited(self, line):
-        p1, p2 = map(self.item.mapFromScene, (line.p1(), line.p2()))
-        self.item.setLine(QLineF(p1, p2))
+        # type: (QLineF) -> None
+        if self.item is not None:
+            p1, p2 = map(self.item.mapFromScene, (line.p1(), line.p2()))
+            self.item.setLine(QLineF(p1, p2))
 
     def __on_lineGeometryChanged(self):
+        # type: () -> None
         # Possible geometry change from out of our control, for instance
         # item move as a part of a selection group.
+        assert self.control is not None and self.item is not None
         if not self.control.isControlActive():
+            assert self.item is not None
             line = self.item.line()
             p1, p2 = map(self.item.mapToScene, (line.p1(), line.p2()))
             self.control.setLine(QLineF(p1, p2))
 
     def cancel(self, reason=UserInteraction.OtherReason):
+        # type: (int) -> None
         log.debug("ResizeArrowAnnotation.cancel(%s)", reason)
         if self.item is not None and self.savedLine is not None:
             self.item.setLine(self.savedLine)
@@ -1448,6 +1592,7 @@ class ResizeArrowAnnotation(UserInteraction):
         super().cancel(reason)
 
     def end(self):
+        # type: () -> None
         if self.control is not None:
             self.scene.removeItem(self.control)
 

@@ -2,13 +2,24 @@
 Undo/Redo Commands
 
 """
-from typing import Callable
+import typing
+from typing import Callable, Optional, Tuple, Any
 
 from AnyQt.QtWidgets import QUndoCommand
+
+if typing.TYPE_CHECKING:
+    from ..scheme import (
+        Scheme, SchemeNode, SchemeLink, BaseSchemeAnnotation,
+        SchemeTextAnnotation, SchemeArrowAnnotation
+    )
+    Pos = Tuple[float, float]
+    Rect = Tuple[float, float, float, float]
+    Line = Tuple[Pos, Pos]
 
 
 class AddNodeCommand(QUndoCommand):
     def __init__(self, scheme, node, parent=None):
+        # type: (Scheme, SchemeNode, Optional[QUndoCommand]) -> None
         super().__init__("Add %s" % node.title, parent)
         self.scheme = scheme
         self.node = node
@@ -22,6 +33,7 @@ class AddNodeCommand(QUndoCommand):
 
 class RemoveNodeCommand(QUndoCommand):
     def __init__(self, scheme, node, parent=None):
+        # type: (Scheme, SchemeNode, Optional[QUndoCommand]) -> None
         super().__init__("Remove %s" % node.title, parent)
         self.scheme = scheme
         self.node = node
@@ -45,6 +57,7 @@ class RemoveNodeCommand(QUndoCommand):
 
 class AddLinkCommand(QUndoCommand):
     def __init__(self, scheme, link, parent=None):
+        # type: (Scheme, SchemeLink, Optional[QUndoCommand]) -> None
         super().__init__("Add link", parent)
         self.scheme = scheme
         self.link = link
@@ -58,6 +71,7 @@ class AddLinkCommand(QUndoCommand):
 
 class RemoveLinkCommand(QUndoCommand):
     def __init__(self, scheme, link, parent=None):
+        # type: (Scheme, SchemeLink, Optional[QUndoCommand]) -> None
         super().__init__("Remove link", parent)
         self.scheme = scheme
         self.link = link
@@ -70,7 +84,14 @@ class RemoveLinkCommand(QUndoCommand):
 
 
 class InsertNodeCommand(QUndoCommand):
-    def __init__(self, scheme, new_node, old_link, new_links, parent=None):
+    def __init__(
+            self,
+            scheme,     # type: Scheme
+            new_node,   # type: SchemeNode
+            old_link,   # type: SchemeLink
+            new_links,  # type: Tuple[SchemeLink, SchemeLink]
+            parent=None # type: Optional[QUndoCommand]
+    ):  # type: (...) -> None
         super().__init__("Insert widget into link", parent)
         self.scheme = scheme
         self.inserted_widget = new_node
@@ -92,6 +113,7 @@ class InsertNodeCommand(QUndoCommand):
 
 class AddAnnotationCommand(QUndoCommand):
     def __init__(self, scheme, annotation, parent=None):
+        # type: (Scheme, BaseSchemeAnnotation, Optional[QUndoCommand]) -> None
         super().__init__("Add annotation", parent)
         self.scheme = scheme
         self.annotation = annotation
@@ -105,6 +127,7 @@ class AddAnnotationCommand(QUndoCommand):
 
 class RemoveAnnotationCommand(QUndoCommand):
     def __init__(self, scheme, annotation, parent=None):
+        # type: (Scheme, BaseSchemeAnnotation, Optional[QUndoCommand]) -> None
         super().__init__("Remove annotation", parent)
         self.scheme = scheme
         self.annotation = annotation
@@ -118,6 +141,7 @@ class RemoveAnnotationCommand(QUndoCommand):
 
 class MoveNodeCommand(QUndoCommand):
     def __init__(self, scheme, node, old, new, parent=None):
+        # type: (Scheme, SchemeNode, Pos, Pos, Optional[QUndoCommand]) -> None
         super().__init__("Move", parent)
         self.scheme = scheme
         self.node = node
@@ -133,6 +157,7 @@ class MoveNodeCommand(QUndoCommand):
 
 class ResizeCommand(QUndoCommand):
     def __init__(self, scheme, item, new_geom, parent=None):
+        # type: (Scheme, SchemeTextAnnotation, Rect, Optional[QUndoCommand]) -> None
         super().__init__("Resize", parent)
         self.scheme = scheme
         self.item = item
@@ -148,6 +173,7 @@ class ResizeCommand(QUndoCommand):
 
 class ArrowChangeCommand(QUndoCommand):
     def __init__(self, scheme, item, new_line, parent=None):
+        # type: (Scheme, SchemeArrowAnnotation, Line, Optional[QUndoCommand]) -> None
         super().__init__("Move arrow", parent)
         self.scheme = scheme
         self.item = item
@@ -162,7 +188,14 @@ class ArrowChangeCommand(QUndoCommand):
 
 
 class AnnotationGeometryChange(QUndoCommand):
-    def __init__(self, scheme, annotation, old, new, parent=None):
+    def __init__(
+            self,
+            scheme,  # type: Scheme
+            annotation,  # type: BaseSchemeAnnotation
+            old,  # type: Any
+            new,  # type: Any
+            parent=None  # type: Optional[QUndoCommand]
+    ):  # type: (...) -> None
         super().__init__("Change Annotation Geometry", parent)
         self.scheme = scheme
         self.annotation = annotation
@@ -170,14 +203,15 @@ class AnnotationGeometryChange(QUndoCommand):
         self.new = new
 
     def redo(self):
-        self.annotation.geometry = self.new
+        self.annotation.geometry = self.new  # type: ignore
 
     def undo(self):
-        self.annotation.geometry = self.old
+        self.annotation.geometry = self.old  # type: ignore
 
 
 class RenameNodeCommand(QUndoCommand):
     def __init__(self, scheme, node, old_name, new_name, parent=None):
+        # type: (Scheme, SchemeNode, str, str, Optional[QUndoCommand]) -> None
         super().__init__("Rename", parent)
         self.scheme = scheme
         self.node = node
@@ -192,9 +226,16 @@ class RenameNodeCommand(QUndoCommand):
 
 
 class TextChangeCommand(QUndoCommand):
-    def __init__(self, scheme, annotation,
-                 old_content, old_content_type,
-                 new_content, new_content_type, parent=None):
+    def __init__(
+            self,
+            scheme,       # type: Scheme
+            annotation,   # type: SchemeTextAnnotation
+            old_content,  # type: str
+            old_content_type,  # type: str
+            new_content,  # type: str
+            new_content_type,  # type: str
+            parent=None   # type: Optional[QUndoCommand]
+    ):  # type: (...) -> None
         super().__init__("Change text", parent)
         self.scheme = scheme
         self.annotation = annotation
@@ -211,7 +252,14 @@ class TextChangeCommand(QUndoCommand):
 
 
 class SetAttrCommand(QUndoCommand):
-    def __init__(self, obj, attrname, newvalue, name=None, parent=None):
+    def __init__(
+            self,
+            obj,         # type: Any
+            attrname,    # type: str
+            newvalue,    # type: Any
+            name=None,   # type: Optional[str]
+            parent=None  # type: Optional[QUndoCommand]
+    ):  # type: (...) -> None
         if name is None:
             name = "Set %r" % attrname
         super().__init__(name, parent)
@@ -241,8 +289,13 @@ class SimpleUndoCommand(QUndoCommand):
     parent : Optional[QUndoCommand]
     """
 
-    def __init__(self, redo, undo, text, parent=None):
-        # type: (Callable[[], None], Callable[[], None], ...) -> None
+    def __init__(
+            self,
+            redo,  # type: Callable[[], None]
+            undo,  # type: Callable[[], None]
+            text,  # type: str
+            parent=None  # type: Optional[QUndoCommand]
+    ):  # type: (...) -> None
         super().__init__(text, parent)
         self._redo = redo
         self._undo = undo

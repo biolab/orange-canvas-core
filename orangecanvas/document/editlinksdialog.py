@@ -6,9 +6,10 @@ Link Editor
 An Dialog to edit links between two nodes in the scheme.
 
 """
+import typing
+from typing import List, Tuple, Optional, Any
 
 from collections import namedtuple
-
 from xml.sax.saxutils import escape
 
 from AnyQt.QtWidgets import (
@@ -16,7 +17,7 @@ from AnyQt.QtWidgets import (
     QGraphicsView, QGraphicsWidget, QGraphicsRectItem,
     QGraphicsLineItem, QGraphicsTextItem, QGraphicsLayoutItem,
     QGraphicsLinearLayout, QGraphicsGridLayout, QGraphicsPixmapItem,
-    QGraphicsDropShadowEffect, QSizePolicy, QGraphicsItem,
+    QGraphicsDropShadowEffect, QSizePolicy, QGraphicsItem, QWidget,
     QWIDGETSIZE_MAX
 )
 from AnyQt.QtGui import (
@@ -31,6 +32,10 @@ from ..registry import InputSignal, OutputSignal
 
 from ..resources import icon_loader
 
+if typing.TYPE_CHECKING:
+    from ..scheme import SchemeNode
+    IOPair = Tuple[OutputSignal, InputSignal]
+
 
 class EditLinksDialog(QDialog):
     """
@@ -39,14 +44,14 @@ class EditLinksDialog(QDialog):
     >>> dlg = EditLinksDialog()
     >>> dlg.setNodes(file_node, test_learners_node)
     >>> dlg.setLinks([(file_node.output_channel("Data"),
-    ...               (test_learners_node.input_channel("Data")])
-    >>> if dlg.exec_() == EditLinksDialog.Accpeted:
+    ...                test_learners_node.input_channel("Data")])
+    >>> if dlg.exec_() == EditLinksDialog.Accepted:
     ...     new_links = dlg.links()
     ...
-
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, parent=None, **kwargs):
+        # type: (Optional[QWidget], Any) -> None
+        super().__init__(parent, **kwargs)
 
         self.setModal(True)
 
@@ -86,6 +91,7 @@ class EditLinksDialog(QDialog):
         self.setSizeGripEnabled(False)
 
     def setNodes(self, source_node, sink_node):
+        # type: (SchemeNode, SchemeNode) -> None
         """
         Set the source/sink nodes (:class:`.SchemeNode` instances)
         between which to edit the links.
@@ -96,6 +102,7 @@ class EditLinksDialog(QDialog):
         self.scene.editWidget.setNodes(source_node, sink_node)
 
     def setLinks(self, links):
+        # type: (List[IOPair]) -> None
         """
         Set a list of links to display between the source and sink
         nodes. The `links` is a list of (`OutputSignal`, `InputSignal`)
@@ -106,6 +113,7 @@ class EditLinksDialog(QDialog):
         self.scene.editWidget.setLinks(links)
 
     def links(self):
+        # type: () -> List[IOPair]
         """
         Return the links between the source and sink node.
         """
@@ -119,8 +127,13 @@ class EditLinksDialog(QDialog):
         self.view.setSceneRect(self.scene.editWidget.geometry())
 
 
-def find_item_at(scene, pos, order=Qt.DescendingOrder, type=None,
-                 name=None):
+def find_item_at(
+        scene,  # type: QGraphicsScene
+        pos,    # type: QPointF
+        order=Qt.DescendingOrder,  # type: Qt.SortOrder
+        type=None,   # type: Optional[type]
+        name=None,   # type: Optional[str]
+):  # type: (...) -> Optional[QGraphicsItem]
     """
     Find an object in a :class:`QGraphicsScene` `scene` at `pos`.
     If `type` is not `None` the it must specify  the type of the item.
@@ -179,7 +192,7 @@ class LinksEditWidget(QGraphicsWidget):
         self.sinkNodeWidget = None
         self.sinkNodeTitle = None
 
-        self.__links = []
+        self.__links = []  # type: List[IOPair]
 
         self.__textItems = []
         self.__iconItems = []

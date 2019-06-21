@@ -16,41 +16,51 @@ from operator import attrgetter
 from urllib.parse import urlencode
 from contextlib import ExitStack
 
-from typing import List, Optional
+from typing import List, Tuple, Optional, Container, Dict, Any, Iterable
 
 from AnyQt.QtWidgets import (
     QWidget, QVBoxLayout, QInputDialog, QMenu, QAction, QActionGroup,
-    QUndoStack, QUndoCommand, QGraphicsItem, QGraphicsObject,
-    QGraphicsTextItem, QFormLayout, QComboBox, QDialog, QDialogButtonBox,
-    QMessageBox, QCheckBox
+    QUndoStack, QUndoCommand, QGraphicsItem, QGraphicsTextItem,
+    QFormLayout, QComboBox, QDialog, QDialogButtonBox, QMessageBox, QCheckBox,
+    QGraphicsSceneDragDropEvent, QGraphicsSceneMouseEvent,
+    QGraphicsSceneContextMenuEvent, QGraphicsView, QGraphicsScene
 )
 from AnyQt.QtGui import (
     QKeySequence, QCursor, QFont, QPainter, QPixmap, QColor, QIcon,
-    QWhatsThisClickedEvent, QPalette
+    QWhatsThisClickedEvent, QKeyEvent, QPalette
 )
 from AnyQt.QtCore import (
-    Qt, QObject, QEvent, QSignalMapper, QRectF, QCoreApplication, QPoint
+    Qt, QObject, QEvent, QSignalMapper, QCoreApplication, QPoint, QPointF
 )
 from AnyQt.QtCore import pyqtProperty as Property, pyqtSignal as Signal
 
-from ..registry import WidgetDescription
+from ..registry import WidgetDescription, WidgetRegistry
 from .suggestions import Suggestions
 from ..registry.qt import whats_this_helper, QtWidgetRegistry
 from ..gui.quickhelp import QuickHelpTipEvent
 from ..gui.utils import message_information, disabled
 from ..scheme import (
     scheme, signalmanager, Scheme, SchemeNode, SchemeLink,
-    BaseSchemeAnnotation, WorkflowEvent
+    BaseSchemeAnnotation, SchemeTextAnnotation, WorkflowEvent
 )
 from ..scheme.widgetmanager import WidgetManager
 from ..canvas.scene import CanvasScene
 from ..canvas.view import CanvasView
 from ..canvas import items
+from ..canvas.items.annotationitem import Annotation as AnnotationItem
 from . import interactions
 from . import commands
 from . import quickmenu
 
+Pos = Tuple[float, float]
+RuntimeState = signalmanager.SignalManager.State
+
 log = logging.getLogger(__name__)
+
+
+class NoWorkflowError(RuntimeError):
+    def __init__(self, message: str = "No workflow model is set", **kwargs):
+        super().__init__(message, *kwargs)
 
 
 class SchemeEditWidget(QWidget):
@@ -90,8 +100,8 @@ class SchemeEditWidget(QWidget):
         super().__init__(parent)
 
         self.__modified = False
-        self.__registry = None
-        self.__scheme = None
+        self.__registry = None       # type: Optional[WidgetRegistry]
+        self.__scheme = None         # type: Optional[Scheme]
 
         self.__widgetManager = None  # type: Optional[WidgetManager]
         self.__path = ""
@@ -104,9 +114,9 @@ class SchemeEditWidget(QWidget):
         self.__possibleSelectionHandler = None
         self.__possibleMouseItemsMove = False
         self.__itemsMoving = {}
-        self.__contextMenuTarget = None
-        self.__dropTarget = None
-        self.__quickMenu = None
+        self.__contextMenuTarget = None  # type: Optional[SchemeLink]
+        self.__dropTarget = None  # type: Optional[items.LinkItem]
+        self.__quickMenu = None   # type: Optional[quickmenu.QuickMenu]
         self.__quickTip = ""
 
         self.__undoStack = QUndoStack(self)
@@ -413,12 +423,12 @@ class SchemeEditWidget(QWidget):
         self.setLayout(layout)
 
     def __setupScene(self, scene):
+        # type: (CanvasScene) -> None
         """
         Set up a :class:`CanvasScene` instance for use by the editor.
 
         .. note:: If an existing scene is in use it must be teared down using
             __teardownScene
-
         """
         scene.set_channel_names_visible(self.__channelNamesVisible)
         scene.set_node_animation_enabled(
@@ -429,7 +439,8 @@ class SchemeEditWidget(QWidget):
         scene.setPalette(self.palette())
         scene.installEventFilter(self)
 
-        scene.set_registry(self.__registry)
+        if self.__registry is not None:
+            scene.set_registry(self.__registry)
         scene.focusItemChanged.connect(self.__onFocusItemChanged)
         scene.selectionChanged.connect(self.__onSelectionChanged)
         scene.node_item_activated.connect(self.__onNodeActivate)
@@ -438,6 +449,7 @@ class SchemeEditWidget(QWidget):
         self.__annotationGeomChanged = QSignalMapper(self)
 
     def __teardownScene(self, scene):
+        # type: (CanvasScene) -> None
         """
         Tear down an instance of :class:`CanvasScene` that was used by the
         editor.
@@ -461,6 +473,7 @@ class SchemeEditWidget(QWidget):
         scene.clear_scene()
 
     def toolbarActions(self):
+        # type: () -> List[QAction]
         """
         Return a list of actions that can be inserted into a toolbar.
         At the moment these are:
@@ -486,6 +499,7 @@ class SchemeEditWidget(QWidget):
                 self.__newArrowAnnotationAction]
 
     def menuBarActions(self):
+        # type: () -> List[QAction]
         """
         Return a list of actions that can be inserted into a `QMenuBar`.
 
@@ -494,12 +508,14 @@ class SchemeEditWidget(QWidget):
                 self.__menuBarWidgetMenu.menuAction()]
 
     def isModified(self):
+        # type: () -> bool
         """
         Is the document is a modified state.
         """
         return self.__modified or not self.__undoStack.isClean()
 
     def setModified(self, modified):
+        # type: (bool) -> None
         """
         Set the document modified state.
         """
@@ -507,7 +523,10 @@ class SchemeEditWidget(QWidget):
             self.__modified = modified
 
         if not modified:
-            self.__cleanProperties = node_properties(self.__scheme)
+            if self.__scheme:
+                self.__cleanProperties = node_properties(self.__scheme)
+            else:
+                self.__cleanProperties = []
             self.__undoStack.setClean()
         else:
             self.__cleanProperties = []
@@ -534,6 +553,7 @@ class SchemeEditWidget(QWidget):
         return self.isModified() or propertiesChanged
 
     def setQuickMenuTriggers(self, triggers):
+        # type: (int) -> None
         """
         Set quick menu trigger flags.
 
@@ -550,29 +570,32 @@ class SchemeEditWidget(QWidget):
             self.__quickMenuTriggers = triggers
 
     def quickMenuTriggers(self):
+        # type: () -> int
         """
         Return quick menu trigger flags.
         """
         return self.__quickMenuTriggers
 
     def setChannelNamesVisible(self, visible):
+        # type: (bool) -> None
         """
         Set channel names visibility state. When enabled the links
         in the view will have a source/sink channel names displayed over
         them.
-
         """
         if self.__channelNamesVisible != visible:
             self.__channelNamesVisible = visible
             self.__scene.set_channel_names_visible(visible)
 
     def channelNamesVisible(self):
+        # type: () -> bool
         """
         Return the channel name visibility state.
         """
         return self.__channelNamesVisible
 
     def setNodeAnimationEnabled(self, enabled):
+        # type: (bool) -> None
         """
         Set the node item animation enabled state.
         """
@@ -581,18 +604,21 @@ class SchemeEditWidget(QWidget):
             self.__scene.set_node_animation_enabled(enabled)
 
     def nodeAnimationEnabled(self):
+        # type () -> bool
         """
         Return the node item animation enabled state.
         """
         return self.__nodeAnimationEnabled
 
     def undoStack(self):
+        # type: () -> QUndoStack
         """
         Return the undo stack.
         """
         return self.__undoStack
 
     def setPath(self, path):
+        # type: (str) -> None
         """
         Set the path associated with the current scheme.
 
@@ -605,12 +631,14 @@ class SchemeEditWidget(QWidget):
             self.pathChanged.emit(self.__path)
 
     def path(self):
+        # type: () -> str
         """
         Return the path associated with the scheme
         """
         return self.__path
 
     def setScheme(self, scheme):
+        # type: (Scheme) -> None
         """
         Set the :class:`~.scheme.Scheme` instance to display/edit.
         """
@@ -680,6 +708,7 @@ class SchemeEditWidget(QWidget):
                 menu.insertAction(sep, a)
 
     def ensureVisible(self, node):
+        # type: (SchemeNode) -> None
         """
         Scroll the contents of the viewport so that `node` is visible.
 
@@ -693,24 +722,25 @@ class SchemeEditWidget(QWidget):
         self.__view.ensureVisible(item)
 
     def scheme(self):
+        # type: () -> Optional[Scheme]
         """
         Return the :class:`~.scheme.Scheme` edited by the widget.
         """
         return self.__scheme
 
     def scene(self):
+        # type: () -> QGraphicsScene
         """
         Return the :class:`QGraphicsScene` instance used to display the
         current scheme.
-
         """
         return self.__scene
 
     def view(self):
+        # type: () -> QGraphicsView
         """
         Return the :class:`QGraphicsView` instance used to display the
         current scene.
-
         """
         return self.__view
 
@@ -731,10 +761,10 @@ class SchemeEditWidget(QWidget):
             self.__quickMenu = None
 
     def quickMenu(self):
+        # type: () -> quickmenu.QuickMenu
         """
         Return a :class:`~.quickmenu.QuickMenu` popup menu instance for
         new node creation.
-
         """
         if self.__quickMenu is None:
             menu = quickmenu.QuickMenu(self)
@@ -744,6 +774,7 @@ class SchemeEditWidget(QWidget):
         return self.__quickMenu
 
     def setTitle(self, title):
+        # type: (str) -> None
         """
         Set the scheme title.
         """
@@ -752,6 +783,7 @@ class SchemeEditWidget(QWidget):
         )
 
     def setDescription(self, description):
+        # type: (str) -> None
         """
         Set the scheme description string.
         """
@@ -760,13 +792,17 @@ class SchemeEditWidget(QWidget):
         )
 
     def addNode(self, node):
+        # type: (SchemeNode) -> None
         """
         Add a new node (:class:`.SchemeNode`) to the document.
         """
+        if self.__scheme is None:
+            raise NoWorkflowError()
         command = commands.AddNodeCommand(self.__scheme, node)
         self.__undoStack.push(command)
 
     def createNewNode(self, description, title=None, position=None):
+        # type: (WidgetDescription, Optional[str], Optional[Pos]) -> SchemeNode
         """
         Create a new :class:`.SchemeNode` and add it to the document.
         The new node is constructed using :func:`~SchemeEdit.newNodeHelper`
@@ -778,11 +814,11 @@ class SchemeEditWidget(QWidget):
         return node
 
     def newNodeHelper(self, description, title=None, position=None):
+        # type: (WidgetDescription, Optional[str], Optional[Pos]) -> SchemeNode
         """
         Return a new initialized :class:`.SchemeNode`. If `title`
         and `position` are not supplied they are initialized to sensible
         defaults.
-
         """
         if title is None:
             title = self.enumerateTitle(description.name)
@@ -793,12 +829,14 @@ class SchemeEditWidget(QWidget):
         return SchemeNode(description, title=title, position=position)
 
     def enumerateTitle(self, title):
+        # type: (str) -> str
         """
         Enumerate a `title` string (i.e. add a number in parentheses) so
         it is not equal to any node title in the current scheme.
-
         """
-        curr_titles = set([node.title for node in self.scheme().nodes])
+        if self.__scheme is None:
+            return title
+        curr_titles = set([node.title for node in self.__scheme.nodes])
         template = title + " ({0})"
 
         enumerated = (template.format(i) for i in itertools.count(1))
@@ -808,57 +846,75 @@ class SchemeEditWidget(QWidget):
         return next(seq)
 
     def nextPosition(self):
+        # type: () -> Tuple[float, float]
         """
         Return the next default node position as a (x, y) tuple. This is
         a position left of the last added node.
-
         """
-        nodes = self.scheme().nodes
+        if self.__scheme is not None:
+            nodes = self.__scheme.nodes
+        else:
+            nodes = []
         if nodes:
-            x, y = nodes[-1].position
+            x, y = nodes[-1].position  # type: ignore
             position = (x + 150, y)
         else:
             position = (150, 150)
         return position
 
     def removeNode(self, node):
+        # type: (SchemeNode) -> None
         """
         Remove a `node` (:class:`.SchemeNode`) from the scheme
         """
+        if self.__scheme is None:
+            raise NoWorkflowError()
         command = commands.RemoveNodeCommand(self.__scheme, node)
         self.__undoStack.push(command)
 
     def renameNode(self, node, title):
+        # type: (SchemeNode, str) -> None
         """
         Rename a `node` (:class:`.SchemeNode`) to `title`.
         """
+        if self.__scheme is None:
+            raise NoWorkflowError()
         self.__undoStack.push(
             commands.RenameNodeCommand(self.__scheme, node, node.title, title)
         )
 
     def addLink(self, link):
+        # type: (SchemeLink) -> None
         """
         Add a `link` (:class:`.SchemeLink`) to the scheme.
         """
+        if self.__scheme is None:
+            raise NoWorkflowError()
         command = commands.AddLinkCommand(self.__scheme, link)
         self.__undoStack.push(command)
 
     def removeLink(self, link):
+        # type: (SchemeLink) -> None
         """
         Remove a link (:class:`.SchemeLink`) from the scheme.
         """
+        if self.__scheme is None:
+            raise NoWorkflowError()
         command = commands.RemoveLinkCommand(self.__scheme, link)
         self.__undoStack.push(command)
 
     def insertNode(self, new_node, old_link):
+        # type: (SchemeNode, SchemeLink) -> None
         """
         Insert a node in-between two linked nodes.
         """
+        if self.__scheme is None:
+            raise NoWorkflowError()
         source_node = old_link.source_node
         sink_node = old_link.sink_node
 
-        possible_links = (self.scheme().propose_links(source_node, new_node),
-                          self.scheme().propose_links(new_node, sink_node))
+        possible_links = (self.__scheme.propose_links(source_node, new_node),
+                          self.__scheme.propose_links(new_node, sink_node))
 
         first_link_sink_channel = [l[1] for l in possible_links[0]
                                    if l[0] == old_link.source_channel][0]
@@ -881,20 +937,27 @@ class SchemeEditWidget(QWidget):
         self.__scheme.link_added.connect(func)
 
     def addAnnotation(self, annotation):
+        # type: (BaseSchemeAnnotation) -> None
         """
         Add `annotation` (:class:`.BaseSchemeAnnotation`) to the scheme
         """
+        if self.__scheme is None:
+            raise NoWorkflowError()
         command = commands.AddAnnotationCommand(self.__scheme, annotation)
         self.__undoStack.push(command)
 
     def removeAnnotation(self, annotation):
+        # type: (BaseSchemeAnnotation) -> None
         """
         Remove `annotation` (:class:`.BaseSchemeAnnotation`) from the scheme.
         """
+        if self.__scheme is None:
+            raise NoWorkflowError()
         command = commands.RemoveAnnotationCommand(self.__scheme, annotation)
         self.__undoStack.push(command)
 
     def removeSelected(self):
+        # type: () -> None
         """
         Remove all selected items in the scheme.
         """
@@ -904,6 +967,7 @@ class SchemeEditWidget(QWidget):
         scene = self.scene()
         self.__undoStack.beginMacro(self.tr("Remove"))
         for item in selected:
+            assert self.__scheme is not None
             if isinstance(item, items.NodeItem):
                 node = self.scene().node_for_item(item)
                 self.__undoStack.push(
@@ -920,6 +984,7 @@ class SchemeEditWidget(QWidget):
         self.__undoStack.endMacro()
 
     def selectAll(self):
+        # type: () -> None
         """
         Select all selectable items in the scheme.
         """
@@ -928,14 +993,17 @@ class SchemeEditWidget(QWidget):
                 item.setSelected(True)
 
     def alignToGrid(self):
+        # type: () -> None
         """
         Align nodes to a grid.
         """
         # TODO: The the current layout implementation is BAD (fix is urgent).
-        tile_size = 150
-        tiles = {}
+        if self.__scheme is None:
+            return
 
-        nodes = sorted(self.scheme().nodes, key=attrgetter("position"))
+        tile_size = 150
+        tiles = {}  # type: Dict[Tuple[int, int], SchemeNode]
+        nodes = sorted(self.__scheme.nodes, key=attrgetter("position"))
 
         if nodes:
             self.__undoStack.beginMacro(self.tr("Align To Grid"))
@@ -948,7 +1016,7 @@ class SchemeEditWidget(QWidget):
                     x += tile_size
 
                 self.__undoStack.push(
-                    commands.MoveNodeCommand(self.scheme(), node,
+                    commands.MoveNodeCommand(self.__scheme, node,
                                              node.position, (x, y))
                 )
 
@@ -958,10 +1026,10 @@ class SchemeEditWidget(QWidget):
             self.__undoStack.endMacro()
 
     def focusNode(self):
+        # type: () -> Optional[SchemeNode]
         """
         Return the current focused :class:`.SchemeNode` or ``None`` if no
         node has focus.
-
         """
         focus = self.__scene.focusItem()
         node = None
@@ -975,6 +1043,7 @@ class SchemeEditWidget(QWidget):
         return node
 
     def selectedNodes(self):
+        # type: () -> List[SchemeNode]
         """
         Return all selected :class:`.SchemeNode` items.
         """
@@ -982,6 +1051,7 @@ class SchemeEditWidget(QWidget):
                         self.scene().selected_node_items()))
 
     def selectedAnnotations(self):
+        # type: () -> List[BaseSchemeAnnotation]
         """
         Return all selected :class:`.BaseSchemeAnnotation` items.
         """
@@ -989,6 +1059,7 @@ class SchemeEditWidget(QWidget):
                         self.scene().selected_annotation_items()))
 
     def openSelected(self):
+        # type: () -> None
         """
         Open (show and raise) all widgets for the current selected nodes.
         """
@@ -998,6 +1069,7 @@ class SchemeEditWidget(QWidget):
                 node, WorkflowEvent(WorkflowEvent.NodeActivateRequest))
 
     def editNodeTitle(self, node):
+        # type: (SchemeNode) -> None
         """
         Edit (rename) the `node`'s title. Opens an input dialog.
         """
@@ -1007,18 +1079,20 @@ class SchemeEditWidget(QWidget):
             text=node.title
         )
 
-        if ok:
+        if ok and self.__scheme is not None:
             self.__undoStack.push(
                 commands.RenameNodeCommand(self.__scheme, node, node.title,
                                            name)
             )
 
     def __onCleanChanged(self, clean):
+        # type: (bool) -> None
         if self.isWindowModified() != (not clean):
             self.setWindowModified(not clean)
             self.modificationChanged.emit(not clean)
 
     def changeEvent(self, event):
+        # type: (QEvent) -> None
         if event.type() == QEvent.FontChange:
             self.__updateFont()
         elif event.type() == QEvent.PaletteChange:
@@ -1028,12 +1102,14 @@ class SchemeEditWidget(QWidget):
         super().changeEvent(event)
 
     def eventFilter(self, obj, event):
+        # type: (QObject, QEvent) -> bool
         # Filter the scene's drag/drop events.
         MIME_TYPE = "application/vnv.orange-canvas.registry.qualified-name"
         if obj is self.scene():
             etype = event.type()
             if etype == QEvent.GraphicsSceneDragEnter or \
                     etype == QEvent.GraphicsSceneDragMove:
+                assert isinstance(event, QGraphicsSceneDragDropEvent)
                 mime_data = event.mimeData()
                 drop_target = None
                 if mime_data.hasFormat(MIME_TYPE):
@@ -1055,8 +1131,6 @@ class SchemeEditWidget(QWidget):
                 if self.__dropTarget is not None and \
                         self.__dropTarget is not drop_target:
                     self.__dropTarget.setHoverState(False)
-                    # self.__dropTarget = None
-
                 self.__dropTarget = drop_target
                 return True
             elif etype == QEvent.GraphicsSceneDragLeave:
@@ -1064,6 +1138,7 @@ class SchemeEditWidget(QWidget):
                     self.__dropTarget.setHoverState(False)
                     self.__dropTarget = None
             elif etype == QEvent.GraphicsSceneDrop:
+                assert isinstance(event, QGraphicsSceneDragDropEvent)
                 data = event.mimeData()
                 qname = data.data(MIME_TYPE)
                 try:
@@ -1107,6 +1182,7 @@ class SchemeEditWidget(QWidget):
         return super().eventFilter(obj, event)
 
     def sceneMousePressEvent(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> bool
         scene = self.__scene
         if scene.user_interaction_handler:
             return False
@@ -1150,6 +1226,7 @@ class SchemeEditWidget(QWidget):
         return False
 
     def sceneMouseMoveEvent(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> bool
         scene = self.__scene
         if scene.user_interaction_handler:
             return False
@@ -1167,6 +1244,7 @@ class SchemeEditWidget(QWidget):
         return False
 
     def sceneMouseReleaseEvent(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> bool
         scene = self.__scene
         if scene.user_interaction_handler:
             return False
@@ -1184,16 +1262,18 @@ class SchemeEditWidget(QWidget):
 
             if self.__itemsMoving:
                 self.__scene.mouseReleaseEvent(event)
+                scheme = self.__scheme
+                assert scheme is not None
                 stack = self.undoStack()
                 stack.beginMacro(self.tr("Move"))
                 for scheme_item, (old, new) in self.__itemsMoving.items():
                     if isinstance(scheme_item, SchemeNode):
                         command = commands.MoveNodeCommand(
-                            self.scheme(), scheme_item, old, new
+                            scheme, scheme_item, old, new
                         )
                     elif isinstance(scheme_item, BaseSchemeAnnotation):
                         command = commands.AnnotationGeometryChange(
-                            self.scheme(), scheme_item, old, new
+                            scheme, scheme_item, old, new
                         )
                     else:
                         continue
@@ -1209,6 +1289,7 @@ class SchemeEditWidget(QWidget):
         return False
 
     def sceneMouseDoubleClickEvent(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> bool
         scene = self.__scene
         if scene.user_interaction_handler:
             return False
@@ -1241,6 +1322,7 @@ class SchemeEditWidget(QWidget):
         return False
 
     def sceneKeyPressEvent(self, event):
+        # type: (QKeyEvent) -> bool
         scene = self.__scene
         if scene.user_interaction_handler:
             return False
@@ -1288,16 +1370,18 @@ class SchemeEditWidget(QWidget):
         return False
 
     def sceneKeyReleaseEvent(self, event):
+        # type: (QKeyEvent) -> bool
         return False
 
     def sceneContextMenuEvent(self, event):
+        # type: (QGraphicsSceneContextMenuEvent) -> bool
         scenePos = event.scenePos()
         globalPos = event.screenPos()
 
         item = self.scene().item_at(scenePos, items.NodeItem)
         if item is not None:
             node = self.scene().node_for_item(item)  # type: SchemeNode
-            actions = []
+            actions = []  # type: List[QAction]
             manager = self.widgetManager()
             if manager is not None:
                 actions = manager.actions_for_context_menu(node)
@@ -1342,6 +1426,7 @@ class SchemeEditWidget(QWidget):
         return False
 
     def _setUserInteractionHandler(self, handler):
+        # type: (Optional[interactions.UserInteraction]) -> None
         """
         Helper method for setting the user interaction handlers.
         """
@@ -1363,10 +1448,12 @@ class SchemeEditWidget(QWidget):
         self.__scene.set_user_interaction_handler(handler)
 
     def __onInteractionEnded(self):
+        # type: () -> None
         self.sender().ended.disconnect(self.__onInteractionEnded)
         set_enabled_all(self.__disruptiveActions, True)
 
     def __onSelectionChanged(self):
+        # type: () -> None
         nodes = self.selectedNodes()
         annotations = self.selectedAnnotations()
 
@@ -1408,11 +1495,13 @@ class SchemeEditWidget(QWidget):
             QCoreApplication.sendEvent(self, ev)
 
     def __onNodeActivate(self, item):
+        # type: (items.NodeItem) -> None
         node = self.__scene.node_for_item(item)
         QCoreApplication.sendEvent(
             node, WorkflowEvent(WorkflowEvent.NodeActivateRequest))
 
     def __onNodePositionChanged(self, item, pos):
+        # type: (items.NodeItem, QPointF) -> None
         node = self.__scene.node_for_item(item)
         new = (pos.x(), pos.y())
         if node not in self.__itemsMoving:
@@ -1422,6 +1511,7 @@ class SchemeEditWidget(QWidget):
             self.__itemsMoving[node] = (old, new)
 
     def __onAnnotationGeometryChanged(self, item):
+        # type: (AnnotationItem) -> None
         annot = self.scene().annotation_for_item(item)
         if annot not in self.__itemsMoving:
             self.__itemsMoving[annot] = (annot.geometry,
@@ -1432,6 +1522,7 @@ class SchemeEditWidget(QWidget):
                                          geometry_from_annotation_item(item))
 
     def __onAnnotationAdded(self, item):
+        # type: (AnnotationItem) -> None
         log.debug("Annotation added (%r)", item)
         item.setFlag(QGraphicsItem.ItemIsSelectable)
         item.setFlag(QGraphicsItem.ItemIsMovable)
@@ -1454,6 +1545,7 @@ class SchemeEditWidget(QWidget):
         )
 
     def __onAnnotationRemoved(self, item):
+        # type: (AnnotationItem) -> None
         log.debug("Annotation removed (%r)", item)
         if isinstance(item, items.ArrowAnnotation):
             pass
@@ -1477,24 +1569,27 @@ class SchemeEditWidget(QWidget):
                 self.__startControlPointEdit(newFocusItem)
 
     def __onEditingFinished(self, item):
+        # type: (items.TextAnnotation) -> None
         """
         Text annotation editing has finished.
         """
         annot = self.__scene.annotation_for_item(item)
-
+        assert isinstance(annot, SchemeTextAnnotation)
         content_type = item.contentType()
         content = item.content()
 
         if annot.text != content or annot.content_type != content_type:
+            assert self.__scheme is not None
             self.__undoStack.push(
                 commands.TextChangeCommand(
-                    self.scheme(), annot,
+                    self.__scheme, annot,
                     annot.text, annot.content_type,
                     content, content_type
                 )
             )
 
     def __toggleNewArrowAnnotation(self, checked):
+        # type: (bool) -> None
         if self.__newTextAnnotationAction.isChecked():
             # Uncheck the text annotation action if needed.
             self.__newTextAnnotationAction.setChecked(not checked)
@@ -1512,14 +1607,15 @@ class SchemeEditWidget(QWidget):
 
         else:
             handler = interactions.NewArrowAnnotation(self)
-            checked = self.__arrowColorActionGroup.checkedAction()
-            handler.setColor(checked.data())
+            checked_action = self.__arrowColorActionGroup.checkedAction()
+            handler.setColor(checked_action.data())
 
             handler.ended.connect(action.toggle)
 
             self._setUserInteractionHandler(handler)
 
     def __onFontSizeTriggered(self, action):
+        # type: (QAction) -> None
         if not self.__newTextAnnotationAction.isChecked():
             # When selecting from the (font size) menu the 'Text'
             # action does not get triggered automatically.
@@ -1531,6 +1627,7 @@ class SchemeEditWidget(QWidget):
                 handler.setFont(action.font())
 
     def __toggleNewTextAnnotation(self, checked):
+        # type: (bool) -> None
         if self.__newArrowAnnotationAction.isChecked():
             # Uncheck the arrow annotation if needed.
             self.__newArrowAnnotationAction.setChecked(not checked)
@@ -1548,14 +1645,15 @@ class SchemeEditWidget(QWidget):
 
         else:
             handler = interactions.NewTextAnnotation(self)
-            checked = self.__fontActionGroup.checkedAction()
-            handler.setFont(checked.font())
+            checked_action = self.__fontActionGroup.checkedAction()
+            handler.setFont(checked_action.font())
 
             handler.ended.connect(action.toggle)
 
             self._setUserInteractionHandler(handler)
 
     def __onArrowColorTriggered(self, action):
+        # type: (QAction) -> None
         if not self.__newArrowAnnotationAction.isChecked():
             # When selecting from the (color) menu the 'Arrow'
             # action does not get triggered automatically.
@@ -1567,6 +1665,7 @@ class SchemeEditWidget(QWidget):
                 handler.setColor(action.data())
 
     def __onRenameAction(self):
+        # type: () -> None
         """
         Rename was requested for the selected widget.
         """
@@ -1575,6 +1674,7 @@ class SchemeEditWidget(QWidget):
             self.editNodeTitle(selected[0])
 
     def __onHelpAction(self):
+        # type: () -> None
         """
         Help was requested for the selected widget.
         """
@@ -1588,6 +1688,7 @@ class SchemeEditWidget(QWidget):
             self.__showHelpFor(help_url)
 
     def __showHelpFor(self, help_url):
+        # type: (str) -> None
         """
         Show help for an "help" url.
         """
@@ -1602,6 +1703,7 @@ class SchemeEditWidget(QWidget):
                 parent=self)
 
     def __toggleLinkEnabled(self, enabled):
+        # type: (bool) -> None
         """
         Link 'enabled' state was toggled in the context menu.
         """
@@ -1613,6 +1715,7 @@ class SchemeEditWidget(QWidget):
             self.__undoStack.push(command)
 
     def __linkRemove(self):
+        # type: () -> None
         """
         Remove link was requested from the context menu.
         """
@@ -1620,6 +1723,7 @@ class SchemeEditWidget(QWidget):
             self.removeLink(self.__contextMenuTarget)
 
     def __linkReset(self):
+        # type: () -> None
         """
         Link reset from the context menu was requested.
         """
@@ -1631,6 +1735,7 @@ class SchemeEditWidget(QWidget):
             action.edit_links()
 
     def __nodeInsert(self):
+        # type: () -> None
         """
         Node insert was requested from the context menu.
         """
@@ -1674,16 +1779,19 @@ class SchemeEditWidget(QWidget):
             log.info("Cannot insert node: links not possible.")
 
     def __duplicateSelected(self):
+        # type: () -> None
         """
         Duplicate currently selected nodes.
         """
         def copy_node(node):
+            # type: (SchemeNode) -> SchemeNode
             x, y = node.position
             return SchemeNode(
                 node.description, node.title, position=(x + 20, y + 20),
                 properties=copy.deepcopy(node.properties))
 
         def copy_link(link, source=None, sink=None):
+            # type: (SchemeLink, Optional[SchemeNode], Optional[SchemeNode]) -> SchemeLink
             source = link.source_node if source is None else source
             sink = link.sink_node if sink is None else sink
             return SchemeLink(
@@ -1693,6 +1801,9 @@ class SchemeEditWidget(QWidget):
                 properties=copy.deepcopy(link.properties))
 
         scheme = self.scheme()
+        if scheme is None:
+            return
+
         # ensure up to date node properties (settings)
         scheme.sync_node_properties()
 
@@ -1734,6 +1845,7 @@ class SchemeEditWidget(QWidget):
             item.setSelected(True)
 
     def __startControlPointEdit(self, item):
+        # type: (items.annotationitem.Annotation) -> None
         """
         Start a control point edit interaction for `item`.
         """
@@ -1751,6 +1863,7 @@ class SchemeEditWidget(QWidget):
         log.info("Control point editing started (%r)." % item)
 
     def __endControlPointEdit(self):
+        # type: () -> None
         """
         End the current control point edit interaction.
         """
@@ -1764,10 +1877,10 @@ class SchemeEditWidget(QWidget):
             log.info("Control point editing finished.")
 
     def __updateFont(self):
+        # type: () -> None
         """
         Update the font for the "Text size' menu and the default font
         used in the `CanvasScene`.
-
         """
         actions = self.__fontActionGroup.actions()
         font = self.font()
@@ -1781,17 +1894,19 @@ class SchemeEditWidget(QWidget):
             self.__scene.setFont(font)
 
     def __signalManagerStateChanged(self, state):
-        if state == signalmanager.SignalManager.Running:
+        # type: (RuntimeState) -> None
+        if state == RuntimeState.Running:
             role = QPalette.Base
         else:
             role = QPalette.Window
         self.__view.viewport().setBackgroundRole(role)
 
     def __saveWindowGroup(self):
-        # Run a 'Save Window Group' dialog
-        workflow = self.__scheme  # type: Scheme
+        # type: () -> None
+        """Run a 'Save Window Group' dialog"""
+        workflow = self.__scheme
         manager = self.__widgetManager
-        if manager is None:
+        if manager is None or workflow is None:
             return
         state = manager.save_window_state()
         presets = workflow.window_group_presets()
@@ -1871,7 +1986,10 @@ class SchemeEditWidget(QWidget):
             wm.activate_window_group(data)
 
     def __clearWindowGroups(self):
-        workflow = self.__scheme  # type: Scheme
+        # type: () -> None
+        workflow = self.__scheme
+        if workflow is None:
+            return
         presets = workflow.window_group_presets()
         menu = self.__windowGroupsAction.menu()  # type: QMenu
         group = self.__windowGroupsActionGroup
@@ -1965,12 +2083,14 @@ class SaveWindowGroup(QDialog):
         cb.setFocus(Qt.NoFocusReason)
 
     def __currentIndexChanged(self, idx):
+        # type: (int) -> None
         state = self._combobox.itemData(idx, Qt.UserRole + 1)
         if not isinstance(state, bool):
             state = False
         self._checkbox.setChecked(state)
 
     def __accept_check(self):
+        # type: () -> None
         cb = self._combobox
         text = cb.currentText()
         if cb.findText(text) == -1:
@@ -1989,9 +2109,11 @@ class SaveWindowGroup(QDialog):
         mb.setWindowModality(Qt.WindowModal)
         button = mb.button(QMessageBox.Yes)
         button.setText(self.tr("Replace"))
-        mb.finished.connect(
-            lambda status: status == QMessageBox.Yes and self.accept()
-        )
+
+        def on_finished(status):  # type: (int) -> None
+            if status == QMessageBox.Yes:
+                self.accept()
+        mb.finished.connect(on_finished)
         mb.show()
 
     def setItems(self, items):
@@ -2030,16 +2152,17 @@ def geometry_from_annotation_item(item):
 
 
 def mouse_drag_distance(event, button=Qt.LeftButton):
+    # type: (QGraphicsSceneMouseEvent, Qt.MouseButton) -> float
     """
     Return the (manhattan) distance between the mouse position
     when the `button` was pressed and the current mouse position.
-
     """
     diff = (event.buttonDownScreenPos(button) - event.screenPos())
     return diff.manhattanLength()
 
 
 def set_enabled_all(objects, enable):
+    # type: (Iterable[Any], bool) -> None
     """
     Set `enabled` properties on all objects (objects with `setEnabled` method).
     """
@@ -2052,6 +2175,7 @@ _control = set(["Cc", "Cf", "Cs", "Co", "Cn"])
 
 
 def is_printable(unichar):
+    # type: (str) -> bool
     """
     Return True if the unicode character `unichar` is a printable character.
     """
@@ -2059,11 +2183,13 @@ def is_printable(unichar):
 
 
 def node_properties(scheme):
+    # type: (Scheme) -> List[Dict[str, Any]]
     scheme.sync_node_properties()
     return [dict(node.properties) for node in scheme.nodes]
 
 
 def can_insert_node(new_node_desc, original_link):
+    # type: (WidgetDescription, SchemeLink) -> bool
     return any(scheme.compatible_channels(original_link.source_channel, input)
                for input in new_node_desc.inputs) and \
            any(scheme.compatible_channels(output, original_link.sink_channel)
@@ -2071,6 +2197,7 @@ def can_insert_node(new_node_desc, original_link):
 
 
 def uniquify(item, names, pattern="{item}-{_}", start=0):
+    # type: (str, Container[str], str, int) -> str
     candidates = (pattern.format(item=item, _=i)
                   for i in itertools.count(start))
     candidates = itertools.dropwhile(lambda item: item in names, candidates)
