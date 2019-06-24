@@ -2,16 +2,18 @@
 Orange Canvas Welcome Dialog
 
 """
+from typing import Optional, Union, Iterable
+
 from xml.sax.saxutils import escape
 
 from AnyQt.QtWidgets import (
     QDialog, QWidget, QToolButton, QCheckBox, QAction,
     QHBoxLayout, QVBoxLayout, QSizePolicy, QLabel
 )
-
 from AnyQt.QtGui import (
     QFont, QIcon, QPixmap, QPainter, QColor, QBrush, QActionEvent
 )
+
 from AnyQt.QtCore import Qt, QRect, QSize, QPoint
 from AnyQt.QtCore import pyqtSignal as Signal
 
@@ -20,6 +22,7 @@ from ..registry import NAMED_COLORS
 
 
 def decorate_welcome_icon(icon, background_color):
+    # type: (QIcon, Union[QColor, str]) -> QIcon
     """Return a `QIcon` with a circle shaped background.
     """
     welcome_icon = QIcon()
@@ -28,7 +31,7 @@ def decorate_welcome_icon(icon, background_color):
     background_color = QColor(background_color)
     grad = radial_gradient(background_color)
     for size in sizes:
-        icon_size = QSize(5 * size / 8, 5 * size / 8)
+        icon_size = QSize(int(5 * size / 8), int(5 * size / 8))
         icon_rect = QRect(QPoint(0, 0), icon_size)
         pixmap = QPixmap(size, size)
         pixmap.fill(Qt.transparent)
@@ -90,7 +93,7 @@ class WelcomeDialog(QDialog):
         feedbackUrl = kwargs.pop("feedbackUrl", "")
         super().__init__(*args, **kwargs)
 
-        self.__triggeredAction = None
+        self.__triggeredAction = None  # type: Optional[QAction]
         self.__showAtStartupCheck = None
         self.__mainLayout = None
         self.__feedbackUrl = None
@@ -143,6 +146,7 @@ class WelcomeDialog(QDialog):
         self.setFixedSize(620, 390)
 
     def setShowAtStartup(self, show):
+        # type: (bool) -> None
         """
         Set the 'Show at startup' check box state.
         """
@@ -150,6 +154,7 @@ class WelcomeDialog(QDialog):
             self.__showAtStartupCheck.setChecked(show)
 
     def showAtStartup(self):
+        # type: () -> bool
         """
         Return the 'Show at startup' check box state.
         """
@@ -177,6 +182,7 @@ class WelcomeDialog(QDialog):
         self.insertRow(count, actions, background)
 
     def insertRow(self, index, actions, background="light-orange"):
+        # type: (int, Iterable[QAction], Union[QColor, str]) -> None
         """Insert a row with `actions` at `index`.
         """
         widget = QWidget(objectName="icon-row")
@@ -191,14 +197,14 @@ class WelcomeDialog(QDialog):
         for i, action in enumerate(actions):
             self.insertAction(index, i, action, background)
 
-    def insertAction(self, row, index, action,
-                      background="light-orange"):
+    def insertAction(self, row, index, action, background="light-orange"):
         """Insert `action` in `row` in position `index`.
         """
         button = self.createButton(action, background)
         self.insertButton(row, index, button)
 
     def insertButton(self, row, index, button):
+        # type: (int, int, QToolButton) -> None
         """Insert `button` in `row` in position `index`.
         """
         item = self.__mainLayout.itemAt(row)
@@ -207,6 +213,7 @@ class WelcomeDialog(QDialog):
         button.triggered.connect(self.__on_actionTriggered)
 
     def createButton(self, action, background="light-orange"):
+        # type: (QAction, Union[QColor, str]) -> QToolButton
         """Create a tool button for action.
         """
         button = WelcomeActionButton(self)
@@ -224,6 +231,7 @@ class WelcomeDialog(QDialog):
         return button
 
     def buttonAt(self, i, j):
+        # type: (int, int) -> QToolButton
         """Return the button at i-t row and j-th column.
         """
         item = self.__mainLayout.itemAt(i)
@@ -232,6 +240,7 @@ class WelcomeDialog(QDialog):
         return item.widget()
 
     def triggeredAction(self):
+        # type: () -> Optional[QAction]
         """Return the action that was triggered by the user.
         """
         return self.__triggeredAction
@@ -242,6 +251,7 @@ class WelcomeDialog(QDialog):
         super().showEvent(event)
 
     def __on_actionTriggered(self, action):
+        # type: (QAction) -> None
         """Called when the button action is triggered.
         """
         self.triggered.emit(action)

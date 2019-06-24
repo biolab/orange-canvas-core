@@ -4,12 +4,13 @@ Orange Canvas Tool Dock widget
 """
 import sys
 import warnings
-from typing import Optional
+from typing import Optional, Any
 
 from AnyQt.QtWidgets import (
     QWidget, QSplitter, QVBoxLayout, QAction, QSizePolicy, QApplication,
+    QToolButton
 )
-from AnyQt.QtGui import QPalette, QBrush, QDrag
+from AnyQt.QtGui import QPalette, QBrush, QDrag, QResizeEvent, QHideEvent
 
 from AnyQt.QtCore import (
     Qt, QSize, QObject, QPropertyAnimation, QEvent, QRect, QPoint,
@@ -32,10 +33,11 @@ class SplitterResizer(QObject):
     """
     An object able to control the size of a widget in a QSplitter instance.
     """
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.__splitter = None
-        self.__widget = None
+    def __init__(self, parent=None, **kwargs):
+        # type: (Optional[QObject], Any) -> None
+        super().__init__(parent, **kwargs)
+        self.__splitter = None  # type: Optional[QSplitter]
+        self.__widget = None    # type: Optional[QWidget]
         self.__updateOnShow = True  # Need __update on next show event
         self.__animationEnabled = True
         self.__size = -1
@@ -47,7 +49,9 @@ class SplitterResizer(QObject):
         self.__action.triggered[bool].connect(self.setExpanded)
 
     def setSize(self, size):
-        """Set the size of the controlled widget (either width or height
+        # type: (int) -> None
+        """
+        Set the size of the controlled widget (either width or height
         depending on the orientation).
 
         .. note::
@@ -58,9 +62,10 @@ class SplitterResizer(QObject):
             self.__update()
 
     def size(self):
-        """Return the size of the widget in the splitter (either height of
+        # type: () -> int
+        """
+        Return the size of the widget in the splitter (either height of
         width) depending on the splitter orientation.
-
         """
         if self.__splitter and self.__widget:
             index = self.__splitter.indexOf(self.__widget)
@@ -72,21 +77,22 @@ class SplitterResizer(QObject):
     size_ = Property(int, fget=size, fset=setSize)
 
     def setAnimationEnabled(self, enable):
-        """Enable/disable animation.
-        """
+        # type: (bool) -> None
+        """Enable/disable animation."""
         self.__animation.setDuration(0 if enable else 200)
 
     def animationEnabled(self):
+        # type: () -> bool
         return self.__animation.duration() == 0
 
     def setSplitterAndWidget(self, splitter, widget):
+        # type: (QSplitter, QWidget) -> None
         """Set the QSplitter and QWidget instance the resizer should control.
 
         .. note:: the widget must be in the splitter.
-
         """
         if splitter and widget and not splitter.indexOf(widget) > 0:
-            raise ValueError("Widget must be in a spliter.")
+            raise ValueError("Widget must be in a splitter.")
 
         if self.__widget is not None:
             self.__widget.removeEventFilter(self)
@@ -110,6 +116,7 @@ class SplitterResizer(QObject):
             self.close()
 
     def toggleExpandedAction(self):
+        # type: () -> QAction
         """Return a QAction that can be used to toggle expanded state.
         """
         return self.__action
@@ -122,6 +129,7 @@ class SplitterResizer(QObject):
         return self.toggleExpandedAction()
 
     def open(self):
+        # type: () -> None
         """Open the controlled widget (expand it to sizeHint).
         """
         self.__expanded = True
@@ -142,6 +150,7 @@ class SplitterResizer(QObject):
         self.__animation.start()
 
     def close(self):
+        # type: () -> None
         """Close the controlled widget (shrink to size 0).
         """
         self.__expanded = False
@@ -155,9 +164,8 @@ class SplitterResizer(QObject):
         self.__animation.start()
 
     def setExpanded(self, expanded):
-        """Set the expanded state.
-
-        """
+        # type: (bool) -> None
+        """Set the expanded state."""
         if self.__expanded != expanded:
             if expanded:
                 self.open()
@@ -165,13 +173,13 @@ class SplitterResizer(QObject):
                 self.close()
 
     def expanded(self):
-        """Return the expanded state.
-        """
+        # type: () -> bool
+        """Return the expanded state."""
         return self.__expanded
 
     def __update(self):
-        """Update the splitter sizes.
-        """
+        # type: () -> None
+        """Update the splitter sizes."""
         if self.__splitter and self.__widget:
             if sum(self.__splitter.sizes()) == 0:
                 # schedule update on next show event
@@ -188,10 +196,13 @@ class SplitterResizer(QObject):
             self.__splitter.setSizes(sizes)
 
     def eventFilter(self, obj, event):
+        # type: (QObject, QEvent) -> bool
         if event.type() == QEvent.Resize and obj is self.__widget and \
                 self.__animation.state() == QPropertyAnimation.Stopped:
             # Update the expanded state when the user opens/closes the widget
             # by dragging the splitter handle.
+            assert self.__splitter is not None
+            assert isinstance(event, QResizeEvent)
             if self.__splitter.orientation() == Qt.Vertical:
                 size = event.size().height()
             else:
@@ -214,9 +225,9 @@ class SplitterResizer(QObject):
 
 class QuickHelpWidget(QuickHelp):
     def minimumSizeHint(self):
+        # type: () -> QSize
         """Reimplemented to allow the Splitter to resize the widget
         with a continuous animation.
-
         """
         hint = super().minimumSizeHint()
         return QSize(hint.width(), 0)
@@ -225,9 +236,9 @@ class QuickHelpWidget(QuickHelp):
 class CanvasToolDock(QWidget):
     """Canvas dock widget with widget toolbox, quick help and
     canvas actions.
-
     """
     def __init__(self, parent=None, **kwargs):
+        # type: (Optional[QWidget], Any) -> None
         super().__init__(parent, **kwargs)
 
         self.__setupUi()
@@ -262,21 +273,22 @@ class CanvasToolDock(QWidget):
         self.__splitterResizer.setSplitterAndWidget(self.__splitter, self.help)
 
     def setQuickHelpVisible(self, state):
-        """Set the quick help box visibility status.
-        """
+        # type: (bool) -> None
+        """Set the quick help box visibility status."""
         self.__splitterResizer.setExpanded(state)
 
     def quickHelpVisible(self):
+        # type: () -> bool
         return self.__splitterResizer.expanded()
 
     def setQuickHelpAnimationEnabled(self, enabled):
-        """Enable/disable the quick help animation.
-        """
+        # type: (bool) -> None
+        """Enable/disable the quick help animation."""
         self.__splitterResizer.setAnimationEnabled(enabled)
 
     def toggleQuickHelpAction(self):
-        """Return a checkable QAction for help show/hide.
-        """
+        # type: () -> QAction
+        """Return a checkable QAction for help show/hide."""
         return self.__splitterResizer.toggleExpandedAction()
 
     def toogleQuickHelpAction(self):
@@ -289,18 +301,21 @@ class CanvasToolDock(QWidget):
 
 
 class QuickCategoryToolbar(ToolGrid):
-    """A toolbar with category buttons.
-    """
-    def __init__(self, parent=None, buttonSize=None, iconSize=None):
+    """A toolbar with category buttons."""
+    def __init__(self, parent=None, buttonSize=QSize(), iconSize=QSize(),
+                 **kwargs):
+        # type: (Optional[QWidget], QSize, QSize, Any) -> None
         super().__init__(parent, 1, buttonSize, iconSize,
-                         Qt.ToolButtonIconOnly)
-        self.__model = None
+                         Qt.ToolButtonIconOnly, **kwargs)
+        self.__model = None  # type: Optional[QAbstractItemModel]
 
     def setColumnCount(self, count):
         raise Exception("Cannot set the column count on a Toolbar")
 
     def setModel(self, model):
-        """Set the registry model.
+        # type: (Optional[QAbstractItemModel]) -> None
+        """
+        Set the registry model.
         """
         if self.__model is not None:
             self.__model.dataChanged.disconnect(self.__on_dataChanged)
@@ -309,21 +324,25 @@ class QuickCategoryToolbar(ToolGrid):
             self.clear()
 
         self.__model = model
-        if self.__model is not None:
-            self.__model.dataChanged.connect(self.__on_dataChanged)
-            self.__model.rowsInserted.connect(self.__on_rowsInserted)
-            self.__model.rowsRemoved.connect(self.__on_rowsRemoved)
+        if model is not None:
+            model.dataChanged.connect(self.__on_dataChanged)
+            model.rowsInserted.connect(self.__on_rowsInserted)
+            model.rowsRemoved.connect(self.__on_rowsRemoved)
             self.__initFromModel(model)
 
     def __initFromModel(self, model):
-        """Initialize the toolbar from the model.
+        # type: (QAbstractItemModel) -> None
+        """
+        Initialize the toolbar from the model.
         """
         for index in iter_index(model, QModelIndex()):
             action = self.createActionForItem(index)
             self.addAction(action)
 
     def createActionForItem(self, index):
-        """Create the QAction instance for item at `index` (`QModelIndex`).
+        # type: (QModelIndex) -> QAction
+        """
+        Create the QAction instance for item at `index` (`QModelIndex`).
         """
         action = QAction(
             item_icon(index), item_text(index), self,
@@ -333,7 +352,9 @@ class QuickCategoryToolbar(ToolGrid):
         return action
 
     def createButtonForAction(self, action):
-        """Create a button for the action.
+        # type: (QAction) -> QToolButton
+        """
+        Create a button for the action.
         """
         button = super().createButtonForAction(action)
 
@@ -362,6 +383,8 @@ class QuickCategoryToolbar(ToolGrid):
         return button
 
     def __on_dataChanged(self, topLeft, bottomRight):
+        # type: (QModelIndex, QModelIndex) -> None
+        assert self.__model is not None
         parent = topLeft.parent()
         if not parent.isValid():
             for row in range(topLeft.row(), bottomRight.row() + 1):
@@ -372,12 +395,16 @@ class QuickCategoryToolbar(ToolGrid):
                 action.setToolTip(item_tooltip(item))
 
     def __on_rowsInserted(self, parent, start, end):
+        # type: (QModelIndex, int, int) -> None
+        assert self.__model is not None
         if not parent.isValid():
             for row in range(start, end + 1):
                 item = self.__model.index(row, 0)
                 self.insertAction(row, self.createActionForItem(item))
 
     def __on_rowsRemoved(self, parent, start, end):
+        # type: (QModelIndex, int, int) -> None
+        assert self.__model is not None
         if not parent.isValid():
             for row in range(end, start - 1, -1):
                 action = self.actions()[row]
@@ -394,6 +421,7 @@ class CategoryPopupMenu(FramelessWindow):
     hovered = Signal(QAction)
 
     def __init__(self, parent=None, **kwargs):
+        # type: (Optional[QWidget], Any) -> None
         super().__init__(parent, **kwargs)
         self.setWindowFlags(self.windowFlags() | Qt.Popup)
 
@@ -418,8 +446,8 @@ class CategoryPopupMenu(FramelessWindow):
 
         self.setLayout(layout)
 
-        self.__action = None
-        self.__loop = None
+        self.__action = None  # type: Optional[QAction]
+        self.__loop = None    # type: Optional[QEventLoop]
 
     def setCategoryItem(self, item):
         """
@@ -433,7 +461,8 @@ class CategoryPopupMenu(FramelessWindow):
         self.__menu.setModel(model)
         self.__menu.setRootIndex(item.index())
 
-    def setModel(self, model):  # type: (QAbstractItemModel) -> None
+    def setModel(self, model):
+        # type: (QAbstractItemModel) -> None
         """
         Set the model.
 
@@ -443,7 +472,8 @@ class CategoryPopupMenu(FramelessWindow):
         """
         self.__menu.setModel(model)
 
-    def setRootIndex(self, index):  # type: (QModelIndex) -> None
+    def setRootIndex(self, index):
+        # type: (QModelIndex) -> None
         """
         Set the root index in `model`.
 
@@ -453,7 +483,8 @@ class CategoryPopupMenu(FramelessWindow):
         """
         self.__menu.setRootIndex(index)
 
-    def setActionRole(self, role):  # type: (Qt.ItemDataRole) -> None
+    def setActionRole(self, role):
+        # type: (Qt.ItemDataRole) -> None
         """
         Set the action role in model.
 
@@ -465,7 +496,8 @@ class CategoryPopupMenu(FramelessWindow):
         """
         self.__menu.setActionRole(role)
 
-    def popup(self, pos=None):  # type: (Optional[QPoint]) -> None
+    def popup(self, pos=None):
+        # type: (Optional[QPoint]) -> None
         """
         Show the popup at `pos`.
 
@@ -482,6 +514,7 @@ class CategoryPopupMenu(FramelessWindow):
         self.show()
 
     def exec_(self, pos=None):
+        # type: (Optional[QPoint]) -> Optional[QAction]
         self.popup(pos)
         self.__loop = QEventLoop()
 
@@ -496,12 +529,13 @@ class CategoryPopupMenu(FramelessWindow):
         return action
 
     def hideEvent(self, event):
+        # type: (QHideEvent) -> None
         if self.__loop is not None:
             self.__loop.exit(0)
-
-        return super().hideEvent(event)
+        super().hideEvent(event)
 
     def __onTriggered(self, action):
+        # type: (QAction) -> None
         self.__action = action
         self.triggered.emit(action)
         self.hide()
@@ -510,6 +544,7 @@ class CategoryPopupMenu(FramelessWindow):
             self.__loop.exit(0)
 
     def __onDragStarted(self, index):
+        # type: (QModelIndex) -> None
         desc = index.data(QtWidgetRegistry.WIDGET_DESC_ROLE)
         icon = index.data(Qt.DecorationRole)
 
@@ -540,12 +575,14 @@ class CategoryPopupMenu(FramelessWindow):
 class ItemViewDragStartEventListener(QObject):
     dragStarted = Signal(QModelIndex)
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._pos = None
-        self._index = None
+    def __init__(self, parent=None, **kwargs):
+        # type: (Optional[QObject], Any) -> None
+        super().__init__(parent, **kwargs)
+        self._pos = None    # type: Optional[QPoint]
+        self._index = None  # type: Optional[QPersistentModelIndex]
 
     def eventFilter(self, viewport, event):
+        # type: (QObject, QEvent) -> bool
         view = viewport.parent()
 
         if event.type() == QEvent.MouseButtonPress and \
@@ -560,7 +597,7 @@ class ItemViewDragStartEventListener(QObject):
         elif event.type() == QEvent.MouseMove and self._pos is not None and \
                 ((self._pos - event.pos()).manhattanLength() >=
                  QApplication.startDragDistance()):
-
+            assert self._index is not None
             if self._index.isValid():
                 # Map to a QModelIndex in the model.
                 index = QModelIndex(self._index)
@@ -574,6 +611,7 @@ class ItemViewDragStartEventListener(QObject):
 
 class ToolTipEventFilter(QObject):
     def eventFilter(self, receiver, event):
+        # type: (QObject, QEvent) -> bool
         if event.type() == QEvent.ToolTip:
             return True
 
@@ -581,6 +619,7 @@ class ToolTipEventFilter(QObject):
 
 
 def widget_popup_geometry(pos, widget):
+    # type: (QPoint, QWidget) -> QRect
     widget.ensurePolished()
 
     if widget.testAttribute(Qt.WA_Resized):
@@ -621,6 +660,7 @@ def widget_popup_geometry(pos, widget):
 
 
 def popup_position_from_source(popup, source, orientation=Qt.Vertical):
+    # type: (QWidget, QWidget, Qt.Orientation) -> QPoint
     popup.ensurePolished()
     source.ensurePolished()
 

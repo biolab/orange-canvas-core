@@ -3,6 +3,8 @@
 import sys
 import warnings
 import traceback
+from types import TracebackType
+from typing import Any, Optional, List, Type
 
 from AnyQt.QtWidgets import QWidget, QPlainTextEdit, QVBoxLayout, QSizePolicy
 from AnyQt.QtGui import (
@@ -14,6 +16,7 @@ from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
 class TerminalView(QPlainTextEdit):
     def __init__(self, *args, **kwargs):
+        # type: (Any, Any) -> None
         super().__init__(*args, **kwargs)
         self.setFrameStyle(QPlainTextEdit.NoFrame)
         self.setTextInteractionFlags(Qt.TextBrowserInteraction)
@@ -32,6 +35,7 @@ class TerminalView(QPlainTextEdit):
         self.setAttribute(Qt.WA_SetFont, False)
 
     def sizeHint(self):
+        # type: () -> QSize
         metrics = self.fontMetrics()
         width = metrics.boundingRect("X" * 81).width()
         height = metrics.lineSpacing()
@@ -42,6 +46,7 @@ class TerminalView(QPlainTextEdit):
 
 class OutputView(QWidget):
     def __init__(self, parent=None, **kwargs):
+        # type: (Optional[QWidget], Any) -> None
         super().__init__(parent, **kwargs)
 
         self.__lines = 5000
@@ -57,6 +62,7 @@ class OutputView(QWidget):
         self.layout().addWidget(self.__text)
 
     def setMaximumLines(self, lines):
+        # type: (int) -> None
         """
         Set the maximum number of lines to keep displayed.
         """
@@ -65,12 +71,14 @@ class OutputView(QWidget):
             self.__text.setMaximumBlockCount(lines)
 
     def maximumLines(self):
+        # type: () -> int
         """
         Return the maximum number of lines in the display.
         """
         return self.__lines
 
     def clear(self):
+        # type: () -> None
         """
         Clear the displayed text.
         """
@@ -78,16 +86,19 @@ class OutputView(QWidget):
         self.__text.clear()
 
     def setCurrentCharFormat(self, charformat):
+        # type: (QTextCharFormat) -> None
         """Set the QTextCharFormat to be used when writing.
         """
         assert QThread.currentThread() is self.thread()
         if self.__currentCharFormat != charformat:
-            self.__currentCharFormat = charformat
+            self.__currentCharFormat = QTextCharFormat(charformat)
 
     def currentCharFormat(self):
-        return self.__currentCharFormat
+        # type: () -> QTextCharFormat
+        return QTextCharFormat(self.__currentCharFormat)
 
     def toPlainText(self):
+        # type: () -> str
         """
         Return the full contents of the output view.
         """
@@ -96,6 +107,7 @@ class OutputView(QWidget):
     # A file like interface.
     @Slot(str)
     def write(self, string):
+        # type: (str) -> None
         assert QThread.currentThread() is self.thread()
         self.__text.moveCursor(QTextCursor.End, QTextCursor.MoveAnchor)
         self.__text.setCurrentCharFormat(self.__currentCharFormat)
@@ -104,25 +116,30 @@ class OutputView(QWidget):
 
     @Slot(object)
     def writelines(self, lines):
+        # type: (List[str]) -> None
         assert QThread.currentThread() is self.thread()
         self.write("".join(lines))
 
     @Slot()
     def flush(self):
+        # type: () -> None
         assert QThread.currentThread() is self.thread()
 
     def writeWithFormat(self, string, charformat):
+        # type: (str, QTextCharFormat) -> None
         assert QThread.currentThread() is self.thread()
         self.__text.moveCursor(QTextCursor.End, QTextCursor.MoveAnchor)
         self.__text.setCurrentCharFormat(charformat)
         self.__text.insertPlainText(string)
 
     def writelinesWithFormat(self, lines, charformat):
+        # type: (List[str], QTextCharFormat) -> None
         assert QThread.currentThread() is self.thread()
         self.writeWithFormat("".join(lines), charformat)
 
     def formatted(self, color=None, background=None, weight=None,
                   italic=None, underline=None, font=None):
+        # type: (...) -> Formatter
         """
         Return a formatted file like object proxy.
         """
@@ -198,18 +215,22 @@ class Formatter(QObject):
 
     @Slot(str)
     def write(self, string):
+        # type: (str) -> None
         self.outputview.writeWithFormat(string, self.charformat)
 
     @Slot(object)
     def writelines(self, lines):
+        # type: (List[str]) -> None
         self.outputview.writelinesWithFormat(lines, self.charformat)
 
     @Slot()
     def flush(self):
+        # type: () -> None
         self.outputview.flush()
 
     def formatted(self, color=None, background=None, weight=None,
                   italic=None, underline=None, font=None):
+        # type: (...) -> Formatter
         charformat = update_char_format(self.charformat, color, background,
                                         weight, italic, underline, font)
         return Formatter(self.outputview, charformat)
@@ -243,39 +264,43 @@ class TextStream(QObject):
     flushed = Signal()
     __closed = False
 
-    def __init__(self, parent=None, **kwargs):
-        super().__init__(parent, **kwargs)
-
     def close(self):
+        # type: () -> None
         self.__closed = True
 
     def closed(self):
+        # type: () -> bool
         return self.__closed
 
     def isatty(self):
+        # type: () -> bool
         return False
 
     def write(self, string):
+        # type: (str) -> None
         if self.__closed:
             raise ValueError("write operation on a closed stream.")
         self.stream.emit(string)
 
     def writelines(self, lines):
+        # type: (List[str]) -> None
         if self.__closed:
             raise ValueError("write operation on a closed stream.")
         self.stream.emit("".join(lines))
 
     def flush(self):
+        # type: () -> None
         if self.__closed:
             raise ValueError("write operation on a closed stream.")
         self.flushed.emit()
 
     def writeable(self):
+        # type: () -> bool
         return True
 
     def readable(self):
+        # type: () -> bool
         return False
-
 
 
 class ExceptHook(QObject):
@@ -287,6 +312,7 @@ class ExceptHook(QObject):
         self.stream = stream
 
     def __call__(self, exc_type, exc_value, tb):
+        # type: (Type[BaseException], BaseException, TracebackType) -> None
         if self.stream is None:
             stream = sys.stderr
         else:

@@ -13,13 +13,15 @@ import xmlrpc.client
 import json
 import traceback
 import urllib.request
+import typing
 
 from concurrent.futures import ThreadPoolExecutor, Future
 from collections import deque
 from xml.sax.saxutils import escape
 
 from typing import (
-    List, Dict, Any, Optional, Union, Tuple, NamedTuple, Callable, AnyStr
+    List, Dict, Any, Optional, Union, Tuple, NamedTuple, Callable, AnyStr,
+    Iterable
 )
 
 import requests
@@ -53,6 +55,7 @@ from ..gui.utils import message_warning, message_critical as message_error
 from ..help.manager import get_dist_meta, trim, parse_meta
 
 from .. import config
+from ..config import Config
 
 Requirement = pkg_resources.Requirement
 Distribution = pkg_resources.Distribution
@@ -144,6 +147,7 @@ class Installed(
         A version constraint string.
     """
     def __new__(cls, installable, local, required=False, constraint=None):
+        # type: (Optional[Installable], Distribution, bool, Optional[Requirement]) -> Installed
         return super().__new__(cls, installable, local, required, constraint)
 
 
@@ -211,6 +215,7 @@ class PluginsModel(QStandardItemModel):
     @staticmethod
     def createRow(item):
         # type: (Item) -> List[QStandardItem]
+        dist = None  # type: Optional[Distribution]
         if isinstance(item, Installed):
             installed = True
             ins, dist = item.installable, item.local
@@ -250,6 +255,8 @@ class PluginsModel(QStandardItemModel):
         item2.setData(item, Qt.UserRole)
 
         if updatable:
+            assert dist is not None
+            assert ins is not None
             version = "{} < {}".format(dist.version, ins.version)
 
         item3 = QStandardItem(version)
@@ -307,7 +314,7 @@ class TristateCheckItemDelegate(QStyledItemDelegate):
         return model.setData(index, checkstate, Qt.CheckStateRole)
 
     def nextCheckState(self, state, index):
-        # type: (Qt.CheckeState, QModelIndex) -> Qt.CheckState
+        # type: (Qt.CheckState, QModelIndex) -> Qt.CheckState
         """
         Return the next check state for index.
         """
@@ -316,7 +323,7 @@ class TristateCheckItemDelegate(QStyledItemDelegate):
         if flags & Qt.ItemIsUserTristate and constraint:
             return Qt.PartiallyChecked if state == Qt.Checked else Qt.Checked
         elif flags & Qt.ItemIsUserTristate:
-            return (state + 1) % 3
+            return Qt.CheckState((state + 1) % 3)
         else:
             return Qt.Unchecked if state == Qt.Checked else Qt.Checked
 
@@ -473,7 +480,7 @@ class AddonManagerWidget(QWidget):
             modelitem = model.item(row, 0)  # type: QStandardItem
             item = modelitem.data(Qt.UserRole)  # type: Item
             # Find the action command in the steps list for the item
-            cmd = -1
+            cmd = None  # type: Optional[Command]
             for cmd_, item_ in steps:
                 if item == item_:
                     cmd = cmd_
@@ -548,6 +555,7 @@ class AddonManagerWidget(QWidget):
             description = item.installable.description
 
         try:
+            assert isinstance(description, str)
             html = docutils.core.publish_string(
                 trim(description),
                 writer_name="html",
@@ -568,8 +576,9 @@ class AddonManagerWidget(QWidget):
 def method_queued(method, sig, conntype=Qt.QueuedConnection):
     # type: (types.MethodType, Tuple[type, ...], int) -> Callable[[], bool]
     name = method.__name__
-    obj = method.__self__  # type: QObject
-    assert isinstance(obj, QObject)
+    obj = method.__self__
+    if not isinstance(obj, QObject):
+        raise TypeError()
 
     def call(*args):
         args = [Q_ARG(atype, arg) for atype, arg in zip(sig, args)]
@@ -579,8 +588,8 @@ def method_queued(method, sig, conntype=Qt.QueuedConnection):
 
 
 class _QueryResult(types.SimpleNamespace):
-    queryname = ...    # type: str
-    installable = ...  # type: Optional[Installable]
+    queryname = None    # type: str
+    installable = None  # type: Optional[Installable]
 
 
 class AddonManagerDialog(QDialog):
@@ -590,7 +599,7 @@ class AddonManagerDialog(QDialog):
     #: cached packages list.
     __packages = None  # type: List[Installable]
     __f_pypi_addons = None
-    __config = None
+    __config = None    # type: Optional[Config]
 
     def __init__(self, parent=None, acceptDrops=True, **kwargs):
         super().__init__(parent, acceptDrops=acceptDrops, **kwargs)
@@ -628,6 +637,7 @@ class AddonManagerDialog(QDialog):
         self.__config = config
 
     def config(self):
+        # type: () -> Config
         if self.__config is None:
             return config.default
         else:
@@ -635,7 +645,7 @@ class AddonManagerDialog(QDialog):
 
     @Slot()
     def start(self, config):
-        # type: (config.Config) -> None
+        # type: (Config) -> None
         """
         Initialize the dialog/manager for the specified configuration namespace.
 
@@ -652,7 +662,8 @@ class AddonManagerDialog(QDialog):
 
         if self.__packages is not None:
             # method_queued(self.setItems, (object,))(self.__packages)
-            installed = [ep.dist for ep in config.addon_entry_points()]
+            installed = [ep.dist for ep in config.addon_entry_points()
+                         if ep.dist is not None]
             items = installable_items(self.__packages, installed)
             self.setItems(items)
             return
@@ -672,13 +683,13 @@ class AddonManagerDialog(QDialog):
 
     @Slot(object)
     def __on_query_done(self, f):
-        # type: (Future[Tuple[config.Config, List[Installable]]]) -> None
+        # type: (Future[Tuple[Config, List[Installable]]]) -> None
         assert f.done()
         if self.__progress is not None:
             self.__progress.hide()
 
-        if f.exception():
-            exc = f.exception()
+        if f.exception() is not None:
+            exc = typing.cast(BaseException, f.exception())
             etype, tb = type(exc), exc.__traceback__
             log.error(
                 "Error fetching package list",
@@ -700,14 +711,15 @@ class AddonManagerDialog(QDialog):
         config, packages = f.result()
         assert all(isinstance(p, Installable) for p in packages)
         AddonManagerDialog.__packages = packages
-        installed = [ep.dist for ep in config.addon_entry_points()]
+        installed = [ep.dist for ep in config.addon_entry_points()
+                     if ep.dist is not None]
         items = installable_items(packages, installed)
         core_constraints = {
             r.project_name.casefold(): r
             for r in (Requirement.parse(r) for r in config.core_packages())
         }
 
-        def f(item):  # type: (Item) -> Item
+        def constrain(item):  # type: (Item) -> Item
             """Include constraint in Installed when in core_constraint"""
             if isinstance(item, Installed):
                 name = item.local.project_name.casefold()
@@ -716,7 +728,7 @@ class AddonManagerDialog(QDialog):
                         required=True, constraint=core_constraints[name]
                     )
             return item
-        self.setItems([f(item) for item in items])
+        self.setItems([constrain(item) for item in items])
 
     @Slot(object)
     def setItems(self, items):
@@ -745,14 +757,19 @@ class AddonManagerDialog(QDialog):
                                 if item.installable is not None}:
             return
         installed = [ep.dist for ep in self.config().addon_entry_points()]
-        new_ = installable_items([installable], installed)
-        new = next(
-            filter(
-                lambda item: item.installable.name == installable.name,
-                new_
-            ),
-            None
-        )
+        new_ = installable_items([installable], filter(None, installed))
+
+        def match(item):
+            # type: (Item) -> bool
+            if isinstance(item, Available):
+                return item.installable.name == installable.name
+            elif item.installable is not None:
+                return item.installable.name == installable.name
+            else:
+                return item.local.project_name.lower() == installable.name.lower()
+
+        new = next(filter(match, new_), None)
+        assert new is not None
         state = self.addonwidget.itemState()
         self.addonwidget.setItems(items + [new])
         self.addonwidget.setItemState(state)  # restore state
@@ -794,12 +811,13 @@ class AddonManagerDialog(QDialog):
 
             def query_pypi(name):
                 # type: (str) -> _QueryResult
-                res = pypi_json_query_project_meta([name])
-                assert len(res) == 1
-                r = res[0]
-                if r is not None:
-                    r = installable_from_json_response(r)
-                return _QueryResult(queryname=name, installable=r)
+                res, = pypi_json_query_project_meta([name])
+                inst = None  # type: Optional[Installable]
+                if res is not None:
+                    inst = installable_from_json_response(res)
+                else:
+                    inst = None
+                return _QueryResult(queryname=name, installable=inst)
             f = self.__executor.submit(query_pypi, name)
 
             okb.setDisabled(True)
@@ -832,6 +850,7 @@ class AddonManagerDialog(QDialog):
             if pkg is None:
                 error_text = "'{}' not was not found".format(result.queryname)
         dlg = self.__add_package_by_name_dialog
+        assert dlg is not None
         if pkg:
             self.addInstallable(pkg)
             dlg.accept()
@@ -1014,13 +1033,13 @@ def pypi_search(spec, timeout=None):
         # type: (Dict[str, Any], Dict[str, List[str]]) -> bool
         def match_list(meta, query):
             # type: (List[str], List[str]) -> bool
-            meta = {s.casefold() for s in meta}
-            return all(q.casefold() in meta for q in query)
+            meta_ = {s.casefold() for s in meta}
+            return all(q.casefold() in meta_ for q in query)
 
         def match_string(meta, query):
             # type: (str, List[str]) -> bool
-            meta = meta.casefold()
-            return all(q.casefold() in meta for q in query)
+            meta_ = meta.casefold()
+            return all(q.casefold() in meta_ for q in query)
 
         for key, query in spec.items():
             value = meta.get(key, None)
@@ -1049,7 +1068,7 @@ def pypi_json_query_project_meta(projects, session=None):
     """
     if session is None:
         session = _session()
-    rval = []
+    rval = []  # type: List[Optional[dict]]
     for name in projects:
         r = session.get(PYPI_API_JSON.format(name=name))
         if r.status_code != 200:
@@ -1133,7 +1152,17 @@ def list_available_versions(config, session=None):
         session = _session()
 
     defaults = config.addon_defaults_list()
-    defaults_names = {a.get("info", {}).get("name", "") for a in defaults}
+
+    def getname(item):
+        # type: (Dict[str, Any]) -> str
+        info = item.get("info", {})
+        if not isinstance(info, dict):
+            return ""
+        name = info.get("name", "")
+        assert isinstance(name, str)
+        return name
+
+    defaults_names = {getname(a) for a in defaults}
 
     # query pypi.org for installed add-ons that are not in the defaults
     # list
@@ -1152,16 +1181,15 @@ def list_available_versions(config, session=None):
     packages = []
     for addon in defaults + distributions:
         try:
-            p = installable_from_json_response(addon)
+            packages.append(installable_from_json_response(addon))
         except (TypeError, KeyError):
             continue  # skip invalid packages
-        else:
-            packages.append(p)
 
     return packages
 
 
 def installable_items(pypipackages, installed=[]):
+    # type: (Iterable[Installable], Iterable[Distribution]) -> List[Item]
     """
     Return a list of installable items.
 
@@ -1193,7 +1221,7 @@ def installable_items(pypipackages, installed=[]):
         itertools.chain(packages.keys(), dists.keys())
     )
 
-    items = []
+    items = []  # type: List[Item]
     for name in project_names:
         if name in dists and name in packages:
             item = Installed(packages[name], dists[name])
@@ -1240,7 +1268,9 @@ class Command(enum.Enum):
     Uninstall = "Uninstall"
 
 
-Install, Upgrade, Uninstall = Command
+Install = Command.Install
+Upgrade = Command.Upgrade
+Uninstall = Command.Uninstall
 
 Action = Tuple[Command, Item]
 
@@ -1485,7 +1515,7 @@ def python_process(args, script_name=None, **kwargs):
 
 def create_process(cmd, executable=None, **kwargs):
     # type: (List[str], Optional[str], Any) -> subprocess.Popen
-    if hasattr(subprocess, "STARTUPINFO"):
+    if sys.platform == 'win32':
         # do not open a new console window for command on windows
         startupinfo = subprocess.STARTUPINFO()
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW

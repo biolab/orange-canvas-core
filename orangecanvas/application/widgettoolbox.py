@@ -6,20 +6,20 @@ Widget Tool Box
 A tool box with a tool grid for each category.
 
 """
-from typing import Optional
+from typing import Optional, Iterable, Any
 
 from AnyQt.QtWidgets import (
-    QAbstractButton, QSizePolicy, QAction, QApplication, QToolButton
+    QAbstractButton, QSizePolicy, QAction, QApplication, QToolButton,
+    QWidget
 )
 from AnyQt.QtGui import (
-    QDrag, QPalette, QBrush, QIcon, QColor, QGradient, QActionEvent
+    QDrag, QPalette, QBrush, QIcon, QColor, QGradient, QActionEvent,
+    QMouseEvent
 )
-
 from AnyQt.QtCore import (
     Qt, QObject, QAbstractItemModel, QModelIndex, QSize, QEvent, QMimeData,
-    QByteArray, QDataStream, QIODevice,
+    QByteArray, QDataStream, QIODevice, QPoint
 )
-
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
 from ..gui.toolbox import ToolBox
@@ -30,6 +30,7 @@ from ..registry.qt import QtWidgetRegistry
 
 
 def iter_index(model, index):
+    # type: (QAbstractItemModel, QModelIndex) -> Iterable[QModelIndex]
     """
     Iterate over child indexes of a `QModelIndex` in a `model`.
     """
@@ -77,11 +78,12 @@ class WidgetToolGrid(ToolGrid):
 
     """
     def __init__(self, *args, **kwargs):
+        # type: (Any, Any) -> None
         super().__init__(*args, **kwargs)
 
-        self.__model = None
-        self.__rootIndex = None
-        self.__actionRole = QtWidgetRegistry.WIDGET_ACTION_ROLE
+        self.__model = None               # type: Optional[QAbstractItemModel]
+        self.__rootIndex = QModelIndex()  # type: QModelIndex
+        self.__actionRole = QtWidgetRegistry.WIDGET_ACTION_ROLE  # type: int
 
         self.__dragListener = DragStartEventListener(self)
         self.__dragListener.dragStartOperationRequested.connect(
@@ -113,7 +115,7 @@ class WidgetToolGrid(ToolGrid):
 
         self.__initFromModel(model, rootIndex)
 
-    def model(self):  # type: () -> QAbstractItemModel
+    def model(self):  # type: () -> Optional[QAbstractItemModel]
         """
         Return the model for the tool grid.
         """
@@ -185,9 +187,10 @@ class WidgetToolGrid(ToolGrid):
 
         self.insertAction(index, action)
 
-    def __update(self):
+    def __update(self):  # type: () -> None
         self.clear()
-        self.__initFromModel(self.__model, self.__rootIndex)
+        if self.__model is not None:
+            self.__initFromModel(self.__model, self.__rootIndex)
 
     def __on_rowsInserted(self, parent, start, end):
         # type: (QModelIndex, int, int) -> None
@@ -238,19 +241,22 @@ class DragStartEventListener(QObject):
     """A drag operation started on a button."""
 
     def __init__(self, parent=None, **kwargs):
+        # type: (Optional[QObject], Any) -> None
         super().__init__(parent, **kwargs)
-        self.button = None
-        self.buttonDownObj = None
-        self.buttonDownPos = None
+        self.button = None         # type: Optional[Qt.MouseButton]
+        self.buttonDownObj = None  # type: Optional[QAbstractButton]
+        self.buttonDownPos = None  # type: Optional[QPoint]
 
     def eventFilter(self, obj, event):
         # type: (QObject, QEvent) -> bool
         if event.type() == QEvent.MouseButtonPress:
+            assert isinstance(event, QMouseEvent)
             self.buttonDownPos = event.pos()
             self.buttonDownObj = obj
             self.button = event.button()
 
         elif event.type() == QEvent.MouseMove and obj is self.buttonDownObj:
+            assert self.buttonDownObj is not None
             if (self.buttonDownPos - event.pos()).manhattanLength() > \
                     QApplication.startDragDistance() and \
                     not self.buttonDownObj.hitButton(event.pos()):
@@ -279,8 +285,9 @@ class WidgetToolBox(ToolBox):
     hovered = Signal(QAction)
 
     def __init__(self, parent=None):
+        # type: (Optional[QWidget]) -> None
         super().__init__(parent)
-        self.__model = None
+        self.__model = None  # type: Optional[QAbstractItemModel]
         self.__iconSize = QSize(25, 25)
         self.__buttonSize = QSize(50, 50)
         self.setSizePolicy(QSizePolicy.Fixed,
@@ -446,6 +453,7 @@ class WidgetToolBox(ToolBox):
         Items have been inserted in the model.
         """
         # Only the top level items (categories) are handled here.
+        assert self.__model is not None
         if not parent.isValid():
             for i in range(start, end + 1):
                 item = self.__model.index(i, 0)
