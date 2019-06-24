@@ -5,6 +5,8 @@ Orange Canvas Resource Loader
 import os
 import glob
 
+from typing import Tuple, Dict, Optional, List, IO
+
 from AnyQt.QtGui import QIcon
 
 
@@ -83,9 +85,7 @@ class resource_loader(object):
 
     @classmethod
     def from_description(cls, desc):
-        """Construct an resource from a Widget or Category
-        description.
-
+        """Construct an resource from a Widget or Category description.
         """
         paths = search_paths_from_description(desc)
         return icon_loader(search_paths=paths)
@@ -101,6 +101,7 @@ class resource_loader(object):
         return self._search_paths + default_search_paths()
 
     def split_prefix(self, path):
+        # type: (str) -> Tuple[str, str]
         """Split prefixed path.
         """
         if self.is_valid_prefixed(path) and ":" in path:
@@ -110,10 +111,12 @@ class resource_loader(object):
         return prefix, path
 
     def is_valid_prefixed(self, path):
+        # type: (str) -> bool
         i = path.find(":")
         return i != 1
 
     def find(self, name):
+        # type: (str) -> Optional[str]
         """Find a resource matching `name`.
         """
         prefix, path = self.split_prefix(name)
@@ -128,42 +131,50 @@ class resource_loader(object):
         return None
 
     def match(self, path):
+        # type: (str) -> bool
         return os.path.exists(path)
 
     def get(self, name):
+        # type: (str) -> bytes
         return self.load(name)
 
     def load(self, name):
+        # type: (str) -> bytes
         return self.open(name).read()
 
     def open(self, name):
+        # type: (str) -> IO[bytes]
         path = self.find(name)
         if path is not None:
             return open(path, "rb")
         else:
-            raise IOError(2, "Cannot find %r" % name)
+            raise FileNotFoundError("Cannot find %r" % name)
 
 
 class icon_loader(resource_loader):
-    _icon_cache = {}
+    _icon_cache = {}  # type: Dict[Tuple[str, ...], QIcon]
     DEFAULT_ICON = "icons/default-widget.svg"
 
     def match(self, path):
+        # type: (str) -> bool
         if super().match(path):
             return True
         return self.is_icon_glob(path)
 
     def icon_glob(self, path):
+        # type: (str) -> List[str]
         name, ext = os.path.splitext(path)
         pattern = name + "_*" + ext
         return glob.glob(pattern)
 
     def is_icon_glob(self, path):
+        # type: (str) -> bool
         name, ext = os.path.splitext(path)
         pattern = name + "_*" + ext
         return bool(glob.glob(pattern))
 
     def get(self, name, default=None):
+        # type: (str, Optional[str]) -> QIcon
         if name:
             path = self.find(name)
         else:
@@ -179,19 +190,20 @@ class icon_loader(resource_loader):
         else:
             icons = [path]
 
-        icons = tuple(icons)
+        cache_key = tuple(icons)
         icon = QIcon()
         if icons:
-            if icons not in self._icon_cache:
+            if cache_key not in self._icon_cache:
                 for path in icons:
                     icon.addFile(path)
-                self._icon_cache[icons] = icon
+                self._icon_cache[cache_key] = icon
             else:
-                icon = self._icon_cache[icons]
+                icon = self._icon_cache[cache_key]
         return QIcon(icon)
 
     def open(self, name):
         raise NotImplementedError
 
     def load(self, name):
+        # type: (str) -> QIcon
         return self.get(name)
