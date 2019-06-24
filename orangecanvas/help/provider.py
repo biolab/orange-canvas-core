@@ -1,6 +1,8 @@
 """
 
 """
+from typing import Dict, Optional
+
 import os
 import logging
 import io
@@ -197,8 +199,8 @@ class HtmlIndexProvider(BaseInventoryProvider):
 
     def __init__(self, inventory, parent=None, xpathquery=None):
         self.root = None
-        self.items = {}
-        self.xpathquery = xpathquery
+        self.items = {}  # type: Dict[str, str]
+        self.xpathquery = xpathquery  # type: Optional[str]
 
         super().__init__(inventory, parent)
 
@@ -215,7 +217,7 @@ class HtmlIndexProvider(BaseInventoryProvider):
 
         path = self.xpathquery or ".//div[@id='widgets']//li/a"
 
-        items = {}
+        items = {}  # type: Dict[str, str]
         for el in self.root.findall(path):
             href = el.attrib.get("href", None)
             name = el.text.lower()
@@ -231,7 +233,7 @@ class HtmlIndexProvider(BaseInventoryProvider):
             self._reply.waitForReadyRead(2000)
 
         if self.items is None:
-            labels = {}
+            labels = {}  # type: Dict[str, str]
         else:
             labels = self.items
 

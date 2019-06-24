@@ -14,7 +14,7 @@ from operator import itemgetter
 from sysconfig import get_path
 
 import typing
-from typing import Dict, Optional
+from typing import Dict, Optional, List, Union, Callable
 
 import pkg_resources
 
@@ -23,7 +23,9 @@ from AnyQt.QtCore import QObject, QUrl, QDir
 from . import provider
 
 if typing.TYPE_CHECKING:
-    from ..registry import WidgetRegistry
+    from ..registry import WidgetRegistry, WidgetDescription
+    Distribution = pkg_resources.Distribution
+    EntryPoint = pkg_resources.EntryPoint
 
 log = logging.getLogger(__name__)
 
@@ -33,10 +35,10 @@ class HelpManager(QObject):
         super().__init__(parent)
         self._registry = None  # type: Optional[WidgetRegistry]
         self._initialized = False
-        self._providers = {}
+        self._providers = {}  # type: Dict[str, provider.HelpProvider]
 
     def set_registry(self, registry):
-        # type: (WidgetRegistry) -> None
+        # type: (Optional[WidgetRegistry]) -> None
         """
         Set the widget registry for which the manager should provide help.
         """
@@ -53,6 +55,7 @@ class HelpManager(QObject):
         return self._registry
 
     def initialize(self):
+        # type: () -> None
         if self._initialized or self._registry is None:
             return
 
@@ -81,6 +84,7 @@ class HelpManager(QObject):
         self._initialized = True
 
     def get_help(self, url):
+        # type: (QUrl) -> QUrl
         """
         """
         self.initialize()
@@ -90,10 +94,15 @@ class HelpManager(QObject):
             return url
 
     def description_by_id(self, desc_id):
+        # type: (str) -> WidgetDescription
         reg = self._registry
-        return get_by_id(reg, desc_id)
+        if reg is not None:
+            return get_by_id(reg, desc_id)
+        else:
+            raise RuntimeError("No registry set. Cannot resolve")
 
     def search(self, query):
+        # type: (Union[QUrl, Dict[str, str]]) -> QUrl
         self.initialize()
 
         if isinstance(query, QUrl):
@@ -115,6 +124,7 @@ class HelpManager(QObject):
 
 
 def get_by_id(registry, descriptor_id):
+    # type: (WidgetRegistry, str) -> WidgetDescription
     for desc in registry.widgets():
         if desc.qualified_name == descriptor_id:
             return desc
@@ -130,12 +140,16 @@ def qurl_query_items(url):
 
 
 def get_help_provider_for_description(desc):
+    # type: (WidgetDescription) -> Optional[provider.HelpProvider]
     if desc.project_name:
         dist = pkg_resources.get_distribution(desc.project_name)
         return get_help_provider_for_distribution(dist)
+    else:
+        return None
 
 
 def is_develop_egg(dist):
+    # type: (Distribution) -> bool
     """
     Is the distribution installed in development mode (setup.py develop)
     """
@@ -147,6 +161,7 @@ def is_develop_egg(dist):
 
 
 def left_trim_lines(lines):
+    # type: (List[str]) -> List[str]
     """
     Remove all unnecessary leading space from lines.
     """
@@ -162,6 +177,7 @@ def left_trim_lines(lines):
 
 
 def trim_trailing_lines(lines):
+    # type: (List[str]) -> List[str]
     """
     Trim trailing blank lines.
     """
@@ -172,6 +188,7 @@ def trim_trailing_lines(lines):
 
 
 def trim_leading_lines(lines):
+    # type: (List[str]) -> List[str]
     """
     Trim leading blank lines.
     """
@@ -182,6 +199,7 @@ def trim_leading_lines(lines):
 
 
 def trim(string):
+    # type: (str) -> str
     """
     Trim a string in PEP-256 compatible way
     """
@@ -199,24 +217,26 @@ MULTIPLE_KEYS = ["Platform", "Supported-Platform", "Classifier",
 
 
 def parse_meta(contents):
+    # type: (str) -> Dict[str, Union[str, List[str]]]
     message = email.message_from_string(contents)
-    meta = {}
+    meta = {}  # type: Dict[str, Union[str, List[str]]]
     for key in set(message.keys()):
         if key in MULTIPLE_KEYS:
-            meta[key] = message.get_all(key)
+            meta[key] = list(str(m) for m in message.get_all(key))
         else:
-            meta[key] = message.get(key)
+            meta[key] = str(message.get(key))
 
-    version = StrictVersion(meta["Metadata-Version"])
+    version = StrictVersion(meta["Metadata-Version"])  # type: ignore
 
     if version >= StrictVersion("1.3") and "Description" not in meta:
         desc = message.get_payload()
-        if desc:
+        if isinstance(desc, str):
             meta["Description"] = desc
     return meta
 
 
 def get_meta_entry(dist, name):
+    # type: (pkg_resources.Distribution, str) -> Union[List[str], str, None]
     """
     Get the contents of the named entry from the distributions PKG-INFO file
     """
@@ -225,6 +245,7 @@ def get_meta_entry(dist, name):
 
 
 def get_dist_url(dist):
+    # type: (pkg_resources.Distribution) -> Optional[str]
     """
     Return the 'url' of the distribution (as passed to setup function)
     """
@@ -232,14 +253,14 @@ def get_dist_url(dist):
 
 
 def get_dist_meta(dist):
+    # type: (pkg_resources.Distribution) -> Dict[str, Union[str, List[str]]]
+    contents = None  # type: Optional[str]
     if dist.has_metadata("PKG-INFO"):
         # egg-info
         contents = dist.get_metadata("PKG-INFO")
     elif dist.has_metadata("METADATA"):
         # dist-info
         contents = dist.get_metadata("METADATA")
-    else:
-        contents = None
 
     if contents is not None:
         return parse_meta(contents)
@@ -248,6 +269,7 @@ def get_dist_meta(dist):
 
 
 def _replacements_for_dist(dist):
+    # type: (Distribution) -> Dict[str, str]
     replacements = {"PROJECT_NAME": dist.project_name,
                     "PROJECT_NAME_LOWER": dist.project_name.lower(),
                     "PROJECT_VERSION": dist.version,
@@ -264,6 +286,7 @@ def _replacements_for_dist(dist):
 
 
 def qurl_from_path(urlpath):
+    # type: (str) -> QUrl
     if QDir(urlpath).isAbsolute():
         # deal with absolute paths including windows drive letters
         return QUrl.fromLocalFile(urlpath)
@@ -271,8 +294,12 @@ def qurl_from_path(urlpath):
 
 
 def create_intersphinx_provider(entry_point):
+    # type: (EntryPoint) -> Optional[provider.IntersphinxHelpProvider]
     locations = entry_point.resolve()
-    replacements = _replacements_for_dist(entry_point.dist)
+    if entry_point.dist is not None:
+        replacements = _replacements_for_dist(entry_point.dist)
+    else:
+        replacements = {}
 
     formatter = string.Formatter()
 
@@ -318,8 +345,12 @@ def create_intersphinx_provider(entry_point):
 
 
 def create_html_provider(entry_point):
+    # type: (EntryPoint) -> Optional[provider.SimpleHelpProvider]
     locations = entry_point.resolve()
-    replacements = _replacements_for_dist(entry_point.dist)
+    if entry_point.dist is not None:
+        replacements = _replacements_for_dist(entry_point.dist)
+    else:
+        replacements = {}
 
     formatter = string.Formatter()
 
@@ -351,8 +382,12 @@ def create_html_provider(entry_point):
 
 
 def create_html_inventory_provider(entry_point):
+    # type: (EntryPoint) -> Optional[provider.HtmlIndexProvider]
     locations = entry_point.resolve()
-    replacements = _replacements_for_dist(entry_point.dist)
+    if entry_point.dist is not None:
+        replacements = _replacements_for_dist(entry_point.dist)
+    else:
+        replacements = {}
 
     formatter = string.Formatter()
 
@@ -394,13 +429,28 @@ _providers = {
     "intersphinx": create_intersphinx_provider,
     "html-simple": create_html_provider,
     "html-index": create_html_inventory_provider,
-}
+}  # type: Dict[str, Callable[[EntryPoint], Optional[provider.HelpProvider]]]
 
 _providers_cache = {}  # type: Dict[str, provider.HelpProvider]
 
 
 def get_help_provider_for_distribution(dist):
-    # type: (pkg_resources.Distribution) -> provider.HelpProvider
+    # type: (pkg_resources.Distribution) -> Optional[provider.HelpProvider]
+    """
+    Return a HelpProvider for the distribution.
+
+    A 'orange.canvas.help' entry point is used to lookup one of the known
+    provider classes, and the corresponding constructor factory is called
+    with the entry point as the only parameter.
+
+    Parameters
+    ----------
+    dist : Distribution
+
+    Returns
+    -------
+    provider: Optional[provider.HelpProvider]
+    """
     if dist.project_name in _providers_cache:
         return _providers_cache[dist.project_name]
     entry_points = dist.get_entry_map().get("orange.canvas.help", {})
