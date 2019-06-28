@@ -198,6 +198,8 @@ class ToolGrid(QFrame):
         if sizePolicy is None:
             self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.MinimumExpanding)
             self.setAttribute(Qt.WA_WState_OwnSizePolicy, True)
+        else:
+            self.setSizePolicy(sizePolicy)
 
     def setButtonSize(self, size):
         # type: (QSize) -> None
