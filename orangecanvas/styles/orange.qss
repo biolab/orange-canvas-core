@@ -348,7 +348,8 @@ QuickMenu QFrame#menu-frame {
 }
 
 QuickMenu QTreeView::item {
-	border-bottom: 1px solid #e9eff2;
+    background: transparent;
+    padding-left: 1px;
 }
 
 QuickMenu QTreeView::item:selected {

@@ -13,9 +13,9 @@ from AnyQt.QtWidgets import (
 )
 from AnyQt.QtGui import (
     QGradient, QLinearGradient, QRadialGradient, QBrush, QPainter,
-    QPaintEvent, QColor
-)
-from AnyQt.QtCore import QPointF
+    QPaintEvent, QColor,
+    QPixmap, QPixmapCache)
+from AnyQt.QtCore import Qt, QPointF, QPoint, QRect, QRectF
 
 import sip
 
@@ -305,3 +305,112 @@ def message(icon, text, title=None, informative_text=None, details=None,
         mbox.setDefaultButton(default_button)
 
     return mbox.exec_()
+
+
+def innerGlowBackgroundPixmap(color, size, radius=5):
+    """ Draws radial gradient pixmap, then uses that to draw
+    a rounded-corner gradient rectangle pixmap.
+
+    Args:
+        color: QColor - used as outer color (lightness 245 used for inner)
+        size: QSize - size of output pixmap
+        radius: int - radius of inner glow rounded corners
+    """
+    key = "InnerGlowBackground " + \
+          color.name() + " " + \
+          str(radius)
+
+    bg = QPixmapCache.find(key)
+    if bg:
+        return bg
+
+    # set background colors for gradient
+    color = color.toHsl()
+    light_color = color.fromHsl(color.hslHue(), color.hslSaturation(), 245)
+    dark_color = color
+
+    # initialize radial gradient
+    center = QPoint(radius, radius)
+    pixRect = QRect(0, 0, radius * 2, radius * 2)
+    gradientPixmap = QPixmap(radius * 2, radius * 2)
+    gradientPixmap.fill(dark_color)
+
+    # draw radial gradient pixmap
+    pixPainter = QPainter(gradientPixmap)
+    pixPainter.setPen(Qt.NoPen)
+    gradient = QRadialGradient(center, radius - 1)
+    gradient.setColorAt(0, light_color)
+    gradient.setColorAt(1, dark_color)
+    pixPainter.setBrush(gradient)
+    pixPainter.drawRect(pixRect)
+    pixPainter.end()
+
+    # set tl and br to the gradient's square-shaped rect
+    tl = QPoint(0, 0)
+    br = QPoint(size.width(), size.height())
+
+    # fragments of radial gradient pixmap to create rounded gradient outline rectangle
+    frags = [
+        # top-left corner
+        QPainter.PixmapFragment.create(
+            QPointF(tl.x() + radius / 2, tl.y() + radius / 2),
+            QRectF(0, 0, radius, radius)
+        ),
+        # top-mid 'linear gradient'
+        QPainter.PixmapFragment.create(
+            QPointF(tl.x() + (br.x() - tl.x()) / 2, tl.y() + radius / 2),
+            QRectF(radius, 0, 1, radius),
+            scaleX=(br.x() - tl.x() - 2 * radius)
+        ),
+        # top-right corner
+        QPainter.PixmapFragment.create(
+            QPointF(br.x() - radius / 2, tl.y() + radius / 2),
+            QRectF(radius, 0, radius, radius)
+        ),
+        # left-mid 'linear gradient'
+        QPainter.PixmapFragment.create(
+            QPointF(tl.x() + radius / 2, tl.y() + (br.y() - tl.y()) / 2),
+            QRectF(0, radius, radius, 1),
+            scaleY=(br.y() - tl.y() - 2 * radius)
+        ),
+        # mid solid
+        QPainter.PixmapFragment.create(
+            QPointF(tl.x() + (br.x() - tl.x()) / 2, tl.y() + (br.y() - tl.y()) / 2),
+            QRectF(radius, radius, 1, 1),
+            scaleX=(br.x() - tl.x() - 2 * radius),
+            scaleY=(br.y() - tl.y() - 2 * radius)
+        ),
+        # right-mid 'linear gradient'
+        QPainter.PixmapFragment.create(
+            QPointF(br.x() - radius / 2, tl.y() + (br.y() - tl.y()) / 2),
+            QRectF(radius, radius, radius, 1),
+            scaleY=(br.y() - tl.y() - 2 * radius)
+        ),
+        # bottom-left corner
+        QPainter.PixmapFragment.create(
+            QPointF(tl.x() + radius / 2, br.y() - radius / 2),
+            QRectF(0, radius, radius, radius)
+        ),
+        # bottom-mid 'linear gradient'
+        QPainter.PixmapFragment.create(
+            QPointF(tl.x() + (br.x() - tl.x()) / 2, br.y() - radius / 2),
+            QRectF(radius, radius, 1, radius),
+            scaleX=(br.x() - tl.x() - 2 * radius)
+        ),
+        # bottom-right corner
+        QPainter.PixmapFragment.create(
+            QPointF(br.x() - radius / 2, br.y() - radius / 2),
+            QRectF(radius, radius, radius, radius)
+        ),
+    ]
+
+    # draw icon background to pixmap
+    outPix = QPixmap(size.width(), size.height())
+    outPainter = QPainter(outPix)
+    outPainter.setPen(Qt.NoPen)
+    outPainter.drawPixmapFragments(frags,
+                                   gradientPixmap,
+                                   QPainter.PixmapFragmentHints(QPainter.OpaqueHint))
+    outPainter.end()
+
+    return outPix

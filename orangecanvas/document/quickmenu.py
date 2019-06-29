@@ -25,20 +25,20 @@ from AnyQt.QtWidgets import (
 )
 from AnyQt.QtGui import (
     QIcon, QStandardItemModel, QPolygon, QRegion, QBrush, QPalette,
-    QPaintEvent
-)
+    QPaintEvent, QColor, QPen, QPainter)
 from AnyQt.QtCore import (
     Qt, QObject, QPoint, QSize, QRect, QEventLoop, QEvent, QModelIndex,
     QTimer, QRegExp, QSortFilterProxyModel, QItemSelectionModel,
-    QAbstractItemModel
-)
+    QAbstractItemModel, QLineF)
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
+from PyQt5.QtCore import QRectF, QPointF
+from PyQt5.QtGui import QPainter, QRadialGradient, QPixmap
 
 from .usagestatistics import UsageStatistics
 from ..gui.framelesswindow import FramelessWindow
 from ..gui.lineedit import LineEdit
 from ..gui.tooltree import ToolTree, FlattenedTreeItemModel
-from ..gui.utils import StyledWidget_paintEvent, create_css_gradient
+from ..gui.utils import StyledWidget_paintEvent, create_css_gradient, innerGlowBackgroundPixmap
 from ..registry.qt import QtWidgetRegistry
 
 from ..resources import icon_loader
@@ -47,6 +47,78 @@ log = logging.getLogger(__name__)
 
 
 class _MenuItemDelegate(QStyledItemDelegate):
+    def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex):
+        painter.save()
+
+        rect = option.rect
+
+        """ Draw separating lines """
+
+        lineWidth = 1
+        tl = rect.topLeft()
+        br = rect.bottomRight()
+        lines = [QLineF(QPointF(tl.x() + lineWidth / 2, tl.y() + lineWidth / 2),
+                        QPointF(br.x() + lineWidth / 2, tl.y() + lineWidth / 2)),
+                 QLineF(QPointF(tl.x() + lineWidth / 2, br.y() + lineWidth / 2),
+                        QPointF(br.x() + lineWidth / 2, br.y() + lineWidth / 2))]
+
+        pen = QPen()
+        pen.setWidth(lineWidth)
+        pen.setColor(QColor('#e9eff2'))
+        painter.setPen(pen)
+        painter.drawLines(lines)
+
+        """ Draw icon background """
+
+        # get category color
+        brush = as_qbrush(index.data(QtWidgetRegistry.BACKGROUND_ROLE))
+        if brush is not None:
+            color = brush.color()
+        else:
+            color = QColor("FFA840")  # orange!
+
+        # (get) cache(d) pixmap
+        bg = innerGlowBackgroundPixmap(color, QSize(rect.height(), rect.height()))
+
+        # draw background
+        bgRect = QRect(tl.x(), tl.y(), rect.height(), rect.height())
+        painter.drawPixmap(bgRect, bg, bg.rect())
+
+        """ Draw icon """
+
+        # get item decoration (icon)
+        action = index.data(QtWidgetRegistry.WIDGET_ACTION_ROLE)
+        dec = action.icon()  # type: QIcon
+        decSize = option.decorationSize  # use as approximate/minimum size
+        x = rect.left() + rect.height() / 2 - decSize.width() / 2
+        y = rect.top() + rect.height() / 2 - decSize.height() / 2
+
+        # decoration rect, where the icon is drawn
+        decTl = QPointF(x, y)
+        decBr = QPointF(x + decSize.width(), y + decSize.height())
+        decRect = QRectF(decTl, decBr)
+
+        # draw icon pixmap
+        decPixmap = dec.pixmap(decSize)
+        painter.drawPixmap(decRect, decPixmap, QRectF(decPixmap.rect()))
+        # disable icon in QStyleOption
+        option.decorationSize = QSize(-1, -1)
+
+        """ Draw text (configure in orange.qss) """
+
+        # set text drawing rect
+        newRect = QRect(tl.x() + rect.height(),
+                        tl.y(),
+                        rect.width() - rect.height(),
+                        rect.height())
+        option.rect = newRect
+
+        # disable icon (already drawn)
+        option.decorationSize = QSize(-1, -1)
+
+        painter.restore()
+        super().paint(painter, option, index)
+
     def sizeHint(self, option, index):
         # type: (QStyleOptionViewItem, QModelIndex) -> QSize
         option = QStyleOptionViewItem(option)
@@ -834,7 +906,7 @@ class PagedMenu(QWidget):
 
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
+        layout.setSpacing(0)
 
         self.__tab = TabBarWidget(self)
         self.__tab.currentChanged.connect(self.setCurrentIndex)
