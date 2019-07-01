@@ -285,6 +285,7 @@ class CanvasMainWindow(QMainWindow):
 
         self.quick_category = QuickCategoryToolbar()
         self.quick_category.setButtonSize(QSize(38, 30))
+        self.quick_category.setIconSize(QSize(26, 26))
         self.quick_category.actionTriggered.connect(
             self.on_quick_category_action
         )

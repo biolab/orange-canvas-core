@@ -121,9 +121,6 @@ class ToolGridButton(QToolButton):
         super().initStyleOption(option)
         if self.__text:
             option.text = self.__text
-        style = self.style()
-        s = style.pixelMetric(QStyle.PM_LargeIconSize, option, self)
-        option.iconSize = option.iconSize.expandedTo(QSize(s, s))
 
     def sizeHint(self):
         # type: () -> QSize
@@ -222,18 +219,40 @@ class ToolGrid(QFrame):
         # type: (QSize) -> None
         """
         Set the button icon size.
+
+        The default icon size is style defined.
         """
         if self.__iconSize != size:
             self.__iconSize = QSize(size)
+            size = self.__effectiveIconSize()
             for slot in self.__gridSlots:
                 slot.button.setIconSize(size)
 
     def iconSize(self):
         # type: () -> QSize
         """
-        Return the icon size
+        Return the icon size. If no size is set a default style defined size
+        is returned.
         """
-        return QSize(self.__iconSize)
+        return self.__effectiveIconSize()
+
+    def __effectiveIconSize(self):
+        # type: () -> QSize
+        if not self.__iconSize.isValid():
+            opt = QStyleOptionToolButton()
+            opt.initFrom(self)
+            s = self.style().pixelMetric(QStyle.PM_LargeIconSize, opt, None)
+            return QSize(s, s)
+        else:
+            return QSize(self.__iconSize)
+
+    def changeEvent(self, event):
+        # type: (QEvent) -> None
+        if event.type() == QEvent.StyleChange:
+            size = self.__effectiveIconSize()
+            for item in self.__gridSlots:
+                item.button.setIconSize(size)
+        super().changeEvent(event)
 
     def setToolButtonStyle(self, style):
         # type: (Qt.ToolButtonStyle) -> None
@@ -329,9 +348,7 @@ class ToolGrid(QFrame):
 
         if self.__buttonSize.isValid():
             button.setFixedSize(self.__buttonSize)
-        if self.__iconSize.isValid():
-            button.setIconSize(self.__iconSize)
-
+        button.setIconSize(self.__effectiveIconSize())
         button.setToolButtonStyle(self.__toolButtonStyle)
         button.setProperty("tool-grid-button", True)
         return button
