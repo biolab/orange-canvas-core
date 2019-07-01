@@ -74,9 +74,16 @@ class QABCMeta(_QObjectType, abc.ABCMeta):  # type: ignore # pylint: disable=all
         abc.ABCMeta.__init__(self, name, bases, attr_dict)
 
 
-class _pickledvalue(object):
+# Backward compatibility.
+# Settings used to store values, for which the explicit type
+# was not registered in default' slots, by wrapping it in a _pickledvalue, so
+# it would be pickled and unpickled when read from .ini files by PyQt.
+# But this creates a mess when reading the settings back with plain QSettings.
+class _pickledvalue:
+    value = ...
+
     def __init__(self, value):
-        self.value = value
+        raise RuntimeError("'_pickledvalue' instances should not be created")
 
 
 class Settings(QObject, MutableMapping, metaclass=QABCMeta):
@@ -89,11 +96,10 @@ class Settings(QObject, MutableMapping, metaclass=QABCMeta):
 
     def __init__(self, parent=None, defaults=(), path=None, store=None):
         super().__init__(parent)
-
         if store is None:
             store = QSettings()
 
-        path = path = (path or "").rstrip("/")
+        path = (path or "").rstrip("/")
 
         self.__path = path
         self.__defaults = dict([(slot.key, slot) for slot in defaults])
@@ -145,38 +151,18 @@ class Settings(QObject, MutableMapping, metaclass=QABCMeta):
             )
 
     def __value(self, fullkey, value_type):
-        typesafe = value_type is not None
-
         if value_type is None:
             value = self.__store.value(fullkey)
         else:
             try:
                 value = self.__store.value(fullkey, type=value_type)
-            except TypeError:
+            except (TypeError, RuntimeError):
                 # In case the value was pickled in a type unsafe mode
                 value = self.__store.value(fullkey)
-                typesafe = False
 
-        if not typesafe:
-            if isinstance(value, _pickledvalue):
-                value = value.value
-            else:
-                log.warning("value for key %r is not a '_pickledvalue' (%r),"
-                            "possible loss of type information.",
-                            fullkey,
-                            type(value))
-
+        if isinstance(value, _pickledvalue):  # back-compat
+            value = value.value
         return value
-
-    def __setValue(self, fullkey, value, value_type=None):
-        typesafe = value_type is not None
-        if not typesafe:
-            # value is stored in a _pickledvalue wrapper to force PyQt
-            # to store it in a pickled format so we don't lose the type
-            # TODO: Could check if QSettings.Format stores type info.
-            value = _pickledvalue(value)
-
-        self.__store.setValue(fullkey, value)
 
     def __getitem__(self, key):
         """
@@ -208,8 +194,6 @@ class Settings(QObject, MutableMapping, metaclass=QABCMeta):
             raise TypeError(key)
 
         fullkey = self.__key(key)
-        value_type = None
-
         if fullkey in self.__defaults:
             value_type = self.__defaults[fullkey].value_type
             if not isinstance(value, value_type):
@@ -226,7 +210,7 @@ class Settings(QObject, MutableMapping, metaclass=QABCMeta):
             oldValue = None
             etype = SettingChangedEvent.SettingAdded
 
-        self.__setValue(fullkey, value, value_type)
+        self.__store.setValue(fullkey, value)
 
         QCoreApplication.sendEvent(
             self, SettingChangedEvent(etype, key, value, oldValue)
