@@ -14,7 +14,7 @@ from AnyQt.QtWidgets import (
     QStyleOption, QAbstractScrollArea, QToolBar
 )
 from AnyQt.QtGui import (
-    QPainter, QPixmap, QColor, QPen, QPalette, QRegion,  QPaintEvent
+    QPainter, QPixmap, QColor, QPen, QPalette, QRegion, QPaintEvent
 )
 from AnyQt.QtCore import (
     Qt, QPoint, QPointF, QRect, QRectF, QSize, QSizeF, QEvent, QObject
@@ -74,7 +74,7 @@ class DropShadowFrame(QWidget):
 
         self.__widget = None  # type: Optional[QWidget]
         self.__widgetParent = None   # type: Optional[QWidget]
-        self.__updatePixmap()
+        self.__cachedShadowPixmap = None  # type: Optional[QPixmap]
 
     def setColor(self, color):
         # type: (Union[QColor, Qt.GlobalColor]) -> None
@@ -181,12 +181,11 @@ class DropShadowFrame(QWidget):
             return
         opt = QStyleOption()
         opt.initFrom(self)
-        radius = self.radius_
+        radius = self.__radius
         offset = self.__offset
-
-        pixmap = self.__shadowPixmap
+        pixmap = self.__shadowPixmap()
         pixr = pixmap.devicePixelRatio()
-        assert pixr == self.devicePixelRatio()
+        assert pixr == self.devicePixelRatioF()
         shadow_rect = QRectF(opt.rect)
         widget_rect = QRectF(self.__widget.geometry())
         widget_rect.moveTo(radius - offset.x(), radius - offset.y())
@@ -251,32 +250,46 @@ class DropShadowFrame(QWidget):
 
     def __updatePixmap(self):
         # type: () -> None
+        """Invalidate the cached shadow pixmap."""
+        self.__cachedShadowPixmap = None
+
+    def __shadowPixmapForDpr(self, dpr=1.0):
+        # type: (float) -> QPixmap
         """
-        Update the cached shadow pixmap.
+        Return a shadow pixmap rendered in `dpr` device pixel ratio.
         """
-        offset = self.__offset
-        pixr = self.devicePixelRatio()
-        rect_size = QSize(50 * pixr, 50 * pixr)
-        left = top = right = bottom = self.radius_ * pixr
+        offset = self.offset()
+        radius = self.radius()
+        color = self.color()
+        fill_color = self.palette().color(QPalette.Window)
+        rect_size = QSize(int(50 * dpr), int(50 * dpr))
+        left = top = right = bottom = int(radius * dpr)
         # Size of the pixmap.
         pixmap_size = QSize(rect_size.width() + left + right,
                             rect_size.height() + top + bottom)
-        shadow_rect = QRect(QPoint(left, top) - offset *pixr, rect_size)
+        shadow_rect = QRect(QPoint(left, top) - offset * dpr, rect_size)
         pixmap = QPixmap(pixmap_size)
         pixmap.fill(Qt.transparent)
-        rect_fill_color = self.palette().color(QPalette.Window)
 
         pixmap = render_drop_shadow_frame(
             pixmap,
             QRectF(shadow_rect),
-            shadow_color=self.color_,
-            offset=offset * pixr,
-            radius=self.radius_ * pixr,
-            rect_fill_color=rect_fill_color
+            shadow_color=color,
+            offset=QPointF(offset * dpr),
+            radius=radius * dpr,
+            rect_fill_color=fill_color
         )
-        pixmap.setDevicePixelRatio(pixr)
-        self.__shadowPixmap = pixmap
-        self.update()
+        pixmap.setDevicePixelRatio(dpr)
+        return pixmap
+
+    def __shadowPixmap(self):
+        # type: () -> QPixmap
+        if self.__cachedShadowPixmap is None \
+                or self.__cachedShadowPixmap.devicePixelRatioF() \
+                != self.devicePixelRatioF():
+            self.__cachedShadowPixmap = self.__shadowPixmapForDpr(
+                self.devicePixelRatioF())
+        return QPixmap(self.__cachedShadowPixmap)
 
     def __shadowPixmapFragments(self, pixmap_rect, shadow_rect):
         # type: (QRect, QRect) -> List[QRectF]
