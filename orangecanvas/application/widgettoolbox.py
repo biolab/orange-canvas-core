@@ -402,7 +402,7 @@ class WidgetToolBox(ToolBox):
 
         grid.setIconSize(self.__iconSize)
         grid.setButtonSize(self.__buttonSize)
-        grid.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        grid.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
         text = item_text(item)
         icon = item_icon(item)
