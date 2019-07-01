@@ -69,8 +69,8 @@ class TestDropShadow(test.QAppTestCase):
         c.layout().addWidget(te)
         w.setCentralWidget(c)
         f.setWidget(te)
-        f.radius = 15
-        f.color = QColor(Qt.blue)
+        f.setRadius(15)
+        f.setColor(Qt.blue)
         w.show()
 
         canim = QPropertyAnimation(
