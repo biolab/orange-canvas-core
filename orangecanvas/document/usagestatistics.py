@@ -3,33 +3,31 @@ import platform
 import json
 import logging
 import os
-from Orange.canvas import config
-try:
-    from Orange.version import full_version, release
-except ImportError:
-    full_version = '???'
-    release = True
+from typing import List
 
 import requests
+
+from AnyQt.QtCore import QCoreApplication
+
+from orangecanvas import config
+
 
 log = logging.getLogger(__name__)
 
 
-statistics_path = os.path.join(config.data_dir(), "usage-statistics.json")
-server_url = os.getenv('ORANGE_STATISTICS_API_URL', "https://orange.biolab.si/usage-statistics")
-
-
 class UsageStatistics:
     """
-    Tracks and sends upon close usage statistics when error-reporting/send-statistics is true.
-    This option can be changed in the preferences menu.
+    Tracks usage statistics if enabled (is disabled by default).
 
-    Data is anonymously collected by the Bioinformatics Laboratory, University of Ljubljana,
-    Faculty of Computer and Information Science.
+    Data is tracked and stored in application data directory in
+    'usage-statistics.json' file.
+
+    It is the application's responsibility to ask for permission and
+    appropriately handle the collected statistics.
 
     Data tracked per canvas session:
         date,
-        Orange version,
+        application version,
         operating system,
         node additions by type:
             widget name
@@ -40,6 +38,7 @@ class UsageStatistics:
                 drag from other widget
             (if dragged from other widget, other widget name)
     """
+    _is_enabled = False
 
     NodeAddClick = 0
     NodeAddDrag = 1
@@ -56,8 +55,29 @@ class UsageStatistics:
         self.widget_extensions = []
         self.__node_addition_type = None
 
+    @classmethod
+    def is_enabled(cls) -> bool:
+        """
+        Returns
+        -------
+        enabled : bool
+            Is usage collection enabled.
+        """
+        return cls._is_enabled
+
+    @classmethod
+    def set_enabled(cls, state: bool) -> None:
+        """
+        Enable/disable usage collection.
+
+        Parameters
+        ----------
+        state : bool
+        """
+        cls._is_enabled = state
+
     def log_node_added(self, widget_name, extended_widget=None):
-        if not config.settings()["error-reporting/send-statistics"]:
+        if not self.is_enabled():
             return
 
         if self.__node_addition_type == UsageStatistics.NodeAddMenu:
@@ -104,38 +124,66 @@ class UsageStatistics:
     def set_node_type(self, addition_type):
         self.__node_addition_type = addition_type
 
-    def send_statistics(self):
-        if release and config.settings()["error-reporting/send-statistics"]:
-            if os.path.isfile(statistics_path):
-                with open(statistics_path) as f:
-                    data = json.load(f)
-                try:
-                    r = requests.post(server_url, files={'file': json.dumps(data)})
-                    if r.status_code != 200:
-                        log.warning("Error communicating with server while attempting to send "
-                                    "usage statistics.")
-                        return
-                    # success - wipe statistics file
-                    log.info("Usage statistics sent.")
-                    with open(statistics_path, 'w') as f:
-                        json.dump([], f)
-                except (ConnectionError, requests.exceptions.RequestException):
-                    log.warning("Connection error while attempting to send usage statistics.")
-                except Exception:
-                    log.warning("Failed to send usage statistics.")
+    def filename(self) -> str:
+        """
+        Return the filename path where the statics are saved
+        """
+        return os.path.join(config.data_dir(), "usage-statistics.json")
+
+    def load(self) -> 'List[dict]':
+        """
+        Load and return the usage statistics data.
+
+        Returns
+        -------
+        data : dict
+        """
+        if not self.is_enabled():
+            return []
+        try:
+            with open(self.filename(), "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (FileNotFoundError, PermissionError, IsADirectoryError,
+                UnicodeDecodeError, json.JSONDecodeError):
+            return []
+
+    def send_statistics(self, url: str) -> None:
+        """
+        Send the statistics to the remote at `url`.
+
+        The contents are send via POST file upload (multipart/form-data)
+
+        Does nothing if not enabled.
+
+        Parameters
+        ----------
+        url : str
+        """
+        if self.is_enabled():
+            data = self.load()
+            try:
+                r = requests.post(url, files={'file': json.dumps(data)})
+                if r.status_code != 200:
+                    log.warning("Error communicating with server while attempting to send "
+                                "usage statistics.")
+                    return
+                # success - wipe statistics file
+                log.info("Usage statistics sent.")
+                with open(self.filename(), 'w', encoding="utf-8") as f:
+                    json.dump([], f)
+            except (ConnectionError, requests.exceptions.RequestException):
+                log.warning("Connection error while attempting to send usage statistics.")
+            except Exception:
+                log.warning("Failed to send usage statistics.")
 
     def write_statistics(self):
-        if not release:
-            log.info("Not sending usage statistics (non-release version of Orange detected).")
+        if not self.is_enabled():
             return
 
-        if not config.settings()["error-reporting/send-statistics"]:
-            log.info("Not sending usage statistics (preferences setting).")
-            return
-
+        statistics_path = self.filename()
         statistics = {
             "Date": str(datetime.now().date()),
-            "Orange Version": full_version,
+            "Application Version": QCoreApplication.applicationVersion(),
             "Operating System": platform.system() + " " + platform.release(),
             "Session": {
                 "Quick Menu Search": self.quick_menu_actions,
