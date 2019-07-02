@@ -1657,9 +1657,20 @@ class CanvasMainWindow(QMainWindow):
         dlg.setWindowTitle(self.tr("Preferences"))
         dlg.show()
         status = dlg.exec_()
+
         if status == 0:
-            # TODO: Notify all instances
-            self.__update_from_settings()
+            self.user_preferences_changed_notify_all()
+
+    @staticmethod
+    def user_preferences_changed_notify_all():
+        # type: () -> None
+        """
+        Notify all top level `CanvasMainWindow` instances of user
+        preferences change.
+        """
+        for w in QApplication.topLevelWidgets():
+            if isinstance(w, CanvasMainWindow):
+                w.update_from_settings()
 
     def open_addons(self):
         # type: () -> int
@@ -1970,6 +1981,16 @@ class CanvasMainWindow(QMainWindow):
         """
         hint = super().sizeHint()
         return hint.expandedTo(QSize(1024, 720))
+
+    def update_from_settings(self):
+        # type: () -> None
+        """
+        Update the state from changed user preferences.
+
+        This method is called on all top level windows (that are subclasses
+        of CanvasMainWindow) after the preferences dialog is closed.
+        """
+        self.__update_from_settings()
 
     def __update_from_settings(self):
         # type: () -> None
