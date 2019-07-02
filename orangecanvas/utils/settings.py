@@ -308,12 +308,6 @@ class Settings(QObject, MutableMapping, metaclass=QABCMeta):
     def get_default_slot(self, key):
         return self.__defaults[self.__key(key)]
 
-    def values(self):
-        """
-        Return a list over of all values in the settings.
-        """
-        return super().values(self)
-
     def customEvent(self, event):
         super().customEvent(event)
 
