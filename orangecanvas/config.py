@@ -28,6 +28,7 @@ from .utils.settings import Settings, config_slot
 if typing.TYPE_CHECKING:
     import requests
     from .scheme import Scheme
+    T = typing.TypeVar("T")
 
 EntryPoint = pkg_resources.EntryPoint
 Distribution = pkg_resources.Distribution
@@ -429,6 +430,27 @@ spec = \
 
 
 spec = [config_slot(*t) for t in spec]
+
+
+def register_setting(key, type, default, doc=""):
+    # type: (str, typing.Type[T], T, str) -> None
+    """
+    Register an application setting.
+
+    This only affects the `Settings` instance as returned by `settings`.
+
+    Parameters
+    ----------
+    key : str
+        The setting key path
+    type : Type[T]
+        Type of the setting. One of `str`, `bool` or `int`
+    default : T
+        Default value for setting.
+    doc : str
+        Setting description string.
+    """
+    spec.append(config_slot(key, type, default, doc))
 
 
 def settings():
