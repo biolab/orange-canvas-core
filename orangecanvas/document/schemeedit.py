@@ -36,6 +36,7 @@ from AnyQt.QtCore import pyqtProperty as Property, pyqtSignal as Signal
 
 from ..registry import WidgetDescription, WidgetRegistry
 from .suggestions import Suggestions
+from .usagestatistics import UsageStatistics
 from ..registry.qt import whats_this_helper, QtWidgetRegistry
 from ..gui.quickhelp import QuickHelpTipEvent
 from ..gui.utils import message_information, disabled
@@ -172,6 +173,7 @@ class SchemeEditWidget(QWidget):
         self.__linkMenu.addAction(self.__linkResetAction)
 
         self.__suggestions = Suggestions()
+        self.__statistics = UsageStatistics()
 
     def __setupActions(self):
         self.__cleanUpAction = QAction(
@@ -750,6 +752,12 @@ class SchemeEditWidget(QWidget):
         """
         return self.__suggestions
 
+    def usageStatistics(self):
+        """
+        Return the usage statistics logging class.
+        """
+        return self.__statistics
+
     def setRegistry(self, registry):
         # Is this method necessary?
         # It should be removed when the scene (items) is fixed
@@ -798,6 +806,7 @@ class SchemeEditWidget(QWidget):
         """
         if self.__scheme is None:
             raise NoWorkflowError()
+        self.__statistics.log_node_added(node.description.name)
         command = commands.AddNodeCommand(self.__scheme, node)
         self.__undoStack.push(command)
 
@@ -1146,6 +1155,7 @@ class SchemeEditWidget(QWidget):
                 except KeyError:
                     log.error("Unknown qualified name '%s'", qname)
                 else:
+                    self.__statistics.set_node_type(UsageStatistics.NodeAddDrag)
                     pos = event.scenePos()
                     item = self.__scene.item_at(event.scenePos(), items.LinkItem)
                     link = self.scene().link_for_item(item) if item else None

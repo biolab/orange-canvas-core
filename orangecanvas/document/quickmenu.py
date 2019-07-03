@@ -34,6 +34,7 @@ from AnyQt.QtCore import (
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
+from .usagestatistics import UsageStatistics
 from ..gui.framelesswindow import FramelessWindow
 from ..gui.lineedit import LineEdit
 from ..gui.tooltree import ToolTree, FlattenedTreeItemModel
@@ -1257,6 +1258,8 @@ class QuickMenu(FramelessWindow):
         patt.setCaseSensitivity(Qt.CaseInsensitive)
         self.__suggestPage.setFilterRegExp(patt)
 
+        UsageStatistics.set_last_search_query(searchText)
+
         self.ensurePolished()
 
         if self.testAttribute(Qt.WA_Resized) and self.sizeGripEnabled():
@@ -1368,6 +1371,7 @@ class QuickMenu(FramelessWindow):
         self.__suggestPage.setFilterRegExp(patt)
         self.__pages.setCurrentPage(self.__suggestPage)
         self.__selectFirstIndex()
+        UsageStatistics.set_last_search_query(text)
 
     def __selectFirstIndex(self):
         # type: () -> None

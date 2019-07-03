@@ -51,6 +51,7 @@ from ..gui.quickhelp import QuickHelpTipEvent
 from ..gui.utils import message_critical, message_question, \
                         message_warning, message_information
 
+from ..document.usagestatistics import UsageStatistics
 from ..help import HelpManager
 
 from .canvastooldock import CanvasToolDock, QuickCategoryToolbar, \
@@ -883,6 +884,7 @@ class CanvasMainWindow(QMainWindow):
         if isinstance(widget_desc, WidgetDescription):
             scheme_widget = self.current_document()
             if scheme_widget:
+                scheme_widget.usageStatistics().set_node_type(UsageStatistics.NodeAddClick)
                 scheme_widget.createNewNode(widget_desc)
 
     def on_quick_category_action(self, action):
@@ -1844,6 +1846,8 @@ class CanvasMainWindow(QMainWindow):
                 # Reject the event
                 event.ignore()
                 return
+
+        document.usageStatistics().write_statistics()
 
         old_scheme = document.scheme()
 
