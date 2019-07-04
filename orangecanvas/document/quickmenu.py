@@ -1794,11 +1794,22 @@ class WindowSizeGrip(QSizeGrip):
                 self.__updatePos()
         return super().eventFilter(obj, event)
 
-    def showEvent(self, event):
-        if self.window() != self.parent():
-            log.error("%s: Can only show on a top level window.",
-                      type(self).__name__)
-        return super().showEvent(event)
+    def sizeHint(self):
+        self.ensurePolished()
+        sh = super().sizeHint()
+        # Qt5 on macOS forces size grip to be zero size.
+        if sh.width() == 0 and \
+                QApplication.style().metaObject().className() == "QMacStyle":
+            sh.setWidth(sh.height())
+        return sh
+
+    def changeEvent(self, event):
+        # type: (QEvent) -> None
+        super().changeEvent(event)
+        if event.type() in (QEvent.StyleChange, QEvent.MacSizeChange):
+            self.resize(self.sizeHint())
+            self.__updatePos()
+        super().changeEvent(event)
 
     def __updatePos(self):
         window = self.window()
@@ -1807,7 +1818,7 @@ class WindowSizeGrip(QSizeGrip):
             return
 
         corner = self.__corner
-        size = self.sizeHint()
+        size = self.size()
 
         window_geom = window.geometry()
         window_size = window_geom.size()
