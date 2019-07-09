@@ -11,7 +11,9 @@ from AnyQt.QtWidgets import (
     QStyleOptionToolButton, QStylePainter, QStyle, QApplication,
     QWidget
 )
-from AnyQt.QtGui import QFontMetrics, QActionEvent, QPaintEvent, QResizeEvent
+from AnyQt.QtGui import (
+    QFont, QFontMetrics, QActionEvent, QPaintEvent, QResizeEvent,
+)
 from AnyQt.QtCore import Qt, QObject, QSize, QEvent, QSignalMapper
 from AnyQt.QtCore import Signal, Slot
 
@@ -29,6 +31,16 @@ _ToolGridSlot = NamedTuple(
 )
 
 
+def qfont_scaled(font, factor):
+    # type: (QFont, float) -> QFont
+    scaled = QFont(font)
+    if font.pointSizeF() != -1:
+        scaled.setPointSizeF(font.pointSizeF() * factor)
+    elif font.pixelSize() != -1:
+        scaled.setPixelSize(int(font.pixelSize() * factor))
+    return scaled
+
+
 class ToolGridButton(QToolButton):
     def __init__(self, parent=None, **kwargs):
         # type: (Optional[QWidget], Any) -> None
@@ -36,9 +48,8 @@ class ToolGridButton(QToolButton):
         self.__text = ""
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         if sys.platform != "darwin":
-            font = QApplication.font("QToolButton")
-            font.setPointSize(12)
-            self.setFont(font)
+            font = QApplication.font("QWidget")
+            self.setFont(qfont_scaled(font, 0.85))
             self.setAttribute(Qt.WA_SetFont, False)
 
     def actionEvent(self, event):
