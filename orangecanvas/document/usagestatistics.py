@@ -75,6 +75,9 @@ class UsageStatistics:
         state : bool
         """
         cls._is_enabled = state
+        log.info("{} usage statistics tracking".format(
+            "Enabling" if state else "Disabling"
+        ))
 
     def log_node_added(self, widget_name, extended_widget=None):
         if not self.is_enabled():
