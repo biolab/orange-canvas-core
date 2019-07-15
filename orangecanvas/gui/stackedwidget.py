@@ -135,6 +135,18 @@ class StackLayout(QStackedLayout):
             if geom != w.geometry():
                 w.setGeometry(geom)
 
+    def addWidget(self, w):
+        QStackedLayout.addWidget(self, w)
+
+        rect = self.__rect
+        hint = w.sizeHint()
+        geom = QRect(rect)
+        size = clipMinMax(rect.size(), w.minimumSize(), w.maximumSize())
+        size = fixSizePolicy(size, hint, w.sizePolicy())
+        geom.setSize(size)
+        if geom != w.geometry():
+            w.setGeometry(geom)
+
     def _onCurrentChanged(self, index):
         """
         Current widget changed, invalidate the layout.
