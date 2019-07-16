@@ -21,24 +21,25 @@ from AnyQt.QtWidgets import (
     QButtonGroup, QStackedWidget, QHBoxLayout, QVBoxLayout, QSizePolicy,
     QStyleOptionToolButton, QStylePainter, QStyle, QApplication,
     QStyledItemDelegate, QStyleOptionViewItem, QSizeGrip,
-    QAbstractItemView
-)
+    QAbstractItemView)
 from AnyQt.QtGui import (
     QIcon, QStandardItemModel, QPolygon, QRegion, QBrush, QPalette,
-    QPaintEvent, QColor, QPen, QPainter)
+    QPaintEvent, QColor, QPen, QPixmapCache, QLinearGradient, QPainter, QRadialGradient,
+    QPixmap)
 from AnyQt.QtCore import (
     Qt, QObject, QPoint, QSize, QRect, QEventLoop, QEvent, QModelIndex,
     QTimer, QRegExp, QSortFilterProxyModel, QItemSelectionModel,
-    QAbstractItemModel, QLineF)
+    QAbstractItemModel, QLineF, QRectF, QPointF)
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 from PyQt5.QtCore import QRectF, QPointF
-from PyQt5.QtGui import QPainter, QRadialGradient, QPixmap
+from PyQt5.QtGui import QPainter, QRadialGradient, QLinearGradient, QPixmap
 
 from .usagestatistics import UsageStatistics
 from ..gui.framelesswindow import FramelessWindow
 from ..gui.lineedit import LineEdit
 from ..gui.tooltree import ToolTree, FlattenedTreeItemModel
-from ..gui.utils import StyledWidget_paintEvent, create_css_gradient, innerGlowBackgroundPixmap
+from ..gui.utils import StyledWidget_paintEvent, create_css_gradient, css_gradient, \
+    innerGlowBackgroundPixmap, innerShadowPixmap
 from ..registry.qt import QtWidgetRegistry
 
 from ..resources import icon_loader
@@ -492,12 +493,64 @@ class SearchWidget(LineEdit):
     def __init__(self, parent=None, **kwargs):
         # type: (Optional[QWidget], Any) -> None
         super().__init__(parent, **kwargs)
+        self.__shadowLength = 5
+        self.__shadowPosition = 0
+
         self.__setupUi()
+
+    def setShadowLength(self, shadowSize):
+        if self.__shadowLength != shadowSize:
+            self.__shadowLength = shadowSize
+            self.update()
+
+    def shadowLength(self):
+        return self.__shadowLength
+
+    shadowLength_ = Property(int, fget=shadowLength, fset=setShadowLength, designable=True)
 
     def __setupUi(self):
         icon = icon_loader().get("icons/Search.svg")
         action = QAction(icon, "Search", self)
         self.setAction(action, LineEdit.LeftPosition)
+
+        button = self.button(LineEdit.LeftPosition)
+
+        # paint shadow over search button when not in search menu
+        def shadowPaintEvent(b, event):
+            QToolButton.paintEvent(b, event)
+
+            shadow = innerShadowPixmap(QColor("000000"),
+                                       b.size(),
+                                       self.__shadowPosition,
+                                       length=self.__shadowLength)
+
+            p = QPainter(b)
+            p.setCompositionMode(QPainter.CompositionMode_SoftLight)
+
+            rect = b.rect()
+            targetRect = QRect(rect.left() + 1,
+                               rect.top() + 1,
+                               rect.width() - 2,
+                               rect.height() - 2)
+
+            p.drawPixmap(targetRect, shadow, shadow.rect())
+            p.end()
+
+        class PaintEventFilter(QObject):
+            def eventFilter(self, recv: QObject, event: QEvent) -> bool:
+                if event.type() == QEvent.Paint and recv is button:
+                    shadowPaintEvent(recv, event)
+                    return True
+                return super().eventFilter(recv, event)
+
+        ef = PaintEventFilter(button)
+        button.installEventFilter(ef)
+
+    def setShadow(self, enabled):
+        shadowPosition = 15 if enabled else 0
+        if self.__shadowPosition != shadowPosition:
+            self.__shadowPosition = shadowPosition
+            self.button(SearchWidget.LeftPosition).update()
 
 
 class MenuStackWidget(QStackedWidget):
@@ -552,6 +605,19 @@ class TabButton(QToolButton):
 
         self.__flat = True
         self.__showMenuIndicator = False
+        self.__shadowLength = 5
+
+        self.shadowPosition = 0
+
+    def setShadowLength(self, shadowSize):
+        if self.__shadowLength != shadowSize:
+            self.__shadowLength = shadowSize
+            self.update()
+
+    def shadowLength(self):
+        return self.__shadowLength
+
+    shadowLength_ = Property(int, fget=shadowLength, fset=setShadowLength, designable=True)
 
     def setFlat(self, flat):
         # type: (bool) -> None
@@ -595,6 +661,20 @@ class TabButton(QToolButton):
         else:
             p = QStylePainter(self)
             p.drawComplexControl(QStyle.CC_ToolButton, opt)
+
+        # if checked, no shadow
+        if self.isChecked():
+            return
+
+        targetShadowRect = QRect(self.rect().x(), self.rect().y(), self.width() - 1, self.height() - 1)
+
+        shadow = innerShadowPixmap(QColor("333333"),
+                                   targetShadowRect.size(),
+                                   self.shadowPosition,
+                                   self.__shadowLength)
+
+        p.setCompositionMode(QPainter.CompositionMode_SoftLight)
+        p.drawPixmap(targetShadowRect, shadow, shadow.rect())
 
     def sizeHint(self):
         # type: () -> QSize
@@ -655,6 +735,8 @@ class TabBarWidget(QWidget):
         self.__sloppyTimer = QTimer(self, singleShot=True)
         self.__sloppyTimer.timeout.connect(self.__onSloppyTimeout)
 
+        self.currentChanged.connect(self.__updateShadows)
+
     def setChangeOnHover(self, changeOnHover):
         #  type: (bool) -> None
         """
@@ -708,6 +790,9 @@ class TabBarWidget(QWidget):
 
         if self.currentIndex() == -1:
             self.setCurrentIndex(0)
+
+        self.__updateShadows()
+
         return index
 
     def removeTab(self, index):
@@ -737,6 +822,8 @@ class TabBarWidget(QWidget):
                     self.setCurrentIndex(max(index - 1, 0))
                 else:
                     self.setCurrentIndex(-1)
+
+            self.__updateShadows()
 
     def setTabIcon(self, index, icon):
         # type: (int, QIcon) -> None
@@ -823,6 +910,36 @@ class TabBarWidget(QWidget):
 
         if tab.palette:
             b.setPalette(tab.palette)
+
+    def __updateShadows(self):
+        currentIndex = self.currentIndex()
+
+        buttons = [tab.button for tab in self.__tabs if tab.button.isVisibleTo(self.parent())]
+        if not buttons:
+            return
+
+        # set left/right shadows
+        buttonShadows = [10] * len(buttons)
+
+        # set top shadow
+        buttonShadows[0] |= 1
+        # set bottom shadow
+        buttonShadows[-1] |= 4
+
+        i = currentIndex + 1
+        belowChosen = self.__tabs[i].button if i < len(self.__tabs) else None
+        aboveChosen = self.__tabs[currentIndex - 1].button if i >= 0 else None
+
+        for i in range(len(buttons)):
+            button = buttons[i]
+            if button is belowChosen:
+                buttonShadows[i] |= 1
+            if button is aboveChosen:
+                buttonShadows[i] |= 4
+
+            if buttonShadows[i] != button.shadowPosition:
+                button.shadowPosition = buttonShadows[i]
+                button.update()
 
     def __onButtonPressed(self, button):
         # type: (QAbstractButton) -> None
@@ -1020,22 +1137,22 @@ def as_qbrush(value):
         return None
 
 
+# format with:
+# {0} - inactive background
+# {1} - active/checked/hover background
 TAB_BUTTON_STYLE_TEMPLATE = """\
-TabButton {
+TabButton {{
     qproperty-flat_: false;
-    background: %s;
+    background: {0};
     border: none;
-    border-bottom: 1px solid palette(mid);
-    border-right: 1px solid palette(mid);
-}
+    border-bottom: 1px solid #9CACB4;
+    border-right: 1px solid #9CACB4;
+}}
 
-TabButton:checked {
-    background: %s;
-    border: none;
-    border-top: 1px solid #609ED7;
-    border-bottom: 1px solid #609ED7;
-    border-right: 1px solid #609ED7;
-}
+TabButton:checked {{
+    background: {1};
+    border-right: 1px hidden;
+}}
 """
 
 # TODO: Cleanup the QuickMenu interface. It should not have a 'dual' public
@@ -1107,12 +1224,13 @@ class QuickMenu(FramelessWindow):
 
         i = self.addPage(self.tr("Quick Search"), self.__suggestPage)
         button = self.__pages.tabButton(i)
-        button.setObjectName("search-tab-button")
-        button.setStyleSheet(
-            "TabButton {\n"
-            "    qproperty-flat_: false;\n"
-            "    border: none;"
-            "}\n")
+        button.setVisible(False)
+
+        searchAction = self.__search.actionAt(SearchWidget.LeftPosition)
+        searchAction.hovered.connect(self.triggerSearch)
+
+        self.__pages.currentChanged.connect(lambda index:
+                                            self.__search.setShadow(i != index))
 
         self.__search.textEdited.connect(self.__on_textEdited)
 
@@ -1246,9 +1364,9 @@ class QuickMenu(FramelessWindow):
                 if brush is not None:
                     base_color = brush.color()
                     button.setStyleSheet(
-                        TAB_BUTTON_STYLE_TEMPLATE %
-                        (create_css_gradient(base_color),
-                         create_css_gradient(base_color.darker(120)))
+                        TAB_BUTTON_STYLE_TEMPLATE.format
+                        (base_color.darker(110).name(),
+                         base_color.name())
                     )
 
     def __on_rowsInserted(self, parent, start, end):
@@ -1279,9 +1397,9 @@ class QuickMenu(FramelessWindow):
             base_color = brush.color()
             button = self.__pages.tabButton(i)
             button.setStyleSheet(
-                TAB_BUTTON_STYLE_TEMPLATE %
-                (create_css_gradient(base_color),
-                 create_css_gradient(base_color.darker(120)))
+                TAB_BUTTON_STYLE_TEMPLATE.format
+                (base_color.darker(110).name(),
+                 base_color.name())
             )
 
     def __removePage(self, row):

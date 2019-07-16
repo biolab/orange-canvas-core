@@ -23,8 +23,8 @@ from ..gui.toolgrid import ToolGrid
 from ..gui.toolbar import DynamicResizeToolBar
 from ..gui.quickhelp import QuickHelp
 from ..gui.framelesswindow import FramelessWindow
+from ..gui.utils import create_css_gradient
 from ..document.quickmenu import MenuPage
-from ..document.quickmenu import create_css_gradient
 from .widgettoolbox import WidgetToolBox, iter_index, item_text, item_icon, item_tooltip
 from ..registry.qt import QtWidgetRegistry
 
