@@ -535,6 +535,7 @@ class NewLinkAction(UserInteraction):
                 return False
 
         menu.setFilterFunc(filter)
+        menu.triggerSearch()
         try:
             action = menu.exec_(pos)
         finally:
