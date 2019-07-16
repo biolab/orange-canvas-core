@@ -215,7 +215,7 @@ def css_gradient(gradient: QLinearGradient) -> str:
     stops = "\n".join("    stop: {0:f} {1}".format(stop, color.name())
                       for stop, color in stops)
     return ("qlineargradient(\n"
-            "    x1: {x1}, y1: {y1}, x2: {x1}, y2: {y2},\n"
+            "    x1: {x1}, y1: {y1}, x2: {x2}, y2: {y2},\n"
             "{stops})").format(x1=x1, y1=y1, x2=x2, y2=y2, stops=stops)
 
 
