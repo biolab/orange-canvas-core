@@ -1,13 +1,33 @@
+import operator
 import types
 from functools import reduce
 
 import typing
-from typing import Iterable, Set, Any, Optional, Union, Tuple
+from typing import Iterable, Set, Any, Optional, Union, Tuple, Callable
 
 from .qtcompat import toPyObject
 
+__all__ = [
+    "dotted_getattr",
+    "qualified_name",
+    "name_lookup",
+    "type_lookup",
+    "type_lookup_",
+    "asmodule",
+    "check_type",
+    "check_arg",
+    "check_subclass",
+    "unique",
+    "assocv",
+    "assocf",
+]
+
 if typing.TYPE_CHECKING:
     H = typing.TypeVar("H", bound=typing.Hashable)
+    C = typing.TypeVar("C")
+    K = typing.TypeVar("K")
+    V = typing.TypeVar("V")
+    KV = Tuple[K, V]
 
 
 def dotted_getattr(obj, name):
@@ -112,3 +132,48 @@ def unique(iterable):
         seen.add(el)
         return observed
     return (el for el in iterable if not observed(el))
+
+
+def assocv(seq, key, eq=operator.eq):
+    # type: (Iterable[KV], C, Callable[[K, C], bool]) -> Optional[KV]
+    """
+    Find and return the first pair `p` in `seq` where `eq(p[0], key) is True`
+
+    Return None if not found.
+
+    Parameters
+    ----------
+    seq: Iterable[Tuple[K, V]]
+    key: C
+    eq: Callable[[K, C], bool]
+
+    Returns
+    -------
+    pair: Optional[Tuple[K, V]]
+    """
+    for k, v in seq:
+        if eq(k, key):
+            return k, v
+    return None
+
+
+def assocf(seq, predicate):
+    # type: (Iterable[KV], Callable[[K], bool]) -> Optional[KV]
+    """
+    Find and return the first pair `p` in `seq` where `predicate(p[0]) is True`
+
+    Return None if not found.
+
+    Parameters
+    ----------
+    seq: Iterable[Tuple[K, V]]
+    predicate: Callable[[K], bool]
+
+    Returns
+    -------
+    pair: Optional[Tuple[K, V]]
+    """
+    for k, v in seq:
+        if predicate(k):
+            return k, v
+    return None

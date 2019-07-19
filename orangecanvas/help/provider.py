@@ -1,26 +1,26 @@
 """
 
 """
-from typing import Dict, Optional
+import typing
+from typing import Dict, Optional, List, Tuple, IO, Callable
 
 import os
 import logging
 import io
+import codecs
 
 from urllib.parse import urljoin
 from html import parser
 from xml.etree.ElementTree import TreeBuilder, Element
 
-import typing
-
 from AnyQt.QtCore import QObject, QUrl
-
 from AnyQt.QtNetwork import (
     QNetworkAccessManager, QNetworkDiskCache, QNetworkRequest, QNetworkReply
 )
 
 from .intersphinx import read_inventory_v1, read_inventory_v2
 
+from ..utils import assocf
 from .. import config
 
 if typing.TYPE_CHECKING:
@@ -81,6 +81,7 @@ class BaseInventoryProvider(HelpProvider):
                 self._load_inventory(f)
 
     def _on_finished(self, reply):
+        # type: (QNetworkReply) -> None
         if reply.error() != QNetworkReply.NoError:
             log.error("An error occurred while fetching "
                       "help inventory '{0}'".format(self.inventory))
@@ -91,6 +92,7 @@ class BaseInventoryProvider(HelpProvider):
             self._load_inventory(io.BytesIO(contents))
 
     def _load_inventory(self, stream):
+        # type: (IO[bytes]) -> None
         raise NotImplementedError()
 
 
@@ -205,8 +207,21 @@ class HtmlIndexProvider(BaseInventoryProvider):
         super().__init__(inventory, parent)
 
     def _load_inventory(self, stream):
+        # type: (IO[bytes]) -> None
         try:
-            self.items = self._parse(stream.read().decode("utf-8"))
+            contents = stream.read()
+        except (IOError, ValueError):
+            log.exception("Error reading help index.", exc_info=True)
+            return
+        # TODO: If contents are from a http response the charset from
+        #  content-type header should take precedence.
+        try:
+            charset = sniff_html_charset(contents)
+        except UnicodeDecodeError:
+            log.exception("Could not determine html charset from contents.")
+            charset = "utf-8"
+        try:
+            self.items = self._parse(contents.decode(charset or "utf-8"))
         except Exception:
             log.exception("Error parsing")
 
@@ -242,3 +257,87 @@ class HtmlIndexProvider(BaseInventoryProvider):
             return self.inventory.resolved(QUrl(entry))
         else:
             raise KeyError()
+
+
+def sniff_html_charset(content: bytes) -> Optional[str]:
+    """
+    Parse html contents looking for a meta charset definition and return it.
+
+    The contents should be encoded in an ascii compatible single byte encoding
+    at least up to the actual meta charset definition, EXCEPT if the contents
+    start with a UTF-16 byte order mark in which case 'utf-16' is returned
+    without looking further.
+
+    https://www.w3.org/International/questions/qa-html-encoding-declarations
+
+    Parameters
+    ----------
+    content : bytes
+
+    Returns
+    -------
+    charset: Optional[str]
+        The specified charset if present in contents.
+    """
+    def parse_content_type(value: str) -> 'Tuple[str, List[Tuple[str, str]]]':
+        """limited RFC-2045 Content-Type header parser.
+        >>> parse_content_type('text/plain')
+        ('text/plain', [])
+        >>> parse_content_type('text/plain; charset=cp1252')
+        ('text/plain, [('charset', 'cp1252')])
+        """
+        ctype, _, rest = value.partition(';')
+        params = []
+        rest = rest.strip()
+        for param in map(str.strip, rest.split(";") if rest else []):
+            key, _, value = param.partition("=")
+            params.append((key.strip(), value.strip()))
+        return ctype.strip(), params
+
+    def cmp_casefold(s: str) -> Callable[[str], bool]:
+        s = s.casefold()
+
+        def f(s_: str) -> bool:
+            return s_.casefold() == s
+        return f
+
+    class CharsetSniff(parser.HTMLParser):
+        """
+        Parse html contents until encountering a meta charset definition.
+        """
+        class Stop(BaseException):
+            # Exception thrown with the result to stop the search.
+            def __init__(self, result: str):
+                super().__init__(result)
+                self.result = result
+
+        def handle_starttag(
+                self, tag: str, attrs: 'List[Tuple[str, Optional[str]]]'
+        ) -> None:
+            if tag.lower() == "meta":
+                attrs = [(k, v) for k, v in attrs if v is not None]
+                charset = assocf(attrs, cmp_casefold("charset"))
+                if charset is not None:
+                    raise CharsetSniff.Stop(charset[1])
+                http_equiv = assocf(attrs, cmp_casefold("http-equiv"))
+                if http_equiv is not None \
+                        and http_equiv[1].lower() == "content-type":
+                    content = assocf(attrs, cmp_casefold("content"))
+                    if content is not None:
+                        _, prms = parse_content_type(content[1])
+                    else:
+                        prms = []
+                    charset = assocf(prms, cmp_casefold("charset"))
+                    if charset is not None:
+                        raise CharsetSniff.Stop(charset[1])
+
+    if content.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
+        return 'utf-16'
+
+    csparser = CharsetSniff()
+    try:
+        csparser.feed(content.decode("latin-1"))
+    except CharsetSniff.Stop as rv:
+        return rv.result
+    else:
+        return None
