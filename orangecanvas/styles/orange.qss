@@ -352,13 +352,8 @@ QuickMenu QTreeView::item {
     padding-left: 1px;
 }
 
+/* background defined in _MenuItemDelegate */
 QuickMenu QTreeView::item:selected {
-	background: qlineargradient(
-		x1: 0, y1: 0, x2: 0, y2: 1,
-		stop: 0 #688EF6,
-		stop: 0.5 #4047f4,
-		stop: 1.0 #2D68F3
-	);
 	color: white;
 }
 

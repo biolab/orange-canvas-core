@@ -24,22 +24,20 @@ from AnyQt.QtWidgets import (
     QAbstractItemView)
 from AnyQt.QtGui import (
     QIcon, QStandardItemModel, QPolygon, QRegion, QBrush, QPalette,
-    QPaintEvent, QColor, QPen, QPixmapCache, QLinearGradient, QPainter, QRadialGradient,
-    QPixmap)
+    QPaintEvent, QColor, QPen)
 from AnyQt.QtCore import (
     Qt, QObject, QPoint, QSize, QRect, QEventLoop, QEvent, QModelIndex,
     QTimer, QRegExp, QSortFilterProxyModel, QItemSelectionModel,
-    QAbstractItemModel, QLineF, QRectF, QPointF)
+    QAbstractItemModel, QLineF)
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 from PyQt5.QtCore import QRectF, QPointF
-from PyQt5.QtGui import QPainter, QRadialGradient, QLinearGradient, QPixmap
+from PyQt5.QtGui import QPainter, QLinearGradient
 
 from .usagestatistics import UsageStatistics
 from ..gui.framelesswindow import FramelessWindow
 from ..gui.lineedit import LineEdit
 from ..gui.tooltree import ToolTree, FlattenedTreeItemModel
-from ..gui.utils import StyledWidget_paintEvent, create_css_gradient, css_gradient, \
-    innerGlowBackgroundPixmap, innerShadowPixmap
+from ..gui.utils import StyledWidget_paintEvent, innerGlowBackgroundPixmap, innerShadowPixmap
 from ..registry.qt import QtWidgetRegistry
 
 from ..resources import icon_loader
@@ -48,8 +46,14 @@ log = logging.getLogger(__name__)
 
 
 class _MenuItemDelegate(QStyledItemDelegate):
+    def __init__(self, parent):
+        super().__init__(parent)
+
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex):
         painter.save()
+
+        # text elide is too aggressive
+        textElideOffset = 7
 
         rect = option.rect
 
@@ -105,20 +109,50 @@ class _MenuItemDelegate(QStyledItemDelegate):
         # disable icon in QStyleOption
         option.decorationSize = QSize(-1, -1)
 
+        """ Draw selected item background """
+
+        if option.state & QStyle.State_Selected:
+            backgroundRect = QRect(tl.x() + rect.height(),
+                                   tl.y(),
+                                   rect.width() - rect.height(),
+                                   rect.height())
+            grad = QLinearGradient(0, 0, 0, 1)
+            grad.setCoordinateMode(QLinearGradient.ObjectBoundingMode)
+            grad.setColorAt(0, QColor("#688EF6"))
+            grad.setColorAt(0.5, QColor("#4047F4"))
+            grad.setColorAt(1, QColor("#2D68F3"))
+            painter.fillRect(backgroundRect, grad)
+
+            # set text drawing rect
+            textRect = QRect(tl.x() + rect.height(),
+                             tl.y(),
+                             rect.width() - 2 * rect.height() + textElideOffset,
+                             rect.height())
+        else:
+            textRect = QRect(tl.x() + rect.height(),
+                             tl.y(),
+                             rect.width() - rect.height(),
+                             rect.height())
+
         """ Draw text (configure in orange.qss) """
 
-        # set text drawing rect
-        newRect = QRect(tl.x() + rect.height(),
-                        tl.y(),
-                        rect.width() - rect.height(),
-                        rect.height())
-        option.rect = newRect
+        option.rect = textRect
 
         # disable icon (already drawn)
         option.decorationSize = QSize(-1, -1)
 
         painter.restore()
         super().paint(painter, option, index)
+
+        """ Draw carriage return character to the right of selected item """
+
+        if option.state & QStyle.State_Selected:
+            enterRect = QRect(tl.x() + rect.width() + rect.height() - textElideOffset,
+                              tl.y(),
+                              rect.height(),
+                              rect.height())
+            painter.setPen(Qt.white)
+            painter.drawText(enterRect, Qt.AlignCenter, "\u21B5")
 
     def sizeHint(self, option, index):
         # type: (QStyleOptionViewItem, QModelIndex) -> QSize
