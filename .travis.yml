@@ -2,26 +2,37 @@ language: python
 
 dist: xenial
 
-python:
-  - "3.5"
-  - "3.6"
-  - "3.7"
+# https://www.riverbankcomputing.com/pipermail/pyqt/2019-February/041363.html
+addons:
+  apt:
+    packages:
+    - libxkbcommon-x11-0
 
 env:
   global:
     - TEST_ENV=PyQt5~=5.9.2
     - XVFBARGS="-screen 0 1280x1024x24"
+    - PIP_DISABLE_PIP_VERSION_CHECK=1
 
 matrix:
   fast_finish: false
+  include:
+    - python: '3.5'
+      env: TEST_ENV="PyQt5~=5.9.2"
+
+    - python: '3.6'
+      env: TEST_ENV="PyQt5~=5.12.1"
+
+    - python: '3.7'
+      env: TEST_ENV="PyQt5~=5.13.0"
 
 cache:
-    pip: true
+  pip: true
 
 install:
   - pip install $TEST_ENV
   - pip install -e .
 
 script:
-  - catchsegv xvfb-run -a -s "$XVFBARGS" python -m unittest discover -v .
-
+  - pip list --format=freeze
+  - xvfb-run -a -s "$XVFBARGS" python -m unittest discover -v -b .
