@@ -1031,6 +1031,8 @@ class PagedMenu(QWidget):
 
         self.__stack = MenuStackWidget(self)
 
+        self.navigator = ItemViewKeyNavigator(self)
+
         layout.addWidget(self.__tab, alignment=Qt.AlignTop)
         layout.addWidget(self.__stack)
 
@@ -1090,6 +1092,12 @@ class PagedMenu(QWidget):
             self.__currentIndex = index
             self.__tab.setCurrentIndex(index)
             self.__stack.setCurrentIndex(index)
+
+            view = self.currentPage().view()
+            self.navigator.setView(view)
+            self.navigator.ensureCurrent()
+            view.setFocus()
+
             self.currentChanged.emit(index)
 
     def currentIndex(self):
@@ -1098,6 +1106,22 @@ class PagedMenu(QWidget):
         Return the index of the current page.
         """
         return self.__currentIndex
+
+    def nextPage(self):
+        """
+        Set current index to next index, if one exists.
+        """
+        index = self.currentIndex() + 1
+        if index < self.__stack.count():
+            self.setCurrentIndex(index)
+
+    def previousPage(self):
+        """
+        Set current index to previous index, if one exists.
+        """
+        index = self.currentIndex() - 1
+        if index >= 0:
+            self.setCurrentIndex(index)
 
     def setCurrentPage(self, page):
         # type: (QWidget) -> None
@@ -1187,7 +1211,6 @@ class QuickMenu(FramelessWindow):
         self.layout().setContentsMargins(6, 6, 6, 6)
 
         self.__search = SearchWidget(self, objectName="search-line")
-
         self.__search.setPlaceholderText(
             self.tr("Search for a widget...")
         )
@@ -1216,6 +1239,9 @@ class QuickMenu(FramelessWindow):
         self.__suggestPage.setActionRole(QtWidgetRegistry.WIDGET_ACTION_ROLE)
         self.__suggestPage.setIcon(icon_loader().get("icons/Search.svg"))
 
+        self.__search.installEventFilter(self.__pages.navigator)
+        self.__pages.navigator.setView(self.__suggestPage.view())
+
         if sys.platform == "darwin":
             view = self.__suggestPage.view()
             view.verticalScrollBar().setAttribute(Qt.WA_MacMiniSize, True)
@@ -1233,10 +1259,6 @@ class QuickMenu(FramelessWindow):
                                             self.__search.setShadow(i != index))
 
         self.__search.textEdited.connect(self.__on_textEdited)
-
-        self.__navigator = ItemViewKeyNavigator(self)
-        self.__navigator.setView(self.__suggestPage.view())
-        self.__search.installEventFilter(self.__navigator)
 
         self.__grip = WindowSizeGrip(self)  # type: Optional[WindowSizeGrip]
         self.__grip.raise_()
@@ -1289,8 +1311,8 @@ class QuickMenu(FramelessWindow):
         page.triggered.connect(self.__onTriggered)
         page.hovered.connect(self.hovered)
 
-        # Install event filter to intercept key presses.
-        page.view().installEventFilter(self)
+        # All page views focus on the search LineEdit
+        page.view().setFocusProxy(self.__search)
 
         return index
 
@@ -1583,37 +1605,6 @@ class QuickMenu(FramelessWindow):
         # Make sure that the first enabled item is set current.
         self.__suggestPage.ensureCurrent()
 
-    def keyPressEvent(self, event):
-        if event.text():
-            # Ignore modifiers, ...
-            self.__search.setFocus(Qt.ShortcutFocusReason)
-            self.setCurrentIndex(0)
-            self.__search.keyPressEvent(event)
-
-        super().keyPressEvent(event)
-        event.accept()
-
-    def event(self, event):
-        if event.type() == QEvent.ShortcutOverride:
-            log.debug("Overriding shortcuts")
-            event.accept()
-            return True
-        return super().event(event)
-
-    def eventFilter(self, obj, event):
-        if isinstance(obj, QTreeView):
-            etype = event.type()
-            if etype == QEvent.KeyPress:
-                # ignore modifiers non printable characters, Enter, ...
-                if event.text() and event.key() not in \
-                        [Qt.Key_Enter, Qt.Key_Return]:
-                    self.__search.setFocus(Qt.ShortcutFocusReason)
-                    self.setCurrentIndex(0)
-                    self.__search.keyPressEvent(event)
-                    return True
-
-        return super().eventFilter(obj, event)
-
 
 class ItemViewKeyNavigator(QObject):
     """
@@ -1644,17 +1635,25 @@ class ItemViewKeyNavigator(QObject):
         etype = event.type()
         if etype == QEvent.KeyPress:
             key = event.key()
+            # down
             if key == Qt.Key_Down:
                 self.moveCurrent(1, 0)
                 return True
+            # up
             elif key == Qt.Key_Up:
                 self.moveCurrent(-1, 0)
                 return True
-            elif key == Qt.Key_Tab:
-                self.moveCurrent(0, 1)
-                return  True
+            # enter / return
             elif key == Qt.Key_Enter or key == Qt.Key_Return:
                 self.activateCurrent()
+                return True
+            # shift + tab
+            elif key == Qt.Key_Backtab:
+                self.parent().previousPage()
+                return True
+            # tab
+            elif key == Qt.Key_Tab:
+                self.parent().nextPage()
                 return True
 
         return super().eventFilter(obj, event)
@@ -1667,18 +1666,23 @@ class ItemViewKeyNavigator(QObject):
         if self.__view is not None:
             view = self.__view
             model = view.model()
+            root = view.rootIndex()
 
             curr = view.currentIndex()
             curr_row, curr_col = curr.row(), curr.column()
 
             sign = 1 if rows >= 0 else -1
-            row = curr_row + rows
 
-            row_count = model.rowCount()
-            for i in range(row_count):
-                index = model.index((row + sign * i) % row_count, 0)
+            row = curr_row
+            row_count = model.rowCount(root)
+            for _ in range(row_count):
+                row = (row + sign) % row_count
+                index = root.child(row, 0) if root.isValid() else model.index(row, 0)
                 if index.flags() & Qt.ItemIsEnabled:
-                    view.setCurrentIndex(index)
+                    view.selectionModel().setCurrentIndex(
+                        index,
+                        QItemSelectionModel.ClearAndSelect
+                    )
                     break
             # TODO: move by columns
 
@@ -1701,8 +1705,9 @@ class ItemViewKeyNavigator(QObject):
             model = self.__view.model()
             curr = self.__view.currentIndex()
             if not curr.isValid():
-                for i in range(model.rowCount()):
-                    index = model.index(i, 0)
+                root = self.__view.rootIndex()
+                for i in range(model.rowCount(root)):
+                    index = root.child(i, 0) if root.isValid() else model.index(i, 0)
                     if index.flags() & Qt.ItemIsEnabled:
                         self.__view.setCurrentIndex(index)
                         break
