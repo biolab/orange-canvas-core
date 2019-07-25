@@ -5,13 +5,16 @@ Scheme Link
 
 """
 import enum
+import warnings
 import typing
-from typing import List, Tuple, Union
+from traceback import format_exception_only
+from typing import List, Tuple, Union, Optional, Iterable
 
 from AnyQt.QtCore import QObject
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
-from ..utils import type_lookup, type_lookup_
+from ..registry.description import normalize_type_simple
+from ..utils import type_lookup
 from .errors import IncompatibleChannelTypeError
 
 if typing.TYPE_CHECKING:
@@ -19,20 +22,93 @@ if typing.TYPE_CHECKING:
     from . import SchemeNode as Node
 
 
+def resolve_types(types):
+    # type: (Iterable[str]) -> Tuple[Optional[type], ...]
+    """
+    Resolve the fully qualified names to python types.
+
+    If a name fails to resolve to a type then the corresponding entry in output
+    is replaced with a None.
+
+    Parameters
+    ----------
+    types: Iterable[str]
+        Names of types to resolve
+
+    Returns
+    -------
+    type: Tuple[Optional[type], ...]
+        The `type` instances in the same order as input `types` with `None`
+        replacing any type that cannot be resolved.
+
+    """
+    rt = []  # type: List[Optional[type]]
+    for t in types:
+        try:
+            rt.append(type_lookup(t))
+        except (TypeError, ImportError, AttributeError) as err:
+            warnings.warn(
+                "Failed to resolve name {!r} to a type: {!s}"
+                    .format(t, "\n".join(format_exception_only(type(err), err))),
+                RuntimeWarning, stacklevel=2
+            )
+            rt.append(None)
+    return tuple(rt)
+
+
+def resolved_valid_types(types):
+    # type: (Iterable[str]) -> Tuple[type, ...]
+    """
+    Resolve fully qualified names to python types, omiting all types that
+    fail to resolve.
+
+    Parameters
+    ----------
+    types: Iterable[str]
+
+    Returns
+    -------
+    type: Tuple[type, ...]
+    """
+    return tuple(filter(None, resolve_types(types)))
+
+
 def compatible_channels(source_channel, sink_channel):
     # type: (Output, Input) -> bool
     """
-    Do the channels in link have compatible types, i.e. can they be
-    connected based on their type.
+    Do the source and sink channels have compatible types, i.e. can they be
+    connected based on their specified types.
     """
-    source_type = type_lookup_(source_channel.type)
-    sink_type = type_lookup_(sink_channel.type)
-    if source_type is None or sink_type is None:
-        return False
-    ret = issubclass(source_type, sink_type)
-    if source_channel.dynamic:
-        ret = ret or issubclass(sink_type, source_type)
-    return ret
+    strict, dynamic = _classify_connection(source_channel, sink_channel)
+    return strict or dynamic
+
+
+def _classify_connection(source, sink):
+    # type: (Output, Input) -> Tuple[bool, bool]
+    """
+    Classify the source -> sink connection type check.
+
+    Returns
+    -------
+    rval : Tuple[bool, bool]
+        A `(strict, dynamic)` tuple where `strict` is True if connection
+        passes a strict type check, and `dynamic` is True if the
+        `source.dynamic` is True and at least one of the sink types is
+        a subtype of the source types.
+    """
+    source_types = resolved_valid_types(source.types)
+    sink_types = resolved_valid_types(sink.types)
+    if not source_types or not sink_types:
+        return False, False
+    # Are all possible source types subtypes of the sink_types.
+    strict = all(issubclass(source_t, sink_types) for source_t in source_types)
+    if source.dynamic:
+        # Is at least one of the possible sink types a subtype of
+        # the source_types.
+        dynamic = any(issubclass(sink_t, source_types) for sink_t in sink_types)
+    else:
+        dynamic = False
+    return strict, dynamic
 
 
 def can_connect(source_node, sink_node):
@@ -40,7 +116,6 @@ def can_connect(source_node, sink_node):
     """
     Return True if any output from `source_node` can be connected to
     any input of `sink_node`.
-
     """
     return bool(possible_links(source_node, sink_node))
 
@@ -50,7 +125,6 @@ def possible_links(source_node, sink_node):
     """
     Return a list of (OutputSignal, InputSignal) tuples, that
     can connect the two nodes.
-
     """
     possible = []
     for source in source_node.output_channels():
@@ -60,9 +134,20 @@ def possible_links(source_node, sink_node):
     return possible
 
 
-def _get_type(arg):
-    # type: (Union[str, type]) -> type
-    """get a type instance qualified name"""
+def _get_first_type(arg, newname):
+    # type: (Union[str, type, Tuple[Union[str, type], ...]], str) -> type
+    if isinstance(arg, tuple):
+        if len(arg) > 1:
+            warnings.warn(
+                "Multiple types specified, but using only the first. "
+                "Use `{newname}` instead.".format(newname=newname),
+                RuntimeWarning, stacklevel=3
+            )
+        if arg:
+            arg0 = normalize_type_simple(arg[0])
+            return type_lookup(arg0)
+        else:
+            raise ValueError("no type spec")
     if isinstance(arg, type):
         return arg
     rv = type_lookup(arg)
@@ -161,24 +246,59 @@ class SchemeLink(QObject):
         # type: () -> type
         """
         Return the type of the source channel.
+
+        .. deprecated:: 0.1.5
+            Use :func:`source_types` instead.
         """
-        return _get_type(self.source_channel.type)
+        warnings.warn(
+            "`source_type()` is deprecated. Use `source_types()`.",
+            DeprecationWarning, stacklevel=2
+        )
+        return _get_first_type(self.source_channel.type, "source_types")
+
+    def source_types(self):
+        # type: () -> Tuple[type, ...]
+        """
+        Return the type(s) of the source channel.
+        """
+        return resolved_valid_types(self.source_channel.types)
 
     def sink_type(self):
         # type: () -> type
         """
         Return the type of the sink channel.
+
+        .. deprecated:: 0.1.5
+            Use :func:`sink_types` instead.
         """
-        return _get_type(self.sink_channel.type)
+        warnings.warn(
+            "`sink_type()` is deprecated. Use `sink_types()`.",
+            DeprecationWarning, stacklevel=2
+        )
+        return _get_first_type(self.sink_channel.types, "sink_types")
+
+    def sink_types(self):
+        # type: () -> Tuple[type, ...]
+        """
+        Return the type(s) of the sink channel.
+        """
+        return resolved_valid_types(self.sink_channel.types)
 
     def is_dynamic(self):
         # type: () -> bool
         """
         Is this link dynamic.
         """
-        return self.source_channel.dynamic and \
-               issubclass(self.sink_type(), self.source_type()) and \
-               not (self.sink_type() is self.source_type())
+        sink_types = self.sink_types()
+        source_types = self.source_types()
+        if self.source_channel.dynamic:
+            strict, dynamic = _classify_connection(
+                self.source_channel, self.sink_channel)
+            # If the connection type checks (strict) then supress the dynamic
+            # state.
+            return not strict and dynamic
+        else:
+            return False
 
     def set_enabled(self, enabled):
         # type: (bool) -> None

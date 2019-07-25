@@ -94,7 +94,6 @@ class SchemeNode(QObject):
         """
         Return the input channel matching `name`. Raise a `ValueError`
         if not found.
-
         """
         for channel in self.input_channels():
             if channel.name == name:
@@ -107,7 +106,6 @@ class SchemeNode(QObject):
         """
         Return the output channel matching `name`. Raise an `ValueError`
         if not found.
-
         """
         for channel in self.output_channels():
             if channel.name == name:

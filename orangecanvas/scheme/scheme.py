@@ -9,6 +9,7 @@ The :class:`Scheme` class defines a DAG (Directed Acyclic Graph) workflow.
 import types
 import logging
 from contextlib import ExitStack
+from itertools import product
 from operator import itemgetter
 from collections import deque
 
@@ -19,7 +20,8 @@ from AnyQt.QtCore import QObject, QCoreApplication
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
 from .node import SchemeNode
-from .link import SchemeLink, compatible_channels
+from .link import SchemeLink, compatible_channels, resolved_valid_types, \
+    _classify_connection
 from .annotations import BaseSchemeAnnotation
 
 from ..utils import check_arg, type_lookup_
@@ -598,13 +600,7 @@ class Scheme(QObject):
             else:
                 # Does the connection type check (can only ever be False for
                 # dynamic signals)
-                source_type = type_lookup_(out_c.type)
-                sink_type = type_lookup_(in_c.type)
-                if source_type is not None and sink_type is not None:
-                    type_checks = issubclass(source_type, sink_type)
-                else:
-                    type_checks = False
-                assert type_checks or out_c.dynamic
+                type_checks, _ = _classify_connection(out_c, in_c)
                 # Dynamic signals that require runtime instance type check
                 # are considered last.
                 check = [type_checks,

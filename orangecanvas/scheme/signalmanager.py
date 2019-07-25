@@ -767,7 +767,7 @@ def can_enable_dynamic(link, value):
     """
     Can the a dynamic `link` (:class:`SchemeLink`) be enabled for`value`.
     """
-    return isinstance(value, link.sink_type())
+    return isinstance(value, link.sink_types())
 
 
 def compress_signals(signals):

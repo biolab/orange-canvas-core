@@ -22,7 +22,7 @@ if typing.TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 # Registry hex version
-VERSION_HEX = 0x000104
+VERSION_HEX = 0x000105
 
 
 class WidgetRegistry(object):

@@ -9,7 +9,7 @@ import copy
 import warnings
 
 import typing
-from typing import Union, Optional, List, Iterable
+from typing import Union, Optional, List, Tuple, Iterable
 
 from orangecanvas.utils import qualified_name
 
@@ -72,10 +72,13 @@ Dynamic = 64
 
 # Input/output signal (channel) description
 
-
 if typing.TYPE_CHECKING:
+    #: A simple single type spec (a fully qualified name or a type instance)
+    TypeSpecSimple = Union[str, type]
+    #: A tuple of simple type specs indicating a union type.
+    TypeSpecUnion = Tuple[TypeSpecSimple, ...]
     #: Specification of a input/output type
-    TypeSpec = Union[type, str]
+    TypeSpec = Union[TypeSpecSimple, TypeSpecUnion]
 
 
 class InputSignal(object):
@@ -86,8 +89,13 @@ class InputSignal(object):
     ----------
     name : str
         Name of the channel.
-    type : str or `type`
-        Type of the accepted signals.
+    type : Union[str, type] or Tuple[Union[str, type]]
+        Specify the type of the accepted input. This can be a `type` instance,
+        a fully qualified type name or a tuple of such. If a tuple then the
+        input type is a union of the passed types.
+
+        .. versionchanged:: 0.1.5
+            Added `Union` type support.
     handler : str
         Name of the handler method for the signal.
     flags : int
@@ -132,6 +140,19 @@ class InputSignal(object):
         self.explicit = bool(flags & Explicit)
         self.flags = flags
 
+    @property
+    def types(self):
+        # type: () -> Tuple[str, ...]
+        """
+        The normalized type specification. This is a tuple of qualified
+        type names that were passed to the constructor.
+
+        .. versionadded:: 0.1.5
+
+        :type: Tuple[str, ...]
+        """
+        return normalize_type(self.type)
+
     def __str__(self):
         fmt = ("{0.__name__}(name={name!r}, type={type!r}, "
                "handler={handler!r}, ...)")
@@ -160,8 +181,13 @@ class OutputSignal(object):
     ----------
     name : str
         Name of the channel.
-    type : str or `type`
-        Type of the output signals.
+    type : Union[str, type] or Tuple[Union[str, type]]
+        Specify the type of the output. This can be a `type` instance,
+        a fully qualified type name or a tuple of such. If a tuple then the
+        output type is a union of the passed types.
+
+        .. versionchanged:: 0.1.5
+            Added `Union` type support.
     flags : int, optional
         Channel flags.
     id : str
@@ -209,6 +235,19 @@ class OutputSignal(object):
                 "Output signal can not be 'Multiple' and 'Dynamic'."
             )
 
+    @property
+    def types(self):
+        # type: () -> Tuple[str, ...]
+        """
+        The normalized type specification. This is a tuple of qualified
+        type names that were passed to the constructor.
+
+        .. versionadded:: 0.1.5
+
+        :type: Tuple[str, ...]
+        """
+        return normalize_type(self.type)
+
     def __str__(self):
         fmt = ("{0.__name__}(name={name!r}, type={type!r}, "
                "...)")
@@ -230,14 +269,22 @@ def output_channel_from_args(args):
                         "(got {0!r})".format(type(args)))
 
 
-def normalize_type(type_):
-    # type: (TypeSpec) -> str
+def normalize_type_simple(type_):
+    # type: (TypeSpecSimple) -> str
     if isinstance(type_, type):
         return qualified_name(type_)
     elif isinstance(type_, str):
         return type_
     else:
         raise TypeError
+
+
+def normalize_type(type_):
+    # type: (TypeSpec) -> Tuple[str, ...]
+    if isinstance(type_, (type, str)):
+        return (normalize_type_simple(type_), )
+    else:
+        return tuple(map(normalize_type_simple, type_))
 
 
 class WidgetDescription(object):

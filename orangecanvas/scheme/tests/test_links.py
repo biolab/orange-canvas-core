@@ -23,8 +23,8 @@ class TestSchemeLink(test.QAppTestCase):
                            add_node,
                            add_node.input_channel("left"))
 
-        self.assertTrue(link1.source_type() is int)
-        self.assertTrue(link1.sink_type() is int)
+        self.assertEqual(link1.source_types(), (int, ))
+        self.assertEqual(link1.sink_types(), (int, ))
 
         with self.assertRaises(ValueError):
             SchemeLink(add_node, "right", one_node, "$$$[")

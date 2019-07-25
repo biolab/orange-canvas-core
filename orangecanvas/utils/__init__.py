@@ -49,6 +49,16 @@ def qualified_name(obj):
         return "%s.%s" % (obj.__module__, obj.__name__)
 
 
+def type_str(type_name):
+    # type: (Union[str, Tuple[str, ...]]) -> str
+    if isinstance(type_name, tuple):
+        return "Union[" + ", ".join(type_str(t) for t in type_name) + "]"
+    elif type_name.startswith("builtin."):
+        return type_name[len("builtin."):]
+    else:
+        return type_name
+
+
 def name_lookup(qualified_name):
     # type: (str) -> Any
     """
@@ -63,12 +73,29 @@ def name_lookup(qualified_name):
 
 
 def type_lookup(qualified_name):
-    # type: (str) -> Optional[type]
-    T = name_lookup(qualified_name)
-    if isinstance(T, type):
-        return T
-    else:
-        return None
+    # type: (str) -> type
+    """
+    Return the type referenced by a qualified name.
+
+    Parameters
+    ----------
+    qualified_name : str
+
+    Returns
+    -------
+    type: type
+
+    Raises
+    ------
+    TypeError:
+        If the object referenced by `qualified_name` is not a type
+    """
+    rval = name_lookup(qualified_name)
+    if not isinstance(rval, type):
+        raise TypeError(
+            "'{}' is a {!r} not a type".format(qualified_name, type(rval))
+        )
+    return rval
 
 
 def type_lookup_(tspec):
