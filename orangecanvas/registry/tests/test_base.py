@@ -5,6 +5,7 @@ import logging
 from operator import attrgetter
 
 import unittest
+from orangecanvas.registry import InputSignal, OutputSignal
 
 from ..base import WidgetRegistry
 from .. import description
@@ -97,3 +98,24 @@ class TestRegistry(unittest.TestCase):
                             for desc in [one_desc, zero_desc, sub_desc,
                                          add_desc])
                         )
+
+    def test_input_signal(self):
+        isig_1 = InputSignal("A", str, "aa", id="sig-a")
+        isig_2 = InputSignal("A", 'builtins.str', "aa", id="sig-a")
+        self.assertTupleEqual(isig_1.types, isig_2.types)
+        self.assertTupleEqual(isig_1.types, ('builtins.str',))
+        isig_1 = InputSignal("A", (str, int), "aa", id="sig-a")
+        isig_2 = InputSignal("A", ('builtins.str', "builtins.int",), "aa",
+                             id="sig-a")
+        self.assertTupleEqual(isig_1.types, isig_2.types)
+
+    def test_output_signal(self):
+        osig_1 = OutputSignal("A", str, id="sig-a")
+        osig_2 = OutputSignal("A", 'builtins.str', id="sig-a")
+        self.assertTupleEqual(osig_1.types, osig_2.types)
+        self.assertTupleEqual(osig_1.types, ('builtins.str',))
+        osig_1 = OutputSignal("A", (str, int), id="sig-a")
+        osig_2 = OutputSignal("A", ('builtins.str', "builtins.int",),
+                              id="sig-a")
+        self.assertTupleEqual(osig_1.types, osig_2.types)
+        self.assertTupleEqual(osig_1.types, ('builtins.str', "builtins.int",))
