@@ -103,7 +103,7 @@ CategoryPopupMenu {
 
 CategoryPopupMenu ToolTree QTreeView::item {
 	height: 25px;
-	border-bottom: 1px solid #e9eff2;
+	background: transparent;
 }
 
 CategoryPopupMenu QTreeView::item:selected {
