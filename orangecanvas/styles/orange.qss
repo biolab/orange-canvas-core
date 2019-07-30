@@ -347,16 +347,6 @@ QuickMenu QFrame#menu-frame {
     background-color: #E9EFF2;
 }
 
-QuickMenu QTreeView::item {
-    background: transparent;
-    padding-left: 1px;
-}
-
-/* background defined in _MenuItemDelegate */
-QuickMenu QTreeView::item:selected {
-	color: white;
-}
-
 QuickMenu TabBarWidget QToolButton {
 	height: 25px;
 	padding-right: 5px;

@@ -20,8 +20,7 @@ from AnyQt.QtWidgets import (
     QWidget, QFrame, QToolButton, QAbstractButton, QAction, QTreeView,
     QButtonGroup, QStackedWidget, QHBoxLayout, QVBoxLayout, QSizePolicy,
     QStyleOptionToolButton, QStylePainter, QStyle, QApplication,
-    QStyledItemDelegate, QStyleOptionViewItem, QSizeGrip,
-    QAbstractItemView)
+    QStyleOptionViewItem, QSizeGrip, QAbstractItemView, QItemDelegate)
 from AnyQt.QtGui import (
     QIcon, QStandardItemModel, QPolygon, QRegion, QBrush, QPalette,
     QPaintEvent, QColor, QPen)
@@ -45,15 +44,19 @@ from ..resources import icon_loader
 log = logging.getLogger(__name__)
 
 
-class _MenuItemDelegate(QStyledItemDelegate):
+class _MenuItemDelegate(QItemDelegate):
     def __init__(self, parent):
         super().__init__(parent)
 
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex):
         painter.save()
 
-        # text elide is too aggressive
-        textElideOffset = 7
+        # text elide is too aggressive on Mac
+        if sys.platform == "darwin":
+            textElideOffset = 7
+        else:
+            textElideOffset = 0
+        textLeftMargin = 6
 
         rect = option.rect
 
@@ -106,10 +109,11 @@ class _MenuItemDelegate(QStyledItemDelegate):
         # draw icon pixmap
         decPixmap = dec.pixmap(decSize)
         painter.drawPixmap(decRect, decPixmap, QRectF(decPixmap.rect()))
-        # disable icon in QStyleOption
-        option.decorationSize = QSize(-1, -1)
 
-        """ Draw selected item background """
+        # save for text drawing
+        painter.save()
+
+        """ Draw selected item background, set text drawing rect/pen """
 
         if option.state & QStyle.State_Selected:
             backgroundRect = QRect(tl.x() + rect.height(),
@@ -123,41 +127,41 @@ class _MenuItemDelegate(QStyledItemDelegate):
             grad.setColorAt(1, QColor("#2D68F3"))
             painter.fillRect(backgroundRect, grad)
 
-            # set text drawing rect
-            textRect = QRect(tl.x() + rect.height(),
+            # set text drawing rect, text elides due to carriage return if selected
+            textRect = QRect(tl.x() + rect.height() + textLeftMargin,
                              tl.y(),
-                             rect.width() - 2 * rect.height() + textElideOffset,
+                             rect.width() - 2 * rect.height() + textElideOffset - textLeftMargin,
                              rect.height())
+            painter.setPen(Qt.white)
         else:
-            textRect = QRect(tl.x() + rect.height(),
+            textRect = QRect(tl.x() + rect.height() + textLeftMargin,
                              tl.y(),
-                             rect.width() - rect.height(),
+                             rect.width() - rect.height() - textLeftMargin,
                              rect.height())
+            painter.setPen(Qt.black)
 
-        """ Draw text (configure in orange.qss) """
+        """ Draw text """
 
-        option.rect = textRect
-
-        # disable icon (already drawn)
-        option.decorationSize = QSize(-1, -1)
+        painter.drawText(textRect, Qt.AlignLeft | Qt.AlignVCenter, action.text())
 
         painter.restore()
-        super().paint(painter, option, index)
 
         """ Draw carriage return character to the right of selected item """
 
         if option.state & QStyle.State_Selected:
-            enterRect = QRect(tl.x() + rect.width() + rect.height() - textElideOffset,
+            enterRect = QRect(tl.x() + rect.width() - rect.height(),
                               tl.y(),
                               rect.height(),
                               rect.height())
             painter.setPen(Qt.white)
             painter.drawText(enterRect, Qt.AlignCenter, "\u21B5")
 
+        painter.restore()
+
     def sizeHint(self, option, index):
         # type: (QStyleOptionViewItem, QModelIndex) -> QSize
         option = QStyleOptionViewItem(option)
-        self.initStyleOption(option, index)
+        # self.initStyleOption(option, index)
         size = super().sizeHint(option, index)
 
         # TODO: get the default QMenu item height from the current style.
