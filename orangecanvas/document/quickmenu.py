@@ -51,20 +51,13 @@ class _MenuItemDelegate(QItemDelegate):
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex):
         painter.save()
 
-        # text elide is too aggressive on Mac
-        if sys.platform == "darwin":
-            textElideOffset = 7
-        else:
-            textElideOffset = 0
-        textLeftMargin = 6
-
         rect = option.rect
+        tl = rect.topLeft()
+        br = rect.bottomRight()
 
         """ Draw separating lines """
 
         lineWidth = 1
-        tl = rect.topLeft()
-        br = rect.bottomRight()
         lines = [QLineF(QPointF(tl.x() + lineWidth / 2, tl.y() + lineWidth / 2),
                         QPointF(br.x() + lineWidth / 2, tl.y() + lineWidth / 2)),
                  QLineF(QPointF(tl.x() + lineWidth / 2, br.y() + lineWidth / 2),
@@ -107,11 +100,12 @@ class _MenuItemDelegate(QItemDelegate):
         decRect = QRectF(decTl, decBr)
 
         # draw icon pixmap
-        decPixmap = dec.pixmap(decSize)
-        painter.drawPixmap(decRect, decPixmap, QRectF(decPixmap.rect()))
+        dec.paint(painter, decRect.toAlignedRect())
 
         # save for text drawing
         painter.save()
+
+        textLeftMargin = QApplication.style().pixelMetric(QStyle.PM_FocusFrameHMargin, option=option) + 1
 
         """ Draw selected item background, set text drawing rect/pen """
 
@@ -130,7 +124,7 @@ class _MenuItemDelegate(QItemDelegate):
             # set text drawing rect, text elides due to carriage return if selected
             textRect = QRect(tl.x() + rect.height() + textLeftMargin,
                              tl.y(),
-                             rect.width() - 2 * rect.height() + textElideOffset - textLeftMargin,
+                             rect.width() - 2 * rect.height() - textLeftMargin,
                              rect.height())
             painter.setPen(Qt.white)
         else:
@@ -142,7 +136,8 @@ class _MenuItemDelegate(QItemDelegate):
 
         """ Draw text """
 
-        painter.drawText(textRect, Qt.AlignLeft | Qt.AlignVCenter, action.text())
+        text = option.fontMetrics.elidedText(action.text(), Qt.ElideRight, textRect.width())
+        painter.drawText(textRect, Qt.AlignLeft | Qt.AlignVCenter, text)
 
         painter.restore()
 
@@ -160,12 +155,28 @@ class _MenuItemDelegate(QItemDelegate):
 
     def sizeHint(self, option, index):
         # type: (QStyleOptionViewItem, QModelIndex) -> QSize
-        option = QStyleOptionViewItem(option)
-        # self.initStyleOption(option, index)
         size = super().sizeHint(option, index)
-
         # TODO: get the default QMenu item height from the current style.
         size.setHeight(max(size.height(), 25))
+
+        # calculate sizehint width
+        # icon, icon background
+        width = size.height()
+
+        # text width
+        action = index.data(QtWidgetRegistry.WIDGET_ACTION_ROLE)
+        if action is not None:
+            text = action.text()
+            width += option.fontMetrics.width(text)
+
+        # text margin
+        textMargin = QApplication.style().pixelMetric(QStyle.PM_FocusFrameHMargin, option=option) + 1
+        width += 2 * textMargin
+
+        # for good measure
+        width += 1
+
+        size.setWidth(width)
         return size
 
 
@@ -290,13 +301,11 @@ class MenuPage(ToolTree):
             else:
                 height = 0
 
-            # accommodate width for scroll bar width on mac, should transient scrollbars be disabled
-            # System Preferences -> General -> Show scroll bars
-            if sys.platform == "darwin":
-                scroll = self.view().verticalScrollBar()
-                isTransient = scroll.style().styleHint(QStyle.SH_ScrollBar_Transient, widget=scroll)
-                if not isTransient:
-                    width += scroll.style().pixelMetric(QStyle.PM_ScrollBarExtent, widget=scroll)
+            # add scrollbar width
+            scroll = self.view().verticalScrollBar()
+            isTransient = scroll.style().styleHint(QStyle.SH_ScrollBar_Transient, widget=scroll)
+            if not isTransient:
+                width += scroll.style().pixelMetric(QStyle.PM_ScrollBarExtent, widget=scroll)
 
             self.__sizeHint = QSize(width, height)
 
@@ -1434,7 +1443,7 @@ class QuickMenu(FramelessWindow):
                     base_color = brush.color()
                     button.setStyleSheet(
                         TAB_BUTTON_STYLE_TEMPLATE.format
-                        (base_color.darker(110).name(),
+                        (base_color.darker(115).name(),
                          base_color.name())
                     )
 
@@ -1467,7 +1476,7 @@ class QuickMenu(FramelessWindow):
             button = self.__pages.tabButton(i)
             button.setStyleSheet(
                 TAB_BUTTON_STYLE_TEMPLATE.format
-                (base_color.darker(110).name(),
+                (base_color.darker(115).name(),
                  base_color.name())
             )
 
