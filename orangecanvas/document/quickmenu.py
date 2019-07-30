@@ -289,6 +289,15 @@ class MenuPage(ToolTree):
                 height = height * count
             else:
                 height = 0
+
+            # accommodate width for scroll bar width on mac, should transient scrollbars be disabled
+            # System Preferences -> General -> Show scroll bars
+            if sys.platform == "darwin":
+                scroll = self.view().verticalScrollBar()
+                isTransient = scroll.style().styleHint(QStyle.SH_ScrollBar_Transient, widget=scroll)
+                if not isTransient:
+                    width += scroll.style().pixelMetric(QStyle.PM_ScrollBarExtent, widget=scroll)
+
             self.__sizeHint = QSize(width, height)
 
         return self.__sizeHint
@@ -1240,7 +1249,7 @@ class QuickMenu(FramelessWindow):
     def __init__(self, parent=None, **kwargs):
         # type: (Optional[QWidget], Any) -> None
         super().__init__(parent, **kwargs)
-        self.setWindowFlags(Qt.Popup)
+        self.setWindowFlags(self.windowFlags() | Qt.Popup)
 
         self.__filterFunc = None  # type: Optional[FilterFunc]
         self.__sortingFunc = None  # type: Optional[Callable[[Any, Any], bool]]
