@@ -103,7 +103,7 @@ CategoryPopupMenu {
 
 CategoryPopupMenu ToolTree QTreeView::item {
 	height: 25px;
-	background: transparent;
+	border-bottom: 1px solid #e9eff2;
 }
 
 CategoryPopupMenu QTreeView::item:selected {
@@ -345,6 +345,30 @@ QuickMenu QFrame#menu-frame {
 	border: 1px solid #9CACB4;
     border-radius: 3px;
     background-color: #E9EFF2;
+}
+
+/* separating border */
+QuickMenu QTreeView::item {
+    border-bottom: 1px solid #e9eff2;
+}
+
+QuickMenu QTreeView::item:selected {
+	background: qlineargradient(
+		x1: 0, y1: 0, x2: 0, y2: 1,
+		stop: 0 #688EF6,
+		stop: 0.5 #4047f4,
+		stop: 1.0 #2D68F3
+	);
+	color: white;
+}
+/* split 'shortcut' hint item spacing */
+QuickMenu QTreeView::item:selected:first {
+    margin-right: 0px;
+    padding-right: 0px;
+}
+QuickMenu QTreeView::item:selected:last {
+    margin-left: -1px;
+    padding-left: -1px;
 }
 
 QuickMenu TabBarWidget QToolButton {

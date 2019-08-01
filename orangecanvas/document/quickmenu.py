@@ -20,17 +20,20 @@ from AnyQt.QtWidgets import (
     QWidget, QFrame, QToolButton, QAbstractButton, QAction, QTreeView,
     QButtonGroup, QStackedWidget, QHBoxLayout, QVBoxLayout, QSizePolicy,
     QStyleOptionToolButton, QStylePainter, QStyle, QApplication,
-    QStyleOptionViewItem, QSizeGrip, QAbstractItemView, QItemDelegate)
+    QStyleOptionViewItem, QSizeGrip, QAbstractItemView, QStyledItemDelegate
+)
 from AnyQt.QtGui import (
     QIcon, QStandardItemModel, QPolygon, QRegion, QBrush, QPalette,
-    QPaintEvent, QColor, QPen)
+    QPaintEvent, QColor
+)
 from AnyQt.QtCore import (
     Qt, QObject, QPoint, QSize, QRect, QEventLoop, QEvent, QModelIndex,
     QTimer, QRegExp, QSortFilterProxyModel, QItemSelectionModel,
-    QAbstractItemModel, QLineF)
+    QAbstractItemModel
+)
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 from PyQt5.QtCore import QRectF, QPointF
-from PyQt5.QtGui import QPainter, QLinearGradient
+from PyQt5.QtGui import QPainter
 
 from .usagestatistics import UsageStatistics
 from ..gui.framelesswindow import FramelessWindow
@@ -44,31 +47,19 @@ from ..resources import icon_loader
 log = logging.getLogger(__name__)
 
 
-class _MenuItemDelegate(QItemDelegate):
-    def __init__(self, parent):
-        super().__init__(parent)
-
+class _MenuItemDelegate(QStyledItemDelegate):
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex):
-        painter.save()
+        widget = option.widget
+        if widget is not None:
+            style = widget.style()
+        else:
+            style = QApplication.style()
 
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
         rect = option.rect
         tl = rect.topLeft()
         br = rect.bottomRight()
-
-        """ Draw separating lines """
-
-        lineWidth = 1
-        lines = [QLineF(QPointF(tl.x() + lineWidth / 2, tl.y() + lineWidth / 2),
-                        QPointF(br.x() + lineWidth / 2, tl.y() + lineWidth / 2)),
-                 QLineF(QPointF(tl.x() + lineWidth / 2, br.y() + lineWidth / 2),
-                        QPointF(br.x() + lineWidth / 2, br.y() + lineWidth / 2))]
-
-        pen = QPen()
-        pen.setWidth(lineWidth)
-        pen.setColor(QColor('#e9eff2'))
-        painter.setPen(pen)
-        painter.drawLines(lines)
-
         """ Draw icon background """
 
         # get category color
@@ -79,7 +70,8 @@ class _MenuItemDelegate(QItemDelegate):
             color = QColor("FFA840")  # orange!
 
         # (get) cache(d) pixmap
-        bg = innerGlowBackgroundPixmap(color, QSize(rect.height(), rect.height()))
+        bg = innerGlowBackgroundPixmap(color,
+                                       QSize(rect.height(), rect.height()))
 
         # draw background
         bgRect = QRect(tl.x(), tl.y(), rect.height(), rect.height())
@@ -88,8 +80,7 @@ class _MenuItemDelegate(QItemDelegate):
         """ Draw icon """
 
         # get item decoration (icon)
-        action = index.data(QtWidgetRegistry.WIDGET_ACTION_ROLE)
-        dec = action.icon()  # type: QIcon
+        dec = opt.icon
         decSize = option.decorationSize  # use as approximate/minimum size
         x = rect.left() + rect.height() / 2 - decSize.width() / 2
         y = rect.top() + rect.height() / 2 - decSize.height() / 2
@@ -102,82 +93,71 @@ class _MenuItemDelegate(QItemDelegate):
         # draw icon pixmap
         dec.paint(painter, decRect.toAlignedRect())
 
-        # save for text drawing
-        painter.save()
+        # draw display
+        rect = QRect(opt.rect)
+        rect.setLeft(bgRect.left() + bgRect.width())  # move to icon area end
+        opt.rect = rect
+        # no focus display (selected state is the sole indicator)
+        opt.state &= ~ QStyle.State_KeyboardFocusChange
+        opt.state &= ~ QStyle.State_HasFocus
+        # no icon
+        opt.decorationSize = QSize()
+        opt.icon = QIcon()
+        opt.features &= ~QStyleOptionViewItem.HasDecoration
+        if not opt.state & QStyle.State_Selected:
+            style.drawControl(QStyle.CE_ItemViewItem, opt, painter, widget)
+            return
+        # draw as 2 side by side items, first with the actual text,
+        # the second with 'enter key' shortcut indicator
+        optleft = QStyleOptionViewItem(opt)
+        optright = QStyleOptionViewItem(opt)
 
-        textLeftMargin = QApplication.style().pixelMetric(QStyle.PM_FocusFrameHMargin, option=option) + 1
+        optright.decorationSize = QSize()
+        optright.icon = QIcon()
+        optright.features &= ~QStyleOptionViewItem.HasDecoration
+        optright.viewItemPosition = QStyleOptionViewItem.End
+        optright.textElideMode = Qt.ElideNone
+        optright.text = "\u21B5"
+        sh = style.sizeFromContents(
+            QStyle.CT_ItemViewItem, optright, QSize(), widget)
+        rectright = QRect(opt.rect)
+        rectright.setLeft(rectright.left() + rectright.width() - sh.width())
+        optright.rect = rectright
 
-        """ Draw selected item background, set text drawing rect/pen """
+        rectleft = QRect(opt.rect)
+        rectleft.setRight(rectright.left())
+        optleft.rect = rectleft
+        optleft.viewItemPosition = QStyleOptionViewItem.Beginning
+        optleft.textElideMode = Qt.ElideRight
 
-        if option.state & QStyle.State_Selected:
-            backgroundRect = QRect(tl.x() + rect.height(),
-                                   tl.y(),
-                                   rect.width() - rect.height(),
-                                   rect.height())
-            grad = QLinearGradient(0, 0, 0, 1)
-            grad.setCoordinateMode(QLinearGradient.ObjectBoundingMode)
-            grad.setColorAt(0, QColor("#688EF6"))
-            grad.setColorAt(0.5, QColor("#4047F4"))
-            grad.setColorAt(1, QColor("#2D68F3"))
-            painter.fillRect(backgroundRect, grad)
-
-            # set text drawing rect, text elides due to carriage return if selected
-            textRect = QRect(tl.x() + rect.height() + textLeftMargin,
-                             tl.y(),
-                             rect.width() - 2 * rect.height() - textLeftMargin,
-                             rect.height())
-            painter.setPen(Qt.white)
-        else:
-            textRect = QRect(tl.x() + rect.height() + textLeftMargin,
-                             tl.y(),
-                             rect.width() - rect.height() - textLeftMargin,
-                             rect.height())
-            painter.setPen(Qt.black)
-
-        """ Draw text """
-
-        text = option.fontMetrics.elidedText(action.text(), Qt.ElideRight, textRect.width())
-        painter.drawText(textRect, Qt.AlignLeft | Qt.AlignVCenter, text)
-
-        painter.restore()
-
-        """ Draw carriage return character to the right of selected item """
-
-        if option.state & QStyle.State_Selected:
-            enterRect = QRect(tl.x() + rect.width() - rect.height(),
-                              tl.y(),
-                              rect.height(),
-                              rect.height())
-            painter.setPen(Qt.white)
-            painter.drawText(enterRect, Qt.AlignCenter, "\u21B5")
-
-        painter.restore()
+        style.drawControl(QStyle.CE_ItemViewItem, optright, painter, widget)
+        style.drawControl(QStyle.CE_ItemViewItem, optleft, painter, widget)
 
     def sizeHint(self, option, index):
         # type: (QStyleOptionViewItem, QModelIndex) -> QSize
-        size = super().sizeHint(option, index)
-        # TODO: get the default QMenu item height from the current style.
-        size.setHeight(max(size.height(), 25))
+        if option.widget is not None:
+            style = option.widget.style()
+        else:
+            style = QApplication.style()
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
 
-        # calculate sizehint width
-        # icon, icon background
-        width = size.height()
-
-        # text width
-        action = index.data(QtWidgetRegistry.WIDGET_ACTION_ROLE)
-        if action is not None:
-            text = action.text()
-            width += option.fontMetrics.width(text)
-
-        # text margin
-        textMargin = QApplication.style().pixelMetric(QStyle.PM_FocusFrameHMargin, option=option) + 1
-        width += 2 * textMargin
-
-        # for good measure
-        width += 1
-
-        size.setWidth(width)
-        return size
+        # content size without the icon
+        optnoicon = QStyleOptionViewItem(opt)
+        optnoicon.decorationSize = QSize()
+        optnoicon.icon = QIcon()
+        optnoicon.features &= ~QStyleOptionViewItem.HasDecoration
+        sh = style.sizeFromContents(
+            QStyle.CT_ItemViewItem, optnoicon, QSize(), option.widget
+        )
+        # size with the icon
+        shicon = style.sizeFromContents(
+            QStyle.CT_ItemViewItem, opt, QSize(), option.widget
+        )
+        sh.setHeight(max(sh.height(), shicon.height(), 25))
+        # add the custom drawn icon area rect to sh (height x height)
+        sh.setWidth(sh.width() + sh.height())
+        return sh
 
 
 class MenuPage(ToolTree):
