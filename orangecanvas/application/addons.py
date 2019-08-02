@@ -17,11 +17,12 @@ import typing
 
 from concurrent.futures import ThreadPoolExecutor, Future
 from collections import deque
+from contextlib import contextmanager
 from xml.sax.saxutils import escape
 
 from typing import (
     List, Dict, Any, Optional, Union, Tuple, NamedTuple, Callable, AnyStr,
-    Iterable
+    Iterable, Iterator
 )
 
 import requests
@@ -1349,6 +1350,19 @@ class Installer(QObject):
             self.finished.emit()
 
 
+@contextmanager
+def temp_named_file(content, encoding="utf-8", suffix=None, prefix=None):
+    # type: (str, Optional[str], Optional[str], Optional[str]) -> Iterator[str]
+    fd, name = tempfile.mkstemp(suffix, prefix, text=True)
+    file = os.fdopen(fd, mode="wt", encoding=encoding,)
+    file.write(content)
+    file.close()
+    try:
+        yield name
+    finally:
+        os.remove(name)
+
+
 class PipInstaller:
 
     def __init__(self):
@@ -1359,13 +1373,10 @@ class PipInstaller:
         # type: (Installable) -> None
         constraints = config.default.core_packages()
         constraints = ("\n".join(constraints))
-        with tempfile.NamedTemporaryFile(
-                mode="w+t", suffix=".txt", encoding="utf-8") as cfile:
-            cfile.write(constraints)
-            cfile.flush()
+        with temp_named_file(constraints, suffix=".txt") as cfile:
             cmd = [
                 "python", "-m", "pip",  "install",
-                      "--constraint", cfile.name,
+                      "--constraint", cfile,
             ] + self.arguments
 
             if pkg.package_url.startswith(("http://", "https://")):
@@ -1379,14 +1390,11 @@ class PipInstaller:
     def upgrade(self, package):
         constraints = config.default.core_packages()
         constraints = ("\n".join(constraints))
-        with tempfile.NamedTemporaryFile(
-                mode="w+t", suffix=".txt", encoding="utf-8") as cfile:
-            cfile.write(constraints)
-            cfile.flush()
+        with temp_named_file(constraints, suffix=".txt") as cfile:
             cmd = [
                 "python", "-m", "pip", "install",
                     "--upgrade", "--upgrade-strategy=only-if-needed",
-                    "--constraint", cfile.name,
+                    "--constraint", cfile,
             ] + self.arguments
             if package.package_url.startswith(("http://", "https://")):
                 cmd.append(package.name)
