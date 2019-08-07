@@ -8,7 +8,7 @@ from xml.sax.saxutils import escape
 
 from AnyQt.QtWidgets import (
     QDialog, QWidget, QToolButton, QCheckBox, QAction,
-    QHBoxLayout, QVBoxLayout, QSizePolicy, QLabel
+    QHBoxLayout, QVBoxLayout, QSizePolicy, QLabel, QApplication
 )
 from AnyQt.QtGui import (
     QFont, QIcon, QPixmap, QPainter, QColor, QBrush, QActionEvent
@@ -53,8 +53,8 @@ def decorate_welcome_icon(icon, background_color):
 WELCOME_WIDGET_BUTTON_STYLE = """
 WelcomeActionButton {
     border: none;
+    font-size: 13px;
     icon-size: 75px;
-    /*font: bold italic 14px "Helvetica";*/
 }
 
 WelcomeActionButton:pressed {
@@ -72,6 +72,10 @@ WelcomeActionButton:focus {
 
 
 class WelcomeActionButton(QToolButton):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setFont(QApplication.font("QAbstractButton"))
+
     def actionEvent(self, event):
         # type: (QActionEvent) -> None
         super().actionEvent(event)
