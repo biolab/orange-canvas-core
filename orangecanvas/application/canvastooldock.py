@@ -8,8 +8,7 @@ from typing import Optional, Any
 
 from AnyQt.QtWidgets import (
     QWidget, QSplitter, QVBoxLayout, QAction, QSizePolicy, QApplication,
-    QToolButton
-)
+    QToolButton, QTreeView)
 from AnyQt.QtGui import QPalette, QBrush, QDrag, QResizeEvent, QHideEvent
 
 from AnyQt.QtCore import (
@@ -23,8 +22,8 @@ from ..gui.toolgrid import ToolGrid
 from ..gui.toolbar import DynamicResizeToolBar
 from ..gui.quickhelp import QuickHelp
 from ..gui.framelesswindow import FramelessWindow
+from ..gui.utils import create_css_gradient
 from ..document.quickmenu import MenuPage
-from ..document.quickmenu import create_css_gradient
 from .widgettoolbox import WidgetToolBox, iter_index, item_text, item_icon, item_tooltip
 from ..registry.qt import QtWidgetRegistry
 
@@ -441,6 +440,7 @@ class CategoryPopupMenu(FramelessWindow):
         self.__dragListener.dragStarted.connect(self.__onDragStarted)
 
         self.__menu.view().viewport().installEventFilter(self.__dragListener)
+        self.__menu.view().installEventFilter(self)
 
         layout.addWidget(self.__menu)
 
@@ -512,6 +512,7 @@ class CategoryPopupMenu(FramelessWindow):
         geom = widget_popup_geometry(pos, self)
         self.setGeometry(geom)
         self.show()
+        self.__menu.view().setFocus()
 
     def exec_(self, pos=None):
         # type: (Optional[QPoint]) -> Optional[QAction]
@@ -570,6 +571,16 @@ class CategoryPopupMenu(FramelessWindow):
         drag.exec_(Qt.CopyAction)
 
         viewport.removeEventFilter(filter)
+
+    def eventFilter(self, obj, event):
+        if isinstance(obj, QTreeView) and event.type() == QEvent.KeyPress:
+            key = event.key()
+            if key in [Qt.Key_Return, Qt.Key_Enter]:
+                curr = obj.currentIndex()
+                if curr.isValid():
+                    obj.activated.emit(curr)
+                    return True
+        return super().eventFilter(obj, event)
 
 
 class ItemViewDragStartEventListener(QObject):

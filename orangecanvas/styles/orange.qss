@@ -347,8 +347,9 @@ QuickMenu QFrame#menu-frame {
     background-color: #E9EFF2;
 }
 
+/* separating border */
 QuickMenu QTreeView::item {
-	border-bottom: 1px solid #e9eff2;
+    border-bottom: 1px solid #e9eff2;
 }
 
 QuickMenu QTreeView::item:selected {
@@ -360,17 +361,22 @@ QuickMenu QTreeView::item:selected {
 	);
 	color: white;
 }
+/* split 'shortcut' hint item spacing */
+QuickMenu QTreeView::item:selected:first {
+    margin-right: 0px;
+    padding-right: 0px;
+}
+QuickMenu QTreeView::item:selected:last {
+    margin-left: -1px;
+    padding-left: -1px;
+}
 
 QuickMenu TabBarWidget QToolButton {
 	height: 25px;
-	border-bottom: 1px solid palette(dark);
 	padding-right: 5px;
 	padding-left: 5px;
-	qproperty-showMenuIndicator_: true;
-}
-
-QuickMenu TabBarWidget QToolButton#search-tab-button {
-	background-color: #9CACB4;
+	qproperty-showMenuIndicator_: false;
+	qproperty-shadowLength_: 4;
 }
 
 QuickMenu TabBarWidget QToolButton:menu-indicator {
@@ -383,13 +389,14 @@ QuickMenu TabBarWidget QToolButton:menu-indicator {
 /* Quick Menu search line edit
  */
 
-QuickMenu QLineEdit {
+QuickMenu SearchWidget {
     height: 25px;
     margin: 0px;
     padding: 0px;
     border: 1px solid #9CACB4;
     border-radius: 3px;
     background-color: white;
+    qproperty-shadowLength_: 4;
 }
 
 QuickMenu QLineEdit:focus {

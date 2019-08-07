@@ -20,12 +20,11 @@ from AnyQt.QtWidgets import (
     QWidget, QFrame, QToolButton, QAbstractButton, QAction, QTreeView,
     QButtonGroup, QStackedWidget, QHBoxLayout, QVBoxLayout, QSizePolicy,
     QStyleOptionToolButton, QStylePainter, QStyle, QApplication,
-    QStyledItemDelegate, QStyleOptionViewItem, QSizeGrip,
-    QAbstractItemView
+    QStyleOptionViewItem, QSizeGrip, QAbstractItemView, QStyledItemDelegate
 )
 from AnyQt.QtGui import (
     QIcon, QStandardItemModel, QPolygon, QRegion, QBrush, QPalette,
-    QPaintEvent
+    QPaintEvent, QColor
 )
 from AnyQt.QtCore import (
     Qt, QObject, QPoint, QSize, QRect, QEventLoop, QEvent, QModelIndex,
@@ -33,12 +32,14 @@ from AnyQt.QtCore import (
     QAbstractItemModel
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
+from PyQt5.QtCore import QRectF, QPointF
+from PyQt5.QtGui import QPainter
 
 from .usagestatistics import UsageStatistics
 from ..gui.framelesswindow import FramelessWindow
 from ..gui.lineedit import LineEdit
 from ..gui.tooltree import ToolTree, FlattenedTreeItemModel
-from ..gui.utils import StyledWidget_paintEvent, create_css_gradient
+from ..gui.utils import StyledWidget_paintEvent, innerGlowBackgroundPixmap, innerShadowPixmap
 from ..registry.qt import QtWidgetRegistry
 
 from ..resources import icon_loader
@@ -47,15 +48,116 @@ log = logging.getLogger(__name__)
 
 
 class _MenuItemDelegate(QStyledItemDelegate):
+    def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex):
+        widget = option.widget
+        if widget is not None:
+            style = widget.style()
+        else:
+            style = QApplication.style()
+
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+        rect = option.rect
+        tl = rect.topLeft()
+        br = rect.bottomRight()
+        """ Draw icon background """
+
+        # get category color
+        brush = as_qbrush(index.data(QtWidgetRegistry.BACKGROUND_ROLE))
+        if brush is not None:
+            color = brush.color()
+        else:
+            color = QColor("FFA840")  # orange!
+
+        # (get) cache(d) pixmap
+        bg = innerGlowBackgroundPixmap(color,
+                                       QSize(rect.height(), rect.height()))
+
+        # draw background
+        bgRect = QRect(tl.x(), tl.y(), rect.height(), rect.height())
+        painter.drawPixmap(bgRect, bg, bg.rect())
+
+        """ Draw icon """
+
+        # get item decoration (icon)
+        dec = opt.icon
+        decSize = option.decorationSize  # use as approximate/minimum size
+        x = rect.left() + rect.height() / 2 - decSize.width() / 2
+        y = rect.top() + rect.height() / 2 - decSize.height() / 2
+
+        # decoration rect, where the icon is drawn
+        decTl = QPointF(x, y)
+        decBr = QPointF(x + decSize.width(), y + decSize.height())
+        decRect = QRectF(decTl, decBr)
+
+        # draw icon pixmap
+        dec.paint(painter, decRect.toAlignedRect())
+
+        # draw display
+        rect = QRect(opt.rect)
+        rect.setLeft(bgRect.left() + bgRect.width())  # move to icon area end
+        opt.rect = rect
+        # no focus display (selected state is the sole indicator)
+        opt.state &= ~ QStyle.State_KeyboardFocusChange
+        opt.state &= ~ QStyle.State_HasFocus
+        # no icon
+        opt.decorationSize = QSize()
+        opt.icon = QIcon()
+        opt.features &= ~QStyleOptionViewItem.HasDecoration
+        if not opt.state & QStyle.State_Selected:
+            style.drawControl(QStyle.CE_ItemViewItem, opt, painter, widget)
+            return
+        # draw as 2 side by side items, first with the actual text,
+        # the second with 'enter key' shortcut indicator
+        optleft = QStyleOptionViewItem(opt)
+        optright = QStyleOptionViewItem(opt)
+
+        optright.decorationSize = QSize()
+        optright.icon = QIcon()
+        optright.features &= ~QStyleOptionViewItem.HasDecoration
+        optright.viewItemPosition = QStyleOptionViewItem.End
+        optright.textElideMode = Qt.ElideNone
+        optright.text = "\u21B5"
+        sh = style.sizeFromContents(
+            QStyle.CT_ItemViewItem, optright, QSize(), widget)
+        rectright = QRect(opt.rect)
+        rectright.setLeft(rectright.left() + rectright.width() - sh.width())
+        optright.rect = rectright
+
+        rectleft = QRect(opt.rect)
+        rectleft.setRight(rectright.left())
+        optleft.rect = rectleft
+        optleft.viewItemPosition = QStyleOptionViewItem.Beginning
+        optleft.textElideMode = Qt.ElideRight
+
+        style.drawControl(QStyle.CE_ItemViewItem, optright, painter, widget)
+        style.drawControl(QStyle.CE_ItemViewItem, optleft, painter, widget)
+
     def sizeHint(self, option, index):
         # type: (QStyleOptionViewItem, QModelIndex) -> QSize
-        option = QStyleOptionViewItem(option)
-        self.initStyleOption(option, index)
-        size = super().sizeHint(option, index)
+        if option.widget is not None:
+            style = option.widget.style()
+        else:
+            style = QApplication.style()
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
 
-        # TODO: get the default QMenu item height from the current style.
-        size.setHeight(max(size.height(), 25))
-        return size
+        # content size without the icon
+        optnoicon = QStyleOptionViewItem(opt)
+        optnoicon.decorationSize = QSize()
+        optnoicon.icon = QIcon()
+        optnoicon.features &= ~QStyleOptionViewItem.HasDecoration
+        sh = style.sizeFromContents(
+            QStyle.CT_ItemViewItem, optnoicon, QSize(), option.widget
+        )
+        # size with the icon
+        shicon = style.sizeFromContents(
+            QStyle.CT_ItemViewItem, opt, QSize(), option.widget
+        )
+        sh.setHeight(max(sh.height(), shicon.height(), 25))
+        # add the custom drawn icon area rect to sh (height x height)
+        sh.setWidth(sh.width() + sh.height())
+        return sh
 
 
 class MenuPage(ToolTree):
@@ -178,6 +280,13 @@ class MenuPage(ToolTree):
                 height = height * count
             else:
                 height = 0
+
+            # add scrollbar width
+            scroll = self.view().verticalScrollBar()
+            isTransient = scroll.style().styleHint(QStyle.SH_ScrollBar_Transient, widget=scroll)
+            if not isTransient:
+                width += scroll.style().pixelMetric(QStyle.PM_ScrollBarExtent, widget=scroll)
+
             self.__sizeHint = QSize(width, height)
 
         return self.__sizeHint
@@ -420,12 +529,64 @@ class SearchWidget(LineEdit):
     def __init__(self, parent=None, **kwargs):
         # type: (Optional[QWidget], Any) -> None
         super().__init__(parent, **kwargs)
+        self.__shadowLength = 5
+        self.__shadowPosition = 0
+
         self.__setupUi()
+
+    def setShadowLength(self, shadowSize):
+        if self.__shadowLength != shadowSize:
+            self.__shadowLength = shadowSize
+            self.update()
+
+    def shadowLength(self):
+        return self.__shadowLength
+
+    shadowLength_ = Property(int, fget=shadowLength, fset=setShadowLength, designable=True)
 
     def __setupUi(self):
         icon = icon_loader().get("icons/Search.svg")
         action = QAction(icon, "Search", self)
         self.setAction(action, LineEdit.LeftPosition)
+
+        button = self.button(LineEdit.LeftPosition)
+
+        # paint shadow over search button when not in search menu
+        def shadowPaintEvent(b, event):
+            QToolButton.paintEvent(b, event)
+
+            shadow = innerShadowPixmap(QColor("000000"),
+                                       b.size(),
+                                       self.__shadowPosition,
+                                       length=self.__shadowLength)
+
+            p = QPainter(b)
+            p.setCompositionMode(QPainter.CompositionMode_SoftLight)
+
+            rect = b.rect()
+            targetRect = QRect(rect.left() + 1,
+                               rect.top() + 1,
+                               rect.width() - 2,
+                               rect.height() - 2)
+
+            p.drawPixmap(targetRect, shadow, shadow.rect())
+            p.end()
+
+        class PaintEventFilter(QObject):
+            def eventFilter(self, recv: QObject, event: QEvent) -> bool:
+                if event.type() == QEvent.Paint and recv is button:
+                    shadowPaintEvent(recv, event)
+                    return True
+                return super().eventFilter(recv, event)
+
+        ef = PaintEventFilter(button)
+        button.installEventFilter(ef)
+
+    def setShadow(self, enabled):
+        shadowPosition = 15 if enabled else 0
+        if self.__shadowPosition != shadowPosition:
+            self.__shadowPosition = shadowPosition
+            self.button(SearchWidget.LeftPosition).update()
 
 
 class MenuStackWidget(QStackedWidget):
@@ -480,6 +641,19 @@ class TabButton(QToolButton):
 
         self.__flat = True
         self.__showMenuIndicator = False
+        self.__shadowLength = 5
+
+        self.shadowPosition = 0
+
+    def setShadowLength(self, shadowSize):
+        if self.__shadowLength != shadowSize:
+            self.__shadowLength = shadowSize
+            self.update()
+
+    def shadowLength(self):
+        return self.__shadowLength
+
+    shadowLength_ = Property(int, fget=shadowLength, fset=setShadowLength, designable=True)
 
     def setFlat(self, flat):
         # type: (bool) -> None
@@ -523,6 +697,20 @@ class TabButton(QToolButton):
         else:
             p = QStylePainter(self)
             p.drawComplexControl(QStyle.CC_ToolButton, opt)
+
+        # if checked, no shadow
+        if self.isChecked():
+            return
+
+        targetShadowRect = QRect(self.rect().x(), self.rect().y(), self.width() - 1, self.height() - 1)
+
+        shadow = innerShadowPixmap(QColor("333333"),
+                                   targetShadowRect.size(),
+                                   self.shadowPosition,
+                                   self.__shadowLength)
+
+        p.setCompositionMode(QPainter.CompositionMode_SoftLight)
+        p.drawPixmap(targetShadowRect, shadow, shadow.rect())
 
     def sizeHint(self):
         # type: () -> QSize
@@ -583,6 +771,8 @@ class TabBarWidget(QWidget):
         self.__sloppyTimer = QTimer(self, singleShot=True)
         self.__sloppyTimer.timeout.connect(self.__onSloppyTimeout)
 
+        self.currentChanged.connect(self.__updateShadows)
+
     def setChangeOnHover(self, changeOnHover):
         #  type: (bool) -> None
         """
@@ -636,6 +826,9 @@ class TabBarWidget(QWidget):
 
         if self.currentIndex() == -1:
             self.setCurrentIndex(0)
+
+        self.__updateShadows()
+
         return index
 
     def removeTab(self, index):
@@ -665,6 +858,8 @@ class TabBarWidget(QWidget):
                     self.setCurrentIndex(max(index - 1, 0))
                 else:
                     self.setCurrentIndex(-1)
+
+            self.__updateShadows()
 
     def setTabIcon(self, index, icon):
         # type: (int, QIcon) -> None
@@ -752,6 +947,36 @@ class TabBarWidget(QWidget):
         if tab.palette:
             b.setPalette(tab.palette)
 
+    def __updateShadows(self):
+        currentIndex = self.currentIndex()
+
+        buttons = [tab.button for tab in self.__tabs if tab.button.isVisibleTo(self.parent())]
+        if not buttons:
+            return
+
+        # set left/right shadows
+        buttonShadows = [10] * len(buttons)
+
+        # set top shadow
+        buttonShadows[0] |= 1
+        # set bottom shadow
+        buttonShadows[-1] |= 4
+
+        i = currentIndex + 1
+        belowChosen = self.__tabs[i].button if i < len(self.__tabs) else None
+        aboveChosen = self.__tabs[currentIndex - 1].button if i >= 0 else None
+
+        for i in range(len(buttons)):
+            button = buttons[i]
+            if button is belowChosen:
+                buttonShadows[i] |= 1
+            if button is aboveChosen:
+                buttonShadows[i] |= 4
+
+            if buttonShadows[i] != button.shadowPosition:
+                button.shadowPosition = buttonShadows[i]
+                button.update()
+
     def __onButtonPressed(self, button):
         # type: (QAbstractButton) -> None
         for i, tab in enumerate(self.__tabs):
@@ -834,13 +1059,15 @@ class PagedMenu(QWidget):
 
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
+        layout.setSpacing(0)
 
         self.__tab = TabBarWidget(self)
         self.__tab.currentChanged.connect(self.setCurrentIndex)
         self.__tab.setChangeOnHover(True)
 
         self.__stack = MenuStackWidget(self)
+
+        self.navigator = ItemViewKeyNavigator(self)
 
         layout.addWidget(self.__tab, alignment=Qt.AlignTop)
         layout.addWidget(self.__stack)
@@ -901,6 +1128,12 @@ class PagedMenu(QWidget):
             self.__currentIndex = index
             self.__tab.setCurrentIndex(index)
             self.__stack.setCurrentIndex(index)
+
+            view = self.currentPage().view()
+            self.navigator.setView(view)
+            self.navigator.ensureCurrent()
+            view.setFocus()
+
             self.currentChanged.emit(index)
 
     def currentIndex(self):
@@ -909,6 +1142,22 @@ class PagedMenu(QWidget):
         Return the index of the current page.
         """
         return self.__currentIndex
+
+    def nextPage(self):
+        """
+        Set current index to next index, if one exists.
+        """
+        index = self.currentIndex() + 1
+        if index < self.__stack.count():
+            self.setCurrentIndex(index)
+
+    def previousPage(self):
+        """
+        Set current index to previous index, if one exists.
+        """
+        index = self.currentIndex() - 1
+        if index >= 0:
+            self.setCurrentIndex(index)
 
     def setCurrentPage(self, page):
         # type: (QWidget) -> None
@@ -948,22 +1197,22 @@ def as_qbrush(value):
         return None
 
 
+# format with:
+# {0} - inactive background
+# {1} - active/checked/hover background
 TAB_BUTTON_STYLE_TEMPLATE = """\
-TabButton {
+TabButton {{
     qproperty-flat_: false;
-    background: %s;
+    background: {0};
     border: none;
-    border-bottom: 1px solid palette(mid);
-    border-right: 1px solid palette(mid);
-}
+    border-bottom: 1px solid #9CACB4;
+    border-right: 1px solid #9CACB4;
+}}
 
-TabButton:checked {
-    background: %s;
-    border: none;
-    border-top: 1px solid #609ED7;
-    border-bottom: 1px solid #609ED7;
-    border-right: 1px solid #609ED7;
-}
+TabButton:checked {{
+    background: {1};
+    border-right: 1px hidden;
+}}
 """
 
 # TODO: Cleanup the QuickMenu interface. It should not have a 'dual' public
@@ -989,7 +1238,7 @@ class QuickMenu(FramelessWindow):
     def __init__(self, parent=None, **kwargs):
         # type: (Optional[QWidget], Any) -> None
         super().__init__(parent, **kwargs)
-        self.setWindowFlags(Qt.Popup)
+        self.setWindowFlags(self.windowFlags() | Qt.Popup)
 
         self.__filterFunc = None  # type: Optional[FilterFunc]
         self.__sortingFunc = None  # type: Optional[Callable[[Any, Any], bool]]
@@ -998,9 +1247,8 @@ class QuickMenu(FramelessWindow):
         self.layout().setContentsMargins(6, 6, 6, 6)
 
         self.__search = SearchWidget(self, objectName="search-line")
-
         self.__search.setPlaceholderText(
-            self.tr("Search for widget or select from the list.")
+            self.tr("Search for a widget...")
         )
 
         self.layout().addWidget(self.__search)
@@ -1027,6 +1275,9 @@ class QuickMenu(FramelessWindow):
         self.__suggestPage.setActionRole(QtWidgetRegistry.WIDGET_ACTION_ROLE)
         self.__suggestPage.setIcon(icon_loader().get("icons/Search.svg"))
 
+        self.__search.installEventFilter(self.__pages.navigator)
+        self.__pages.navigator.setView(self.__suggestPage.view())
+
         if sys.platform == "darwin":
             view = self.__suggestPage.view()
             view.verticalScrollBar().setAttribute(Qt.WA_MacMiniSize, True)
@@ -1035,18 +1286,15 @@ class QuickMenu(FramelessWindow):
 
         i = self.addPage(self.tr("Quick Search"), self.__suggestPage)
         button = self.__pages.tabButton(i)
-        button.setObjectName("search-tab-button")
-        button.setStyleSheet(
-            "TabButton {\n"
-            "    qproperty-flat_: false;\n"
-            "    border: none;"
-            "}\n")
+        button.setVisible(False)
+
+        searchAction = self.__search.actionAt(SearchWidget.LeftPosition)
+        searchAction.hovered.connect(self.triggerSearch)
+
+        self.__pages.currentChanged.connect(lambda index:
+                                            self.__search.setShadow(i != index))
 
         self.__search.textEdited.connect(self.__on_textEdited)
-
-        self.__navigator = ItemViewKeyNavigator(self)
-        self.__navigator.setView(self.__suggestPage.view())
-        self.__search.installEventFilter(self.__navigator)
 
         self.__grip = WindowSizeGrip(self)  # type: Optional[WindowSizeGrip]
         self.__grip.raise_()
@@ -1099,8 +1347,8 @@ class QuickMenu(FramelessWindow):
         page.triggered.connect(self.__onTriggered)
         page.hovered.connect(self.hovered)
 
-        # Install event filter to intercept key presses.
-        page.view().installEventFilter(self)
+        # All page views focus on the search LineEdit
+        page.view().setFocusProxy(self.__search)
 
         return index
 
@@ -1174,9 +1422,9 @@ class QuickMenu(FramelessWindow):
                 if brush is not None:
                     base_color = brush.color()
                     button.setStyleSheet(
-                        TAB_BUTTON_STYLE_TEMPLATE %
-                        (create_css_gradient(base_color),
-                         create_css_gradient(base_color.darker(120)))
+                        TAB_BUTTON_STYLE_TEMPLATE.format
+                        (base_color.darker(115).name(),
+                         base_color.name())
                     )
 
     def __on_rowsInserted(self, parent, start, end):
@@ -1207,9 +1455,9 @@ class QuickMenu(FramelessWindow):
             base_color = brush.color()
             button = self.__pages.tabButton(i)
             button.setStyleSheet(
-                TAB_BUTTON_STYLE_TEMPLATE %
-                (create_css_gradient(base_color),
-                 create_css_gradient(base_color.darker(120)))
+                TAB_BUTTON_STYLE_TEMPLATE.format
+                (base_color.darker(115).name(),
+                 base_color.name())
             )
 
     def __removePage(self, row):
@@ -1393,37 +1641,6 @@ class QuickMenu(FramelessWindow):
         # Make sure that the first enabled item is set current.
         self.__suggestPage.ensureCurrent()
 
-    def keyPressEvent(self, event):
-        if event.text():
-            # Ignore modifiers, ...
-            self.__search.setFocus(Qt.ShortcutFocusReason)
-            self.setCurrentIndex(0)
-            self.__search.keyPressEvent(event)
-
-        super().keyPressEvent(event)
-        event.accept()
-
-    def event(self, event):
-        if event.type() == QEvent.ShortcutOverride:
-            log.debug("Overriding shortcuts")
-            event.accept()
-            return True
-        return super().event(event)
-
-    def eventFilter(self, obj, event):
-        if isinstance(obj, QTreeView):
-            etype = event.type()
-            if etype == QEvent.KeyPress:
-                # ignore modifiers non printable characters, Enter, ...
-                if event.text() and event.key() not in \
-                        [Qt.Key_Enter, Qt.Key_Return]:
-                    self.__search.setFocus(Qt.ShortcutFocusReason)
-                    self.setCurrentIndex(0)
-                    self.__search.keyPressEvent(event)
-                    return True
-
-        return super().eventFilter(obj, event)
-
 
 class ItemViewKeyNavigator(QObject):
     """
@@ -1454,17 +1671,25 @@ class ItemViewKeyNavigator(QObject):
         etype = event.type()
         if etype == QEvent.KeyPress:
             key = event.key()
+            # down
             if key == Qt.Key_Down:
                 self.moveCurrent(1, 0)
                 return True
+            # up
             elif key == Qt.Key_Up:
                 self.moveCurrent(-1, 0)
                 return True
-            elif key == Qt.Key_Tab:
-                self.moveCurrent(0, 1)
-                return  True
+            # enter / return
             elif key == Qt.Key_Enter or key == Qt.Key_Return:
                 self.activateCurrent()
+                return True
+            # shift + tab
+            elif key == Qt.Key_Backtab:
+                self.parent().previousPage()
+                return True
+            # tab
+            elif key == Qt.Key_Tab:
+                self.parent().nextPage()
                 return True
 
         return super().eventFilter(obj, event)
@@ -1477,18 +1702,23 @@ class ItemViewKeyNavigator(QObject):
         if self.__view is not None:
             view = self.__view
             model = view.model()
+            root = view.rootIndex()
 
             curr = view.currentIndex()
             curr_row, curr_col = curr.row(), curr.column()
 
             sign = 1 if rows >= 0 else -1
-            row = curr_row + rows
 
-            row_count = model.rowCount()
-            for i in range(row_count):
-                index = model.index((row + sign * i) % row_count, 0)
+            row = curr_row
+            row_count = model.rowCount(root)
+            for _ in range(row_count):
+                row = (row + sign) % row_count
+                index = root.child(row, 0) if root.isValid() else model.index(row, 0)
                 if index.flags() & Qt.ItemIsEnabled:
-                    view.setCurrentIndex(index)
+                    view.selectionModel().setCurrentIndex(
+                        index,
+                        QItemSelectionModel.ClearAndSelect
+                    )
                     break
             # TODO: move by columns
 
@@ -1511,8 +1741,9 @@ class ItemViewKeyNavigator(QObject):
             model = self.__view.model()
             curr = self.__view.currentIndex()
             if not curr.isValid():
-                for i in range(model.rowCount()):
-                    index = model.index(i, 0)
+                root = self.__view.rootIndex()
+                for i in range(model.rowCount(root)):
+                    index = root.child(i, 0) if root.isValid() else model.index(i, 0)
                     if index.flags() & Qt.ItemIsEnabled:
                         self.__view.setCurrentIndex(index)
                         break

@@ -45,7 +45,7 @@ class ToolTree(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         view = QTreeView(objectName="tool-tree-view")
-        view.setUniformRowHeights(True)
+        # view.setUniformRowHeights(True)  # causes several seconds delay upon first menu open
         view.setFrameStyle(QTreeView.NoFrame)
         view.setModel(self.__model)
         view.setRootIsDecorated(False)
