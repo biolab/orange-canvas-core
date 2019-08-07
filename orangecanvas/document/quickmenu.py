@@ -719,9 +719,12 @@ class TabButton(QToolButton):
         if self.__showMenuIndicator and self.isChecked():
             opt.features |= QStyleOptionToolButton.HasMenu
         style = self.style()
-
         hint = style.sizeFromContents(QStyle.CT_ToolButton, opt,
                                       opt.iconSize, self)
+        # add extra margin; in the absence of a better alternative
+        # just use the text <-> border margin of a push button
+        margin = style.pixelMetric(QStyle.PM_ButtonMargin, None, self)
+        hint.setWidth(hint.width() + 2 * margin)
         return hint
 
 
