@@ -124,10 +124,10 @@ class ToolBoxTabButton(QToolButton):
         rect = opt.rect
 
         icon_area_rect = QRect(rect)
-        icon_area_rect.setRight(int(icon_area_rect.height() * 1.26))
+        icon_area_rect.setWidth(int(icon_area_rect.height() * 1.26))
 
         text_rect = QRect(rect)
-        text_rect.setLeft(icon_area_rect.right() + 10)
+        text_rect.setLeft(icon_area_rect.x() + icon_area_rect.width() + 10)
 
         # Background
 
@@ -148,8 +148,10 @@ class ToolBoxTabButton(QToolButton):
             p.drawRect(icon_area_rect)
             # Line between the icon and text
             p.setPen(pen)
-            p.drawLine(icon_area_rect.topRight(),
-                       icon_area_rect.bottomRight())
+            p.drawLine(
+                icon_area_rect.x() + icon_area_rect.width(), icon_area_rect.y(),
+                icon_area_rect.x() + icon_area_rect.width(),
+                icon_area_rect.y() + icon_area_rect.height())
 
         if opt.state & QStyle.State_HasFocus:
             # Set the focus frame pen and draw the border
@@ -166,9 +168,10 @@ class ToolBoxTabButton(QToolButton):
             if self.position == QStyleOptionToolBox.OnlyOneTab or \
                     self.position == QStyleOptionToolBox.Beginning or \
                     self.selected & QStyleOptionToolBox.PreviousIsSelected:
-                p.drawLine(rect.topLeft(), rect.topRight())
-
-            p.drawLine(rect.bottomLeft(), rect.bottomRight())
+                p.drawLine(rect.x(), rect.y(),
+                           rect.x() + rect.width(), rect.y())
+            p.drawLine(rect.x(), rect.y() + rect.height(),
+                       rect.x() + rect.width(), rect.y() + rect.height())
 
         p.restore()
 
