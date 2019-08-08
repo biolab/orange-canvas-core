@@ -1,6 +1,5 @@
 """
 Orange Canvas Welcome Dialog
-
 """
 from typing import Optional, Union, Iterable
 
@@ -52,21 +51,17 @@ def decorate_welcome_icon(icon, background_color):
 
 WELCOME_WIDGET_BUTTON_STYLE = """
 WelcomeActionButton {
-    border: none;
+    border: 1px solid transparent;
+    border-radius: 10px;
     font-size: 13px;
     icon-size: 75px;
 }
-
 WelcomeActionButton:pressed {
-    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                      stop: 0 #dadbde, stop: 1 #f6f7fa);
-    border-radius: 10px;
+    background-color: palette(highlight);
+    color: palette(highlighted-text);
 }
-
 WelcomeActionButton:focus {
-    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                      stop: 0 #dadbde, stop: 1 #f6f7fa);
-    border-radius: 10px;
+    border: 1px solid palette(highlight);
 }
 """
 
