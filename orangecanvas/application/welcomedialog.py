@@ -1,6 +1,5 @@
 """
 Orange Canvas Welcome Dialog
-
 """
 from typing import Optional, Union, Iterable
 
@@ -8,7 +7,7 @@ from xml.sax.saxutils import escape
 
 from AnyQt.QtWidgets import (
     QDialog, QWidget, QToolButton, QCheckBox, QAction,
-    QHBoxLayout, QVBoxLayout, QSizePolicy, QLabel
+    QHBoxLayout, QVBoxLayout, QSizePolicy, QLabel, QApplication
 )
 from AnyQt.QtGui import (
     QFont, QIcon, QPixmap, QPainter, QColor, QBrush, QActionEvent
@@ -52,26 +51,26 @@ def decorate_welcome_icon(icon, background_color):
 
 WELCOME_WIDGET_BUTTON_STYLE = """
 WelcomeActionButton {
-    border: none;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    font-size: 13px;
     icon-size: 75px;
-    /*font: bold italic 14px "Helvetica";*/
 }
-
 WelcomeActionButton:pressed {
-    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                      stop: 0 #dadbde, stop: 1 #f6f7fa);
-    border-radius: 10px;
+    background-color: palette(highlight);
+    color: palette(highlighted-text);
 }
-
 WelcomeActionButton:focus {
-    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                      stop: 0 #dadbde, stop: 1 #f6f7fa);
-    border-radius: 10px;
+    border: 1px solid palette(highlight);
 }
 """
 
 
 class WelcomeActionButton(QToolButton):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setFont(QApplication.font("QAbstractButton"))
+
     def actionEvent(self, event):
         # type: (QActionEvent) -> None
         super().actionEvent(event)
