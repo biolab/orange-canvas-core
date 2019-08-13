@@ -24,7 +24,7 @@ from AnyQt.QtWidgets import (
 )
 from AnyQt.QtGui import (
     QIcon, QStandardItemModel, QPolygon, QRegion, QBrush, QPalette,
-    QPaintEvent, QColor
+    QPaintEvent, QColor, QMouseEvent
 )
 from AnyQt.QtCore import (
     Qt, QObject, QPoint, QSize, QRect, QEventLoop, QEvent, QModelIndex,
@@ -176,8 +176,8 @@ class MenuPage(ToolTree):
         self.__sizeHint = None  # type: Optional[QSize]
 
         self.view().setItemDelegate(_MenuItemDelegate(self.view()))
-        self.view().entered.connect(self.__onEntered)
         self.view().viewport().setMouseTracking(True)
+        self.view().viewport().installEventFilter(self)
 
         # Make sure the initial model is wrapped in a ItemDisableFilter.
         self.setModel(self.model())
@@ -295,21 +295,14 @@ class MenuPage(ToolTree):
         self.__sizeHint = None
         self.updateGeometry()
 
-    def __onEntered(self, index):  # type: (QModelIndex) -> None
-        if not index.isValid():
-            return
-
-        if self.view().state() != QTreeView.NoState:
-            # The item view can emit an 'entered' signal while the model/view
-            # is being changed (rows removed). When this happens, setting the
-            # current item can segfault (in QTreeView::scrollTo).
-            return
-
-        if index.flags() & Qt.ItemIsEnabled:
-            self.view().selectionModel().setCurrentIndex(
-                index,
-                QItemSelectionModel.ClearAndSelect
-            )
+    def eventFilter(self, recv: QObject, event: QEvent) -> bool:
+        if event.type() == QEvent.MouseMove and recv is self.view().viewport():
+            mouseevent = typing.cast(QMouseEvent, event)
+            view = self.view()
+            index = view.indexAt(mouseevent.pos())
+            if index.isValid() and index.flags() & Qt.ItemIsEnabled:
+                view.setCurrentIndex(index)
+        return super().eventFilter(recv, event)
 
 
 if typing.TYPE_CHECKING:
