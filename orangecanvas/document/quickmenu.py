@@ -521,6 +521,7 @@ class SearchWidget(LineEdit):
     def __init__(self, parent=None, **kwargs):
         # type: (Optional[QWidget], Any) -> None
         super().__init__(parent, **kwargs)
+        self.setAttribute(Qt.WA_MacShowFocusRect, 0)
 
         self.__shadowLength = 5
         self.__shadowPosition = 0
