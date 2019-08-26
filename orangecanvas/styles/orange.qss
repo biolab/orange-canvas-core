@@ -391,13 +391,12 @@ QuickMenu TabBarWidget QToolButton:menu-indicator {
  */
 
 QuickMenu SearchWidget {
-    height: 25px;
+    height: 26px;
     margin: 0px;
     padding: 0px;
     border: 1px solid #9CACB4;
     border-radius: 3px;
     background-color: white;
-    qproperty-shadowLength_: 3;
 }
 
 QuickMenu QLineEdit:focus {
@@ -407,13 +406,21 @@ QuickMenu QLineEdit:focus {
 
 QuickMenu QLineEdit QToolButton {
 	qproperty-flat_: false;
+    qproperty-shadowLength_: 3;
+    qproperty-shadowColor_: #454C4F;
+    qproperty-shadowPosition_: 15;
     border: 1px solid #9CACB4;
     border-top-left-radius: 3px;
     border-bottom-left-radius: 3px;
-    background-color: #9CACB4;
+    background-color: #8E9CA4;
     padding: 0px;
     margin: 0px;
     icon-size: 20px;
+}
+
+QuickMenu QLineEdit QToolButton[checked="true"] {
+    qproperty-shadowPosition_: 0;
+    background-color: #9CACB4;
 }
 
 /* Notifications

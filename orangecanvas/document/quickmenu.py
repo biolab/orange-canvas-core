@@ -523,63 +523,22 @@ class SearchWidget(LineEdit):
         super().__init__(parent, **kwargs)
         self.setAttribute(Qt.WA_MacShowFocusRect, 0)
 
-        self.__shadowLength = 5
-        self.__shadowPosition = 0
-
         self.__setupUi()
-
-    def setShadowLength(self, shadowSize):
-        if self.__shadowLength != shadowSize:
-            self.__shadowLength = shadowSize
-            self.update()
-
-    def shadowLength(self):
-        return self.__shadowLength
-
-    shadowLength_ = Property(int, fget=shadowLength, fset=setShadowLength, designable=True)
 
     def __setupUi(self):
         icon = icon_loader().get("icons/Search.svg")
         action = QAction(icon, "Search", self)
         self.setAction(action, LineEdit.LeftPosition)
 
-        button = self.button(LineEdit.LeftPosition)
+        button = self.button(SearchWidget.LeftPosition)
+        button.setCheckable(True)
 
-        # paint shadow over search button when not in search menu
-        def shadowPaintEvent(b, event):
-            QToolButton.paintEvent(b, event)
-
-            shadow = innerShadowPixmap(QColor("#454C4F"),
-                                       b.size(),
-                                       self.__shadowPosition,
-                                       length=self.__shadowLength)
-
-            p = QPainter(b)
-
-            rect = b.rect()
-            targetRect = QRect(rect.left() + 1,
-                               rect.top() + 1,
-                               rect.width() - 2,
-                               rect.height() - 2)
-
-            p.drawPixmap(targetRect, shadow, shadow.rect())
-            p.end()
-
-        class PaintEventFilter(QObject):
-            def eventFilter(self, recv: QObject, event: QEvent) -> bool:
-                if event.type() == QEvent.Paint and recv is button:
-                    shadowPaintEvent(recv, event)
-                    return True
-                return super().eventFilter(recv, event)
-
-        ef = PaintEventFilter(button)
-        button.installEventFilter(ef)
-
-    def setShadow(self, enabled):
-        shadowPosition = 15 if enabled else 0
-        if self.__shadowPosition != shadowPosition:
-            self.__shadowPosition = shadowPosition
-            self.button(SearchWidget.LeftPosition).update()
+    def setChecked(self, checked):
+        button = self.button(SearchWidget.LeftPosition)
+        if button.isChecked() != checked:
+            button.setChecked(checked)
+            button.update()
+            button.style().polish(button)  # QTBUG-2982
 
 
 class MenuStackWidget(QStackedWidget):
@@ -1261,6 +1220,7 @@ class QuickMenu(FramelessWindow):
         self.__search.setPlaceholderText(
             self.tr("Search for a widget...")
         )
+        self.__search.setChecked(True)
 
         self.layout().addWidget(self.__search)
 
@@ -1303,7 +1263,7 @@ class QuickMenu(FramelessWindow):
         searchAction.hovered.connect(self.triggerSearch)
 
         self.__pages.currentChanged.connect(lambda index:
-                                            self.__search.setShadow(i != index))
+                                            self.__search.setChecked(i == index))
 
         self.__search.textEdited.connect(self.__on_textEdited)
 
