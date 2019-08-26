@@ -24,8 +24,7 @@ from AnyQt.QtWidgets import (
 )
 from AnyQt.QtGui import (
     QIcon, QStandardItemModel, QPolygon, QRegion, QBrush, QPalette,
-    QPaintEvent, QColor, QMouseEvent
-)
+    QPaintEvent, QColor, QMouseEvent, QPixmap)
 from AnyQt.QtCore import (
     Qt, QObject, QPoint, QSize, QRect, QEventLoop, QEvent, QModelIndex,
     QTimer, QRegExp, QSortFilterProxyModel, QItemSelectionModel,
@@ -522,6 +521,7 @@ class SearchWidget(LineEdit):
     def __init__(self, parent=None, **kwargs):
         # type: (Optional[QWidget], Any) -> None
         super().__init__(parent, **kwargs)
+
         self.__shadowLength = 5
         self.__shadowPosition = 0
 
@@ -548,13 +548,12 @@ class SearchWidget(LineEdit):
         def shadowPaintEvent(b, event):
             QToolButton.paintEvent(b, event)
 
-            shadow = innerShadowPixmap(QColor("000000"),
+            shadow = innerShadowPixmap(QColor("#454C4F"),
                                        b.size(),
                                        self.__shadowPosition,
                                        length=self.__shadowLength)
 
             p = QPainter(b)
-            p.setCompositionMode(QPainter.CompositionMode_SoftLight)
 
             rect = b.rect()
             targetRect = QRect(rect.left() + 1,
@@ -635,6 +634,7 @@ class TabButton(QToolButton):
         self.__flat = True
         self.__showMenuIndicator = False
         self.__shadowLength = 5
+        self.__shadowColor = QColor("#000000")
 
         self.shadowPosition = 0
 
@@ -647,6 +647,16 @@ class TabButton(QToolButton):
         return self.__shadowLength
 
     shadowLength_ = Property(int, fget=shadowLength, fset=setShadowLength, designable=True)
+
+    def setShadowColor(self, shadowColor):
+        if self.__shadowColor != shadowColor:
+            self.__shadowColor = shadowColor
+            self.update()
+
+    def shadowColor(self):
+        return self.__shadowColor
+
+    shadowColor_ = Property(QColor, fget=shadowColor, fset=setShadowColor, designable=True)
 
     def setFlat(self, flat):
         # type: (bool) -> None
@@ -695,14 +705,13 @@ class TabButton(QToolButton):
         if self.isChecked():
             return
 
-        targetShadowRect = QRect(self.rect().x(), self.rect().y(), self.width() - 1, self.height() - 1)
+        targetShadowRect = QRect(self.rect().x(), self.rect().y(), self.width(), self.height())
 
-        shadow = innerShadowPixmap(QColor("333333"),
+        shadow = innerShadowPixmap(self.__shadowColor,
                                    targetShadowRect.size(),
                                    self.shadowPosition,
                                    self.__shadowLength)
 
-        p.setCompositionMode(QPainter.CompositionMode_SoftLight)
         p.drawPixmap(targetShadowRect, shadow, shadow.rect())
 
     def sizeHint(self):
@@ -714,10 +723,13 @@ class TabButton(QToolButton):
         style = self.style()
         hint = style.sizeFromContents(QStyle.CT_ToolButton, opt,
                                       opt.iconSize, self)
-        # add extra margin; in the absence of a better alternative
-        # just use the text <-> border margin of a push button
+        # should there be no margin around the icon, add extra margin;
+        # in the absence of a better alternative use the text <-> border margin of a push button
         margin = style.pixelMetric(QStyle.PM_ButtonMargin, None, self)
-        hint.setWidth(hint.width() + 2 * margin)
+        width = max(hint.width(), opt.iconSize.width() + margin)
+        height = max(hint.height(), opt.iconSize.height() + margin)
+        hint.setWidth(width)
+        hint.setHeight(height)
         return hint
 
 
@@ -950,17 +962,18 @@ class TabBarWidget(QWidget):
         if not buttons:
             return
 
-        # set left/right shadows
-        buttonShadows = [10] * len(buttons)
+        # set right shadow
+        buttonShadows = [2] * len(buttons)
 
-        # set top shadow
-        buttonShadows[0] |= 1
-        # set bottom shadow
-        buttonShadows[-1] |= 4
+        # if button not visible
+        if self.__tabs[currentIndex].button not in buttons:
+            belowChosen = aboveChosen = None
+        else:
+            i = currentIndex + 1
+            belowChosen = self.__tabs[i].button if i < len(self.__tabs) else None
 
-        i = currentIndex + 1
-        belowChosen = self.__tabs[i].button if i < len(self.__tabs) else None
-        aboveChosen = self.__tabs[currentIndex - 1].button if i >= 0 else None
+            i = currentIndex - 1
+            aboveChosen = self.__tabs[i].button if i >= 0 else None
 
         for i in range(len(buttons)):
             button = buttons[i]
@@ -1196,18 +1209,19 @@ def as_qbrush(value):
 # format with:
 # {0} - inactive background
 # {1} - active/checked/hover background
+# {2} - shadow color
 TAB_BUTTON_STYLE_TEMPLATE = """\
 TabButton {{
     qproperty-flat_: false;
+    qproperty-shadowColor_: {2};
     background: {0};
     border: none;
-    border-bottom: 1px solid #9CACB4;
-    border-right: 1px solid #9CACB4;
+    border-right: 2px solid {0};
 }}
 
 TabButton:checked {{
     background: {1};
-    border-right: 1px hidden;
+    border-right: hidden;
 }}
 """
 
@@ -1417,10 +1431,14 @@ class QuickMenu(FramelessWindow):
                 brush = as_qbrush(index.data(QtWidgetRegistry.BACKGROUND_ROLE))
                 if brush is not None:
                     base_color = brush.color()
+                    shadow_color = base_color.fromHsv(base_color.hsvHue(),
+                                                      base_color.hsvSaturation(),
+                                                      100)
                     button.setStyleSheet(
                         TAB_BUTTON_STYLE_TEMPLATE.format
-                        (base_color.darker(115).name(),
-                         base_color.name())
+                        (base_color.darker(110).name(),
+                         base_color.name(),
+                         shadow_color.name())
                     )
 
     def __on_rowsInserted(self, parent, start, end):
@@ -1449,11 +1467,15 @@ class QuickMenu(FramelessWindow):
         brush = as_qbrush(index.data(QtWidgetRegistry.BACKGROUND_ROLE))
         if brush is not None:
             base_color = brush.color()
+            shadow_color = base_color.fromHsv(base_color.hsvHue(),
+                                              base_color.hsvSaturation(),
+                                              100)
             button = self.__pages.tabButton(i)
             button.setStyleSheet(
                 TAB_BUTTON_STYLE_TEMPLATE.format
-                (base_color.darker(115).name(),
-                 base_color.name())
+                (base_color.darker(110).name(),
+                 base_color.name(),
+                 shadow_color.name())
             )
 
     def __removePage(self, row):

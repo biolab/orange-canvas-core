@@ -361,6 +361,7 @@ QuickMenu QTreeView::item:selected {
 	);
 	color: white;
 }
+
 /* split 'shortcut' hint item spacing */
 QuickMenu QTreeView::item:selected:first {
     margin-right: 0px;
@@ -373,8 +374,10 @@ QuickMenu QTreeView::item:selected:last {
 
 QuickMenu TabBarWidget QToolButton {
 	height: 25px;
+	width: 25px;
+	qproperty-iconSize: 20px;
 	qproperty-showMenuIndicator_: false;
-	qproperty-shadowLength_: 4;
+	qproperty-shadowLength_: 3;
 }
 
 QuickMenu TabBarWidget QToolButton:menu-indicator {
@@ -394,7 +397,7 @@ QuickMenu SearchWidget {
     border: 1px solid #9CACB4;
     border-radius: 3px;
     background-color: white;
-    qproperty-shadowLength_: 4;
+    qproperty-shadowLength_: 3;
 }
 
 QuickMenu QLineEdit:focus {
@@ -404,14 +407,13 @@ QuickMenu QLineEdit:focus {
 
 QuickMenu QLineEdit QToolButton {
 	qproperty-flat_: false;
-    height: 25px;
     border: 1px solid #9CACB4;
     border-top-left-radius: 3px;
     border-bottom-left-radius: 3px;
     background-color: #9CACB4;
     padding: 0px;
     margin: 0px;
-    icon-size: 23px;
+    icon-size: 20px;
 }
 
 /* Notifications
