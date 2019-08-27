@@ -1230,6 +1230,7 @@ class QuickMenu(FramelessWindow):
 
         self.setLayout(QVBoxLayout(self))
         self.layout().setContentsMargins(6, 6, 6, 6)
+        self.layout().setSpacing(self.radius())
 
         self.__search = SearchWidget(self, objectName="search-line")
         self.__search.setPlaceholderText(
