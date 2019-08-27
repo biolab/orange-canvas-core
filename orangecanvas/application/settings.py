@@ -285,33 +285,39 @@ class UserSettingsDialog(QMainWindow):
         quickmenu.setLayout(QVBoxLayout())
         quickmenu.layout().setContentsMargins(0, 0, 0, 0)
 
-        cb1 = QCheckBox(self.tr("On double click"),
+        cb1 = QCheckBox(self.tr("Open on double click"),
                         toolTip=self.tr("Open quick menu on a double click "
                                         "on an empty spot in the canvas"))
 
-        cb2 = QCheckBox(self.tr("On right click"),
+        cb2 = QCheckBox(self.tr("Open on right click"),
                         toolTip=self.tr("Open quick menu on a right click "
                                         "on an empty spot in the canvas"))
 
-        cb3 = QCheckBox(self.tr("On space key press"),
-                        toolTip=self.tr("On Space key press while the mouse"
-                                        "is hovering over the canvas."))
+        cb3 = QCheckBox(self.tr("Open on space key press"),
+                        toolTip=self.tr("Open quick menu on Space key press "
+                                        "while the mouse is hovering over the canvas."))
 
-        cb4 = QCheckBox(self.tr("On any key press"),
-                        toolTip=self.tr("On any key press while the mouse"
-                                        "is hovering over the canvas."))
+        cb4 = QCheckBox(self.tr("Open on any key press"),
+                        toolTip=self.tr("Open quick menu on any key press "
+                                        "while the mouse is hovering over the canvas."))
+
+        cb5 = QCheckBox(self.tr("Show categories"),
+                        toolTip=self.tr("In addition to searching, allow filtering "
+                                        "by categories."))
 
         self.bind(cb1, "checked", "quickmenu/trigger-on-double-click")
         self.bind(cb2, "checked", "quickmenu/trigger-on-right-click")
         self.bind(cb3, "checked", "quickmenu/trigger-on-space-key")
         self.bind(cb4, "checked", "quickmenu/trigger-on-any-key")
+        self.bind(cb5, "checked", "quickmenu/show-categories")
 
         quickmenu.layout().addWidget(cb1)
         quickmenu.layout().addWidget(cb2)
         quickmenu.layout().addWidget(cb3)
         quickmenu.layout().addWidget(cb4)
+        quickmenu.layout().addWidget(cb5)
 
-        form.addRow(self.tr("Open quick menu on"), quickmenu)
+        form.addRow(self.tr("Quick menu"), quickmenu)
 
         startup = QWidget(self, objectName="startup-group")
         startup.setLayout(QVBoxLayout())

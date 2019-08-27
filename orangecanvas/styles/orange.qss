@@ -391,7 +391,7 @@ QuickMenu TabBarWidget QToolButton:menu-indicator {
  */
 
 QuickMenu SearchWidget {
-    height: 26px;
+    height: 22px;
     margin: 0px;
     padding: 0px;
     border: 1px solid #9CACB4;
@@ -415,7 +415,7 @@ QuickMenu QLineEdit QToolButton {
     background-color: #8E9CA4;
     padding: 0px;
     margin: 0px;
-    icon-size: 20px;
+    icon-size: 18px;
 }
 
 QuickMenu QLineEdit QToolButton[checked="true"] {

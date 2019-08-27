@@ -29,8 +29,6 @@ from AnyQt.QtCore import (
     QSettings, QStandardPaths, QAbstractItemModel, QT_VERSION
 )
 
-from orangecanvas.utils.overlay import NotificationOverlay
-
 try:
     from AnyQt.QtWebEngineWidgets import QWebEngineView
 except ImportError:
@@ -45,6 +43,8 @@ except ImportError:
 from AnyQt.QtCore import (
     pyqtProperty as Property, pyqtSignal as Signal
 )
+
+from orangecanvas.utils.overlay import NotificationOverlay
 
 from ..scheme import Scheme
 from ..gui.dropshadow import DropShadowFrame
@@ -63,6 +63,7 @@ from .schemeinfo import SchemeInfoDialog
 from .outputview import OutputView, TextStream
 from .settings import UserSettingsDialog, category_state
 from ..document.schemeedit import SchemeEditWidget
+from ..document.quickmenu import QuickMenu
 from ..gui.itemmodels import FilterProxyModel
 from ..registry import WidgetRegistry, WidgetDescription, CategoryDescription
 from ..registry.qt import QtWidgetRegistry
@@ -1675,7 +1676,7 @@ class CanvasMainWindow(QMainWindow):
         preferences change.
         """
         for w in QApplication.topLevelWidgets():
-            if isinstance(w, CanvasMainWindow):
+            if isinstance(w, CanvasMainWindow) or isinstance(w, QuickMenu):
                 w.update_from_settings()
 
     def open_addons(self):

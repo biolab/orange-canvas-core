@@ -28,8 +28,8 @@ from AnyQt.QtGui import (
 from AnyQt.QtCore import (
     Qt, QObject, QPoint, QSize, QRect, QEventLoop, QEvent, QModelIndex,
     QTimer, QRegExp, QSortFilterProxyModel, QItemSelectionModel,
-    QAbstractItemModel
-)
+    QAbstractItemModel,
+    QSettings)
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 from PyQt5.QtCore import QRectF, QPointF
 from PyQt5.QtGui import QPainter
@@ -1043,6 +1043,8 @@ class PagedMenu(QWidget):
 
         self.setLayout(layout)
 
+        self.update_from_settings()
+
     def addPage(self, page, title, icon=QIcon(), toolTip=""):
         # type: (QWidget, str, QIcon, str) -> int
         """
@@ -1156,6 +1158,19 @@ class PagedMenu(QWidget):
         Return the tab button instance for index.
         """
         return self.__tab.button(index)
+
+    def update_from_settings(self):
+        settings = QSettings()
+        showCategories = settings.value("quickmenu/show-categories", False, bool)
+
+        if self.count() != 0 and not showCategories:
+            self.setCurrentIndex(0)
+
+        self.__tab.setVisible(showCategories)
+        if showCategories:
+            self.__tab._TabBarWidget__updateShadows()  # why must this be called manually?
+
+        self.navigator.setCategoriesEnabled(showCategories)
 
 
 def as_qbrush(value):
@@ -1620,6 +1635,9 @@ class QuickMenu(FramelessWindow):
         # Make sure that the first enabled item is set current.
         self.__suggestPage.ensureCurrent()
 
+    def update_from_settings(self):
+        self.__pages.update_from_settings()
+
 
 class ItemViewKeyNavigator(QObject):
     """
@@ -1630,6 +1648,10 @@ class ItemViewKeyNavigator(QObject):
         # type: (Optional[QObject], Any) -> None
         super().__init__(parent, **kwargs)
         self.__view = None  # type: Optional[QAbstractItemView]
+        self.__categoriesEnabled = False
+
+    def setCategoriesEnabled(self, enabled):
+        self.__categoriesEnabled = enabled
 
     def setView(self, view):
         # type: (Optional[QAbstractItemView]) -> None
@@ -1664,11 +1686,13 @@ class ItemViewKeyNavigator(QObject):
                 return True
             # shift + tab
             elif key == Qt.Key_Backtab:
-                self.parent().previousPage()
+                if self.__categoriesEnabled:
+                    self.parent().previousPage()
                 return True
             # tab
             elif key == Qt.Key_Tab:
-                self.parent().nextPage()
+                if self.__categoriesEnabled:
+                    self.parent().nextPage()
                 return True
 
         return super().eventFilter(obj, event)

@@ -408,6 +408,9 @@ spec = \
      ("quickmenu/trigger-on-any-key", bool, False,
       "Show quick menu on double click."),
 
+     ("quickmenu/show-categories", bool, False,
+      "Show categories in quick menu."),
+
      ("logging/level", int, 1, "Logging level"),
 
      ("logging/show-on-error", bool, True, "Show log window on error"),
