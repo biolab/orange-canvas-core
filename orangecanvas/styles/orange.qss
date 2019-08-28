@@ -413,3 +413,21 @@ QuickMenu QLineEdit QToolButton {
     margin: 0px;
     icon-size: 23px;
 }
+
+/* Notifications
+ */
+
+NotificationWidget {
+    margin: 10px;
+    qproperty-dismissMargin_: 10;
+    background: #626262;
+    border: 1px solid #999999;
+    border-radius: 8px;
+}
+NotificationWidget QLabel#text-label {
+    color: white;
+}
+NotificationWidget QLabel#title-label {
+    color: white;
+    font-weight: bold;
+}
