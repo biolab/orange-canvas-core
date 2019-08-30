@@ -1,11 +1,14 @@
+from PyQt5.QtCore import QEvent
+
 import unittest
 
-from AnyQt.QtWidgets import QWidget, QApplication
+from AnyQt.QtWidgets import QWidget, QApplication, QAction
 from AnyQt.QtTest import QSignalSpy
 
 from orangecanvas.scheme import Scheme, NodeEvent
 from orangecanvas.scheme.widgetmanager import WidgetManager
 from orangecanvas.registry import tests as registry_tests
+from orangecanvas.scheme.tests import EventSpy
 
 
 class TestingWidgetManager(WidgetManager):
@@ -164,3 +167,25 @@ class TestWidgetManager(unittest.TestCase):
         w1._evt.clear()
         workflow.set_runtime_env("tt", "aaa")
         self.assertIn(NodeEvent.WorkflowEnvironmentChange, w1._evt)
+
+    def test_actions(self):
+        workflow = self.scheme
+        nodes = workflow.nodes
+        wm = TestingWidgetManager()
+        wm.set_creation_policy(WidgetManager.Immediate)
+        wm.set_workflow(workflow)
+        w = wm.widget_for_node(nodes[0])
+        w2 = wm.widget_for_node(nodes[2])
+        espy = EventSpy(w2, QEvent.WindowActivate)
+        ac = w.findChild(QAction, "action-canvas-raise-descendants")
+        ac.trigger()
+        if not espy.events():
+            self.assertTrue(espy.wait(1000))
+        self.assertTrue(w2.isActiveWindow())
+
+        ac = w2.findChild(QAction, "action-canvas-raise-ancestors")
+        espy = EventSpy(w, QEvent.Show)
+        ac.trigger()
+        if not espy.events():
+            self.assertTrue(espy.wait(1000))
+        self.assertTrue(w.isVisible())
