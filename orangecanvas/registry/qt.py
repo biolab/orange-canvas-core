@@ -15,6 +15,7 @@ from AnyQt.QtGui import QStandardItemModel, QStandardItem, QColor, QBrush
 from AnyQt.QtCore import QObject, Qt
 from AnyQt.QtCore import pyqtSignal as Signal
 
+from ..utils import type_str
 from .discovery import WidgetDiscovery
 from .description import WidgetDescription, CategoryDescription
 from .base import WidgetRegistry
@@ -309,18 +310,9 @@ def tooltip_helper(desc):
 
     inputs_fmt = "<li>{name} ({class_name})</li>"
 
-    def type_str(type_name):
-        # type: (Union[str, type]) -> str
-        if isinstance(type_name, type):
-            return type_str("{0.__module__}.{0.__qualname__}".format(type_name))
-        elif type_name.startswith("builtins."):
-            return type_name[len("builtins."):]
-        else:
-            return type_name
-
     if desc.inputs:
         inputs = "".join(inputs_fmt.format(name=inp.name,
-                                           class_name=type_str(inp.type))
+                                           class_name=type_str(inp.types))
                          for inp in desc.inputs)
         tooltip.append("Inputs:<ul>{0}</ul>".format(inputs))
     else:
@@ -328,7 +320,7 @@ def tooltip_helper(desc):
 
     if desc.outputs:
         outputs = "".join(inputs_fmt.format(name=out.name,
-                                            class_name=type_str(out.type))
+                                            class_name=type_str(out.types))
                           for out in desc.outputs)
         tooltip.append("Outputs:<ul>{0}</ul>".format(outputs))
     else:

@@ -31,6 +31,7 @@ from ..scheme import compatible_channels
 from ..registry import InputSignal, OutputSignal
 
 from ..resources import icon_loader
+from ..utils import type_str
 
 if typing.TYPE_CHECKING:
     from ..scheme import SchemeNode
@@ -42,9 +43,9 @@ class EditLinksDialog(QDialog):
     A dialog for editing links.
 
     >>> dlg = EditLinksDialog()
-    >>> dlg.setNodes(file_node, test_learners_node)
-    >>> dlg.setLinks([(file_node.output_channel("Data"),
-    ...                test_learners_node.input_channel("Data")])
+    >>> dlg.setNodes(source_node, sink_node)
+    >>> dlg.setLinks([(source_node.output_channel("Data"),
+    ...                sink_node.input_channel("Data"))])
     >>> if dlg.exec_() == EditLinksDialog.Accepted:
     ...     new_links = dlg.links()
     ...
@@ -662,7 +663,8 @@ class EditLinksNode(QGraphicsWidget):
             text_item.setHtml(text)
             text_item.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
             text_item.setToolTip(
-                escape(getattr(channel, 'description', channel.type)))
+                escape(getattr(channel, 'description', type_str(channel.type)))
+            )
 
             grid.addItem(text_item, i, label_row,
                          alignment=label_alignment)
