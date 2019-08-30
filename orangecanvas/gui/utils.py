@@ -475,12 +475,7 @@ def innerShadowPixmap(color, size, pos, length=5):
     if finalShadow:
         return finalShadow
 
-    # get shadow template pixmap (1-pixel linear gradient line)
-    shadowTemplate = QPixmapCache.find("TabButtonShadowTemplate" + str(length))
-    if shadowTemplate is None:
-        shadowTemplate = shadowTemplatePixmap(color, length)
-        QPixmapCache.insert("TabButtonShadowTemplate" + str(length),
-                            shadowTemplate)
+    shadowTemplate = shadowTemplatePixmap(color, length)
 
     finalShadow = QPixmap(size)
     finalShadow.fill(Qt.transparent)

@@ -10,10 +10,11 @@ from AnyQt.QtWidgets import (
     QLineEdit, QToolButton, QStyleOptionToolButton, QStylePainter,
     QStyle, QAction, QWidget,
 )
-from AnyQt.QtGui import QPaintEvent
+from AnyQt.QtGui import QPaintEvent, QPainter, QColor
 from AnyQt.QtCore import Qt, QSize, QRect
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
+from orangecanvas.gui.utils import innerShadowPixmap
 
 _ActionSlot = NamedTuple(
     "_ActionSlot", [
@@ -32,8 +33,10 @@ class LineEditButton(QToolButton):
     def __init__(self, parent=None, flat=True, **kwargs):
         # type: (Optional[QWidget], bool, Any) -> None
         super().__init__(parent, **kwargs)
-
         self.__flat = flat
+        self.__shadowLength = 5
+        self.__shadowPosition = 0
+        self.__shadowColor = QColor("#000000")
 
     def setFlat(self, flat):
         # type: (bool) -> None
@@ -48,6 +51,36 @@ class LineEditButton(QToolButton):
     flat_ = Property(bool, fget=flat, fset=setFlat,
                      designable=True)
 
+    def setShadowLength(self, shadowSize):
+        if self.__shadowLength != shadowSize:
+            self.__shadowLength = shadowSize
+            self.update()
+
+    def shadowLength(self):
+        return self.__shadowLength
+
+    shadowLength_ = Property(int, fget=shadowLength, fset=setShadowLength, designable=True)
+
+    def setShadowPosition(self, shadowPosition):
+        if self.__shadowPosition != shadowPosition:
+            self.__shadowPosition = shadowPosition
+            self.update()
+
+    def shadowPosition(self):
+        return self.__shadowPosition
+
+    shadowPosition_ = Property(int, fget=shadowPosition, fset=setShadowPosition, designable=True)
+
+    def setShadowColor(self, shadowColor):
+        if self.__shadowColor != shadowColor:
+            self.__shadowColor = shadowColor
+            self.update()
+
+    def shadowColor(self):
+        return self.__shadowColor
+
+    shadowColor_ = Property(QColor, fget=shadowColor, fset=setShadowColor, designable=True)
+
     def paintEvent(self, event):
         # type: (QPaintEvent) -> None
         if self.__flat:
@@ -55,8 +88,26 @@ class LineEditButton(QToolButton):
             self.initStyleOption(opt)
             p = QStylePainter(self)
             p.drawControl(QStyle.CE_ToolButtonLabel, opt)
+            p.end()
         else:
             super().paintEvent(event)
+
+        # paint shadow
+        shadow = innerShadowPixmap(self.__shadowColor,
+                                   self.size(),
+                                   self.__shadowPosition,
+                                   length=self.__shadowLength)
+
+        p = QPainter(self)
+
+        rect = self.rect()
+        targetRect = QRect(rect.left() + 1,
+                           rect.top() + 1,
+                           rect.width() - 2,
+                           rect.height() - 2)
+
+        p.drawPixmap(targetRect, shadow, shadow.rect())
+        p.end()
 
 
 class LineEdit(QLineEdit):
