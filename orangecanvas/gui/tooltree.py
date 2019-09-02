@@ -327,7 +327,8 @@ class FlattenedTreeItemModel(QAbstractProxyModel):
         if self.__flatteningMode == self.InternalNodesDisabled:
             sourceIndex = self.mapToSource(index)
             sourceModel = self.sourceModel()
-            if sourceModel.rowCount(sourceIndex) > 0 and \
+            if sourceModel is not None and \
+                    sourceModel.rowCount(sourceIndex) > 0 and \
                     flags & Qt.ItemIsEnabled:
                 # Internal node, enabled in the source model, disable it
                 flags ^= Qt.ItemIsEnabled  # type: ignore
@@ -351,7 +352,10 @@ class FlattenedTreeItemModel(QAbstractProxyModel):
         # type: (Tuple[int, ...]) -> QModelIndex
         """Return an source QModelIndex for the given key.
         """
-        index = self.sourceModel().index(key_path[0], 0)
+        model = self.sourceModel()
+        if model is None:
+            return QModelIndex()
+        index = model.index(key_path[0], 0)
         for row in key_path[1:]:
             index = index.child(row, 0)
         return index
@@ -363,22 +367,23 @@ class FlattenedTreeItemModel(QAbstractProxyModel):
         source_key = []         # type: List[Tuple[int, ...]]
         source_offset_map = {}  # type: Dict[Tuple[int, ...], int]
 
-        def create_mapping(index, key_path):
-            # type: (QModelIndex, Tuple[int, ...]) -> None
-            if source.rowCount(index) > 0:
+        def create_mapping(model, index, key_path):
+            # type: (QAbstractItemModel, QModelIndex, Tuple[int, ...]) -> None
+            if model.rowCount(index) > 0:
                 if self.__flatteningMode != self.LeavesOnly:
                     source_offset_map[key_path] = len(source_offset_map)
                     source_key.append(key_path)
 
-                for i in range(source.rowCount(index)):
-                    create_mapping(index.child(i, 0), key_path + (i, ))
+                for i in range(model.rowCount(index)):
+                    create_mapping(model, index.child(i, 0), key_path + (i, ))
 
             else:
                 source_offset_map[key_path] = len(source_offset_map)
                 source_key.append(key_path)
 
-        for i in range(source.rowCount()):
-            create_mapping(source.index(i, 0), (i,))
+        if source is not None:
+            for i in range(source.rowCount()):
+                create_mapping(source, source.index(i, 0), (i,))
 
         self._source_key = source_key
         self._source_offset = source_offset_map
