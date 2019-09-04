@@ -29,7 +29,6 @@ INSTALL_REQUIRES = (
     "requests",
     "cachecontrol[filecache]",
     "pip>=18.0",
-    "packaging",
 )
 
 

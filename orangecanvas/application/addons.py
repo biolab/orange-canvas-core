@@ -28,9 +28,6 @@ from typing import (
 import requests
 import pkg_resources
 
-import packaging.version
-import packaging.requirements
-
 import docutils.core
 import docutils.utils
 
@@ -165,8 +162,8 @@ def is_updatable(item):
     else:
         inst, dist = item.installable, item.local
         try:
-            v1 = packaging.version.parse(dist.version)
-            v2 = packaging.version.parse(inst.version)
+            v1 = pkg_resources.parse_version(dist.version)
+            v2 = pkg_resources.parse_version(inst.version)
         except ValueError:
             return False
 
