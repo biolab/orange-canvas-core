@@ -802,7 +802,7 @@ class SchemeEditWidget(QWidget):
         """
         if self.__scheme is None:
             raise NoWorkflowError()
-        self.__statistics.log_node_added(node.description.name)
+        self.__statistics.log_node_add(node.description.name)
         command = commands.AddNodeCommand(self.__scheme, node)
         self.__undoStack.push(command)
 
@@ -978,6 +978,9 @@ class SchemeEditWidget(QWidget):
                 self.__undoStack.push(
                     commands.RemoveNodeCommand(self.__scheme, node)
                 )
+                statistics = self.usageStatistics()
+                statistics.set_action_type(UsageStatistics.NodeRemove)
+                statistics.log_node_remove(node.description.name)
             elif isinstance(item, items.annotationitem.Annotation):
                 if item.hasFocus() or item.isAncestorOf(scene.focusItem()):
                     # Clear input focus from the item to be removed.
@@ -1151,7 +1154,7 @@ class SchemeEditWidget(QWidget):
                 except KeyError:
                     log.error("Unknown qualified name '%s'", qname)
                 else:
-                    self.__statistics.set_node_type(UsageStatistics.NodeAddDrag)
+                    self.__statistics.set_action_type(UsageStatistics.NodeAddDrag)
                     pos = event.scenePos()
                     item = self.__scene.item_at(event.scenePos(), items.LinkItem)
                     link = self.scene().link_for_item(item) if item else None
@@ -1727,6 +1730,14 @@ class SchemeEditWidget(QWidget):
         """
         if self.__contextMenuTarget:
             self.removeLink(self.__contextMenuTarget)
+
+            statistics = self.usageStatistics()
+            statistics.set_action_type(UsageStatistics.LinkRemove)
+            statistics.log_link_remove(self.__contextMenuTarget.source_node.description.name,
+                                       self.__contextMenuTarget.sink_node.description.name,
+                                       self.__contextMenuTarget.source_channel.name,
+                                       self.__contextMenuTarget.sink_channel.name)
+            statistics.clear_action_type()
 
     def __linkReset(self):
         # type: () -> None

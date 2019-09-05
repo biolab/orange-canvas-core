@@ -889,7 +889,7 @@ class CanvasMainWindow(QMainWindow):
         if isinstance(widget_desc, WidgetDescription):
             scheme_widget = self.current_document()
             if scheme_widget:
-                scheme_widget.usageStatistics().set_node_type(UsageStatistics.NodeAddClick)
+                scheme_widget.usageStatistics().set_action_type(UsageStatistics.NodeAddClick)
                 scheme_widget.createNewNode(widget_desc)
 
     def on_quick_category_action(self, action):

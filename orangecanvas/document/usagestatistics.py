@@ -1,3 +1,5 @@
+import enum
+import sys
 from datetime import datetime
 import platform
 import json
@@ -7,12 +9,24 @@ from typing import List
 
 import requests
 
-from AnyQt.QtCore import QCoreApplication
+from AnyQt.QtCore import QCoreApplication, QSettings
 
 from orangecanvas import config
 
-
 log = logging.getLogger(__name__)
+
+
+class ActionType(enum.IntEnum):
+    Invalid = -1
+    NodeAddClick = 0
+    NodeAddDrag = 1
+    NodeAddMenu = 2
+    NodeAddExtendFromSink = 3
+    NodeAddExtendFromSource = 4
+    NodeRemove = 5
+    LinkAdd = 6
+    LinkRemove = 7
+    LinkEdit = 8
 
 
 class UsageStatistics:
@@ -25,35 +39,35 @@ class UsageStatistics:
     It is the application's responsibility to ask for permission and
     appropriately handle the collected statistics.
 
+    In certain situations it is not simple to discern user-intended actions
+    from ones done automatically. For this purpose ActionType is employed,
+    set when the user explicitly performs an action.
+
+    The stored action type is automatically cleared after node actions,
+    but should be manually cleared for link actions with the clear_action_type() method.
+
     Data tracked per canvas session:
         date,
         application version,
         operating system,
-        node additions by type:
-            widget name
-            type of addition:
-                quick menu
-                toolbox click
-                toolbox drag
-                drag from other widget
-            (if dragged from other widget, other widget name)
+        anaconda boolean,
+        UUID,
+        a sequence of the following actions:
+            node addition,
+            node removal,
+            link addition,
+            link removal
     """
     _is_enabled = False
 
-    NodeAddClick = 0
-    NodeAddDrag = 1
-    NodeAddMenu = 2
-    NodeAddExtendFromSink = 3
-    NodeAddExtendFromSource = 4
+    Invalid, NodeAddClick, NodeAddDrag, NodeAddMenu, NodeAddExtendFromSink, \
+        NodeAddExtendFromSource, NodeRemove, LinkAdd, LinkRemove, LinkEdit = list(ActionType)
 
     last_search_query = None
 
     def __init__(self):
-        self.toolbox_clicks = []
-        self.toolbox_drags = []
-        self.quick_menu_actions = []
-        self.widget_extensions = []
-        self.__node_addition_type = None
+        self._actions = []
+        self._action_type = UsageStatistics.Invalid
 
     @classmethod
     def is_enabled(cls) -> bool:
@@ -79,57 +93,143 @@ class UsageStatistics:
             "Enabling" if state else "Disabling"
         ))
 
-    def log_node_added(self, widget_name, extended_widget=None):
+    def log_node_add(self, widget_name, extended_widget=None):
+        """
+        Logs an node addition action, based on the currently set action type.
+
+        Parameters
+        ----------
+        widget_name : str
+        extended_widget : str
+        """
         if not self.is_enabled():
             return
 
-        if self.__node_addition_type == UsageStatistics.NodeAddMenu:
+        node_add_action_types = range(6)
 
-            self.quick_menu_actions.append({
-                "Widget Name": widget_name,
-                "Query": UsageStatistics.last_search_query,
-            })
+        if self._action_type not in node_add_action_types:
+            log.info("Invalid action type registered for node addition logging. "
+                     "No action was logged.")
+            return
 
-        elif self.__node_addition_type == UsageStatistics.NodeAddClick:
+        action = {
+            "Type": self._action_type,
+            "Widget Name": widget_name,
+        }
 
-            self.toolbox_clicks.append({
-                "Widget Name": widget_name,
-            })
+        if self._action_type == UsageStatistics.NodeAddMenu:
+            action["Query"] = UsageStatistics.last_search_query
 
-        elif self.__node_addition_type == UsageStatistics.NodeAddDrag:
+        elif self._action_type == UsageStatistics.NodeAddExtendFromSink or \
+                self._action_type == UsageStatistics.NodeAddExtendFromSource:
+            action["Extended Widget"] = extended_widget
+            action["Query"] = UsageStatistics.last_search_query
 
-            self.toolbox_drags.append({
-                "Widget Name": widget_name,
-            })
+        elif self._action_type == UsageStatistics.LinkAdd or \
+                self._action_type == UsageStatistics.LinkRemove:
+            action["Connected Widget"] = extended_widget
 
-        elif self.__node_addition_type == UsageStatistics.NodeAddExtendFromSink:
+        self._action_type = UsageStatistics.Invalid
+        self._actions.append(action)
 
-            self.widget_extensions.append({
-                "Widget Name": widget_name,
-                "Extended Widget": extended_widget,
-                "Direction": "FROM_SINK",
-                "Query": UsageStatistics.last_search_query,
-            })
+    def log_node_remove(self, widget_name):
+        """
+        Logs an node removal action.
 
-        elif self.__node_addition_type == UsageStatistics.NodeAddExtendFromSource:
+        Parameters
+        ----------
+        widget_name : str
+        """
+        if not self.is_enabled():
+            return
 
-            self.widget_extensions.append({
-                "Widget Name": widget_name,
-                "Extended Widget": extended_widget,
-                "Direction": "FROM_SOURCE",
-                "Query": UsageStatistics.last_search_query,
-            })
+        if self._action_type is not UsageStatistics.NodeRemove:
+            log.info("Invalid action type registered for node removal logging. "
+                     "No action was logged.")
+            return
 
-        else:
-            log.warning("Invalid usage statistics state; "
-                        "attempted to log node before setting node type.")
+        action = {
+            "Type": self._action_type,
+            "Widget Name": widget_name
+        }
 
-    def set_node_type(self, addition_type):
-        self.__node_addition_type = addition_type
+        self._action_type = UsageStatistics.Invalid
+        self._actions.append(action)
+
+    def log_link_add(self, source_widget, sink_widget, source_channel, sink_channel):
+        """
+        Logs an link addition action.
+
+        Parameters
+        ----------
+        source_widget : str
+        sink_widget : str
+        source_channel : str
+        sink_channel : str
+        """
+        if not self.is_enabled():
+            return
+
+        if self._action_type not in [UsageStatistics.LinkAdd, UsageStatistics.LinkEdit]:
+            log.info("Invalid action type registered for link add logging. "
+                     "No action was logged.")
+            return
+
+        self._log_link(UsageStatistics.LinkAdd, source_widget, sink_widget, source_channel,
+                       sink_channel)
+
+    def log_link_remove(self, source_widget, sink_widget, source_channel, sink_channel):
+        """
+        Logs an link removal action.
+
+        Parameters
+        ----------
+        source_widget : str
+        sink_widget : str
+        source_channel : str
+        sink_channel : str
+        """
+        if not self.is_enabled():
+            return
+
+        if self._action_type not in [UsageStatistics.LinkRemove, UsageStatistics.LinkEdit]:
+            log.info("Invalid action type registered for link remove logging. "
+                     "No action was logged.")
+            return
+
+        self._log_link(UsageStatistics.LinkRemove, source_widget, sink_widget, source_channel,
+                       sink_channel)
+
+    def _log_link(self, action_type, source_widget, sink_widget, source_channel, sink_channel):
+        action = {
+            "Type": action_type,
+            "Source Widget": source_widget,
+            "Sink Widget": sink_widget,
+            "Source Channel": source_channel,
+            "Sink Channel": sink_channel
+        }
+
+        self._actions.append(action)
+
+    def set_action_type(self, action_type):
+        """
+        Sets the type of action that will be logged upon next call to log_action.
+
+        Parameters
+        ----------
+        action_type : ActionType
+        """
+        self._action_type = action_type
+
+    def clear_action_type(self):
+        """
+        Clear the currently set action type by setting it to Invalid.
+        """
+        self._action_type = UsageStatistics.Invalid
 
     def filename(self) -> str:
         """
-        Return the filename path where the statics are saved
+        Return the filename path where the statistics are saved
         """
         return os.path.join(config.data_dir(), "usage-statistics.json")
 
@@ -188,12 +288,7 @@ class UsageStatistics:
             "Date": str(datetime.now().date()),
             "Application Version": QCoreApplication.applicationVersion(),
             "Operating System": platform.system() + " " + platform.release(),
-            "Session": {
-                "Quick Menu Search": self.quick_menu_actions,
-                "Toolbox Click": self.toolbox_clicks,
-                "Toolbox Drag": self.toolbox_drags,
-                "Widget Extension": self.widget_extensions
-            }
+            "Session": self._actions
         }
 
         if os.path.isfile(statistics_path):
