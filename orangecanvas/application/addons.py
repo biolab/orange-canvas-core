@@ -7,7 +7,6 @@ import os
 import logging
 import errno
 import shlex
-import subprocess
 import itertools
 import xmlrpc.client
 import json
@@ -49,6 +48,7 @@ from AnyQt.QtCore import (
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
 from orangecanvas.utils import unique, name_lookup
+from orangecanvas.utils.subproc import python_process, create_process
 from ..gui.utils import message_warning, message_critical as message_error
 from ..help.manager import get_dist_meta, trim, parse_meta
 
@@ -1493,50 +1493,6 @@ def run_command(command, raise_on_fail=True, **kwargs):
             raise CommandFailed(command, process.returncode, output)
 
     return process.returncode, output
-
-
-def python_process(args, script_name=None, **kwargs):
-    # type: (List[str], Optional[str], Any) -> subprocess.Popen
-    """
-    Run a `sys.executable` in a subprocess with `args`.
-    """
-    executable = sys.executable
-    if os.name == "nt" and os.path.basename(executable) == "pythonw.exe":
-        # Don't run the script with a 'gui' (detached) process.
-        dirname = os.path.dirname(executable)
-        executable = os.path.join(dirname, "python.exe")
-
-    if script_name is not None:
-        script = script_name
-    else:
-        script = executable
-
-    return create_process(
-        [script] + args,
-        executable=executable,
-        **kwargs
-    )
-
-
-def create_process(cmd, executable=None, **kwargs):
-    # type: (List[str], Optional[str], Any) -> subprocess.Popen
-    if sys.platform == 'win32':
-        # do not open a new console window for command on windows
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        kwargs["startupinfo"] = startupinfo
-
-    return subprocess.Popen(
-        cmd,
-        executable=executable,
-        cwd=None,
-        env=_env_with_proxies(),
-        stderr=subprocess.STDOUT,
-        stdout=subprocess.PIPE,
-        bufsize=-1,
-        universal_newlines=True,
-        **kwargs
-    )
 
 
 def main(argv=None):  # noqa
