@@ -1,5 +1,4 @@
 import types
-import tempfile
 import enum
 import sys
 import sysconfig
@@ -16,12 +15,11 @@ import typing
 
 from concurrent.futures import ThreadPoolExecutor, Future
 from collections import deque
-from contextlib import contextmanager
 from xml.sax.saxutils import escape
 
 from typing import (
     List, Dict, Any, Optional, Union, Tuple, NamedTuple, Callable, AnyStr,
-    Iterable, Iterator
+    Iterable
 )
 
 import requests
@@ -48,7 +46,8 @@ from AnyQt.QtCore import (
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
 from orangecanvas.utils import unique, name_lookup
-from orangecanvas.utils.subproc import python_process, create_process
+from orangecanvas.utils.shtools import python_process, create_process, \
+    temp_named_file
 from ..gui.utils import message_warning, message_critical as message_error
 from ..help.manager import get_dist_meta, trim, parse_meta
 
@@ -1346,18 +1345,6 @@ class Installer(QObject):
         else:
             self.finished.emit()
 
-
-@contextmanager
-def temp_named_file(content, encoding="utf-8", suffix=None, prefix=None):
-    # type: (str, Optional[str], Optional[str], Optional[str]) -> Iterator[str]
-    fd, name = tempfile.mkstemp(suffix, prefix, text=True)
-    file = os.fdopen(fd, mode="wt", encoding=encoding,)
-    file.write(content)
-    file.close()
-    try:
-        yield name
-    finally:
-        os.remove(name)
 
 
 class PipInstaller:

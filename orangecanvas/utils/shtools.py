@@ -1,8 +1,10 @@
-from typing import List, Optional
+from typing import List, Optional, Generator
 
 import os
 import sys
+import tempfile
 import subprocess
+from contextlib import contextmanager
 
 
 def python_process(
@@ -83,3 +85,39 @@ def create_process(
         universal_newlines=universal_newlines,
         **kwargs
     )
+
+
+@contextmanager
+def temp_named_file(
+        content: str, encoding="utf-8",
+        suffix: Optional[str] = None,
+        prefix: Optional[str] = None,
+) -> Generator[str, None, None]:
+    """
+    Create a named temporary file initialized with `contents` and yield
+    its name.
+
+    Parameters
+    ----------
+    content: str
+        The contents to write into the temp file
+    encoding: str
+        Encoding
+    suffix: Optional[str]
+        Filename suffix
+    prefix: Optional[str]
+        Filename prefix
+
+    Returns
+    -------
+    context: ContextManager
+        A context manager that deletes the file on exit.
+    """
+    fd, name = tempfile.mkstemp(suffix, prefix, text=True)
+    file = os.fdopen(fd, mode="wt", encoding=encoding,)
+    file.write(content)
+    file.close()
+    try:
+        yield name
+    finally:
+        os.remove(name)
