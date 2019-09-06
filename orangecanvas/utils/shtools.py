@@ -92,6 +92,7 @@ def temp_named_file(
         content: str, encoding="utf-8",
         suffix: Optional[str] = None,
         prefix: Optional[str] = None,
+        dir: Optional[str] = None,
 ) -> Generator[str, None, None]:
     """
     Create a named temporary file initialized with `contents` and yield
@@ -107,13 +108,19 @@ def temp_named_file(
         Filename suffix
     prefix: Optional[str]
         Filename prefix
+    dir: Optional[str]
+        Directory where the file will be created. If None then $TEMP is used.
 
     Returns
     -------
     context: ContextManager
         A context manager that deletes the file on exit.
+
+    See Also
+    --------
+    tempfile.mkstemp
     """
-    fd, name = tempfile.mkstemp(suffix, prefix, text=True)
+    fd, name = tempfile.mkstemp(suffix, prefix, dir=dir, text=True)
     file = os.fdopen(fd, mode="wt", encoding=encoding,)
     file.write(content)
     file.close()
