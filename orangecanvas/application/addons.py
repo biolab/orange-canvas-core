@@ -7,10 +7,8 @@ import logging
 import errno
 import shlex
 import itertools
-import xmlrpc.client
 import json
 import traceback
-import urllib.request
 import typing
 
 from concurrent.futures import ThreadPoolExecutor, Future
@@ -986,72 +984,7 @@ class AddonManagerDialog(QDialog):
             self.reject()
 
 
-class SafeTransport(xmlrpc.client.SafeTransport):
-    def __init__(self, use_datetime=0, timeout=None):
-        super().__init__(use_datetime)
-        self._timeout = timeout
-
-    def make_connection(self, *args, **kwargs):
-        conn = super().make_connection(*args, **kwargs)
-        if self._timeout is not None:
-            conn.timeout = self._timeout
-        return conn
-
-
 PYPI_API_JSON = "https://pypi.org/pypi/{name}/json"
-PYPI_API_XMLRPC = "https://pypi.org/pypi"
-
-
-def pypi_search(spec, timeout=None):
-    """
-    Search package distributions available on PyPi using PyPiXMLRPC.
-    """
-    pypi = xmlrpc.client.ServerProxy(
-        PYPI_API_XMLRPC,
-        transport=SafeTransport(timeout=timeout)
-    )
-    # pypi search
-    spec = {key: [v] if isinstance(v, str) else v
-            for key, v in spec.items()}
-    _spec = {}
-    for key, values in spec.items():
-        if isinstance(values, str):
-            _spec[key] = values
-        elif key == "keywords" and len(values) > 1:
-            _spec[key] = [values[0]]
-        else:
-            _spec[key] = values
-    addons = pypi.search(_spec, 'and')
-    addons = [item["name"] for item in addons if "name" in item]
-    metas_ = pypi_json_query_project_meta(addons)
-
-    # post filter on multiple keywords
-    def matches(meta, spec):
-        # type: (Dict[str, Any], Dict[str, List[str]]) -> bool
-        def match_list(meta, query):
-            # type: (List[str], List[str]) -> bool
-            meta_ = {s.casefold() for s in meta}
-            return all(q.casefold() in meta_ for q in query)
-
-        def match_string(meta, query):
-            # type: (str, List[str]) -> bool
-            meta_ = meta.casefold()
-            return all(q.casefold() in meta_ for q in query)
-
-        for key, query in spec.items():
-            value = meta.get(key, None)
-            if isinstance(value, str) and not match_string(value, query):
-                return False
-            elif isinstance(value, list) and not match_list(value, query):
-                return False
-        return True
-
-    metas = []
-    for meta in metas_:
-        if meta is not None:
-            if matches(meta["info"], spec):
-                metas.append(meta)
-    return [installable_from_json_response(m) for m in metas]
 
 
 def pypi_json_query_project_meta(projects, session=None):
@@ -1245,20 +1178,6 @@ def have_install_permissions():
         return False
 
 
-def _env_with_proxies():
-    """
-    Return system environment with proxies obtained from urllib so that
-    they can be used with pip.
-    """
-    proxies = urllib.request.getproxies()
-    env = dict(os.environ)
-    if "http" in proxies:
-        env["HTTP_PROXY"] = proxies["http"]
-    if "https" in proxies:
-        env["HTTPS_PROXY"] = proxies["https"]
-    return env
-
-
 class Command(enum.Enum):
     Install = "Install"
     Upgrade = "Upgrade"
@@ -1344,7 +1263,6 @@ class Installer(QObject):
             QTimer.singleShot(0, self._next)
         else:
             self.finished.emit()
-
 
 
 class PipInstaller:
