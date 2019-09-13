@@ -73,9 +73,11 @@ def create_process(
     """
     if os.name == "nt":
         # do not open a new console window for command on windows.
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        kwargs.setdefault("startupinfo", startupinfo)
+        if hasattr(subprocess, "CREATE_NO_WINDOW"):
+            CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW  # Python 3.7
+        else:
+            CREATE_NO_WINDOW = 0x08000000
+        kwargs.setdefault("creationflags", CREATE_NO_WINDOW)
 
     return subprocess.Popen(
         args,
