@@ -200,7 +200,51 @@ def get_meta_from_archive(path):
 HasConstraintRole = Qt.UserRole + 0xf45
 
 
+class ActionItem(QStandardItem):
+    def data(self, role=Qt.UserRole + 1) -> Any:
+        if role == Qt.DisplayRole:
+            model = self.model()
+            modelindex = self._sibling(PluginsModel.StateColumn)
+            item = model.data(modelindex, Qt.UserRole)
+            state = model.data(modelindex, Qt.CheckStateRole)
+            flags = model.flags(modelindex)
+            if flags & Qt.ItemIsUserTristate and state == Qt.Checked:
+                return "Update"
+            elif isinstance(item, Available) and state == Qt.Checked:
+                return "Install"
+            elif isinstance(item, Installed) and state == Qt.Unchecked:
+                return "Uninstall"
+            else:
+                return ""
+        else:
+            return super().data(role)
+
+    def _sibling(self, column) -> QModelIndex:
+        model = self.model()
+        if model is None:
+            return QModelIndex()
+        index = model.indexFromItem(self)
+        return index.sibling(self.row(), column)
+
+    def _siblingData(self, column: int, role: int):
+        return self._sibling(column).data(role)
+
+
+class StateItem(QStandardItem):
+    def setData(self, value: Any, role: int = Qt.UserRole + 1) -> None:
+        if role == Qt.CheckStateRole:
+            super().setData(value, role)
+            # emit the dependent ActionColumn's data chanded
+            sib = self.index().sibling(self.row(), PluginsModel.ActionColumn)
+            if sib.isValid():
+                self.model().dataChanged.emit(sib, sib, (Qt.DisplayRole,))
+            return
+        return super().setData(value, role)
+
+
 class PluginsModel(QStandardItemModel):
+    StateColumn, NameColumn, VersionColumn, ActionColumn = range(4)
+
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
         self.setHorizontalHeaderLabels(
@@ -229,7 +273,7 @@ class PluginsModel(QStandardItemModel):
 
         updatable = is_updatable(item)
 
-        item1 = QStandardItem()
+        item1 = StateItem()
         item1.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable |
                        Qt.ItemIsUserCheckable |
                        (Qt.ItemIsUserTristate if updatable else 0))
@@ -257,10 +301,79 @@ class PluginsModel(QStandardItemModel):
         item3 = QStandardItem(version)
         item3.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
 
-        item4 = QStandardItem()
+        item4 = ActionItem()
         item4.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
 
         return [item1, item2, item3, item4]
+
+    def itemState(self):
+        # type: () -> List['Action']
+        """
+        Return the current `items` state encoded as a list of actions to be
+        performed.
+
+        Return
+        ------
+        actions : List['Action']
+            For every item that is has been changed in the GUI interface
+            return a tuple of (command, item) where Command is one of
+             `Install`, `Uninstall`, `Upgrade`.
+        """
+        steps = []
+        for i in range(self.rowCount()):
+            modelitem = self.item(i, 0)
+            item = modelitem.data(Qt.UserRole)
+            state = modelitem.checkState()
+            if modelitem.flags() & Qt.ItemIsUserTristate and state == Qt.Checked:
+                steps.append((Upgrade, item))
+            elif isinstance(item, Available) and state == Qt.Checked:
+                steps.append((Install, item))
+            elif isinstance(item, Installed) and state == Qt.Unchecked:
+                steps.append((Uninstall, item))
+
+        return steps
+
+    def setItemState(self, steps):
+        # type: (List['Action']) -> None
+        """
+        Set the current state as a list of actions to perform.
+
+        i.e. `w.setItemState([(Install, item1), (Uninstall, item2)])`
+        will mark item1 for installation and item2 for uninstallation, all
+        other items will be reset to their default state
+
+        Parameters
+        ----------
+        steps : List[Tuple[Command, Item]]
+            State encoded as a list of commands.
+        """
+        if self.rowCount() == 0:
+            return
+
+        for row in range(self.rowCount()):
+            modelitem = self.item(row, 0)  # type: QStandardItem
+            item = modelitem.data(Qt.UserRole)  # type: Item
+            # Find the action command in the steps list for the item
+            cmd = None  # type: Optional[Command]
+            for cmd_, item_ in steps:
+                if item == item_:
+                    cmd = cmd_
+                    break
+            if isinstance(item, Available):
+                modelitem.setCheckState(
+                    Qt.Checked if cmd == Install else Qt.Unchecked
+                )
+            elif isinstance(item, Installed):
+                if cmd == Upgrade:
+                    modelitem.setCheckState(Qt.Checked)
+                elif cmd == Uninstall:
+                    modelitem.setCheckState(Qt.Unchecked)
+                elif is_updatable(item):
+                    modelitem.setCheckState(Qt.PartiallyChecked)
+                else:
+                    modelitem.setCheckState(Qt.Checked)
+            else:
+                assert False
 
 
 class TristateCheckItemDelegate(QStyledItemDelegate):
@@ -439,19 +552,7 @@ class AddonManagerWidget(QWidget):
             return a tuple of (command, item) where Ccmmand is one of
              `Install`, `Uninstall`, `Upgrade`.
         """
-        steps = []
-        for i in range(self.__model.rowCount()):
-            modelitem = self.__model.item(i, 0)
-            item = modelitem.data(Qt.UserRole)
-            state = modelitem.checkState()
-            if modelitem.flags() & Qt.ItemIsUserTristate and state == Qt.Checked:
-                steps.append((Upgrade, item))
-            elif isinstance(item, Available) and state == Qt.Checked:
-                steps.append((Install, item))
-            elif isinstance(item, Installed) and state == Qt.Unchecked:
-                steps.append((Uninstall, item))
-
-        return steps
+        return self.__model.itemState()
 
     def setItemState(self, steps):
         # type: (List['Action']) -> None
@@ -467,34 +568,7 @@ class AddonManagerWidget(QWidget):
         steps : List[Tuple[Command, Item]]
             State encoded as a list of commands.
         """
-        model = self.__model
-        if model.rowCount() == 0:
-            return
-
-        for row in range(model.rowCount()):
-            modelitem = model.item(row, 0)  # type: QStandardItem
-            item = modelitem.data(Qt.UserRole)  # type: Item
-            # Find the action command in the steps list for the item
-            cmd = None  # type: Optional[Command]
-            for cmd_, item_ in steps:
-                if item == item_:
-                    cmd = cmd_
-                    break
-            if isinstance(item, Available):
-                modelitem.setCheckState(
-                    Qt.Checked if cmd == Install else Qt.Unchecked
-                )
-            elif isinstance(item, Installed):
-                if cmd == Upgrade:
-                    modelitem.setCheckState(Qt.Checked)
-                elif cmd == Uninstall:
-                    modelitem.setCheckState(Qt.Unchecked)
-                elif is_updatable(item):
-                    modelitem.setCheckState(Qt.PartiallyChecked)
-                else:
-                    modelitem.setCheckState(Qt.Checked)
-            else:
-                assert False
+        self.__model.setItemState(steps)
 
     def __selected_row(self):
         indices = self.__view.selectedIndexes()
@@ -506,23 +580,6 @@ class AddonManagerWidget(QWidget):
             return -1
 
     def __data_changed(self, topleft, bottomright):
-        rows = range(topleft.row(), bottomright.row() + 1)
-        for i in rows:
-            modelitem = self.__model.item(i, 0)
-            actionitem = self.__model.item(i, 3)
-            item = modelitem.data(Qt.UserRole)
-
-            state = modelitem.checkState()
-            flags = modelitem.flags()
-
-            if flags & Qt.ItemIsUserTristate and state == Qt.Checked:
-                actionitem.setText("Update")
-            elif isinstance(item, Available) and state == Qt.Checked:
-                actionitem.setText("Install")
-            elif isinstance(item, Installed) and state == Qt.Unchecked:
-                actionitem.setText("Uninstall")
-            else:
-                actionitem.setText("")
         self.stateChanged.emit()
 
     def __update_details(self):
