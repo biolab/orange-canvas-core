@@ -198,6 +198,7 @@ def get_meta_from_archive(path):
 
 
 HasConstraintRole = Qt.UserRole + 0xf45
+DetailedText = HasConstraintRole + 1
 
 
 class ActionItem(QStandardItem):
@@ -216,8 +217,39 @@ class ActionItem(QStandardItem):
                 return "Uninstall"
             else:
                 return ""
+        elif role == DetailedText:
+            item = self.data(Qt.UserRole)
+            if isinstance(item, (Available, Installed)):
+                return self._detailed_text(item)
+        return super().data(role)
+
+    def _detailed_text(self, item):
+        # type: (Item) -> str
+        if isinstance(item, Installed):
+            remote, dist = item.installable, item.local
+            if remote is None:
+                meta = get_dist_meta(dist)
+                description = meta.get("Description", "") or \
+                              meta.get('Summary', "")
+            else:
+                description = remote.description
         else:
-            return super().data(role)
+            description = item.installable.description
+
+        try:
+            assert isinstance(description, str)
+            html = docutils.core.publish_string(
+                trim(description),
+                writer_name="html",
+                settings_overrides={
+                    "output-encoding": "utf-8",
+                }
+            ).decode("utf-8")
+        except docutils.utils.SystemMessage:
+            html = "<pre>{}<pre>".format(escape(description))
+        except Exception:
+            html = "<pre>{}<pre>".format(escape(description))
+        return html
 
     def _sibling(self, column) -> QModelIndex:
         model = self.model()
@@ -234,12 +266,47 @@ class StateItem(QStandardItem):
     def setData(self, value: Any, role: int = Qt.UserRole + 1) -> None:
         if role == Qt.CheckStateRole:
             super().setData(value, role)
-            # emit the dependent ActionColumn's data chanded
+            # emit the dependent ActionColumn's data changed
             sib = self.index().sibling(self.row(), PluginsModel.ActionColumn)
             if sib.isValid():
                 self.model().dataChanged.emit(sib, sib, (Qt.DisplayRole,))
             return
         return super().setData(value, role)
+
+    def data(self, role=Qt.UserRole + 1):
+        if role == DetailedText:
+            item = self.data(Qt.UserRole)
+            if isinstance(item, (Available, Installed)):
+                return self._detailed_text(item)
+        return super().data(role)
+
+    def _detailed_text(self, item):
+        # type: (Item) -> str
+        if isinstance(item, Installed):
+            remote, dist = item.installable, item.local
+            if remote is None:
+                meta = get_dist_meta(dist)
+                description = meta.get("Description", "") or \
+                              meta.get('Summary', "")
+            else:
+                description = remote.description
+        else:
+            description = item.installable.description
+
+        try:
+            assert isinstance(description, str)
+            html = docutils.core.publish_string(
+                trim(description),
+                writer_name="html",
+                settings_overrides={
+                    "output-encoding": "utf-8",
+                }
+            ).decode("utf-8")
+        except docutils.utils.SystemMessage:
+            html = "<pre>{}<pre>".format(escape(description))
+        except Exception:
+            html = "<pre>{}<pre>".format(escape(description))
+        return html
 
 
 class PluginsModel(QStandardItemModel):
@@ -585,41 +652,14 @@ class AddonManagerWidget(QWidget):
     def __update_details(self):
         index = self.__selected_row()
         if index == -1:
+            text = ""
             self.__details.setText("")
         else:
-            item = self.__model.item(index, 1)
-            item = item.data(Qt.UserRole)
-            assert isinstance(item, (Installed, Available))
-            text = self._detailed_text(item)
-            self.__details.setText(text)
-
-    def _detailed_text(self, item):
-        # type: (Item) -> str
-        if isinstance(item, Installed):
-            remote, dist = item.installable, item.local
-            if remote is None:
-                meta = get_dist_meta(dist)
-                description = meta.get("Description", "") or \
-                              meta.get('Summary', "")
-            else:
-                description = remote.description
-        else:
-            description = item.installable.description
-
-        try:
-            assert isinstance(description, str)
-            html = docutils.core.publish_string(
-                trim(description),
-                writer_name="html",
-                settings_overrides={
-                    "output-encoding": "utf-8",
-                }
-            ).decode("utf-8")
-        except docutils.utils.SystemMessage:
-            html = "<pre>{}<pre>".format(escape(description))
-        except Exception:
-            html = "<pre>{}<pre>".format(escape(description))
-        return html
+            item = self.__model.item(index, PluginsModel.StateColumn)
+            text = item.data(DetailedText)
+            if not isinstance(text, str):
+                text = ""
+        self.__details.setText(text)
 
     def sizeHint(self):
         return QSize(480, 420)
