@@ -13,7 +13,6 @@ import typing
 
 from concurrent.futures import ThreadPoolExecutor, Future
 from collections import deque
-from xml.sax.saxutils import escape
 
 from typing import (
     List, Dict, Any, Optional, Union, Tuple, NamedTuple, Callable, AnyStr,
@@ -22,9 +21,6 @@ from typing import (
 
 import requests
 import pkg_resources
-
-import docutils.core
-import docutils.utils
 
 from AnyQt.QtWidgets import (
     QWidget, QDialog, QLabel, QLineEdit, QTreeView, QHeaderView,
@@ -43,11 +39,11 @@ from AnyQt.QtCore import (
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
-from orangecanvas.utils import unique, name_lookup
+from orangecanvas.utils import unique, name_lookup, markup
 from orangecanvas.utils.shtools import python_process, create_process, \
     temp_named_file
 from ..gui.utils import message_warning, message_critical as message_error
-from ..help.manager import get_dist_meta, trim, parse_meta
+from ..help.manager import get_dist_meta, parse_meta
 
 from .. import config
 from ..config import Config
@@ -66,7 +62,8 @@ class Installable(
             ("summary", str),
             ("description", str),
             ("package_url", str),
-            ("release_urls", List['ReleaseUrl'])
+            ("release_urls", List['ReleaseUrl']),
+            ("description_content_type", Optional[str]),
         ))):
     """
     An installable distribution from PyPi
@@ -84,6 +81,10 @@ class Installable(
     package_url: str
     release_urls: List[ReleaseUrls]
     """
+
+Installable.__new__.__defaults__ = (
+    None,  # description_content_type = None,
+)
 
 
 class ReleaseUrl(
@@ -171,9 +172,8 @@ def is_updatable(item):
 
 
 def get_meta_from_archive(path):
-    """Return project name, version and summary extracted from
-    sdist or wheel metadata in a ZIP or tar.gz archive, or None if metadata
-    can't be found."""
+    """Return project metadata extracted from sdist or wheel archive, or None
+    if metadata can't be found."""
 
     def is_metadata(fname):
         return fname.endswith(('PKG-INFO', 'METADATA'))
@@ -192,13 +192,36 @@ def get_meta_from_archive(path):
             if meta:
                 meta = archive.extractfile(meta).read().decode('utf-8')
     if meta:
-        meta = parse_meta(meta)
-        return [meta.get(key, '')
-                for key in ('Name', 'Version', 'Description', 'Summary')]
+        return parse_meta(meta)
 
 
 HasConstraintRole = Qt.UserRole + 0xf45
 DetailedText = HasConstraintRole + 1
+
+
+def description_rich_text(item):  # type: (Item) -> str
+    description = ""     # type: str
+    content_type = None  # type: Optional[str]
+
+    if isinstance(item, Installed):
+        remote, dist = item.installable, item.local
+        if remote is None:
+            meta = get_dist_meta(dist)
+            description = meta.get("Description", "") or \
+                          meta.get('Summary', "")
+            content_type = meta.get("Description-Content-Type")
+        else:
+            description = remote.description
+            content_type = remote.description_content_type
+    else:
+        description = item.installable.description
+        content_type = item.installable.description_content_type
+
+    try:
+        html = markup.render_as_rich_text(description, content_type)
+    except Exception:
+        html = markup.render_as_rich_text(description, "text/plain")
+    return html
 
 
 class ActionItem(QStandardItem):
@@ -220,36 +243,8 @@ class ActionItem(QStandardItem):
         elif role == DetailedText:
             item = self.data(Qt.UserRole)
             if isinstance(item, (Available, Installed)):
-                return self._detailed_text(item)
+                return description_rich_text(item)
         return super().data(role)
-
-    def _detailed_text(self, item):
-        # type: (Item) -> str
-        if isinstance(item, Installed):
-            remote, dist = item.installable, item.local
-            if remote is None:
-                meta = get_dist_meta(dist)
-                description = meta.get("Description", "") or \
-                              meta.get('Summary', "")
-            else:
-                description = remote.description
-        else:
-            description = item.installable.description
-
-        try:
-            assert isinstance(description, str)
-            html = docutils.core.publish_string(
-                trim(description),
-                writer_name="html",
-                settings_overrides={
-                    "output-encoding": "utf-8",
-                }
-            ).decode("utf-8")
-        except docutils.utils.SystemMessage:
-            html = "<pre>{}<pre>".format(escape(description))
-        except Exception:
-            html = "<pre>{}<pre>".format(escape(description))
-        return html
 
     def _sibling(self, column) -> QModelIndex:
         model = self.model()
@@ -277,36 +272,8 @@ class StateItem(QStandardItem):
         if role == DetailedText:
             item = self.data(Qt.UserRole)
             if isinstance(item, (Available, Installed)):
-                return self._detailed_text(item)
+                return description_rich_text(item)
         return super().data(role)
-
-    def _detailed_text(self, item):
-        # type: (Item) -> str
-        if isinstance(item, Installed):
-            remote, dist = item.installable, item.local
-            if remote is None:
-                meta = get_dist_meta(dist)
-                description = meta.get("Description", "") or \
-                              meta.get('Summary', "")
-            else:
-                description = remote.description
-        else:
-            description = item.installable.description
-
-        try:
-            assert isinstance(description, str)
-            html = docutils.core.publish_string(
-                trim(description),
-                writer_name="html",
-                settings_overrides={
-                    "output-encoding": "utf-8",
-                }
-            ).decode("utf-8")
-        except docutils.utils.SystemMessage:
-            html = "<pre>{}<pre>".format(escape(description))
-        except Exception:
-            html = "<pre>{}<pre>".format(escape(description))
-        return html
 
 
 class PluginsModel(QStandardItemModel):
@@ -1000,12 +967,17 @@ class AddonManagerDialog(QDialog):
         for url in event.mimeData().urls():
             path = url.toLocalFile()
             if path.endswith(self.ADDON_EXTENSIONS):
-                name, vers, summary, descr = (get_meta_from_archive(path) or
-                                              (os.path.basename(path), '', '', ''))
+                meta = get_meta_from_archive(path) or {}
+                name = meta.get("Name", os.path.basename(path))
+                vers = meta.get("Version", "")
+                summary = meta.get("Summary", "")
+                descr = meta.get("Description", "")
+                content_type = meta.get("Description-Content-Type", None)
                 names.append(name)
                 packages.append(
                     Installable(name, vers, summary,
-                                descr or summary, path, [path]))
+                                descr or summary, path, [path], content_type)
+                )
 
         for installable in packages:
             self.addInstallable(installable)
@@ -1135,6 +1107,7 @@ def installable_from_json_response(meta):
     version = info.get("version", "0")
     summary = info.get("summary", "")
     description = info.get("description", "")
+    content_type = info.get("description_content_type", None)
     package_url = info.get("package_url", "")
     distributions = meta.get("releases", {}).get(version, [])
     release_urls = [ReleaseUrl(r["filename"], url=r["url"], size=r["size"],
@@ -1142,7 +1115,8 @@ def installable_from_json_response(meta):
                                package_type=r["packagetype"])
                     for r in distributions]
 
-    return Installable(name, version, summary, description, package_url, release_urls)
+    return Installable(name, version, summary, description, package_url, release_urls,
+                       content_type)
 
 
 def _session(cachedir=None):
