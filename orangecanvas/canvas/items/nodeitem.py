@@ -83,7 +83,7 @@ def animation_restart(animation):
 
 
 SHADOW_COLOR = "#9CACB4"
-FOCUS_OUTLINE_COLOR = "#609ED7"
+SELECTED_SHADOW_COLOR = "#609ED7"
 
 
 class NodeBodyItem(GraphicsPathObject):
@@ -112,7 +112,7 @@ class NodeBodyItem(GraphicsPathObject):
         self.setPalette(default_palette())
 
         self.shadow = QGraphicsDropShadowEffect(
-            blurRadius=3,
+            blurRadius=0,
             color=QColor(SHADOW_COLOR),
             offset=QPointF(0, 0),
         )
@@ -229,19 +229,25 @@ class NodeBodyItem(GraphicsPathObject):
 
     def __updateShadowState(self):
         # type: () -> None
-        radius = 3
-        enabled = False
-
-        if self.__isSelected:
+        if self.__isSelected or self.__hover:
             enabled = True
-            radius = 7
-
-        if self.__hover:
             radius = 17
-            enabled = True
+        else:
+            enabled = False
+            radius = 0
 
         if enabled and not self.shadow.isEnabled():
             self.shadow.setEnabled(enabled)
+
+        if self.__isSelected:
+            color = QColor(SELECTED_SHADOW_COLOR)
+        else:
+            color = QColor(SHADOW_COLOR)
+
+        self.shadow.setColor(color)
+
+        if radius == self.shadow.blurRadius():
+            return
 
         if self.__animationEnabled:
             if self.__blurAnimation.state() == QPropertyAnimation.Running:
