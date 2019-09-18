@@ -418,7 +418,8 @@ class NodeAnchorItem(GraphicsPathObject):
         stroke_path.setCapStyle(Qt.RoundCap)
 
         # Shape is wider (bigger mouse hit area - should be settable)
-        stroke_path.setWidth(12)
+        stroke_path.setWidth(25)
+        self.prepareGeometryChange()
         self.__shape = stroke_path.createStroke(path)
 
         # The full stroke
@@ -590,6 +591,12 @@ class NodeAnchorItem(GraphicsPathObject):
             return QPainterPath(self.__shape)
         else:
             return super().shape()
+
+    def boundingRect(self):
+        if self.__shape is not None:
+            return self.__shape.controlPointRect()
+        else:
+            return GraphicsPathObject.boundingRect(self)
 
     def hoverEnterEvent(self, event):
         self.shadow.setEnabled(True)
