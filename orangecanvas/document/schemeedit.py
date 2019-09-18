@@ -123,6 +123,8 @@ class SchemeEditWidget(QWidget):
         self.__undoStack = QUndoStack(self)
         self.__undoStack.cleanChanged[bool].connect(self.__onCleanChanged)
 
+        self.__clipboard = None
+
         # scheme node properties when set to a clean state
         self.__cleanProperties = []
 
@@ -143,6 +145,8 @@ class SchemeEditWidget(QWidget):
         self.__editMenu.addSeparator()
         self.__editMenu.addAction(self.__removeSelectedAction)
         self.__editMenu.addAction(self.__duplicateSelectedAction)
+        self.__editMenu.addAction(self.__copySelectedAction)
+        self.__editMenu.addAction(self.__pasteAction)
         self.__editMenu.addAction(self.__selectAllAction)
 
         # Widget context menu
@@ -152,6 +156,7 @@ class SchemeEditWidget(QWidget):
         self.__widgetMenu.addAction(self.__renameAction)
         self.__widgetMenu.addAction(self.__removeSelectedAction)
         self.__widgetMenu.addAction(self.__duplicateSelectedAction)
+        self.__widgetMenu.addAction(self.__copySelectedAction)
         self.__widgetMenu.addSeparator()
         self.__widgetMenu.addAction(self.__helpAction)
 
@@ -329,12 +334,29 @@ class SchemeEditWidget(QWidget):
             objectName="link-reset-action",
             triggered=self.__linkReset,
         )
+
         self.__duplicateSelectedAction = QAction(
-            self.tr("Duplicate Selected"), self,
+            self.tr("Duplicate"), self,
             objectName="duplicate-action",
             enabled=False,
             shortcut=QKeySequence(Qt.ControlModifier + Qt.Key_D),
             triggered=self.__duplicateSelected,
+        )
+
+        self.__copySelectedAction = QAction(
+            self.tr("Copy"), self,
+            objectName="copy-action",
+            enabled=False,
+            shortcut=QKeySequence(Qt.ControlModifier + Qt.Key_C),
+            triggered=self.__copyToClipboard,
+        )
+
+        self.__pasteAction = QAction(
+            self.tr("Paste"), self,
+            objectName="paste-action",
+            enabled=False,
+            shortcut=QKeySequence(Qt.ControlModifier + Qt.Key_V),
+            triggered=self.__pasteFromClipboard,
         )
 
         self.addActions([
@@ -344,7 +366,9 @@ class SchemeEditWidget(QWidget):
             self.__linkRemoveAction,
             self.__nodeInsertAction,
             self.__linkResetAction,
-            self.__duplicateSelectedAction
+            self.__duplicateSelectedAction,
+            self.__copySelectedAction,
+            self.__pasteAction
         ])
 
         # Actions which should be disabled while a multistep
@@ -354,7 +378,9 @@ class SchemeEditWidget(QWidget):
             self.__redoAction,
             self.__removeSelectedAction,
             self.__selectAllAction,
-            self.__duplicateSelectedAction
+            self.__duplicateSelectedAction,
+            self.__copySelectedAction,
+            self.__pasteAction
         ]
 
         #: Top 'Window Groups' action
@@ -1471,6 +1497,7 @@ class SchemeEditWidget(QWidget):
         self.__helpAction.setEnabled(len(nodes) == 1)
         self.__renameAction.setEnabled(len(nodes) == 1)
         self.__duplicateSelectedAction.setEnabled(bool(nodes))
+        self.__copySelectedAction.setEnabled(bool(nodes))
 
         if len(nodes) > 1:
             self.__openSelectedAction.setText(self.tr("Open All"))
@@ -1789,23 +1816,23 @@ class SchemeEditWidget(QWidget):
         """
         Duplicate currently selected nodes.
         """
-        def copy_node(node):
-            # type: (SchemeNode) -> SchemeNode
-            x, y = node.position
-            return SchemeNode(
-                node.description, node.title, position=(x + 20, y + 20),
-                properties=copy.deepcopy(node.properties))
+        nodes = self.selectedNodes()
 
-        def copy_link(link, source=None, sink=None):
-            # type: (SchemeLink, Optional[SchemeNode], Optional[SchemeNode]) -> SchemeLink
-            source = link.source_node if source is None else source
-            sink = link.sink_node if sink is None else sink
-            return SchemeLink(
-                source, link.source_channel,
-                sink, link.sink_channel,
-                enabled=link.enabled,
-                properties=copy.deepcopy(link.properties))
+        nodedups, linkdups = self.__copySelected()
+        self.__paste(nodedups, linkdups)
 
+    def __copyToClipboard(self):
+        """
+        Deep copy currently selected nodes to canvas clipboard.
+        """
+        self.__clipboard = self.__copySelected()
+        if not self.__pasteAction.isEnabled():
+            self.__pasteAction.setEnabled(True)
+
+    def __copySelected(self):
+        """
+        Return a deep copy of currently selected nodes and links between them.
+        """
         scheme = self.scheme()
         if scheme is None:
             return
@@ -1813,23 +1840,57 @@ class SchemeEditWidget(QWidget):
         # ensure up to date node properties (settings)
         scheme.sync_node_properties()
 
-        selection = self.selectedNodes()
-
+        # original nodes and links
+        nodes = self.selectedNodes()
         links = [link for link in scheme.links
-                 if link.source_node in selection and
-                    link.sink_node in selection]
-        nodedups = [copy_node(node) for node in selection]
+                 if link.source_node in nodes and
+                 link.sink_node in nodes]
+
+        # deepcopied nodes and links
+        nodedups = [copy_node(node) for node in nodes]
+        node_to_dup = dict(zip(nodes, nodedups))
+        linkdups = [copy_link(link, source=node_to_dup[link.source_node],
+                              sink=node_to_dup[link.sink_node])
+                    for link in links]
+
+        return nodedups, linkdups
+
+    def __pasteFromClipboard(self):
+        """
+        Paste a deep copy of the canvas clipboard.
+        """
+        if self.__clipboard is None:
+            return
+
+        nodes, links = self.__clipboard
+
+        nodedups = [copy_node(node) for node in nodes]
+        node_to_dup = dict(zip(nodes, nodedups))
+        linkdups = [copy_link(link, source=node_to_dup[link.source_node],
+                              sink=node_to_dup[link.sink_node])
+                    for link in links]
+
+        # switch out clipboard for duplicated nodes
+        # this way, upon several pastes, nodes are not positioned over each other
+        self.__clipboard = nodedups, linkdups
+
+        self.__paste(nodes, links)
+
+    def __paste(self, nodedups, linkdups):
+        """
+        Paste nodes and links to canvas. Arguments are expected to be duplicated nodes/links.
+        """
+        scheme = self.scheme()
+        if scheme is None:
+            return
+
+        # find unique names for new nodes
         allnames = {node.title for node in scheme.nodes + nodedups}
         for nodedup in nodedups:
             nodedup.title = uniquify(
                 nodedup.title, allnames, pattern="{item} ({_})", start=1)
 
-        node_to_dup = dict(zip(selection, nodedups))
-
-        linkdups = [copy_link(link, source=node_to_dup[link.source_node],
-                              sink=node_to_dup[link.sink_node])
-                    for link in links]
-
+        # create nodes, links
         command = QUndoCommand(self.tr("Duplicate"))
         macrocommands = []
         for nodedup in nodedups:
@@ -1842,10 +1903,12 @@ class SchemeEditWidget(QWidget):
         self.__undoStack.push(command)
         scene = self.__scene
 
-        for node in selection:
-            item = scene.item_for_node(node)
+        # deselect selected
+        selected = self.scene().selectedItems()
+        for item in selected:
             item.setSelected(False)
 
+        # select pasted
         for node in nodedups:
             item = scene.item_for_node(node)
             item.setSelected(True)
@@ -2208,3 +2271,22 @@ def uniquify(item, names, pattern="{item}-{_}", start=0):
                   for i in itertools.count(start))
     candidates = itertools.dropwhile(lambda item: item in names, candidates)
     return next(candidates)
+
+
+def copy_node(node):
+    # type: (SchemeNode) -> SchemeNode
+    x, y = node.position
+    return SchemeNode(
+        node.description, node.title, position=(x + 20, y + 20),
+        properties=copy.deepcopy(node.properties))
+
+
+def copy_link(link, source=None, sink=None):
+    # type: (SchemeLink, Optional[SchemeNode], Optional[SchemeNode]) -> SchemeLink
+    source = link.source_node if source is None else source
+    sink = link.sink_node if sink is None else sink
+    return SchemeLink(
+        source, link.source_channel,
+        sink, link.sink_channel,
+        enabled=link.enabled,
+        properties=copy.deepcopy(link.properties))
