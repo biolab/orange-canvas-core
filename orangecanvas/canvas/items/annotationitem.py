@@ -1,9 +1,4 @@
-from collections import OrderedDict
-from xml.sax.saxutils import escape
-
-from typing import Dict, Callable, Optional, Union, Any, Tuple
-
-import docutils.core
+from typing import Optional, Union, Any, Tuple
 
 from AnyQt.QtWidgets import (
     QGraphicsItem, QGraphicsPathItem, QGraphicsWidget, QGraphicsTextItem,
@@ -23,6 +18,7 @@ from AnyQt.QtCore import (
     pyqtSignal as Signal, pyqtProperty as Property, pyqtSlot as Slot
 )
 
+from orangecanvas.utils import markup
 from .graphicspathobject import GraphicsPathObject
 
 
@@ -142,89 +138,6 @@ class GraphicsTextEdit(QGraphicsTextItem):
             self.editingFinished.emit()
 
 
-def render_plain(content):
-    # type: (str) -> str
-    """
-    Return a html fragment for a plain pre-formatted text
-
-    Parameters
-    ----------
-    content : str
-        Plain text content
-
-    Returns
-    -------
-    html : str
-    """
-    return '<p style="white-space: pre-wrap;">' + escape(content) + "</p>"
-
-
-def render_html(content):
-    # type: (str) -> str
-    """
-    Return a html fragment unchanged.
-
-    Parameters
-    ----------
-    content : str
-        Html text.
-
-    Returns
-    -------
-    html : str
-    """
-    return content
-
-
-def render_markdown(content):
-    # type: (str) -> str
-    """
-    Return a html fragment from markdown text content
-
-    Parameters
-    ----------
-    content : str
-        A markdown formatted text
-
-    Returns
-    -------
-    html : str
-    """
-    # commonmark >= 0.8.1; but only optionally. Many other packages may pin it
-    # to <0.8 due to breaking changes.
-    try:
-        import commonmark
-    except ImportError:
-        return '<div style="color: red;">' + render_plain(content) + "</div>"
-    else:
-        return commonmark.commonmark(content)
-
-
-def render_rst(content):
-    # type: (str) -> str
-    """
-    Return a html fragment from a RST text content
-
-    Parameters
-    ----------
-    content : str
-        A RST formatted text content
-
-    Returns
-    -------
-    html : str
-    """
-    overrides = {
-        "report_level": 10,  # suppress errors from appearing in the html
-        "output-encoding": "utf-8"
-    }
-    html = docutils.core.publish_string(
-        content, writer_name="html",
-        settings_overrides=overrides
-    )
-    return html.decode("utf-8")
-
-
 class TextAnnotation(Annotation):
     """
     Text annotation item for the canvas scheme.
@@ -241,15 +154,6 @@ class TextAnnotation(Annotation):
     #: (`content` or `contentType` changed)
     contentChanged = Signal()
 
-    #: Mapping of supported content types to corresponding
-    #: content -> html transformer.
-    ContentRenderer = OrderedDict([
-        ("text/plain", render_plain),
-        ("text/rst", render_rst),
-        ("text/markdown", render_markdown),
-        ("text/html", render_html),
-    ])  # type: Dict[str, Callable[[str], str]]
-
     def __init__(self, parent=None, **kwargs):
         # type: (Optional[QGraphicsItem], Any) -> None
         super().__init__(None, **kwargs)
@@ -260,7 +164,6 @@ class TextAnnotation(Annotation):
 
         self.__contentType = "text/plain"
         self.__content = ""
-        self.__renderer = render_plain  # type: Callable[[str], str]
 
         self.__textMargins = (2, 2, 2, 2)
         self.__textInteractionFlags = Qt.NoTextInteraction
@@ -538,11 +441,9 @@ class TextAnnotation(Annotation):
     @Slot()
     def __updateRenderedContent(self):
         # type: () -> None
-        try:
-            renderer = TextAnnotation.ContentRenderer[self.__contentType]
-        except KeyError:
-            renderer = render_plain
-        self.__textItem.setHtml(renderer(self.__content))
+        self.__textItem.setHtml(
+            markup.render_as_rich_text(self.__content, self.__contentType)
+        )
 
     def contextMenuEvent(self, event):
         # type: (QGraphicsSceneContextMenuEvent) -> None
