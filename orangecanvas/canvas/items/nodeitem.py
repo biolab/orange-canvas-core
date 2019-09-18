@@ -99,7 +99,6 @@ class NodeBodyItem(GraphicsPathObject):
         self.__progress = -1.
         self.__animationEnabled = False
         self.__isSelected = False
-        self.__hasFocus = False
         self.__hover = False
         self.__shapeRect = QRectF(-10, -10, 20, 20)
 
@@ -230,12 +229,6 @@ class NodeBodyItem(GraphicsPathObject):
 
     def __updateShadowState(self):
         # type: () -> None
-        if self.__hasFocus:
-            color = QColor(FOCUS_OUTLINE_COLOR)
-            self.setPen(QPen(color, 1.5))
-        else:
-            self.setPen(QPen(Qt.NoPen))
-
         radius = 3
         enabled = False
 
@@ -274,7 +267,7 @@ class NodeBodyItem(GraphicsPathObject):
         grad = radial_gradient(c2, c1)
         self.setBrush(QBrush(grad))
 
-    # TODO: The selected and focus states should be set using the
+    # TODO: The selected state should be set using the
     # QStyle flags (State_Selected. State_HasFocus)
 
     def setSelected(self, selected):
@@ -287,19 +280,8 @@ class NodeBodyItem(GraphicsPathObject):
 
         """
         self.__isSelected = selected
-        self.__updateBrush()
-
-    def setHasFocus(self, focus):
-        # type: (bool) -> None
-        """
-        Set the `has focus` state.
-
-        .. note:: The item does not have `QGraphicsItem.ItemIsFocusable` flag.
-                  This property is instead controlled by the parent NodeItem.
-
-        """
-        self.__hasFocus = focus
         self.__updateShadowState()
+        self.__updateBrush()
 
     def __on_finished(self):
         # type: () -> None
@@ -1371,14 +1353,6 @@ class NodeItem(QGraphicsWidget):
             super().contextMenuEvent(event)
         else:
             event.ignore()
-
-    def focusInEvent(self, event):
-        self.shapeItem.setHasFocus(True)
-        super().focusInEvent(event)
-
-    def focusOutEvent(self, event):
-        self.shapeItem.setHasFocus(False)
-        super().focusOutEvent(event)
 
     def changeEvent(self, event):
         if event.type() == QEvent.PaletteChange:
