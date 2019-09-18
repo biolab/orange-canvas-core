@@ -899,17 +899,6 @@ class NodeItem(QGraphicsWidget):
         self.warningItem = iconItem(QStyle.SP_MessageBoxWarning)
         self.infoItem = iconItem(QStyle.SP_MessageBoxInformation)
 
-        self.backgroundItem = QGraphicsPathItem(self)
-        backgroundrect = QPainterPath()
-        backgroundrect.addRoundedRect(anchor_rect.adjusted(-4, -2, 4, 2),
-                                      5, 5, mode=Qt.AbsoluteSize)
-        self.backgroundItem.setPen(QPen(Qt.NoPen))
-        self.backgroundItem.setBrush(self.palette().brush(QPalette.Highlight))
-        self.backgroundItem.setOpacity(0.5)
-        self.backgroundItem.setPath(backgroundrect)
-        self.backgroundItem.setZValue(-10)
-        self.backgroundItem.setVisible(self.isSelected())
-
         self.prepareGeometryChange()
         self.__boundingRect = None
 
@@ -1366,7 +1355,6 @@ class NodeItem(QGraphicsWidget):
         if change == QGraphicsItem.ItemSelectedChange:
             self.shapeItem.setSelected(value)
             self.captionTextItem.setSelectionState(value)
-            self.backgroundItem.setVisible(value)
         elif change == QGraphicsItem.ItemPositionHasChanged:
             self.positionChanged.emit()
 
@@ -1376,7 +1364,6 @@ class NodeItem(QGraphicsWidget):
         # type: () -> None
         palette = self.palette()
         self.captionTextItem.setPalette(palette)
-        self.backgroundItem.setBrush(palette.brush(QPalette.Highlight))
 
     def __updateFont(self):
         # type: () -> None
