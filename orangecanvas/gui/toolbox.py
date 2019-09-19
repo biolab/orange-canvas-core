@@ -300,7 +300,6 @@ class ToolBox(QFrame):
             self, objectName="toolbox-scroll-area",
             sizePolicy=QSizePolicy(QSizePolicy.MinimumExpanding,
                                    QSizePolicy.MinimumExpanding),
-            verticalScrollBarPolicy=Qt.ScrollBarAlwaysOn,
             horizontalScrollBarPolicy=Qt.ScrollBarAlwaysOff,
             widgetResizable=True,
         )
@@ -531,7 +530,14 @@ class ToolBox(QFrame):
         if self.count():
             # Compute max width of hidden widgets also.
             scroll = self.__scrollArea
-            scroll_w = scroll.verticalScrollBar().sizeHint().width()
+
+            # check if scrollbar is transient
+            scrollBar = self.__scrollArea.verticalScrollBar()
+            transient = scrollBar.style().styleHint(QStyle.SH_ScrollBar_Transient,
+                                                    widget=scrollBar)
+
+            scroll_w = scroll.verticalScrollBar().sizeHint().width() if not transient else 0
+
             frame_w = self.frameWidth() * 2 + scroll.frameWidth() * 2
             max_w = max([p.widget.sizeHint().width() for p in self.__pages])
             hint = QSize(max(max_w, hint.width()) + scroll_w + frame_w,
