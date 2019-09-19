@@ -116,7 +116,7 @@ class NodeBodyItem(GraphicsPathObject):
             color=QColor(SHADOW_COLOR),
             offset=QPointF(0, 0),
         )
-        self.shadow.setEnabled(True)
+        self.shadow.setEnabled(False)
 
         # An item with the same shape as this object, stacked behind this
         # item as a source for QGraphicsDropShadowEffect. Cannot attach
@@ -362,14 +362,8 @@ class NodeAnchorItem(GraphicsPathObject):
         self.connectedBrush = QBrush(QColor("#9CACB4"))
         self.setBrush(self.normalBrush)
 
-        self.shadow = QGraphicsDropShadowEffect(
-            blurRadius=10,
-            color=QColor(SHADOW_COLOR),
-            offset=QPointF(0, 0)
-        )
-
-        self.setGraphicsEffect(self.shadow)
-        self.shadow.setEnabled(False)
+        self.__animationEnabled = False
+        self.__hover = False
 
         # Does this item have any anchored links.
         self.anchored = False
@@ -386,6 +380,25 @@ class NodeAnchorItem(GraphicsPathObject):
         self.__fullStroke = QPainterPath()
         self.__dottedStroke = QPainterPath()
         self.__shape = None  # type: Optional[QPainterPath]
+
+        self.shadow = QGraphicsDropShadowEffect(
+            blurRadius=0,
+            color=QColor(SHADOW_COLOR),
+            offset=QPointF(0, 0),
+        )
+        # self.setGraphicsEffect(self.shadow)
+        self.shadow.setEnabled(False)
+
+        shadowitem = GraphicsPathObject(self, objectName="shadow-shape-item")
+        shadowitem.setPen(Qt.NoPen)
+        shadowitem.setBrush(QBrush(QColor(SHADOW_COLOR).lighter()))
+        shadowitem.setGraphicsEffect(self.shadow)
+        shadowitem.setFlag(QGraphicsItem.ItemStacksBehindParent)
+        self.__shadow = shadowitem
+        self.__blurAnimation = QPropertyAnimation(self.shadow, b"blurRadius",
+                                                  self)
+        self.__blurAnimation.setDuration(50)
+        self.__blurAnimation.finished.connect(self.__on_finished)
 
     def parentNodeItem(self):
         # type: () -> Optional['NodeItem']
@@ -421,10 +434,12 @@ class NodeAnchorItem(GraphicsPathObject):
         if self.anchored:
             assert self.__fullStroke is not None
             self.setPath(self.__fullStroke)
+            self.__shadow.setPath(self.__fullStroke)
             self.setBrush(self.connectedBrush)
         else:
             assert self.__dottedStroke is not None
             self.setPath(self.__dottedStroke)
+            self.__shadow.setPath(self.__dottedStroke)
             self.setBrush(self.normalBrush)
 
     def anchorPath(self):
@@ -444,9 +459,11 @@ class NodeAnchorItem(GraphicsPathObject):
         self.anchored = anchored
         if anchored:
             self.setPath(self.__fullStroke)
+            self.__shadow.setPath(self.__fullStroke)
             self.setBrush(self.connectedBrush)
         else:
             self.setPath(self.__dottedStroke)
+            self.__shadow.setPath(self.__dottedStroke)
             self.setBrush(self.normalBrush)
 
     def setConnectionHint(self, hint=None):
@@ -587,12 +604,39 @@ class NodeAnchorItem(GraphicsPathObject):
             return GraphicsPathObject.boundingRect(self)
 
     def hoverEnterEvent(self, event):
-        self.shadow.setEnabled(True)
+        self.__hover = True
+        self.__updateShadowState()
         return super().hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event):
-        self.shadow.setEnabled(False)
+        self.__hover = False
+        self.__updateShadowState()
         return super().hoverLeaveEvent(event)
+
+    def setAnimationEnabled(self, enabled):
+        # type: (bool) -> None
+        """
+        Set the anchor animation enabled.
+        """
+        if self.__animationEnabled != enabled:
+            self.__animationEnabled = enabled
+
+    def __updateShadowState(self):
+        # type: () -> None
+        radius = 5 if self.__hover else 0
+
+        if radius != 0 and not self.shadow.isEnabled():
+            self.shadow.setEnabled(True)
+
+        if self.__animationEnabled:
+            if self.__blurAnimation.state() == QPropertyAnimation.Running:
+                self.__blurAnimation.pause()
+
+            self.__blurAnimation.setStartValue(self.shadow.blurRadius())
+            self.__blurAnimation.setEndValue(radius)
+            self.__blurAnimation.start()
+        else:
+            self.shadow.setBlurRadius(radius)
 
     def __updatePositions(self):
         # type: () -> None
@@ -601,6 +645,11 @@ class NodeAnchorItem(GraphicsPathObject):
         for point, t in zip(self.__points, self.__pointPositions):
             pos = self.__anchorPath.pointAtPercent(t)
             point.setPos(pos)
+
+    def __on_finished(self):
+        # type: () -> None
+        if self.shadow.blurRadius() == 0:
+            self.shadow.setEnabled(False)
 
 
 class SourceAnchorItem(NodeAnchorItem):
@@ -881,6 +930,7 @@ class NodeItem(QGraphicsWidget):
         input_path.arcMoveTo(anchor_rect, start_angle)
         input_path.arcTo(anchor_rect, start_angle, self.ANCHOR_SPAN_ANGLE)
         self.inputAnchorItem.setAnchorPath(input_path)
+        self.inputAnchorItem.setAnimationEnabled(self.__animationEnabled)
 
         self.outputAnchorItem = SourceAnchorItem(self)
         output_path = QPainterPath()
@@ -888,6 +938,7 @@ class NodeItem(QGraphicsWidget):
         output_path.arcMoveTo(anchor_rect, start_angle)
         output_path.arcTo(anchor_rect, start_angle, - self.ANCHOR_SPAN_ANGLE)
         self.outputAnchorItem.setAnchorPath(output_path)
+        self.outputAnchorItem.setAnimationEnabled(self.__animationEnabled)
 
         self.inputAnchorItem.hide()
         self.outputAnchorItem.hide()
@@ -1042,6 +1093,8 @@ class NodeItem(QGraphicsWidget):
         if self.__animationEnabled != enabled:
             self.__animationEnabled = enabled
             self.shapeItem.setAnimationEnabled(enabled)
+            self.outputAnchorItem.setAnimationEnabled(self.__animationEnabled)
+            self.inputAnchorItem.setAnimationEnabled(self.__animationEnabled)
 
     def animationEnabled(self):
         # type: () -> bool
