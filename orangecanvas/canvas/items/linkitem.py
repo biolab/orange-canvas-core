@@ -97,7 +97,7 @@ class LinkCurveItem(QGraphicsPathItem):
         if self.__shape is None:
             path = self.curvePath()
             pen = QPen(self.pen())
-            pen.setWidthF(max(pen.widthF(), 7.0))
+            pen.setWidthF(max(pen.widthF(), 25.0))
             pen.setStyle(Qt.SolidLine)
             self.__shape = stroke_path(path, pen)
         return self.__shape
