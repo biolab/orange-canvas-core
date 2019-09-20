@@ -15,10 +15,8 @@ from typing import Dict, Any, Optional, List, Iterable, Tuple
 
 from AnyQt.QtWidgets import (
     QGraphicsItem, QGraphicsObject, QGraphicsTextItem, QGraphicsWidget,
-    QGraphicsDropShadowEffect, QStyle, QGraphicsPathItem,
-    QApplication, QGraphicsSceneMouseEvent, QGraphicsSceneContextMenuEvent,
-    QStyleOptionGraphicsItem, QWidget
-)
+    QGraphicsDropShadowEffect, QStyle, QApplication, QGraphicsSceneMouseEvent,
+    QGraphicsSceneContextMenuEvent, QStyleOptionGraphicsItem, QWidget, QGraphicsEllipseItem)
 from AnyQt.QtGui import (
     QPen, QBrush, QColor, QPalette, QIcon, QPainter, QPainterPath,
     QPainterPathStroker, QTextDocument, QTextBlock, QTextLine, QFont
@@ -295,6 +293,40 @@ class NodeBodyItem(GraphicsPathObject):
             self.shadow.setEnabled(False)
 
 
+class LinkAnchorIndicator(QGraphicsEllipseItem):
+    """
+    A visual indicator of the link anchor point at both ends
+    of the :class:`LinkItem`.
+
+    """
+    def __init__(self, parent=None):
+        # type: (Optional[QGraphicsItem]) -> None
+        super().__init__(parent)
+        self.setRect(-3.5, -3.5, 7., 7.)
+        self.setPen(QPen(Qt.NoPen))
+        self.setBrush(QBrush(QColor("#9CACB4")))
+        self.hoverBrush = QBrush(QColor("#959595"))
+
+        self.__hover = False
+
+    def setHoverState(self, state):
+        # type: (bool) -> None
+        """
+        The hover state is set by the LinkItem.
+        """
+        if self.__hover != state:
+            self.__hover = state
+            self.update()
+
+    def paint(self, painter, option, widget=None):
+        # type: (QPainter, QStyleOptionGraphicsItem, Optional[QWidget]) -> None
+        brush = self.hoverBrush if self.__hover else self.brush()
+
+        painter.setBrush(brush)
+        painter.setPen(self.pen())
+        painter.drawEllipse(self.rect())
+
+
 class AnchorPoint(QGraphicsObject):
     """
     A anchor indicator on the :class:`NodeAnchorItem`.
@@ -309,8 +341,10 @@ class AnchorPoint(QGraphicsObject):
     def __init__(self, parent=None, **kwargs):
         # type: (Optional[QGraphicsItem], Any) -> None
         super().__init__(parent, **kwargs)
+        self.setFlag(QGraphicsItem.ItemIsFocusable)
         self.setFlag(QGraphicsItem.ItemSendsScenePositionChanges, True)
         self.setFlag(QGraphicsItem.ItemHasNoContents, True)
+        self.indicator = LinkAnchorIndicator(self)
 
         self.__direction = QPointF()
 
@@ -346,6 +380,12 @@ class AnchorPoint(QGraphicsObject):
     def boundingRect(self,):
         # type: () -> QRectF
         return QRectF()
+
+    def setHoverState(self, enabled):
+        self.indicator.setHoverState(enabled)
+
+    def setBrush(self, brush):
+        self.indicator.setBrush(brush)
 
 
 class NodeAnchorItem(GraphicsPathObject):
@@ -464,7 +504,8 @@ class NodeAnchorItem(GraphicsPathObject):
         if anchored:
             self.setPath(self.__fullStroke)
             self.__shadow.setPath(self.__fullStroke)
-            brush = self.connectedBrush
+            hover = self.__hover and len(self.__points) > 1  # a stylistic choice
+            brush = self.connectedHoverBrush if hover else self.connectedBrush
             self.setBrush(brush)
         else:
             self.setPath(self.__dottedStroke)
@@ -521,6 +562,9 @@ class NodeAnchorItem(GraphicsPathObject):
         self.__updatePositions()
 
         self.setAnchored(bool(self.__points))
+
+        hover = self.__hover and len(self.__points) > 1  # a stylistic choice
+        anchor.setHoverState(hover)
 
         return index
 
@@ -647,6 +691,9 @@ class NodeAnchorItem(GraphicsPathObject):
             self.__blurAnimation.start()
         else:
             self.shadow.setBlurRadius(radius)
+
+        for anchor in self.anchorPoints():
+            anchor.setHoverState(self.__hover)
 
     def __updatePositions(self):
         # type: () -> None

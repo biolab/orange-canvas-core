@@ -11,12 +11,11 @@ import typing
 from typing import List, Tuple, Optional, Any
 
 from AnyQt.QtWidgets import (
-    QGraphicsItem, QGraphicsEllipseItem, QGraphicsPathItem, QGraphicsWidget,
-    QGraphicsTextItem, QGraphicsDropShadowEffect, QStyleOptionGraphicsItem,
-    QGraphicsSceneHoverEvent, QWidget,
+    QGraphicsItem, QGraphicsPathItem, QGraphicsWidget, QGraphicsTextItem,
+    QGraphicsDropShadowEffect, QGraphicsSceneHoverEvent,
 )
 from AnyQt.QtGui import (
-    QPen, QBrush, QColor, QPainterPath, QTransform, QPalette, QPainter
+    QPen, QBrush, QColor, QPainterPath, QTransform, QPalette,
 )
 from AnyQt.QtCore import Qt, QPointF, QRectF, QLineF, QEvent, QPropertyAnimation
 
@@ -290,40 +289,6 @@ def path_link_disabled(basepath):
     return p1
 
 
-class LinkAnchorIndicator(QGraphicsEllipseItem):
-    """
-    A visual indicator of the link anchor point at both ends
-    of the :class:`LinkItem`.
-
-    """
-    def __init__(self, parent=None):
-        # type: (Optional[QGraphicsItem]) -> None
-        super().__init__(parent)
-        self.setRect(-3.5, -3.5, 7., 7.)
-        self.setPen(QPen(Qt.NoPen))
-        self.setBrush(QBrush(QColor("#9CACB4")))
-        self.hoverBrush = QBrush(QColor("#959595"))
-
-        self.__hover = False
-
-    def setHoverState(self, state):
-        # type: (bool) -> None
-        """
-        The hover state is set by the LinkItem.
-        """
-        if self.__hover != state:
-            self.__hover = state
-            self.update()
-
-    def paint(self, painter, option, widget=None):
-        # type: (QPainter, QStyleOptionGraphicsItem, Optional[QWidget]) -> None
-        brush = self.hoverBrush if self.__hover else self.brush()
-
-        painter.setBrush(brush)
-        painter.setPen(self.pen())
-        painter.drawEllipse(self.rect())
-
-
 _State = SchemeLink.State
 
 
@@ -373,11 +338,6 @@ class LinkItem(QGraphicsWidget):
 
         self.curveItem = LinkCurveItem(self)
 
-        self.sourceIndicator = LinkAnchorIndicator(self)
-        self.sinkIndicator = LinkAnchorIndicator(self)
-        self.sourceIndicator.hide()
-        self.sinkIndicator.hide()
-
         self.linkTextItem = QGraphicsTextItem(self)
         self.linkTextItem.setAcceptedMouseButtons(Qt.NoButton)
         self.linkTextItem.setAcceptHoverEvents(False)
@@ -426,9 +386,6 @@ class LinkItem(QGraphicsWidget):
                 # Create a new output anchor for the item if none is provided.
                 anchor = item.newOutputAnchor()
 
-            # Update the visibility of the start point indicator.
-            self.sourceIndicator.setVisible(bool(item))
-
         if anchor != self.sourceAnchor:
             if self.sourceAnchor is not None:
                 self.sourceAnchor.scenePositionChanged.disconnect(
@@ -475,9 +432,6 @@ class LinkItem(QGraphicsWidget):
             if item is not None and anchor is None:
                 # Create a new input anchor for the item if none is provided.
                 anchor = item.newInputAnchor()
-
-            # Update the visibility of the end point indicator.
-            self.sinkIndicator.setVisible(bool(item))
 
         if self.sinkAnchor != anchor:
             if self.sinkAnchor is not None:
@@ -571,8 +525,6 @@ class LinkItem(QGraphicsWidget):
                          sink_pos)
 
             self.curveItem.setCurvePath(path)
-            self.sourceIndicator.setPos(source_pos)
-            self.sinkIndicator.setPos(sink_pos)
             self.__updateText()
         else:
             self.setHoverState(False)
@@ -649,8 +601,10 @@ class LinkItem(QGraphicsWidget):
             self.prepareGeometryChange()
             self.__boundingRect = None
             self.hover = state
-            self.sinkIndicator.setHoverState(state)
-            self.sourceIndicator.setHoverState(state)
+            if self.sinkAnchor:
+                self.sinkAnchor.setHoverState(state)
+            if self.sourceAnchor:
+                self.sourceAnchor.setHoverState(state)
             self.curveItem.setHoverState(state)
             self.__updatePen()
 
@@ -767,9 +721,9 @@ class LinkItem(QGraphicsWidget):
             self.__state = state
 
             if state & LinkItem.Pending:
-                self.sinkIndicator.setBrush(QBrush(Qt.red))
+                self.sinkAnchor.setBrush(QBrush(Qt.red))
             else:
-                self.sinkIndicator.setBrush(QBrush(QColor("#9CACB4")))
+                self.sinkAnchor.setBrush(QBrush(QColor("#9CACB4")))
             self.__updatePen()
 
     def runtimeState(self):
