@@ -302,6 +302,8 @@ class LinkAnchorIndicator(QGraphicsEllipseItem):
         self.setRect(-3.5, -3.5, 7., 7.)
         self.setPen(QPen(Qt.NoPen))
         self.setBrush(QBrush(QColor("#9CACB4")))
+        self.hoverBrush = QBrush(QColor("#959595"))
+
         self.__hover = False
 
     def setHoverState(self, state):
@@ -315,10 +317,7 @@ class LinkAnchorIndicator(QGraphicsEllipseItem):
 
     def paint(self, painter, option, widget=None):
         # type: (QPainter, QStyleOptionGraphicsItem, Optional[QWidget]) -> None
-        brush = self.brush()
-
-        if self.__hover:
-            brush = QBrush(brush.color().darker(110))
+        brush = self.hoverBrush if self.__hover else self.brush()
 
         painter.setBrush(brush)
         painter.setPen(self.pen())
@@ -788,10 +787,10 @@ class LinkItem(QGraphicsWidget):
                 color = QColor(150, 0, 0, 150)
 
             normal = QPen(QBrush(color), 2.0)
-            hover = QPen(QBrush(color.darker(120)), 2.1)
+            hover = QPen(QBrush(color.darker(120)), 2.0)
         else:
             normal = QPen(QBrush(QColor("#9CACB4")), 2.0)
-            hover = QPen(QBrush(QColor("#7D7D7D")), 2.1)
+            hover = QPen(QBrush(QColor("#959595")), 2.0)
 
         if self.__state & LinkItem.Empty:
             pen_style = Qt.DashLine

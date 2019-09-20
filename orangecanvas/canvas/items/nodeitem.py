@@ -359,7 +359,9 @@ class NodeAnchorItem(GraphicsPathObject):
         self.setAcceptHoverEvents(True)
         self.setPen(QPen(Qt.NoPen))
         self.normalBrush = QBrush(QColor("#CDD5D9"))
-        self.connectedBrush = QBrush(QColor("#9CACB4"))
+        self.normalHoverBrush = QBrush(QColor("#9CACB4"))
+        self.connectedBrush = self.normalHoverBrush
+        self.connectedHoverBrush = QBrush(QColor("#959595"))
         self.setBrush(self.normalBrush)
 
         self.__animationEnabled = False
@@ -391,7 +393,7 @@ class NodeAnchorItem(GraphicsPathObject):
 
         shadowitem = GraphicsPathObject(self, objectName="shadow-shape-item")
         shadowitem.setPen(Qt.NoPen)
-        shadowitem.setBrush(QBrush(QColor(SHADOW_COLOR).lighter()))
+        shadowitem.setBrush(QBrush(QColor(SHADOW_COLOR)))
         shadowitem.setGraphicsEffect(self.shadow)
         shadowitem.setFlag(QGraphicsItem.ItemStacksBehindParent)
         self.__shadow = shadowitem
@@ -435,12 +437,14 @@ class NodeAnchorItem(GraphicsPathObject):
             assert self.__fullStroke is not None
             self.setPath(self.__fullStroke)
             self.__shadow.setPath(self.__fullStroke)
-            self.setBrush(self.connectedBrush)
+            brush = self.connectedHoverBrush if self.__hover else self.connectedBrush
+            self.setBrush(brush)
         else:
             assert self.__dottedStroke is not None
             self.setPath(self.__dottedStroke)
             self.__shadow.setPath(self.__dottedStroke)
-            self.setBrush(self.normalBrush)
+            brush = self.normalHoverBrush if self.__hover else self.normalBrush
+            self.setBrush(brush)
 
     def anchorPath(self):
         # type: () -> QPainterPath
@@ -460,11 +464,13 @@ class NodeAnchorItem(GraphicsPathObject):
         if anchored:
             self.setPath(self.__fullStroke)
             self.__shadow.setPath(self.__fullStroke)
-            self.setBrush(self.connectedBrush)
+            brush = self.connectedBrush
+            self.setBrush(brush)
         else:
             self.setPath(self.__dottedStroke)
             self.__shadow.setPath(self.__dottedStroke)
-            self.setBrush(self.normalBrush)
+            brush = self.normalHoverBrush if self.__hover else self.normalBrush
+            self.setBrush(brush)
 
     def setConnectionHint(self, hint=None):
         """
@@ -605,11 +611,15 @@ class NodeAnchorItem(GraphicsPathObject):
 
     def hoverEnterEvent(self, event):
         self.__hover = True
+        brush = self.connectedHoverBrush if self.anchored else self.normalHoverBrush
+        self.setBrush(brush)
         self.__updateShadowState()
         return super().hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event):
         self.__hover = False
+        brush = self.connectedBrush if self.anchored else self.normalBrush
+        self.setBrush(brush)
         self.__updateShadowState()
         return super().hoverLeaveEvent(event)
 
