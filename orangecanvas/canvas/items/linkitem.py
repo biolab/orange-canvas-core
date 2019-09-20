@@ -18,7 +18,7 @@ from AnyQt.QtWidgets import (
 from AnyQt.QtGui import (
     QPen, QBrush, QColor, QPainterPath, QTransform, QPalette, QPainter
 )
-from AnyQt.QtCore import Qt, QPointF, QRectF, QLineF, QEvent
+from AnyQt.QtCore import Qt, QPointF, QRectF, QLineF, QEvent, QPropertyAnimation
 
 from .nodeitem import AnchorPoint, SHADOW_COLOR
 from .utils import stroke_path
@@ -39,14 +39,7 @@ class LinkCurveItem(QGraphicsPathItem):
         self.setAcceptedMouseButtons(Qt.NoButton)
         self.setAcceptHoverEvents(True)
 
-        self.shadow = QGraphicsDropShadowEffect(
-            blurRadius=5, color=QColor(SHADOW_COLOR),
-            offset=QPointF(0, 0)
-        )
-
-        self.setGraphicsEffect(self.shadow)
-        self.shadow.setEnabled(False)
-
+        self.__animationEnabled = False
         self.__hover = False
         self.__enabled = True
         self.__shape = None  # type: Optional[QPainterPath]
@@ -54,6 +47,17 @@ class LinkCurveItem(QGraphicsPathItem):
         self.__curvepath_disabled = None  # type: Optional[QPainterPath]
         self.__pen = self.pen()
         self.setPen(QPen(QBrush(QColor("#9CACB4")), 2.0))
+
+        self.shadow = QGraphicsDropShadowEffect(
+            blurRadius=5, color=QColor(SHADOW_COLOR),
+            offset=QPointF(0, 0)
+        )
+        self.setGraphicsEffect(self.shadow)
+        self.shadow.setEnabled(False)
+
+        self.__blurAnimation = QPropertyAnimation(self.shadow, b"blurRadius")
+        self.__blurAnimation.setDuration(50)
+        self.__blurAnimation.finished.connect(self.__on_finished)
 
     def setCurvePath(self, path):
         # type: (QPainterPath) -> None
@@ -107,11 +111,31 @@ class LinkCurveItem(QGraphicsPathItem):
         self.__shape = None
         super().setPath(path)
 
+    def setAnimationEnabled(self, enabled):
+        # type: (bool) -> None
+        """
+        Set the link item animation enabled.
+        """
+        if self.__animationEnabled != enabled:
+            self.__animationEnabled = enabled
+
     def __update(self):
         # type: () -> None
-        shadow_enabled = self.__hover
-        if self.shadow.isEnabled() != shadow_enabled:
-            self.shadow.setEnabled(shadow_enabled)
+        radius = 5 if self.__hover else 0
+
+        if radius != 0 and not self.shadow.isEnabled():
+            self.shadow.setEnabled(True)
+
+        if self.__animationEnabled:
+            if self.__blurAnimation.state() == QPropertyAnimation.Running:
+                self.__blurAnimation.pause()
+
+            self.__blurAnimation.setStartValue(self.shadow.blurRadius())
+            self.__blurAnimation.setEndValue(radius)
+            self.__blurAnimation.start()
+        else:
+            self.shadow.setBlurRadius(radius)
+
         basecurve = self.__curvepath
         link_enabled = self.__enabled
         if link_enabled:
@@ -122,6 +146,10 @@ class LinkCurveItem(QGraphicsPathItem):
             path = self.__curvepath_disabled
 
         self.setPath(path)
+
+    def __on_finished(self):
+        if self.shadow.blurRadius() == 0:
+            self.shadow.setEnabled(False)
 
 
 def bezier_subdivide(cp, t):
@@ -505,6 +533,13 @@ class LinkItem(QGraphicsWidget):
         Return the sink name.
         """
         return self.__sinkName
+
+    def setAnimationEnabled(self, enabled):
+        # type: (bool) -> None
+        """
+        Set the link item animation enabled state.
+        """
+        self.curveItem.setAnimationEnabled(enabled)
 
     def _sinkPosChanged(self, *arg):
         self.__updateCurve()

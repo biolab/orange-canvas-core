@@ -267,6 +267,9 @@ class CanvasScene(QGraphicsScene):
             for node in self.__node_items:
                 node.setAnimationEnabled(enabled)
 
+            for link in self.__link_items:
+                link.setAnimationEnabled(enabled)
+
     def add_node_item(self, item):
         # type: (NodeItem) -> NodeItem
         """
@@ -484,6 +487,8 @@ class CanvasScene(QGraphicsScene):
         item.setSourceName(source_name)
         item.setSinkName(sink_name)
         item.setChannelNamesVisible(self.__channel_names_visible)
+
+        item.setAnimationEnabled(self.__node_animation_enabled)
 
         return item
 
