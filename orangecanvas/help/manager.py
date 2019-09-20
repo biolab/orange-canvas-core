@@ -224,7 +224,10 @@ def parse_meta(contents):
         if key in MULTIPLE_KEYS:
             meta[key] = list(str(m) for m in message.get_all(key))
         else:
-            meta[key] = str(message.get(key))
+            value = str(message.get(key))
+            if key == "Description":
+                value = trim(value)
+            meta[key] = value
 
     version = StrictVersion(meta["Metadata-Version"])  # type: ignore
 

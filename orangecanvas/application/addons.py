@@ -1,5 +1,4 @@
 import types
-import tempfile
 import enum
 import sys
 import sysconfig
@@ -7,29 +6,21 @@ import os
 import logging
 import errno
 import shlex
-import subprocess
 import itertools
-import xmlrpc.client
 import json
 import traceback
-import urllib.request
 import typing
 
 from concurrent.futures import ThreadPoolExecutor, Future
 from collections import deque
-from contextlib import contextmanager
-from xml.sax.saxutils import escape
 
 from typing import (
     List, Dict, Any, Optional, Union, Tuple, NamedTuple, Callable, AnyStr,
-    Iterable, Iterator
+    Iterable
 )
 
 import requests
 import pkg_resources
-
-import docutils.core
-import docutils.utils
 
 from AnyQt.QtWidgets import (
     QWidget, QDialog, QLabel, QLineEdit, QTreeView, QHeaderView,
@@ -48,9 +39,11 @@ from AnyQt.QtCore import (
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
-from orangecanvas.utils import unique, name_lookup
+from orangecanvas.utils import unique, name_lookup, markup
+from orangecanvas.utils.shtools import python_process, create_process, \
+    temp_named_file
 from ..gui.utils import message_warning, message_critical as message_error
-from ..help.manager import get_dist_meta, trim, parse_meta
+from ..help.manager import get_dist_meta, parse_meta
 
 from .. import config
 from ..config import Config
@@ -69,7 +62,8 @@ class Installable(
             ("summary", str),
             ("description", str),
             ("package_url", str),
-            ("release_urls", List['ReleaseUrl'])
+            ("release_urls", List['ReleaseUrl']),
+            ("description_content_type", Optional[str]),
         ))):
     """
     An installable distribution from PyPi
@@ -87,6 +81,10 @@ class Installable(
     package_url: str
     release_urls: List[ReleaseUrls]
     """
+
+Installable.__new__.__defaults__ = (
+    None,  # description_content_type = None,
+)
 
 
 class ReleaseUrl(
@@ -174,9 +172,8 @@ def is_updatable(item):
 
 
 def get_meta_from_archive(path):
-    """Return project name, version and summary extracted from
-    sdist or wheel metadata in a ZIP or tar.gz archive, or None if metadata
-    can't be found."""
+    """Return project metadata extracted from sdist or wheel archive, or None
+    if metadata can't be found."""
 
     def is_metadata(fname):
         return fname.endswith(('PKG-INFO', 'METADATA'))
@@ -195,15 +192,93 @@ def get_meta_from_archive(path):
             if meta:
                 meta = archive.extractfile(meta).read().decode('utf-8')
     if meta:
-        meta = parse_meta(meta)
-        return [meta.get(key, '')
-                for key in ('Name', 'Version', 'Description', 'Summary')]
+        return parse_meta(meta)
 
 
 HasConstraintRole = Qt.UserRole + 0xf45
+DetailedText = HasConstraintRole + 1
+
+
+def description_rich_text(item):  # type: (Item) -> str
+    description = ""     # type: str
+    content_type = None  # type: Optional[str]
+
+    if isinstance(item, Installed):
+        remote, dist = item.installable, item.local
+        if remote is None:
+            meta = get_dist_meta(dist)
+            description = meta.get("Description", "") or \
+                          meta.get('Summary', "")
+            content_type = meta.get("Description-Content-Type")
+        else:
+            description = remote.description
+            content_type = remote.description_content_type
+    else:
+        description = item.installable.description
+        content_type = item.installable.description_content_type
+
+    try:
+        html = markup.render_as_rich_text(description, content_type)
+    except Exception:
+        html = markup.render_as_rich_text(description, "text/plain")
+    return html
+
+
+class ActionItem(QStandardItem):
+    def data(self, role=Qt.UserRole + 1) -> Any:
+        if role == Qt.DisplayRole:
+            model = self.model()
+            modelindex = self._sibling(PluginsModel.StateColumn)
+            item = model.data(modelindex, Qt.UserRole)
+            state = model.data(modelindex, Qt.CheckStateRole)
+            flags = model.flags(modelindex)
+            if flags & Qt.ItemIsUserTristate and state == Qt.Checked:
+                return "Update"
+            elif isinstance(item, Available) and state == Qt.Checked:
+                return "Install"
+            elif isinstance(item, Installed) and state == Qt.Unchecked:
+                return "Uninstall"
+            else:
+                return ""
+        elif role == DetailedText:
+            item = self.data(Qt.UserRole)
+            if isinstance(item, (Available, Installed)):
+                return description_rich_text(item)
+        return super().data(role)
+
+    def _sibling(self, column) -> QModelIndex:
+        model = self.model()
+        if model is None:
+            return QModelIndex()
+        index = model.indexFromItem(self)
+        return index.sibling(self.row(), column)
+
+    def _siblingData(self, column: int, role: int):
+        return self._sibling(column).data(role)
+
+
+class StateItem(QStandardItem):
+    def setData(self, value: Any, role: int = Qt.UserRole + 1) -> None:
+        if role == Qt.CheckStateRole:
+            super().setData(value, role)
+            # emit the dependent ActionColumn's data changed
+            sib = self.index().sibling(self.row(), PluginsModel.ActionColumn)
+            if sib.isValid():
+                self.model().dataChanged.emit(sib, sib, (Qt.DisplayRole,))
+            return
+        return super().setData(value, role)
+
+    def data(self, role=Qt.UserRole + 1):
+        if role == DetailedText:
+            item = self.data(Qt.UserRole)
+            if isinstance(item, (Available, Installed)):
+                return description_rich_text(item)
+        return super().data(role)
 
 
 class PluginsModel(QStandardItemModel):
+    StateColumn, NameColumn, VersionColumn, ActionColumn = range(4)
+
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
         self.setHorizontalHeaderLabels(
@@ -232,7 +307,7 @@ class PluginsModel(QStandardItemModel):
 
         updatable = is_updatable(item)
 
-        item1 = QStandardItem()
+        item1 = StateItem()
         item1.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable |
                        Qt.ItemIsUserCheckable |
                        (Qt.ItemIsUserTristate if updatable else 0))
@@ -260,10 +335,79 @@ class PluginsModel(QStandardItemModel):
         item3 = QStandardItem(version)
         item3.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
 
-        item4 = QStandardItem()
+        item4 = ActionItem()
         item4.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
 
         return [item1, item2, item3, item4]
+
+    def itemState(self):
+        # type: () -> List['Action']
+        """
+        Return the current `items` state encoded as a list of actions to be
+        performed.
+
+        Return
+        ------
+        actions : List['Action']
+            For every item that is has been changed in the GUI interface
+            return a tuple of (command, item) where Command is one of
+             `Install`, `Uninstall`, `Upgrade`.
+        """
+        steps = []
+        for i in range(self.rowCount()):
+            modelitem = self.item(i, 0)
+            item = modelitem.data(Qt.UserRole)
+            state = modelitem.checkState()
+            if modelitem.flags() & Qt.ItemIsUserTristate and state == Qt.Checked:
+                steps.append((Upgrade, item))
+            elif isinstance(item, Available) and state == Qt.Checked:
+                steps.append((Install, item))
+            elif isinstance(item, Installed) and state == Qt.Unchecked:
+                steps.append((Uninstall, item))
+
+        return steps
+
+    def setItemState(self, steps):
+        # type: (List['Action']) -> None
+        """
+        Set the current state as a list of actions to perform.
+
+        i.e. `w.setItemState([(Install, item1), (Uninstall, item2)])`
+        will mark item1 for installation and item2 for uninstallation, all
+        other items will be reset to their default state
+
+        Parameters
+        ----------
+        steps : List[Tuple[Command, Item]]
+            State encoded as a list of commands.
+        """
+        if self.rowCount() == 0:
+            return
+
+        for row in range(self.rowCount()):
+            modelitem = self.item(row, 0)  # type: QStandardItem
+            item = modelitem.data(Qt.UserRole)  # type: Item
+            # Find the action command in the steps list for the item
+            cmd = None  # type: Optional[Command]
+            for cmd_, item_ in steps:
+                if item == item_:
+                    cmd = cmd_
+                    break
+            if isinstance(item, Available):
+                modelitem.setCheckState(
+                    Qt.Checked if cmd == Install else Qt.Unchecked
+                )
+            elif isinstance(item, Installed):
+                if cmd == Upgrade:
+                    modelitem.setCheckState(Qt.Checked)
+                elif cmd == Uninstall:
+                    modelitem.setCheckState(Qt.Unchecked)
+                elif is_updatable(item):
+                    modelitem.setCheckState(Qt.PartiallyChecked)
+                else:
+                    modelitem.setCheckState(Qt.Checked)
+            else:
+                assert False
 
 
 class TristateCheckItemDelegate(QStyledItemDelegate):
@@ -442,19 +586,7 @@ class AddonManagerWidget(QWidget):
             return a tuple of (command, item) where Ccmmand is one of
              `Install`, `Uninstall`, `Upgrade`.
         """
-        steps = []
-        for i in range(self.__model.rowCount()):
-            modelitem = self.__model.item(i, 0)
-            item = modelitem.data(Qt.UserRole)
-            state = modelitem.checkState()
-            if modelitem.flags() & Qt.ItemIsUserTristate and state == Qt.Checked:
-                steps.append((Upgrade, item))
-            elif isinstance(item, Available) and state == Qt.Checked:
-                steps.append((Install, item))
-            elif isinstance(item, Installed) and state == Qt.Unchecked:
-                steps.append((Uninstall, item))
-
-        return steps
+        return self.__model.itemState()
 
     def setItemState(self, steps):
         # type: (List['Action']) -> None
@@ -470,34 +602,7 @@ class AddonManagerWidget(QWidget):
         steps : List[Tuple[Command, Item]]
             State encoded as a list of commands.
         """
-        model = self.__model
-        if model.rowCount() == 0:
-            return
-
-        for row in range(model.rowCount()):
-            modelitem = model.item(row, 0)  # type: QStandardItem
-            item = modelitem.data(Qt.UserRole)  # type: Item
-            # Find the action command in the steps list for the item
-            cmd = None  # type: Optional[Command]
-            for cmd_, item_ in steps:
-                if item == item_:
-                    cmd = cmd_
-                    break
-            if isinstance(item, Available):
-                modelitem.setCheckState(
-                    Qt.Checked if cmd == Install else Qt.Unchecked
-                )
-            elif isinstance(item, Installed):
-                if cmd == Upgrade:
-                    modelitem.setCheckState(Qt.Checked)
-                elif cmd == Uninstall:
-                    modelitem.setCheckState(Qt.Unchecked)
-                elif is_updatable(item):
-                    modelitem.setCheckState(Qt.PartiallyChecked)
-                else:
-                    modelitem.setCheckState(Qt.Checked)
-            else:
-                assert False
+        self.__model.setItemState(steps)
 
     def __selected_row(self):
         indices = self.__view.selectedIndexes()
@@ -509,63 +614,19 @@ class AddonManagerWidget(QWidget):
             return -1
 
     def __data_changed(self, topleft, bottomright):
-        rows = range(topleft.row(), bottomright.row() + 1)
-        for i in rows:
-            modelitem = self.__model.item(i, 0)
-            actionitem = self.__model.item(i, 3)
-            item = modelitem.data(Qt.UserRole)
-
-            state = modelitem.checkState()
-            flags = modelitem.flags()
-
-            if flags & Qt.ItemIsUserTristate and state == Qt.Checked:
-                actionitem.setText("Update")
-            elif isinstance(item, Available) and state == Qt.Checked:
-                actionitem.setText("Install")
-            elif isinstance(item, Installed) and state == Qt.Unchecked:
-                actionitem.setText("Uninstall")
-            else:
-                actionitem.setText("")
         self.stateChanged.emit()
 
     def __update_details(self):
         index = self.__selected_row()
         if index == -1:
+            text = ""
             self.__details.setText("")
         else:
-            item = self.__model.item(index, 1)
-            item = item.data(Qt.UserRole)
-            assert isinstance(item, (Installed, Available))
-            text = self._detailed_text(item)
-            self.__details.setText(text)
-
-    def _detailed_text(self, item):
-        # type: (Item) -> str
-        if isinstance(item, Installed):
-            remote, dist = item.installable, item.local
-            if remote is None:
-                meta = get_dist_meta(dist)
-                description = meta.get("Description", "") or \
-                              meta.get('Summary', "")
-            else:
-                description = remote.description
-        else:
-            description = item.installable.description
-
-        try:
-            assert isinstance(description, str)
-            html = docutils.core.publish_string(
-                trim(description),
-                writer_name="html",
-                settings_overrides={
-                    "output-encoding": "utf-8",
-                }
-            ).decode("utf-8")
-        except docutils.utils.SystemMessage:
-            html = "<pre>{}<pre>".format(escape(description))
-        except Exception:
-            html = "<pre>{}<pre>".format(escape(description))
-        return html
+            item = self.__model.item(index, PluginsModel.StateColumn)
+            text = item.data(DetailedText)
+            if not isinstance(text, str):
+                text = ""
+        self.__details.setText(text)
 
     def sizeHint(self):
         return QSize(480, 420)
@@ -906,12 +967,17 @@ class AddonManagerDialog(QDialog):
         for url in event.mimeData().urls():
             path = url.toLocalFile()
             if path.endswith(self.ADDON_EXTENSIONS):
-                name, vers, summary, descr = (get_meta_from_archive(path) or
-                                              (os.path.basename(path), '', '', ''))
+                meta = get_meta_from_archive(path) or {}
+                name = meta.get("Name", os.path.basename(path))
+                vers = meta.get("Version", "")
+                summary = meta.get("Summary", "")
+                descr = meta.get("Description", "")
+                content_type = meta.get("Description-Content-Type", None)
                 names.append(name)
                 packages.append(
                     Installable(name, vers, summary,
-                                descr or summary, path, [path]))
+                                descr or summary, path, [path], content_type)
+                )
 
         for installable in packages:
             self.addInstallable(installable)
@@ -987,72 +1053,7 @@ class AddonManagerDialog(QDialog):
             self.reject()
 
 
-class SafeTransport(xmlrpc.client.SafeTransport):
-    def __init__(self, use_datetime=0, timeout=None):
-        super().__init__(use_datetime)
-        self._timeout = timeout
-
-    def make_connection(self, *args, **kwargs):
-        conn = super().make_connection(*args, **kwargs)
-        if self._timeout is not None:
-            conn.timeout = self._timeout
-        return conn
-
-
 PYPI_API_JSON = "https://pypi.org/pypi/{name}/json"
-PYPI_API_XMLRPC = "https://pypi.org/pypi"
-
-
-def pypi_search(spec, timeout=None):
-    """
-    Search package distributions available on PyPi using PyPiXMLRPC.
-    """
-    pypi = xmlrpc.client.ServerProxy(
-        PYPI_API_XMLRPC,
-        transport=SafeTransport(timeout=timeout)
-    )
-    # pypi search
-    spec = {key: [v] if isinstance(v, str) else v
-            for key, v in spec.items()}
-    _spec = {}
-    for key, values in spec.items():
-        if isinstance(values, str):
-            _spec[key] = values
-        elif key == "keywords" and len(values) > 1:
-            _spec[key] = [values[0]]
-        else:
-            _spec[key] = values
-    addons = pypi.search(_spec, 'and')
-    addons = [item["name"] for item in addons if "name" in item]
-    metas_ = pypi_json_query_project_meta(addons)
-
-    # post filter on multiple keywords
-    def matches(meta, spec):
-        # type: (Dict[str, Any], Dict[str, List[str]]) -> bool
-        def match_list(meta, query):
-            # type: (List[str], List[str]) -> bool
-            meta_ = {s.casefold() for s in meta}
-            return all(q.casefold() in meta_ for q in query)
-
-        def match_string(meta, query):
-            # type: (str, List[str]) -> bool
-            meta_ = meta.casefold()
-            return all(q.casefold() in meta_ for q in query)
-
-        for key, query in spec.items():
-            value = meta.get(key, None)
-            if isinstance(value, str) and not match_string(value, query):
-                return False
-            elif isinstance(value, list) and not match_list(value, query):
-                return False
-        return True
-
-    metas = []
-    for meta in metas_:
-        if meta is not None:
-            if matches(meta["info"], spec):
-                metas.append(meta)
-    return [installable_from_json_response(m) for m in metas]
 
 
 def pypi_json_query_project_meta(projects, session=None):
@@ -1106,6 +1107,7 @@ def installable_from_json_response(meta):
     version = info.get("version", "0")
     summary = info.get("summary", "")
     description = info.get("description", "")
+    content_type = info.get("description_content_type", None)
     package_url = info.get("package_url", "")
     distributions = meta.get("releases", {}).get(version, [])
     release_urls = [ReleaseUrl(r["filename"], url=r["url"], size=r["size"],
@@ -1113,7 +1115,8 @@ def installable_from_json_response(meta):
                                package_type=r["packagetype"])
                     for r in distributions]
 
-    return Installable(name, version, summary, description, package_url, release_urls)
+    return Installable(name, version, summary, description, package_url, release_urls,
+                       content_type)
 
 
 def _session(cachedir=None):
@@ -1246,20 +1249,6 @@ def have_install_permissions():
         return False
 
 
-def _env_with_proxies():
-    """
-    Return system environment with proxies obtained from urllib so that
-    they can be used with pip.
-    """
-    proxies = urllib.request.getproxies()
-    env = dict(os.environ)
-    if "http" in proxies:
-        env["HTTP_PROXY"] = proxies["http"]
-    if "https" in proxies:
-        env["HTTPS_PROXY"] = proxies["https"]
-    return env
-
-
 class Command(enum.Enum):
     Install = "Install"
     Upgrade = "Upgrade"
@@ -1345,19 +1334,6 @@ class Installer(QObject):
             QTimer.singleShot(0, self._next)
         else:
             self.finished.emit()
-
-
-@contextmanager
-def temp_named_file(content, encoding="utf-8", suffix=None, prefix=None):
-    # type: (str, Optional[str], Optional[str], Optional[str]) -> Iterator[str]
-    fd, name = tempfile.mkstemp(suffix, prefix, text=True)
-    file = os.fdopen(fd, mode="wt", encoding=encoding,)
-    file.write(content)
-    file.close()
-    try:
-        yield name
-    finally:
-        os.remove(name)
 
 
 class PipInstaller:
@@ -1493,50 +1469,6 @@ def run_command(command, raise_on_fail=True, **kwargs):
             raise CommandFailed(command, process.returncode, output)
 
     return process.returncode, output
-
-
-def python_process(args, script_name=None, **kwargs):
-    # type: (List[str], Optional[str], Any) -> subprocess.Popen
-    """
-    Run a `sys.executable` in a subprocess with `args`.
-    """
-    executable = sys.executable
-    if os.name == "nt" and os.path.basename(executable) == "pythonw.exe":
-        # Don't run the script with a 'gui' (detached) process.
-        dirname = os.path.dirname(executable)
-        executable = os.path.join(dirname, "python.exe")
-
-    if script_name is not None:
-        script = script_name
-    else:
-        script = executable
-
-    return create_process(
-        [script] + args,
-        executable=executable,
-        **kwargs
-    )
-
-
-def create_process(cmd, executable=None, **kwargs):
-    # type: (List[str], Optional[str], Any) -> subprocess.Popen
-    if sys.platform == 'win32':
-        # do not open a new console window for command on windows
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        kwargs["startupinfo"] = startupinfo
-
-    return subprocess.Popen(
-        cmd,
-        executable=executable,
-        cwd=None,
-        env=_env_with_proxies(),
-        stderr=subprocess.STDOUT,
-        stdout=subprocess.PIPE,
-        bufsize=-1,
-        universal_newlines=True,
-        **kwargs
-    )
 
 
 def main(argv=None):  # noqa
