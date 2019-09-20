@@ -83,7 +83,7 @@ def animation_restart(animation):
 
 
 SHADOW_COLOR = "#9CACB4"
-FOCUS_OUTLINE_COLOR = "#609ED7"
+SELECTED_SHADOW_COLOR = "#609ED7"
 
 
 class NodeBodyItem(GraphicsPathObject):
@@ -99,7 +99,6 @@ class NodeBodyItem(GraphicsPathObject):
         self.__progress = -1.
         self.__animationEnabled = False
         self.__isSelected = False
-        self.__hasFocus = False
         self.__hover = False
         self.__shapeRect = QRectF(-10, -10, 20, 20)
 
@@ -113,7 +112,7 @@ class NodeBodyItem(GraphicsPathObject):
         self.setPalette(default_palette())
 
         self.shadow = QGraphicsDropShadowEffect(
-            blurRadius=3,
+            blurRadius=0,
             color=QColor(SHADOW_COLOR),
             offset=QPointF(0, 0),
         )
@@ -230,25 +229,25 @@ class NodeBodyItem(GraphicsPathObject):
 
     def __updateShadowState(self):
         # type: () -> None
-        if self.__hasFocus:
-            color = QColor(FOCUS_OUTLINE_COLOR)
-            self.setPen(QPen(color, 1.5))
-        else:
-            self.setPen(QPen(Qt.NoPen))
-
-        radius = 3
-        enabled = False
-
-        if self.__isSelected:
+        if self.__isSelected or self.__hover:
             enabled = True
-            radius = 7
-
-        if self.__hover:
             radius = 17
-            enabled = True
+        else:
+            enabled = False
+            radius = 0
 
         if enabled and not self.shadow.isEnabled():
             self.shadow.setEnabled(enabled)
+
+        if self.__isSelected:
+            color = QColor(SELECTED_SHADOW_COLOR)
+        else:
+            color = QColor(SHADOW_COLOR)
+
+        self.shadow.setColor(color)
+
+        if radius == self.shadow.blurRadius():
+            return
 
         if self.__animationEnabled:
             if self.__blurAnimation.state() == QPropertyAnimation.Running:
@@ -274,7 +273,7 @@ class NodeBodyItem(GraphicsPathObject):
         grad = radial_gradient(c2, c1)
         self.setBrush(QBrush(grad))
 
-    # TODO: The selected and focus states should be set using the
+    # TODO: The selected state should be set using the
     # QStyle flags (State_Selected. State_HasFocus)
 
     def setSelected(self, selected):
@@ -287,19 +286,8 @@ class NodeBodyItem(GraphicsPathObject):
 
         """
         self.__isSelected = selected
-        self.__updateBrush()
-
-    def setHasFocus(self, focus):
-        # type: (bool) -> None
-        """
-        Set the `has focus` state.
-
-        .. note:: The item does not have `QGraphicsItem.ItemIsFocusable` flag.
-                  This property is instead controlled by the parent NodeItem.
-
-        """
-        self.__hasFocus = focus
         self.__updateShadowState()
+        self.__updateBrush()
 
     def __on_finished(self):
         # type: () -> None
@@ -924,17 +912,6 @@ class NodeItem(QGraphicsWidget):
         self.warningItem = iconItem(QStyle.SP_MessageBoxWarning)
         self.infoItem = iconItem(QStyle.SP_MessageBoxInformation)
 
-        self.backgroundItem = QGraphicsPathItem(self)
-        backgroundrect = QPainterPath()
-        backgroundrect.addRoundedRect(anchor_rect.adjusted(-4, -2, 4, 2),
-                                      5, 5, mode=Qt.AbsoluteSize)
-        self.backgroundItem.setPen(QPen(Qt.NoPen))
-        self.backgroundItem.setBrush(self.palette().brush(QPalette.Highlight))
-        self.backgroundItem.setOpacity(0.5)
-        self.backgroundItem.setPath(backgroundrect)
-        self.backgroundItem.setZValue(-10)
-        self.backgroundItem.setVisible(self.isSelected())
-
         self.prepareGeometryChange()
         self.__boundingRect = None
 
@@ -1379,14 +1356,6 @@ class NodeItem(QGraphicsWidget):
         else:
             event.ignore()
 
-    def focusInEvent(self, event):
-        self.shapeItem.setHasFocus(True)
-        super().focusInEvent(event)
-
-    def focusOutEvent(self, event):
-        self.shapeItem.setHasFocus(False)
-        super().focusOutEvent(event)
-
     def changeEvent(self, event):
         if event.type() == QEvent.PaletteChange:
             self.__updatePalette()
@@ -1399,7 +1368,6 @@ class NodeItem(QGraphicsWidget):
         if change == QGraphicsItem.ItemSelectedChange:
             self.shapeItem.setSelected(value)
             self.captionTextItem.setSelectionState(value)
-            self.backgroundItem.setVisible(value)
         elif change == QGraphicsItem.ItemPositionHasChanged:
             self.positionChanged.emit()
 
@@ -1409,7 +1377,6 @@ class NodeItem(QGraphicsWidget):
         # type: () -> None
         palette = self.palette()
         self.captionTextItem.setPalette(palette)
-        self.backgroundItem.setBrush(palette.brush(QPalette.Highlight))
 
     def __updateFont(self):
         # type: () -> None
