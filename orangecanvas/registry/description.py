@@ -341,10 +341,13 @@ class WidgetDescription(object):
         Widget's background color (in the canvas GUI).
     replaces : list of `str`, optional
         A list of ids this widget replaces (optional).
+    short_name: str, optional
+        Short name for display where text would otherwise elide.
     """
     name = ""  # type: str
     id = ""    # type: str
     qualified_name = None  # type: str
+    short_name = None  # type: str
 
     description = ""  # type: str
     category = None      # type: Optional[str]
@@ -365,7 +368,7 @@ class WidgetDescription(object):
                  help=None, help_ref=None, url=None, keywords=None,
                  priority=sys.maxsize,
                  icon=None, background=None,
-                 replaces=None,
+                 replaces=None, short_name=None,
                  ):
 
         if not qualified_name:
@@ -381,6 +384,7 @@ class WidgetDescription(object):
         self.qualified_name = qualified_name
         self.package = package
         self.project_name = project_name
+        self.short_name = short_name
         # Copy input/outputs and normalize the type to string.
         inputs = [
             InputSignal(
