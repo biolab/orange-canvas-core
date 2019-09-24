@@ -299,6 +299,9 @@ class CanvasScene(QGraphicsScene):
 
         self.__node_items.append(item)
 
+        self.clearSelection()
+        item.setSelected(True)
+
         self.node_item_added.emit(item)
 
         return item
