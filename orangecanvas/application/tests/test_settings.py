@@ -2,10 +2,12 @@ import logging
 
 from AnyQt.QtCore import QSettings
 from AnyQt.QtWidgets import QTreeView
+from orangecanvas import config
 
 from ...gui import test
 
-from ..settings import UserSettingsDialog, UserSettingsModel
+from ..settings import UserSettingsDialog, UserSettingsModel, \
+    UserDefaultsPropertyBinding
 from ...utils.settings import Settings, config_slot
 from ... import registry
 from ...registry import tests as registry_tests
@@ -44,3 +46,14 @@ class TestUserSettings(test.QAppTestCase):
 
         view.show()
         self.app.exec_()
+
+    def test_conda_checkbox(self):
+        """
+        We want that orange is installed with conda by default, users can
+        change this setting in settings if they need to. This test check
+        whether the default setting for conda checkbox is True.
+        """
+        settings = config.settings()
+        setting = UserDefaultsPropertyBinding(
+            settings, "add-ons/allow-conda")
+        self.assertTrue(setting.get())
