@@ -52,7 +52,10 @@ def qualified_name(obj):
 def type_str(type_name):
     # type: (Union[str, Tuple[str, ...]]) -> str
     if isinstance(type_name, tuple):
-        return "Union[" + ", ".join(type_str(t) for t in type_name) + "]"
+        if len(type_name) == 1:
+            return type_str(type_name[0])
+        else:
+            return "Union[" + ", ".join(type_str(t) for t in type_name) + "]"
     elif type_name.startswith("builtin."):
         return type_name[len("builtin."):]
     else:
