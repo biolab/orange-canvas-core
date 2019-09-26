@@ -5,7 +5,7 @@ Scheme Editor Widget
 
 
 """
-
+import io
 import sys
 import logging
 import itertools
@@ -23,14 +23,16 @@ from AnyQt.QtWidgets import (
     QUndoStack, QUndoCommand, QGraphicsItem, QGraphicsTextItem,
     QFormLayout, QComboBox, QDialog, QDialogButtonBox, QMessageBox, QCheckBox,
     QGraphicsSceneDragDropEvent, QGraphicsSceneMouseEvent,
-    QGraphicsSceneContextMenuEvent, QGraphicsView, QGraphicsScene
+    QGraphicsSceneContextMenuEvent, QGraphicsView, QGraphicsScene,
+    QApplication
 )
 from AnyQt.QtGui import (
     QKeySequence, QCursor, QFont, QPainter, QPixmap, QColor, QIcon,
     QWhatsThisClickedEvent, QKeyEvent, QPalette
 )
 from AnyQt.QtCore import (
-    Qt, QObject, QEvent, QSignalMapper, QCoreApplication, QPoint, QPointF
+    Qt, QObject, QEvent, QSignalMapper, QCoreApplication, QPoint, QPointF,
+    QMimeData
 )
 from AnyQt.QtCore import pyqtProperty as Property, pyqtSignal as Signal
 
@@ -55,6 +57,9 @@ from . import quickmenu
 
 Pos = Tuple[float, float]
 RuntimeState = signalmanager.SignalManager.State
+
+# Private MIME type for clipboard contents
+MimeTypeWorkflowFragment = "application/vnd.{}-ows-fragment+xml".format(__name__)
 
 log = logging.getLogger(__name__)
 
@@ -123,7 +128,9 @@ class SchemeEditWidget(QWidget):
         self.__undoStack = QUndoStack(self)
         self.__undoStack.cleanChanged[bool].connect(self.__onCleanChanged)
 
-        self.__clipboard = None
+        # Preferred position for paste command. Updated on every mouse button
+        # press and copy operation.
+        self.__pasteOrigin = QPointF(20, 20)
 
         # scheme node properties when set to a clean state
         self.__cleanProperties = []
@@ -354,9 +361,12 @@ class SchemeEditWidget(QWidget):
         self.__pasteAction = QAction(
             self.tr("Paste"), self,
             objectName="paste-action",
-            enabled=False,
+            enabled=clipboard_has_format(MimeTypeWorkflowFragment),
             shortcut=QKeySequence(Qt.ControlModifier + Qt.Key_V),
             triggered=self.__pasteFromClipboard,
+        )
+        QApplication.clipboard().dataChanged.connect(
+            self.__updatePasteActionState
         )
 
         self.addActions([
@@ -1192,6 +1202,7 @@ class SchemeEditWidget(QWidget):
                 return True
 
             elif etype == QEvent.GraphicsSceneMousePress:
+                self.__pasteOrigin = event.scenePos()
                 return self.sceneMousePressEvent(event)
             elif etype == QEvent.GraphicsSceneMouseMove:
                 return self.sceneMouseMoveEvent(event)
@@ -1827,18 +1838,41 @@ class SchemeEditWidget(QWidget):
         """
         Duplicate currently selected nodes.
         """
-        nodes = self.selectedNodes()
-
         nodedups, linkdups = self.__copySelected()
-        self.__paste(nodedups, linkdups)
+        pos = nodes_top_left(nodedups)
+        self.__paste(nodedups, linkdups, pos + QPointF(20, 20),
+                     commandname=self.tr("Duplicate"))
 
     def __copyToClipboard(self):
         """
-        Deep copy currently selected nodes to canvas clipboard.
+        Copy currently selected nodes to system clipboard.
         """
-        self.__clipboard = self.__copySelected()
-        if not self.__pasteAction.isEnabled():
-            self.__pasteAction.setEnabled(True)
+        cb = QApplication.clipboard()
+        selected = self.__copySelected()
+        nodes, links = selected
+        if not nodes:
+            return
+        s = Scheme()
+        for n in nodes:
+            s.add_node(n)
+        for e in links:
+            s.add_link(e)
+        buff = io.BytesIO()
+        try:
+            s.save_to(buff, pickle_fallback=True)
+        except Exception:
+            log.error("copyToClipboard:", exc_info=True)
+            QApplication.beep()
+            return
+        mime = QMimeData()
+        mime.setData(MimeTypeWorkflowFragment, buff.getvalue())
+        cb.setMimeData(mime)
+        self.__pasteOrigin = nodes_top_left(nodes) + QPointF(20, 20)
+
+    def __updatePasteActionState(self):
+        self.__pasteAction.setEnabled(
+            clipboard_has_format(MimeTypeWorkflowFragment)
+        )
 
     def __copySelected(self):
         """
@@ -1846,7 +1880,7 @@ class SchemeEditWidget(QWidget):
         """
         scheme = self.scheme()
         if scheme is None:
-            return
+            return [], []
 
         # ensure up to date node properties (settings)
         scheme.sync_node_properties()
@@ -1867,27 +1901,22 @@ class SchemeEditWidget(QWidget):
         return nodedups, linkdups
 
     def __pasteFromClipboard(self):
-        """
-        Paste a deep copy of the canvas clipboard.
-        """
-        if self.__clipboard is None:
+        """Paste a workflow part from system clipboard."""
+        buff = clipboard_data(MimeTypeWorkflowFragment)
+        if buff is None:
             return
+        sch = Scheme()
+        try:
+            sch.load_from(io.BytesIO(buff), registry=self.__registry, )
+        except Exception:
+            log.error("pasteFromClipboard:", exc_info=True)
+            QApplication.beep()
+            return
+        self.__paste(sch.nodes, sch.links, self.__pasteOrigin)
+        self.__pasteOrigin = self.__pasteOrigin + QPointF(20, 20)
 
-        nodes, links = self.__clipboard
-
-        nodedups = [copy_node(node) for node in nodes]
-        node_to_dup = dict(zip(nodes, nodedups))
-        linkdups = [copy_link(link, source=node_to_dup[link.source_node],
-                              sink=node_to_dup[link.sink_node])
-                    for link in links]
-
-        # switch out clipboard for duplicated nodes
-        # this way, upon several pastes, nodes are not positioned over each other
-        self.__clipboard = nodedups, linkdups
-
-        self.__paste(nodes, links)
-
-    def __paste(self, nodedups, linkdups):
+    def __paste(self, nodedups, linkdups, pos: Optional[QPointF] = None,
+                commandname=None):
         """
         Paste nodes and links to canvas. Arguments are expected to be duplicated nodes/links.
         """
@@ -1901,8 +1930,20 @@ class SchemeEditWidget(QWidget):
             nodedup.title = uniquify(
                 nodedup.title, allnames, pattern="{item} ({_})", start=1)
 
+        if pos is not None:
+            # top left of nodedups brect
+            origin = nodes_top_left(nodedups)
+            delta = pos - origin
+            # move nodedups to be relative to pos
+            for nodedup in nodedups:
+                nodedup.position = (
+                    nodedup.position[0] + delta.x(),
+                    nodedup.position[1] + delta.y(),
+                )
+        if commandname is None:
+            commandname = self.tr("Paste")
         # create nodes, links
-        command = QUndoCommand(self.tr("Duplicate"))
+        command = QUndoCommand(commandname)
         macrocommands = []
         for nodedup in nodedups:
             macrocommands.append(
@@ -2286,10 +2327,10 @@ def uniquify(item, names, pattern="{item}-{_}", start=0):
 
 def copy_node(node):
     # type: (SchemeNode) -> SchemeNode
-    x, y = node.position
     return SchemeNode(
-        node.description, node.title, position=(x + 20, y + 20),
-        properties=copy.deepcopy(node.properties))
+        node.description, node.title, position=node.position,
+        properties=copy.deepcopy(node.properties)
+    )
 
 
 def copy_link(link, source=None, sink=None):
@@ -2301,3 +2342,39 @@ def copy_link(link, source=None, sink=None):
         sink, link.sink_channel,
         enabled=link.enabled,
         properties=copy.deepcopy(link.properties))
+
+
+def clipboard_has_format(mimetype):
+    # type: (str) -> bool
+    """Does the system clipboard contain data for mimetype?"""
+    cb = QApplication.clipboard()
+    if cb is None:
+        return False
+    mime = cb.mimeData()
+    if mime is None:
+        return False
+    return mime.hasFormat(mimetype)
+
+
+def clipboard_data(mimetype):
+    # type: (str) -> Optional[bytes]
+    """Return the binary data of the system clipboard for mimetype."""
+    cb = QApplication.clipboard()
+    if cb is None:
+        return None
+    mime = cb.mimeData()
+    if mime is None:
+        return None
+    if mime.hasFormat(mimetype):
+        return bytes(mime.data(mimetype))
+    else:
+        return None
+
+
+def nodes_top_left(nodes):
+    # type: (List[SchemeNode]) -> QPointF
+    """Return the top left point of bbox containing all the node positions."""
+    return QPointF(
+        min(n.position[0] for n in nodes),
+        min(n.position[1] for n in nodes)
+    )
