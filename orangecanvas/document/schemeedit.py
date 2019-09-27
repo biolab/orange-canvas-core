@@ -63,6 +63,8 @@ MimeTypeWorkflowFragment = "application/vnd.{}-ows-fragment+xml".format(__name__
 
 log = logging.getLogger(__name__)
 
+DuplicateOffset = QPointF(0, 120)
+
 
 class NoWorkflowError(RuntimeError):
     def __init__(self, message: str = "No workflow model is set", **kwargs):
@@ -1840,7 +1842,7 @@ class SchemeEditWidget(QWidget):
         """
         nodedups, linkdups = self.__copySelected()
         pos = nodes_top_left(nodedups)
-        self.__paste(nodedups, linkdups, pos + QPointF(20, 20),
+        self.__paste(nodedups, linkdups, pos + DuplicateOffset,
                      commandname=self.tr("Duplicate"))
 
     def __copyToClipboard(self):
@@ -1867,7 +1869,7 @@ class SchemeEditWidget(QWidget):
         mime = QMimeData()
         mime.setData(MimeTypeWorkflowFragment, buff.getvalue())
         cb.setMimeData(mime)
-        self.__pasteOrigin = nodes_top_left(nodes) + QPointF(20, 20)
+        self.__pasteOrigin = nodes_top_left(nodes) + DuplicateOffset
 
     def __updatePasteActionState(self):
         self.__pasteAction.setEnabled(
@@ -1913,7 +1915,7 @@ class SchemeEditWidget(QWidget):
             QApplication.beep()
             return
         self.__paste(sch.nodes, sch.links, self.__pasteOrigin)
-        self.__pasteOrigin = self.__pasteOrigin + QPointF(20, 20)
+        self.__pasteOrigin = self.__pasteOrigin + DuplicateOffset
 
     def __paste(self, nodedups, linkdups, pos: Optional[QPointF] = None,
                 commandname=None):
