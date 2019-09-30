@@ -420,7 +420,7 @@ spec = \
      ("help/open-in-external-browser", bool, False,
       "Open help in an external browser"),
 
-     ("add-ons/allow-conda-experimental", bool, False,
+     ("add-ons/allow-conda", bool, True,
       "Install add-ons with conda"),
 
      ("add-ons/pip-install-arguments", str, '',
