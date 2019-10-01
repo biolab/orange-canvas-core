@@ -15,10 +15,8 @@ from typing import Dict, Any, Optional, List, Iterable, Tuple
 
 from AnyQt.QtWidgets import (
     QGraphicsItem, QGraphicsObject, QGraphicsTextItem, QGraphicsWidget,
-    QGraphicsDropShadowEffect, QStyle, QGraphicsPathItem,
-    QApplication, QGraphicsSceneMouseEvent, QGraphicsSceneContextMenuEvent,
-    QStyleOptionGraphicsItem, QWidget
-)
+    QGraphicsDropShadowEffect, QStyle, QApplication, QGraphicsSceneMouseEvent,
+    QGraphicsSceneContextMenuEvent, QStyleOptionGraphicsItem, QWidget, QGraphicsEllipseItem)
 from AnyQt.QtGui import (
     QPen, QBrush, QColor, QPalette, QIcon, QPainter, QPainterPath,
     QPainterPathStroker, QTextDocument, QTextBlock, QTextLine, QFont
@@ -116,7 +114,7 @@ class NodeBodyItem(GraphicsPathObject):
             color=QColor(SHADOW_COLOR),
             offset=QPointF(0, 0),
         )
-        self.shadow.setEnabled(True)
+        self.shadow.setEnabled(False)
 
         # An item with the same shape as this object, stacked behind this
         # item as a source for QGraphicsDropShadowEffect. Cannot attach
@@ -295,6 +293,40 @@ class NodeBodyItem(GraphicsPathObject):
             self.shadow.setEnabled(False)
 
 
+class LinkAnchorIndicator(QGraphicsEllipseItem):
+    """
+    A visual indicator of the link anchor point at both ends
+    of the :class:`LinkItem`.
+
+    """
+    def __init__(self, parent=None):
+        # type: (Optional[QGraphicsItem]) -> None
+        super().__init__(parent)
+        self.setRect(-3.5, -3.5, 7., 7.)
+        self.setPen(QPen(Qt.NoPen))
+        self.setBrush(QBrush(QColor("#9CACB4")))
+        self.hoverBrush = QBrush(QColor("#959595"))
+
+        self.__hover = False
+
+    def setHoverState(self, state):
+        # type: (bool) -> None
+        """
+        The hover state is set by the LinkItem.
+        """
+        if self.__hover != state:
+            self.__hover = state
+            self.update()
+
+    def paint(self, painter, option, widget=None):
+        # type: (QPainter, QStyleOptionGraphicsItem, Optional[QWidget]) -> None
+        brush = self.hoverBrush if self.__hover else self.brush()
+
+        painter.setBrush(brush)
+        painter.setPen(self.pen())
+        painter.drawEllipse(self.rect())
+
+
 class AnchorPoint(QGraphicsObject):
     """
     A anchor indicator on the :class:`NodeAnchorItem`.
@@ -309,8 +341,10 @@ class AnchorPoint(QGraphicsObject):
     def __init__(self, parent=None, **kwargs):
         # type: (Optional[QGraphicsItem], Any) -> None
         super().__init__(parent, **kwargs)
+        self.setFlag(QGraphicsItem.ItemIsFocusable)
         self.setFlag(QGraphicsItem.ItemSendsScenePositionChanges, True)
         self.setFlag(QGraphicsItem.ItemHasNoContents, True)
+        self.indicator = LinkAnchorIndicator(self)
 
         self.__direction = QPointF()
 
@@ -347,6 +381,12 @@ class AnchorPoint(QGraphicsObject):
         # type: () -> QRectF
         return QRectF()
 
+    def setHoverState(self, enabled):
+        self.indicator.setHoverState(enabled)
+
+    def setBrush(self, brush):
+        self.indicator.setBrush(brush)
+
 
 class NodeAnchorItem(GraphicsPathObject):
     """
@@ -359,17 +399,13 @@ class NodeAnchorItem(GraphicsPathObject):
         self.setAcceptHoverEvents(True)
         self.setPen(QPen(Qt.NoPen))
         self.normalBrush = QBrush(QColor("#CDD5D9"))
-        self.connectedBrush = QBrush(QColor("#9CACB4"))
+        self.normalHoverBrush = QBrush(QColor("#9CACB4"))
+        self.connectedBrush = self.normalHoverBrush
+        self.connectedHoverBrush = QBrush(QColor("#959595"))
         self.setBrush(self.normalBrush)
 
-        self.shadow = QGraphicsDropShadowEffect(
-            blurRadius=10,
-            color=QColor(SHADOW_COLOR),
-            offset=QPointF(0, 0)
-        )
-
-        self.setGraphicsEffect(self.shadow)
-        self.shadow.setEnabled(False)
+        self.__animationEnabled = False
+        self.__hover = False
 
         # Does this item have any anchored links.
         self.anchored = False
@@ -386,6 +422,25 @@ class NodeAnchorItem(GraphicsPathObject):
         self.__fullStroke = QPainterPath()
         self.__dottedStroke = QPainterPath()
         self.__shape = None  # type: Optional[QPainterPath]
+
+        self.shadow = QGraphicsDropShadowEffect(
+            blurRadius=0,
+            color=QColor(SHADOW_COLOR),
+            offset=QPointF(0, 0),
+        )
+        # self.setGraphicsEffect(self.shadow)
+        self.shadow.setEnabled(False)
+
+        shadowitem = GraphicsPathObject(self, objectName="shadow-shape-item")
+        shadowitem.setPen(Qt.NoPen)
+        shadowitem.setBrush(QBrush(QColor(SHADOW_COLOR)))
+        shadowitem.setGraphicsEffect(self.shadow)
+        shadowitem.setFlag(QGraphicsItem.ItemStacksBehindParent)
+        self.__shadow = shadowitem
+        self.__blurAnimation = QPropertyAnimation(self.shadow, b"blurRadius",
+                                                  self)
+        self.__blurAnimation.setDuration(50)
+        self.__blurAnimation.finished.connect(self.__on_finished)
 
     def parentNodeItem(self):
         # type: () -> Optional['NodeItem']
@@ -421,11 +476,15 @@ class NodeAnchorItem(GraphicsPathObject):
         if self.anchored:
             assert self.__fullStroke is not None
             self.setPath(self.__fullStroke)
-            self.setBrush(self.connectedBrush)
+            self.__shadow.setPath(self.__fullStroke)
+            brush = self.connectedHoverBrush if self.__hover else self.connectedBrush
+            self.setBrush(brush)
         else:
             assert self.__dottedStroke is not None
             self.setPath(self.__dottedStroke)
-            self.setBrush(self.normalBrush)
+            self.__shadow.setPath(self.__dottedStroke)
+            brush = self.normalHoverBrush if self.__hover else self.normalBrush
+            self.setBrush(brush)
 
     def anchorPath(self):
         # type: () -> QPainterPath
@@ -444,10 +503,15 @@ class NodeAnchorItem(GraphicsPathObject):
         self.anchored = anchored
         if anchored:
             self.setPath(self.__fullStroke)
-            self.setBrush(self.connectedBrush)
+            self.__shadow.setPath(self.__fullStroke)
+            hover = self.__hover and len(self.__points) > 1  # a stylistic choice
+            brush = self.connectedHoverBrush if hover else self.connectedBrush
+            self.setBrush(brush)
         else:
             self.setPath(self.__dottedStroke)
-            self.setBrush(self.normalBrush)
+            self.__shadow.setPath(self.__dottedStroke)
+            brush = self.normalHoverBrush if self.__hover else self.normalBrush
+            self.setBrush(brush)
 
     def setConnectionHint(self, hint=None):
         """
@@ -498,6 +562,9 @@ class NodeAnchorItem(GraphicsPathObject):
         self.__updatePositions()
 
         self.setAnchored(bool(self.__points))
+
+        hover = self.__hover and len(self.__points) > 1  # a stylistic choice
+        anchor.setHoverState(hover)
 
         return index
 
@@ -587,12 +654,46 @@ class NodeAnchorItem(GraphicsPathObject):
             return GraphicsPathObject.boundingRect(self)
 
     def hoverEnterEvent(self, event):
-        self.shadow.setEnabled(True)
+        self.__hover = True
+        brush = self.connectedHoverBrush if self.anchored else self.normalHoverBrush
+        self.setBrush(brush)
+        self.__updateShadowState()
         return super().hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event):
-        self.shadow.setEnabled(False)
+        self.__hover = False
+        brush = self.connectedBrush if self.anchored else self.normalBrush
+        self.setBrush(brush)
+        self.__updateShadowState()
         return super().hoverLeaveEvent(event)
+
+    def setAnimationEnabled(self, enabled):
+        # type: (bool) -> None
+        """
+        Set the anchor animation enabled.
+        """
+        if self.__animationEnabled != enabled:
+            self.__animationEnabled = enabled
+
+    def __updateShadowState(self):
+        # type: () -> None
+        radius = 5 if self.__hover else 0
+
+        if radius != 0 and not self.shadow.isEnabled():
+            self.shadow.setEnabled(True)
+
+        if self.__animationEnabled:
+            if self.__blurAnimation.state() == QPropertyAnimation.Running:
+                self.__blurAnimation.pause()
+
+            self.__blurAnimation.setStartValue(self.shadow.blurRadius())
+            self.__blurAnimation.setEndValue(radius)
+            self.__blurAnimation.start()
+        else:
+            self.shadow.setBlurRadius(radius)
+
+        for anchor in self.anchorPoints():
+            anchor.setHoverState(self.__hover)
 
     def __updatePositions(self):
         # type: () -> None
@@ -601,6 +702,11 @@ class NodeAnchorItem(GraphicsPathObject):
         for point, t in zip(self.__points, self.__pointPositions):
             pos = self.__anchorPath.pointAtPercent(t)
             point.setPos(pos)
+
+    def __on_finished(self):
+        # type: () -> None
+        if self.shadow.blurRadius() == 0:
+            self.shadow.setEnabled(False)
 
 
 class SourceAnchorItem(NodeAnchorItem):
@@ -881,6 +987,7 @@ class NodeItem(QGraphicsWidget):
         input_path.arcMoveTo(anchor_rect, start_angle)
         input_path.arcTo(anchor_rect, start_angle, self.ANCHOR_SPAN_ANGLE)
         self.inputAnchorItem.setAnchorPath(input_path)
+        self.inputAnchorItem.setAnimationEnabled(self.__animationEnabled)
 
         self.outputAnchorItem = SourceAnchorItem(self)
         output_path = QPainterPath()
@@ -888,6 +995,7 @@ class NodeItem(QGraphicsWidget):
         output_path.arcMoveTo(anchor_rect, start_angle)
         output_path.arcTo(anchor_rect, start_angle, - self.ANCHOR_SPAN_ANGLE)
         self.outputAnchorItem.setAnchorPath(output_path)
+        self.outputAnchorItem.setAnimationEnabled(self.__animationEnabled)
 
         self.inputAnchorItem.hide()
         self.outputAnchorItem.hide()
@@ -1042,6 +1150,8 @@ class NodeItem(QGraphicsWidget):
         if self.__animationEnabled != enabled:
             self.__animationEnabled = enabled
             self.shapeItem.setAnimationEnabled(enabled)
+            self.outputAnchorItem.setAnimationEnabled(self.__animationEnabled)
+            self.inputAnchorItem.setAnimationEnabled(self.__animationEnabled)
 
     def animationEnabled(self):
         # type: () -> bool

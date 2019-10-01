@@ -11,14 +11,13 @@ import typing
 from typing import List, Tuple, Optional, Any
 
 from AnyQt.QtWidgets import (
-    QGraphicsItem, QGraphicsEllipseItem, QGraphicsPathItem, QGraphicsWidget,
-    QGraphicsTextItem, QGraphicsDropShadowEffect, QStyleOptionGraphicsItem,
-    QGraphicsSceneHoverEvent, QWidget,
+    QGraphicsItem, QGraphicsPathItem, QGraphicsWidget, QGraphicsTextItem,
+    QGraphicsDropShadowEffect, QGraphicsSceneHoverEvent,
 )
 from AnyQt.QtGui import (
-    QPen, QBrush, QColor, QPainterPath, QTransform, QPalette, QPainter
+    QPen, QBrush, QColor, QPainterPath, QTransform, QPalette,
 )
-from AnyQt.QtCore import Qt, QPointF, QRectF, QLineF, QEvent
+from AnyQt.QtCore import Qt, QPointF, QRectF, QLineF, QEvent, QPropertyAnimation
 
 from .nodeitem import AnchorPoint, SHADOW_COLOR
 from .utils import stroke_path
@@ -39,14 +38,7 @@ class LinkCurveItem(QGraphicsPathItem):
         self.setAcceptedMouseButtons(Qt.NoButton)
         self.setAcceptHoverEvents(True)
 
-        self.shadow = QGraphicsDropShadowEffect(
-            blurRadius=5, color=QColor(SHADOW_COLOR),
-            offset=QPointF(0, 0)
-        )
-
-        self.setGraphicsEffect(self.shadow)
-        self.shadow.setEnabled(False)
-
+        self.__animationEnabled = False
         self.__hover = False
         self.__enabled = True
         self.__shape = None  # type: Optional[QPainterPath]
@@ -54,6 +46,17 @@ class LinkCurveItem(QGraphicsPathItem):
         self.__curvepath_disabled = None  # type: Optional[QPainterPath]
         self.__pen = self.pen()
         self.setPen(QPen(QBrush(QColor("#9CACB4")), 2.0))
+
+        self.shadow = QGraphicsDropShadowEffect(
+            blurRadius=5, color=QColor(SHADOW_COLOR),
+            offset=QPointF(0, 0)
+        )
+        self.setGraphicsEffect(self.shadow)
+        self.shadow.setEnabled(False)
+
+        self.__blurAnimation = QPropertyAnimation(self.shadow, b"blurRadius")
+        self.__blurAnimation.setDuration(50)
+        self.__blurAnimation.finished.connect(self.__on_finished)
 
     def setCurvePath(self, path):
         # type: (QPainterPath) -> None
@@ -97,7 +100,7 @@ class LinkCurveItem(QGraphicsPathItem):
         if self.__shape is None:
             path = self.curvePath()
             pen = QPen(self.pen())
-            pen.setWidthF(max(pen.widthF(), 7.0))
+            pen.setWidthF(max(pen.widthF(), 25.0))
             pen.setStyle(Qt.SolidLine)
             self.__shape = stroke_path(path, pen)
         return self.__shape
@@ -107,11 +110,31 @@ class LinkCurveItem(QGraphicsPathItem):
         self.__shape = None
         super().setPath(path)
 
+    def setAnimationEnabled(self, enabled):
+        # type: (bool) -> None
+        """
+        Set the link item animation enabled.
+        """
+        if self.__animationEnabled != enabled:
+            self.__animationEnabled = enabled
+
     def __update(self):
         # type: () -> None
-        shadow_enabled = self.__hover
-        if self.shadow.isEnabled() != shadow_enabled:
-            self.shadow.setEnabled(shadow_enabled)
+        radius = 5 if self.__hover else 0
+
+        if radius != 0 and not self.shadow.isEnabled():
+            self.shadow.setEnabled(True)
+
+        if self.__animationEnabled:
+            if self.__blurAnimation.state() == QPropertyAnimation.Running:
+                self.__blurAnimation.pause()
+
+            self.__blurAnimation.setStartValue(self.shadow.blurRadius())
+            self.__blurAnimation.setEndValue(radius)
+            self.__blurAnimation.start()
+        else:
+            self.shadow.setBlurRadius(radius)
+
         basecurve = self.__curvepath
         link_enabled = self.__enabled
         if link_enabled:
@@ -122,6 +145,10 @@ class LinkCurveItem(QGraphicsPathItem):
             path = self.__curvepath_disabled
 
         self.setPath(path)
+
+    def __on_finished(self):
+        if self.shadow.blurRadius() == 0:
+            self.shadow.setEnabled(False)
 
 
 def bezier_subdivide(cp, t):
@@ -262,41 +289,6 @@ def path_link_disabled(basepath):
     return p1
 
 
-class LinkAnchorIndicator(QGraphicsEllipseItem):
-    """
-    A visual indicator of the link anchor point at both ends
-    of the :class:`LinkItem`.
-
-    """
-    def __init__(self, parent=None):
-        # type: (Optional[QGraphicsItem]) -> None
-        super().__init__(parent)
-        self.setRect(-3.5, -3.5, 7., 7.)
-        self.setPen(QPen(Qt.NoPen))
-        self.setBrush(QBrush(QColor("#9CACB4")))
-        self.__hover = False
-
-    def setHoverState(self, state):
-        # type: (bool) -> None
-        """
-        The hover state is set by the LinkItem.
-        """
-        if self.__hover != state:
-            self.__hover = state
-            self.update()
-
-    def paint(self, painter, option, widget=None):
-        # type: (QPainter, QStyleOptionGraphicsItem, Optional[QWidget]) -> None
-        brush = self.brush()
-
-        if self.__hover:
-            brush = QBrush(brush.color().darker(110))
-
-        painter.setBrush(brush)
-        painter.setPen(self.pen())
-        painter.drawEllipse(self.rect())
-
-
 _State = SchemeLink.State
 
 
@@ -346,11 +338,6 @@ class LinkItem(QGraphicsWidget):
 
         self.curveItem = LinkCurveItem(self)
 
-        self.sourceIndicator = LinkAnchorIndicator(self)
-        self.sinkIndicator = LinkAnchorIndicator(self)
-        self.sourceIndicator.hide()
-        self.sinkIndicator.hide()
-
         self.linkTextItem = QGraphicsTextItem(self)
         self.linkTextItem.setAcceptedMouseButtons(Qt.NoButton)
         self.linkTextItem.setAcceptHoverEvents(False)
@@ -399,9 +386,6 @@ class LinkItem(QGraphicsWidget):
                 # Create a new output anchor for the item if none is provided.
                 anchor = item.newOutputAnchor()
 
-            # Update the visibility of the start point indicator.
-            self.sourceIndicator.setVisible(bool(item))
-
         if anchor != self.sourceAnchor:
             if self.sourceAnchor is not None:
                 self.sourceAnchor.scenePositionChanged.disconnect(
@@ -448,9 +432,6 @@ class LinkItem(QGraphicsWidget):
             if item is not None and anchor is None:
                 # Create a new input anchor for the item if none is provided.
                 anchor = item.newInputAnchor()
-
-            # Update the visibility of the end point indicator.
-            self.sinkIndicator.setVisible(bool(item))
 
         if self.sinkAnchor != anchor:
             if self.sinkAnchor is not None:
@@ -506,6 +487,13 @@ class LinkItem(QGraphicsWidget):
         """
         return self.__sinkName
 
+    def setAnimationEnabled(self, enabled):
+        # type: (bool) -> None
+        """
+        Set the link item animation enabled state.
+        """
+        self.curveItem.setAnimationEnabled(enabled)
+
     def _sinkPosChanged(self, *arg):
         self.__updateCurve()
 
@@ -537,8 +525,6 @@ class LinkItem(QGraphicsWidget):
                          sink_pos)
 
             self.curveItem.setCurvePath(path)
-            self.sourceIndicator.setPos(source_pos)
-            self.sinkIndicator.setPos(sink_pos)
             self.__updateText()
         else:
             self.setHoverState(False)
@@ -615,8 +601,10 @@ class LinkItem(QGraphicsWidget):
             self.prepareGeometryChange()
             self.__boundingRect = None
             self.hover = state
-            self.sinkIndicator.setHoverState(state)
-            self.sourceIndicator.setHoverState(state)
+            if self.sinkAnchor:
+                self.sinkAnchor.setHoverState(state)
+            if self.sourceAnchor:
+                self.sourceAnchor.setHoverState(state)
             self.curveItem.setHoverState(state)
             self.__updatePen()
 
@@ -733,9 +721,9 @@ class LinkItem(QGraphicsWidget):
             self.__state = state
 
             if state & LinkItem.Pending:
-                self.sinkIndicator.setBrush(QBrush(Qt.red))
+                self.sinkAnchor.setBrush(QBrush(Qt.red))
             else:
-                self.sinkIndicator.setBrush(QBrush(QColor("#9CACB4")))
+                self.sinkAnchor.setBrush(QBrush(QColor("#9CACB4")))
             self.__updatePen()
 
     def runtimeState(self):
@@ -753,10 +741,10 @@ class LinkItem(QGraphicsWidget):
                 color = QColor(150, 0, 0, 150)
 
             normal = QPen(QBrush(color), 2.0)
-            hover = QPen(QBrush(color.darker(120)), 2.1)
+            hover = QPen(QBrush(color.darker(120)), 2.0)
         else:
             normal = QPen(QBrush(QColor("#9CACB4")), 2.0)
-            hover = QPen(QBrush(QColor("#7D7D7D")), 2.1)
+            hover = QPen(QBrush(QColor("#959595")), 2.0)
 
         if self.__state & LinkItem.Empty:
             pen_style = Qt.DashLine
