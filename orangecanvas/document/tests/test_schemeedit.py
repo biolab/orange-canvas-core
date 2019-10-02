@@ -5,7 +5,7 @@ from typing import Iterable
 
 from AnyQt.QtTest import QSignalSpy, QTest
 
-from AnyQt.QtWidgets import QGraphicsWidget, QAction
+from AnyQt.QtWidgets import QGraphicsWidget, QAction, QApplication
 
 from AnyQt.QtCore import Qt, QObject, QPoint
 from ..schemeedit import SchemeEditWidget
@@ -291,6 +291,46 @@ class TestSchemeEdit(QAppTestCase):
         item.setFocus(Qt.OtherFocusReason)
         self.assertIs(w.focusNode(), workflow.nodes[0])
         item.activated.emit()
+
+    def test_duplicate(self):
+        w = self.w
+        workflow = self.setup_test_workflow()
+        w.setScheme(workflow)
+        w.selectAll()
+        nnodes, nlinks = len(workflow.nodes), len(workflow.links)
+        a = action_by_name(w.actions(), "duplicate-action")
+        a.trigger()
+        self.assertEqual(len(workflow.nodes), 2 * nnodes)
+        self.assertEqual(len(workflow.links), 2 * nlinks)
+
+    def test_copy_paste(self):
+        w = self.w
+        workflow = self.setup_test_workflow()
+        w.setRegistry(self.reg)
+        w.setScheme(workflow)
+        w.selectAll()
+        nnodes, nlinks = len(workflow.nodes), len(workflow.links)
+        ca = action_by_name(w.actions(), "copy-action")
+        cp = action_by_name(w.actions(), "paste-action")
+        cb = QApplication.clipboard()
+        spy = QSignalSpy(cb.dataChanged)
+        ca.trigger()
+        if not len(spy):
+            self.assertTrue(spy.wait())
+        self.assertEqual(len(spy), 1)
+        cp.trigger()
+        self.assertEqual(len(workflow.nodes), 2 * nnodes)
+        self.assertEqual(len(workflow.links), 2 * nlinks)
+
+        w1 = SchemeEditWidget()
+        w1.setRegistry(self.reg)
+        w1.setScheme((Scheme()))
+        cp = action_by_name(w1.actions(), "paste-action")
+        self.assertTrue(cp.isEnabled())
+        cp.trigger()
+        wf1 = w1.scheme()
+        self.assertEqual(len(wf1.nodes), nnodes)
+        self.assertEqual(len(wf1.links), nlinks)
 
     @classmethod
     def setup_test_workflow(cls, scheme=None):
