@@ -1509,6 +1509,12 @@ class QuickMenu(FramelessWindow):
             size = self.size()
         else:
             size = self.sizeHint()
+            settings = QSettings()
+            ssize = settings.value('quickmenu/size', defaultValue=QSize(),
+                                   type=QSize)
+            if ssize.isValid():
+                size.setHeight(ssize.height())
+                size = size.expandedTo(self.minimumSizeHint())
 
         desktop = QApplication.desktop()
         screen_geom = desktop.availableGeometry(pos)
@@ -1570,6 +1576,8 @@ class QuickMenu(FramelessWindow):
         """
         Reimplemented from :class:`QWidget`
         """
+        settings = QSettings()
+        settings.setValue('quickmenu/size', self.size())
         super().hideEvent(event)
         if self.__loop:
             self.__loop.exit()
