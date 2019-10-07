@@ -12,8 +12,8 @@ import codecs
 from urllib.parse import urljoin
 from html import parser
 from xml.etree.ElementTree import TreeBuilder, Element
-
-from AnyQt.QtCore import QObject, QUrl
+from weakref import ref
+from AnyQt.QtCore import QObject, QUrl, QSettings, pyqtSlot
 from AnyQt.QtNetwork import (
     QNetworkAccessManager, QNetworkDiskCache, QNetworkRequest, QNetworkReply
 )
@@ -31,6 +31,30 @@ log = logging.getLogger(__name__)
 
 
 class HelpProvider(QObject):
+    _NETMANAGER_REF = None  # type: Optional[ref[QNetworkAccessManager]]
+
+    @classmethod
+    def _networkAccessManagerInstance(cls):
+        netmanager = cls._NETMANAGER_REF and cls._NETMANAGER_REF()
+        settings = QSettings()
+        settings.beginGroup(__name__)
+        cache_dir = os.path.join(config.cache_dir(), "help", __name__)
+        cache_size = settings.value(
+            "cache_size_mb", defaultValue=50, type=int
+        )
+        if netmanager is None:
+            try:
+                os.makedirs(cache_dir, exist_ok=True)
+            except OSError:
+                pass
+            netmanager = QNetworkAccessManager()
+            cache = QNetworkDiskCache()
+            cache.setCacheDirectory(cache_dir)
+            cache.setMaximumCacheSize(cache_size * 2 ** 20)
+            netmanager.setCache(cache)
+            cls._NETMANAGER_REF = ref(netmanager)
+        return netmanager
+
     def search(self, description):
         # type: (WidgetDescription) -> QUrl
         raise NotImplementedError
@@ -47,49 +71,53 @@ class BaseInventoryProvider(HelpProvider):
         self._error = None
         self._fetch_inventory(self.inventory)
 
-    def _fetch_inventory(self, url):
-        cache_dir = config.cache_dir()
-        cache_dir = os.path.join(cache_dir, "help", type(self).__qualname__)
-
-        try:
-            os.makedirs(cache_dir, exist_ok=True)
-        except OSError:
-            pass
-
-        url = QUrl(self.inventory)
+    def _fetch_inventory(self, url: QUrl) -> None:
         if not url.isLocalFile():
             # fetch and cache the inventory file.
-            manager = QNetworkAccessManager(self)
-            cache = QNetworkDiskCache()
-            cache.setCacheDirectory(cache_dir)
-            manager.setCache(cache)
+            self._manager = manager = self._networkAccessManagerInstance()
             req = QNetworkRequest(url)
-
-            # Follow redirects (for example http -> https)
-            # If redirects were not followed, the documentation would not be found
-            try:
-                req.setAttribute(QNetworkRequest.FollowRedirectsAttribute, 1)  # from Qt 5.6
-                req.setAttribute(QNetworkRequest.RedirectPolicyAttribute,  # from Qt 5.9
-                                 QNetworkRequest.NoLessSafeRedirectPolicy)
-            except AttributeError:  # if ran with earlier Qt
-                pass
-
+            req.setAttribute(
+                QNetworkRequest.CacheLoadControlAttribute,
+                QNetworkRequest.PreferCache
+            )
+            req.setAttribute(
+                QNetworkRequest.FollowRedirectsAttribute, True
+            )
+            req.setAttribute(
+                QNetworkRequest.RedirectPolicyAttribute,
+                QNetworkRequest.NoLessSafeRedirectPolicy
+            )
+            req.setMaximumRedirectsAllowed(5)
             self._reply = manager.get(req)
-            manager.finished.connect(self._on_finished)
+            self._reply.finished.connect(self._on_finished)
         else:
             with open(url.toLocalFile(), "rb") as f:
                 self._load_inventory(f)
 
-    def _on_finished(self, reply):
-        # type: (QNetworkReply) -> None
+    @pyqtSlot()
+    def _on_finished(self):
+        # type: () -> None
+        assert self._reply.isFinished()
+        assert self.sender() is self._reply
+        reply = self._reply  # type: QNetworkReply
+        if log.level <= logging.DEBUG:
+            s = io.StringIO()
+            print("\nGET:", reply.url().toString(), file=s)
+            if reply.attribute(QNetworkRequest.SourceIsFromCacheAttribute):
+                print("  (served from cache)", file=s)
+            for name, val in reply.rawHeaderPairs():
+                print(bytes(name).decode("latin-1"), ":",
+                      bytes(val).decode("latin-1"), file=s)
+            log.debug(s.getvalue())
         if reply.error() != QNetworkReply.NoError:
             log.error("An error occurred while fetching "
                       "help inventory '{0}'".format(self.inventory))
             self._error = reply.error(), reply.errorString()
-
         else:
             contents = bytes(reply.readAll())
             self._load_inventory(io.BytesIO(contents))
+        self._reply = None
+        reply.deleteLater()
 
     def _load_inventory(self, stream):
         # type: (IO[bytes]) -> None
