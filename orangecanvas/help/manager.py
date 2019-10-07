@@ -316,8 +316,6 @@ def create_intersphinx_provider(entry_point):
         fields = {name for _, name, _, _ in format_iter if name}
 
         if not set(fields) <= set(replacements.keys()):
-            log.warning("Invalid replacement fields %s",
-                        set(fields) - set(replacements.keys()))
             continue
 
         target = formatter.format(target, **replacements)
@@ -363,8 +361,6 @@ def create_html_provider(entry_point):
         fields = {name for _, name, _, _ in format_iter if name}
 
         if not set(fields) <= set(replacements.keys()):
-            log.warning("Invalid replacement fields %s",
-                        set(fields) - set(replacements.keys()))
             continue
         target = formatter.format(target, **replacements)
 
@@ -403,10 +399,7 @@ def create_html_inventory_provider(entry_point):
         fields = {name for _, name, _, _ in format_iter if name}
 
         if not set(fields) <= set(replacements.keys()):
-            log.warning("Invalid replacement fields %s",
-                        set(fields) - set(replacements.keys()))
             continue
-
         target = formatter.format(target, **replacements)
 
         targeturl = qurl_from_path(target)
