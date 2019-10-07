@@ -19,7 +19,7 @@ from AnyQt.QtWidgets import (
     QGraphicsSceneContextMenuEvent, QStyleOptionGraphicsItem, QWidget, QGraphicsEllipseItem)
 from AnyQt.QtGui import (
     QPen, QBrush, QColor, QPalette, QIcon, QPainter, QPainterPath,
-    QPainterPathStroker, QTextDocument, QTextBlock, QTextLine, QFont
+    QPainterPathStroker, QTextDocument, QTextBlock, QTextLine
 )
 from AnyQt.QtCore import (
     Qt, QEvent, QPointF, QRectF, QRect, QSize, QTime, QTimer,
@@ -1125,23 +1125,6 @@ class NodeItem(QGraphicsWidget):
 
     title_ = Property(str, fget=title, fset=setTitle,
                       doc="Node title text.")
-
-    def setFont(self, font):
-        # type: (QFont) -> None
-        """
-        Set the title text font (:class:`QFont`).
-        """
-        if font != self.font():
-            self.prepareGeometryChange()
-            self.captionTextItem.setFont(font)
-            self.__updateTitleText()
-
-    def font(self):
-        # type: () -> QFont
-        """
-        Return the title text font.
-        """
-        return self.captionTextItem.font()
 
     def setAnimationEnabled(self, enabled):
         # type: (bool) -> None
