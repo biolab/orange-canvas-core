@@ -1509,6 +1509,12 @@ class QuickMenu(FramelessWindow):
             size = self.size()
         else:
             size = self.sizeHint()
+            settings = QSettings()
+            ssize = settings.value('quickmenu/size', defaultValue=QSize(),
+                                   type=QSize)
+            if ssize.isValid():
+                size.setHeight(ssize.height())
+                size = size.expandedTo(self.minimumSizeHint())
 
         desktop = QApplication.desktop()
         screen_geom = desktop.availableGeometry(pos)
@@ -1570,6 +1576,8 @@ class QuickMenu(FramelessWindow):
         """
         Reimplemented from :class:`QWidget`
         """
+        settings = QSettings()
+        settings.setValue('quickmenu/size', self.size())
         super().hideEvent(event)
         if self.__loop:
             self.__loop.exit()
@@ -1794,11 +1802,22 @@ class WindowSizeGrip(QSizeGrip):
                 self.__updatePos()
         return super().eventFilter(obj, event)
 
-    def showEvent(self, event):
-        if self.window() != self.parent():
-            log.error("%s: Can only show on a top level window.",
-                      type(self).__name__)
-        return super().showEvent(event)
+    def sizeHint(self):
+        self.ensurePolished()
+        sh = super().sizeHint()
+        # Qt5 on macOS forces size grip to be zero size.
+        if sh.width() == 0 and \
+                QApplication.style().metaObject().className() == "QMacStyle":
+            sh.setWidth(sh.height())
+        return sh
+
+    def changeEvent(self, event):
+        # type: (QEvent) -> None
+        super().changeEvent(event)
+        if event.type() in (QEvent.StyleChange, QEvent.MacSizeChange):
+            self.resize(self.sizeHint())
+            self.__updatePos()
+        super().changeEvent(event)
 
     def __updatePos(self):
         window = self.window()
@@ -1807,7 +1826,7 @@ class WindowSizeGrip(QSizeGrip):
             return
 
         corner = self.__corner
-        size = self.sizeHint()
+        size = self.size()
 
         window_geom = window.geometry()
         window_size = window_geom.size()
