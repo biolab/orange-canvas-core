@@ -19,7 +19,7 @@ from AnyQt.QtWidgets import (
     QGraphicsSceneContextMenuEvent, QStyleOptionGraphicsItem, QWidget, QGraphicsEllipseItem)
 from AnyQt.QtGui import (
     QPen, QBrush, QColor, QPalette, QIcon, QPainter, QPainterPath,
-    QPainterPathStroker, QTextDocument, QTextBlock, QTextLine, QFont
+    QPainterPathStroker, QTextDocument, QTextBlock, QTextLine
 )
 from AnyQt.QtCore import (
     Qt, QEvent, QPointF, QRectF, QRect, QSize, QTime, QTimer,
@@ -963,6 +963,7 @@ class NodeItem(QGraphicsWidget):
         self.__processingState = 0
         self.__progress = -1.
         self.__statusMessage = ""
+        self.__renderedText = ""
 
         self.__error = None    # type: Optional[str]
         self.__warning = None  # type: Optional[str]
@@ -1110,10 +1111,10 @@ class NodeItem(QGraphicsWidget):
         """
         Set the node title. The title text is displayed at the bottom of the
         node.
-
         """
-        self.__title = title
-        self.__updateTitleText()
+        if self.__title != title:
+            self.__title = title
+            self.__updateTitleText()
 
     def title(self):
         # type: () -> str
@@ -1124,23 +1125,6 @@ class NodeItem(QGraphicsWidget):
 
     title_ = Property(str, fget=title, fset=setTitle,
                       doc="Node title text.")
-
-    def setFont(self, font):
-        # type: (QFont) -> None
-        """
-        Set the title text font (:class:`QFont`).
-        """
-        if font != self.font():
-            self.prepareGeometryChange()
-            self.captionTextItem.setFont(font)
-            self.__updateTitleText()
-
-    def font(self):
-        # type: () -> QFont
-        """
-        Return the title text font.
-        """
-        return self.captionTextItem.font()
 
     def setAnimationEnabled(self, enabled):
         # type: (bool) -> None
@@ -1215,7 +1199,6 @@ class NodeItem(QGraphicsWidget):
         Set the node status message text.
 
         This text is displayed below the node's title.
-
         """
         if self.__statusMessage != message:
             self.__statusMessage = message
@@ -1389,11 +1372,17 @@ class NodeItem(QGraphicsWidget):
                      "</span>"]
         text += ["</div>"]
         text = "".join(text)
+        if self.__renderedText != text:
+            self.__renderedText = text
+            # The NodeItems boundingRect could change.
+            self.prepareGeometryChange()
+            self.__boundingRect = None
+            self.captionTextItem.setHtml(text)
+            self.__layoutCaptionTextItem()
 
-        # The NodeItems boundingRect could change.
+    def __layoutCaptionTextItem(self):
         self.prepareGeometryChange()
         self.__boundingRect = None
-        self.captionTextItem.setHtml(text)
         self.captionTextItem.document().adjustSize()
         width = self.captionTextItem.textWidth()
         self.captionTextItem.setPos(-width / 2.0, 33)
@@ -1492,7 +1481,7 @@ class NodeItem(QGraphicsWidget):
         # type: () -> None
         self.prepareGeometryChange()
         self.captionTextItem.setFont(self.font())
-        self.__updateTitleText()
+        self.__layoutCaptionTextItem()
 
 
 TOOLTIP_TEMPLATE = """\
