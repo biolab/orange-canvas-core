@@ -245,7 +245,7 @@ class SchemeLink(QObject):
 
         self.__enabled = enabled
         self.__dynamic_enabled = False
-        self.__state = SchemeLink.NoState
+        self.__state = SchemeLink.NoState  # type: Union[SchemeLink.State, int]
         self.__tool_tip = ""
         self.properties = properties or {}
 
@@ -346,7 +346,7 @@ class SchemeLink(QObject):
                                fset=set_dynamic_enabled)
 
     def set_runtime_state(self, state):
-        # type: (State) -> None
+        # type: (Union[State, int]) -> None
         """
         Set the link's runtime state.
 
@@ -363,7 +363,7 @@ class SchemeLink(QObject):
             self.state_changed.emit(state)
 
     def runtime_state(self):
-        # type: () -> State
+        # type: () -> Union[State, int]
         """
         Returns
         -------
