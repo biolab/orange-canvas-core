@@ -595,15 +595,26 @@ class WidgetManager(QObject):
         if isinstance(recv, SchemeNode):
             if event.type() == NodeEvent.NodeActivateRequest:
                 self.__activate_widget_for_node(recv)
-            elif event.type() in (
-                    LinkEvent.InputLinkStateChange,
-                    LinkEvent.OutputLinkStateChange,
-            ):
-                item = self.__item_for_node.get(recv)
-                # dispatch the event to the gui widget
-                if item is not None and item.widget is not None:
-                    QCoreApplication.sendEvent(item.widget, event)
+            self.__dispatch_events(recv, event)
         return False
+
+    def __dispatch_events(self, node: Node, event: QEvent) -> None:
+        """
+        Dispatch relevant workflow events to the GUI widget
+        """
+        if event.type() in (
+            WorkflowEvent.InputLinkAdded,
+            WorkflowEvent.InputLinkRemoved,
+            WorkflowEvent.InputLinkStateChange,
+            WorkflowEvent.OutputLinkAdded,
+            WorkflowEvent.OutputLinkRemoved,
+            WorkflowEvent.OutputLinkStateChange,
+            WorkflowEvent.NodeStateChange,
+            WorkflowEvent.WorkflowEnvironmentChange,
+        ):
+            item = self.__item_for_node.get(node)
+            if item is not None and item.widget is not None:
+                QCoreApplication.sendEvent(item.widget, event)
 
     def __set_float_on_top_flag(self, widget):
         # type: (QWidget) -> None
