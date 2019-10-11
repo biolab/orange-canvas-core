@@ -191,17 +191,19 @@ class SchemeLink(QObject):
         """
         Flags indicating the runtime state of a link
         """
-        #: The link has no associated state.
+        #: The link has no associated state (e.g. is not associated with any
+        #: execution contex)
         NoState = 0
-        #: A link is empty when it has no value on it
+        #: A link is empty when it has no value on it.
         Empty = 1
-        #: A link is active when the source node provides a value on output
+        #: A link is active when the source node provides a value on output.
         Active = 2
         #: A link is pending when it's sink node has not yet been notified
         #: of a change (note that Empty|Pending is a valid state)
         Pending = 4
-        #: The link's source has been is invalidated. Until this flag is
-        #: cleared no dependent nodes will receive new signals.
+        #: The link's source node has invalidated the source channel.
+        #: The execution manager should not propagate this links source value
+        #: until this flag is cleared.
         #:
         #: .. versionadded:: 0.1.8
         Invalidated = 8
