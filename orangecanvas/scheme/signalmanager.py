@@ -552,11 +552,6 @@ class SignalManager(QObject):
         If no node is eligible for update do nothing and return `False`.
         """
         node_update_front = self.node_update_front()
-        _ = lambda nodes: list(map(attrgetter('title'), nodes))
-        log.debug("Pending nodes: %s", _(self.pending_nodes()))
-        log.debug("Blocking nodes: %s", _(self.blocking_nodes()))
-        log.debug("Invalidated nodes: %s", _(self.invalidated_nodes()))
-        log.debug("Nodes ready for update: %s", _(node_update_front))
         if node_update_front:
             self.process_node(node_update_front[0])
             return True
@@ -924,6 +919,12 @@ class SignalManager(QObject):
         log.info("'UpdateRequest' event, queued signals: %i, nactive: %i "
                  "(MAX_CONCURRENT: %i)",
                  len(self.__input_queue), nactive, MAX_CONCURRENT)
+
+        _ = lambda nodes: list(map(attrgetter('title'), nodes))
+        log.debug("Pending nodes: %s", _(self.pending_nodes()))
+        log.debug("Blocking nodes: %s", _(self.blocking_nodes()))
+        log.debug("Invalidated nodes: %s", _(self.invalidated_nodes()))
+        log.debug("Nodes ready for update: %s", _(eligible))
 
         # Return if over committed, except in the case that one of the the
         # eligible nodes is already active (a form of implicit cancellation)
