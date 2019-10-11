@@ -321,6 +321,8 @@ class LinkItem(QGraphicsWidget):
     Active = SchemeLink.Active
     #: The link is pending; the sink node is scheduled for update
     Pending = SchemeLink.Pending
+    #: The link's input is marked as invalidated (not yet available).
+    Invalidated = SchemeLink.Invalidated
 
     def __init__(self, parent=None, **kwargs):
         # type: (Optional[QGraphicsItem], Any) -> None
@@ -724,6 +726,10 @@ class LinkItem(QGraphicsWidget):
                 self.sinkAnchor.setBrush(QBrush(Qt.red))
             else:
                 self.sinkAnchor.setBrush(QBrush(QColor("#9CACB4")))
+            if state & LinkItem.Invalidated:
+                self.sourceAnchor.setBrush(QBrush(Qt.red))
+            else:
+                self.sourceAnchor.setBrush(QBrush(QColor("#9CACB4")))
             self.__updatePen()
 
     def runtimeState(self):
