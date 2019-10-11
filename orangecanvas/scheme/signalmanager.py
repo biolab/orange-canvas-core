@@ -501,6 +501,10 @@ class SignalManager(QObject):
                 state = SchemeLink.Empty
             link.set_runtime_state(state | SchemeLink.Pending)
 
+        for node in {sig.link.sink_node for sig in signals}:  # type: SchemeNode
+            # update the SchemeNodes's runtime state flags
+            node.set_state_flags(SchemeNode.Pending, True)
+
         if signals:
             self.updatesPending.emit()
 
@@ -590,6 +594,7 @@ class SignalManager(QObject):
         try:
             self.send_to_node(node, signals_in)
         finally:
+            node.set_state_flags(SchemeNode.Pending, False)
             self.processingFinished.emit()
             self.processingFinished[SchemeNode].emit(node)
             self._set_runtime_state(SignalManager.Waiting)

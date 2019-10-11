@@ -130,6 +130,26 @@ class TestSignalManager(unittest.TestCase):
         self.assertNotIn(n2, sm.node_update_front())
         self.assertTrue(sm.has_invalidated_inputs(n2))
 
+    def test_pending_flags(self):
+        workflow = self.scheme
+        sm = TestingSignalManager()
+        sm.set_workflow(workflow)
+        sm.start()
+        n0, n1, n3 = workflow.nodes[:3]
+        l0, l1 = workflow.links[:2]
+
+        self.assertFalse(n3.test_state_flags(SchemeNode.Pending))
+        self.assertFalse(l0.runtime_state() & SchemeLink.Pending)
+        sm.send(n0, n0.description.outputs[0], 'hello', None)
+        self.assertTrue(n3.test_state_flags(SchemeNode.Pending))
+        self.assertTrue(l0.runtime_state() & SchemeLink.Pending)
+
+        spy = QSignalSpy(sm.processingFinished)
+        assert spy.wait()
+
+        self.assertFalse(n3.test_state_flags(SchemeNode.Pending))
+        self.assertFalse(l0.runtime_state() & SchemeLink.Pending)
+
     def test_compress_signals(self):
         workflow = self.scheme
         link = workflow.links[0]
