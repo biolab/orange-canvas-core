@@ -10,12 +10,13 @@ import typing
 from traceback import format_exception_only
 from typing import List, Tuple, Union, Optional, Iterable
 
-from AnyQt.QtCore import QObject
+from AnyQt.QtCore import QObject, QCoreApplication
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
 from ..registry.description import normalize_type_simple
 from ..utils import type_lookup
 from .errors import IncompatibleChannelTypeError
+from .events import LinkEvent
 
 if typing.TYPE_CHECKING:
     from ..registry import OutputSignal as Output, InputSignal as Input
@@ -349,6 +350,10 @@ class SchemeLink(QObject):
         """
         if self.__state != state:
             self.__state = state
+            ev = LinkEvent(LinkEvent.InputLinkStateChange, self)
+            QCoreApplication.sendEvent(self.sink_node, ev)
+            ev = LinkEvent(LinkEvent.OutputLinkStateChange, self)
+            QCoreApplication.sendEvent(self.source_node, ev)
             self.state_changed.emit(state)
 
     def runtime_state(self):

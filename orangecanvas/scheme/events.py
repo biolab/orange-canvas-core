@@ -43,6 +43,10 @@ class WorkflowEvent(QEvent):
     NodeStateChange = QEvent.Type(QEvent.registerEventType())
     #: Link's (runtime) state has changed
     LinkStateChange = QEvent.Type(QEvent.registerEventType())
+    #: Input link's (runtime) state has changed
+    InputLinkStateChange = QEvent.Type(QEvent.registerEventType())
+    #: Output link's (runtime) state has changed
+    OutputLinkStateChange = QEvent.Type(QEvent.registerEventType())
     #: Request for Node's runtime initialization (e.g.
     #: load required data, establish connection, ...)
     NodeInitialize = QEvent.Type(QEvent.registerEventType())
