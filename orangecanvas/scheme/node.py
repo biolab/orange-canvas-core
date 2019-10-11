@@ -83,14 +83,16 @@ class SchemeNode(QObject):
         #: this flag is cleared.
         Invalidated = 4
 
-        #: The node is not in a state where it can accept inputs.
-        Blocking = 8
+        #: The node is in a state where it does not accept new signals.
+        #: The execution manager should not propagate inputs to this node
+        #: until this flag is cleared.
+        NotReady = 8
 
     NoState = State.NoState
     Running = State.Running
     Pending = State.Pending
     Invalidated = State.Invalidated
-    Blocking = State.Blocking
+    NotReady = State.NotReady
 
     def __init__(self, description, title=None, position=None,
                  properties=None, parent=None):

@@ -736,13 +736,35 @@ class SignalManager(QObject):
 
         Is it currently in a state where will produce new outputs and
         therefore no signals should be delivered to dependent nodes until
-        it does so.
+        it does so. Also no signals will be delivered to the node until
+        it exits this state.
 
         The default implementation returns False.
 
         .. deprecated:: 0.1.8
+            Use a combination of `is_invalidated` and `is_ready`.
         """
         return False
+
+    def is_ready(self, node: SchemeNode) -> bool:
+        """
+        Is the node in a state where it can receive inputs.
+
+        Re-implement this method in as subclass to prevent specific nodes from
+        being considered for input update (e.g. they are still initializing
+        runtime resources, executing a non-interruptable task, ...)
+
+        Note that whenever the implicit state changes the
+        `post_update_request` should be called.
+
+        The default implementation returns the state of the node's
+        `SchemeNode.NotReady` flag.
+
+        Parameters
+        ----------
+        node: SchemeNode
+        """
+        return not node.test_state_flags(SchemeNode.NotReady)
 
     def is_invalidated(self, node: SchemeNode) -> bool:
         """
@@ -859,7 +881,8 @@ class SignalManager(QObject):
         invalidated_nodes = set(self.invalidated_nodes())
 
         #: transitive invalidated nodes (including the legacy self.is_blocked
-        #: behaviour)
+        #: behaviour - blocked nodes are both invalidated and cannot receive
+        #: new inputs)
         invalidated_ = reduce(
             set.union,
             map(dependents, invalidated_nodes | blocking_nodes),
@@ -912,6 +935,7 @@ class SignalManager(QObject):
             return
 
         eligible = self.node_update_front()
+        eligible = [n for n in eligible if self.is_ready(n)]
         if not eligible:
             return
 
@@ -950,6 +974,20 @@ class SignalManager(QObject):
         if self.__state == SignalManager.Running and \
                 not self.__update_timer.isActive():
             self.__update_timer.start()
+
+    def post_update_request(self):
+        """
+        Schedule an update pass.
+
+        Call this method whenever:
+
+        * a node's outputs change (note that this is already done by `send`)
+        * any change in the node that influences its eligibility to be picked
+          for an input update (is_eligible_for_update, is_blocking ...).
+
+        Multiple update requests are merged into one.
+        """
+        self._update()
 
     def set_max_active(self, val: int) -> None:
         if self.__max_running != val:
