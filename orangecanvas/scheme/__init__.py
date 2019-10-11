@@ -23,3 +23,16 @@ from .annotations import (
 
 from .errors import *
 from .events import *
+
+#: Alias for SchemeNode
+Node = SchemeNode
+#: Alias for SchemeLink
+Link = SchemeLink
+#: Alias for Scheme
+Workflow = Scheme
+#: Alias for BaseSchemeAnnotation
+Annotation = BaseSchemeAnnotation
+#: Alias for SchemeArrowAnnotation
+Arrow = SchemeArrowAnnotation
+#: Alias for SchemeTextAnnotation
+Text = SchemeTextAnnotation
