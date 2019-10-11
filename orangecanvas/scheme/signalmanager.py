@@ -526,7 +526,7 @@ class SignalManager(QObject):
         """
         Process queued signals.
 
-        Take one node node from the pending input queue and deliver
+        Take the first eligible node from the pending input queue and deliver
         all scheduled signals.
         """
         if not (max_nodes is None or max_nodes == 1):
@@ -540,15 +540,29 @@ class SignalManager(QObject):
         if not self._can_process():
             raise RuntimeError("Can't process in state %i" % self.__state)
 
+        self.process_next()
+
+    def process_next(self):
+        # type: () -> bool
+        """
+        Process queued signals.
+
+        Take the first eligible node from the pending input queue and deliver
+        all scheduled signals for it and return `True`.
+
+        If no node is eligible for update do nothing and return `False`.
+        """
         node_update_front = self.node_update_front()
         _ = lambda nodes: list(map(attrgetter('title'), nodes))
-        log.info("SignalManager: Processing queued signals")
         log.debug("Pending nodes: %s", _(self.pending_nodes()))
         log.debug("Blocking nodes: %s", _(self.blocking_nodes()))
+        log.debug("Invalidated nodes: %s", _(self.invalidated_nodes()))
         log.debug("Nodes ready for update: %s", _(node_update_front))
-
         if node_update_front:
             self.process_node(node_update_front[0])
+            return True
+        else:
+            return False
 
     def process_node(self, node):
         # type: (SchemeNode) -> None
@@ -900,18 +914,22 @@ class SignalManager(QObject):
                         "current update.")
             return
 
+        if not self.__input_queue:
+            return
+
         nbusy = len(set(self.active_nodes()) | set(self.blocking_nodes()))
         log.info("'UpdateRequest' event, queued signals: %i, nbusy: %i "
                  "(MAX_CONCURRENT: %i)",
                  len(self.__input_queue), nbusy, MAX_CONCURRENT)
 
-        if self.__input_queue and nbusy < MAX_CONCURRENT:
-            try:
-                self.process_queued()
-            finally:
-                # Schedule another update (will be a noop if nothing to do).
-                if self.__input_queue and self.__state == SignalManager.Running:
-                    self.__update_timer.start()
+        if not nbusy < MAX_CONCURRENT:
+            return
+
+        status = self.process_next()
+
+        # Schedule another update (will be a noop if nothing to do).
+        if self.__state == SignalManager.Running and status:
+            self.__update_timer.start()
 
     def _update(self):  # type: () -> None
         """
