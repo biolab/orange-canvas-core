@@ -200,11 +200,17 @@ class SchemeLink(QObject):
         #: A link is pending when it's sink node has not yet been notified
         #: of a change (note that Empty|Pending is a valid state)
         Pending = 4
+        #: The link's source has been is invalidated. Until this flag is
+        #: cleared no dependent nodes will receive new signals.
+        #:
+        #: .. versionadded:: 0.1.8
+        Invalidated = 8
 
     NoState = State.NoState
     Empty = State.Empty
     Active = State.Active
     Pending = State.Pending
+    Invalidated = State.Invalidated
 
     def __init__(self, source_node, source_channel,
                  sink_node, sink_channel,
@@ -364,6 +370,40 @@ class SchemeLink(QObject):
         state : SchemeLink.State
         """
         return self.__state
+
+    def set_runtime_state_flag(self, flag, on):
+        # type: (State, bool) -> None
+        """
+        Set/unset runtime state flag.
+
+        Parameters
+        ----------
+        flag: SchemeLink.State
+        on: bool
+        """
+        if on:
+            state = self.__state | flag
+        else:
+            state = self.__state & ~flag
+        self.set_runtime_state(state)
+
+    def test_runtime_state(self, flag):
+        # type: (State) -> bool
+        """
+        Test if runtime state flag is on/off
+
+        Parameters
+        ----------
+        flag: SchemeLink.State
+            State flag to test
+
+        Returns
+        -------
+        on: bool
+            True if `flag` is set; False otherwise.
+
+        """
+        return bool(self.__state & flag)
 
     def set_tool_tip(self, tool_tip):
         # type: (str) -> None
