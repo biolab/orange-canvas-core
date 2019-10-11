@@ -709,7 +709,8 @@ class SignalManager(QObject):
         .. versionadded:: 0.1.8
         """
         return [node for node in self.__nodes()
-                if self.has_invalidated_outputs(node)]
+                if self.has_invalidated_outputs(node) or
+                self.is_invalidated(node)]
 
     def active_nodes(self):
         # type: () -> List[SchemeNode]
@@ -734,6 +735,20 @@ class SignalManager(QObject):
         .. deprecated:: 0.1.8
         """
         return False
+
+    def is_invalidated(self, node: SchemeNode) -> bool:
+        """
+        Is the node marked as invalidated.
+
+        Parameters
+        ----------
+        node : SchemeNode
+
+        Returns
+        -------
+        state: bool
+        """
+        return node.test_state_flags(SchemeNode.Invalidated)
 
     def has_invalidated_outputs(self, node):
         # type: (SchemeNode) -> bool
