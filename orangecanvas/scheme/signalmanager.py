@@ -7,7 +7,7 @@ A SignalManager instance handles the runtime signal propagation between
 widgets in a scheme workflow.
 
 """
-
+import os
 import logging
 import itertools
 import warnings
@@ -168,7 +168,6 @@ class SignalManager(QObject):
 
         self.__update_timer = QTimer(self, interval=100, singleShot=True)
         self.__update_timer.timeout.connect(self.__process_next)
-
         if isinstance(parent, Scheme):
             self.set_workflow(parent)
 
@@ -917,19 +916,29 @@ class SignalManager(QObject):
         if not self.__input_queue:
             return
 
-        nbusy = len(set(self.active_nodes()) | set(self.blocking_nodes()))
-        log.info("'UpdateRequest' event, queued signals: %i, nbusy: %i "
-                 "(MAX_CONCURRENT: %i)",
-                 len(self.__input_queue), nbusy, MAX_CONCURRENT)
-
-        if not nbusy < MAX_CONCURRENT:
+        eligible = self.node_update_front()
+        if not eligible:
             return
 
-        status = self.process_next()
+        nactive = len(set(self.active_nodes()) | set(self.blocking_nodes()))
+        log.info("'UpdateRequest' event, queued signals: %i, nactive: %i "
+                 "(MAX_CONCURRENT: %i)",
+                 len(self.__input_queue), nactive, MAX_CONCURRENT)
 
+        # Return if over committed, except in the case that one of the the
+        # eligible nodes is already active (a form of implicit cancellation)
+        if nactive >= MAX_CONCURRENT:
+            for node in eligible:
+                if self.is_active(node):
+                    break
+            else:
+                return
+        else:
+            node = eligible[0]
+
+        self.process_node(node)
         # Schedule another update (will be a noop if nothing to do).
-        if self.__state == SignalManager.Running and status:
-            self.__update_timer.start()
+        self._update()
 
     def _update(self):  # type: () -> None
         """
