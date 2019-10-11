@@ -952,18 +952,23 @@ class SignalManager(QObject):
         log.debug("Invalidated nodes: %s", _(self.invalidated_nodes()))
         log.debug("Nodes ready for update: %s", _(eligible))
 
-        # Return if over committed, except in the case that one of the the
-        # eligible nodes is already active (a form of implicit cancellation)
-        if nactive >= max_active:
-            for node in eligible:
-                if self.is_active(node):
-                    break
-            else:
-                return
-        else:
-            node = eligible[0]
+        # Select an node that is already running (effectively cancelling
+        # already executing tasks that are immediately updatable)
+        selected_node = None  # type: Optional[SchemeNode]
+        for node in eligible:
+            if self.is_active(node):
+                selected_node = node
+                break
 
-        self.process_node(node)
+        # Return if over committed, except in the case that the selected_node
+        # is already active.
+        if nactive >= max_active and selected_node is None:
+            return
+
+        if selected_node is None:
+            selected_node = eligible[0]
+
+        self.process_node(selected_node)
         # Schedule another update (will be a noop if nothing to do).
         self._update()
 
