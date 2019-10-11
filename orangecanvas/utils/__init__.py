@@ -3,7 +3,7 @@ import types
 from functools import reduce
 
 import typing
-from typing import Iterable, Set, Any, Optional, Union, Tuple, Callable
+from typing import Iterable, Set, Any, Optional, Union, Tuple, Callable, Mapping
 
 from .qtcompat import toPyObject
 
@@ -20,10 +20,13 @@ __all__ = [
     "unique",
     "assocv",
     "assocf",
+    "mapping_get"
 ]
 
 if typing.TYPE_CHECKING:
     H = typing.TypeVar("H", bound=typing.Hashable)
+    A = typing.TypeVar("A")
+    B = typing.TypeVar("B")
     C = typing.TypeVar("C")
     K = typing.TypeVar("K")
     V = typing.TypeVar("V")
@@ -207,3 +210,19 @@ def assocf(seq, predicate):
         if predicate(k):
             return k, v
     return None
+
+
+def mapping_get(
+    mapping,  # type: Mapping[K, V]
+    key,      # type: K
+    type,     # type: Callable[[V], A]
+    default,  # type: B
+):  # type: (...) -> Union[A, B]
+    try:
+        val = mapping[key]
+    except KeyError:
+        return default
+    try:
+        return type(val)
+    except (TypeError, ValueError):
+        return default

@@ -23,10 +23,10 @@ from typing import (
     Sequence, Union, DefaultDict
 )
 
-from AnyQt.QtCore import QObject, QTimer
+from AnyQt.QtCore import QObject, QTimer, QSettings
 from AnyQt.QtCore import pyqtSignal, pyqtSlot as Slot
 
-from ..utils import unique
+from ..utils import unique, mapping_get
 from ..registry import OutputSignal
 from .scheme import Scheme, SchemeNode, SchemeLink
 
@@ -68,8 +68,6 @@ class Signal(
 
 
 is_enabled = attrgetter("enabled")
-
-MAX_CONCURRENT = 1
 
 
 class _OutputState:
@@ -155,7 +153,8 @@ class SignalManager(QObject):
     #: Emitted when `SignalManager`'s runtime state changes.
     runtimeStateChanged = pyqtSignal(int)
 
-    def __init__(self, parent=None, **kwargs):
+    def __init__(self, parent=None, *, max_running=None, **kwargs):
+        # type: (Optional[QObject], Optional[int], Any) -> None
         super().__init__(parent, **kwargs)
         self.__workflow = None  # type: Optional[Scheme]
         self.__input_queue = []  # type: List[Signal]
@@ -168,6 +167,7 @@ class SignalManager(QObject):
 
         self.__update_timer = QTimer(self, interval=100, singleShot=True)
         self.__update_timer.timeout.connect(self.__process_next)
+        self.__max_running = max_running
         if isinstance(parent, Scheme):
             self.set_workflow(parent)
 
@@ -916,9 +916,11 @@ class SignalManager(QObject):
             return
 
         nactive = len(set(self.active_nodes()) | set(self.blocking_nodes()))
+        max_active = self.max_active()
+        assert max_active >= 1
         log.info("'UpdateRequest' event, queued signals: %i, nactive: %i "
-                 "(MAX_CONCURRENT: %i)",
-                 len(self.__input_queue), nactive, MAX_CONCURRENT)
+                 "(max_active: %i)",
+                 len(self.__input_queue), nactive, max_active)
 
         _ = lambda nodes: list(map(attrgetter('title'), nodes))
         log.debug("Pending nodes: %s", _(self.pending_nodes()))
@@ -928,7 +930,7 @@ class SignalManager(QObject):
 
         # Return if over committed, except in the case that one of the the
         # eligible nodes is already active (a form of implicit cancellation)
-        if nactive >= MAX_CONCURRENT:
+        if nactive >= max_active:
             for node in eligible:
                 if self.is_active(node):
                     break
@@ -948,6 +950,29 @@ class SignalManager(QObject):
         if self.__state == SignalManager.Running and \
                 not self.__update_timer.isActive():
             self.__update_timer.start()
+
+    def set_max_active(self, val: int) -> None:
+        if self.__max_running != val:
+            self.__max_running = val
+            self._update()
+
+    def max_active(self) -> int:
+        value = self.__max_running  # type: Optional[int]
+        if value is None:
+            value = mapping_get(os.environ, "MAX_ACTIVE_NODES", int, None)
+        if value is None:
+            s = QSettings()
+            s.beginGroup(__name__)
+            value = s.value("max-active-nodes", defaultValue=1, type=int)
+
+        if value < 0:
+            ccount = os.cpu_count()
+            if ccount is None:
+                return 1
+            else:
+                return max(1, ccount + value)
+        else:
+            return max(1, value)
 
 
 def can_enable_dynamic(link, value):
