@@ -6,7 +6,6 @@ Scheme Editor Widget
 
 """
 import io
-import sys
 import logging
 import itertools
 import unicodedata
@@ -14,9 +13,10 @@ import copy
 
 from operator import attrgetter
 from urllib.parse import urlencode
-from contextlib import ExitStack
-
-from typing import List, Tuple, Optional, Container, Dict, Any, Iterable
+from contextlib import ExitStack, contextmanager
+from typing import (
+    List, Tuple, Optional, Container, Dict, Any, Iterable, Generator
+)
 
 from AnyQt.QtWidgets import (
     QWidget, QVBoxLayout, QInputDialog, QMenu, QAction, QActionGroup,
@@ -1347,9 +1347,8 @@ class SchemeEditWidget(QWidget):
             # Double click on an empty spot
             # Create a new node using QuickMenu
             action = interactions.NewNodeAction(self)
-            with ExitStack() as stack:
-                stack.enter_context(disabled(self.__undoAction))
-                stack.enter_context(disabled(self.__redoAction))
+            with disable_undo_stack_actions(
+                    self.__undoAction, self.__redoAction, self.__undoStack):
                 action.create_new(event.screenPos())
 
             event.accept()
@@ -1407,8 +1406,10 @@ class SchemeEditWidget(QWidget):
             # 'look and feel'
             with ExitStack() as stack:
                 stack.enter_context(disabled(self.__removeSelectedAction))
-                stack.enter_context(disabled(self.__undoAction))
-                stack.enter_context(disabled(self.__redoAction))
+                stack.enter_context(
+                    disable_undo_stack_actions(
+                        self.__undoAction, self.__redoAction, self.__undoStack)
+                )
                 handler.create_new(QCursor.pos(), searchText)
 
             event.accept()
@@ -1464,9 +1465,8 @@ class SchemeEditWidget(QWidget):
                 self.__quickMenuTriggers & SchemeEditWidget.RightClicked:
             action = interactions.NewNodeAction(self)
 
-            with ExitStack() as stack:
-                stack.enter_context(disabled(self.__undoAction))
-                stack.enter_context(disabled(self.__redoAction))
+            with disable_undo_stack_actions(
+                    self.__undoAction, self.__redoAction, self.__undoStack):
                 action.create_new(globalPos)
             return True
 
@@ -2379,3 +2379,31 @@ def nodes_top_left(nodes):
         min(n.position[0] for n in nodes),
         min(n.position[1] for n in nodes)
     )
+
+@contextmanager
+def disable_undo_stack_actions(
+        undo: QAction, redo: QAction, stack: QUndoStack
+) -> Generator[None, None, None]:
+    """
+    Disable the undo/redo actions of an undo stack.
+
+    On exit restore the enabled state to match the `stack.canUndo()`
+    and `stack.canRedo()`.
+
+    Parameters
+    ----------
+    undo: QAction
+    redo: QAction
+    stack: QUndoStack
+
+    Returns
+    -------
+    context: ContextManager
+    """
+    undo.setEnabled(False)
+    redo.setEnabled(False)
+    try:
+        yield
+    finally:
+        undo.setEnabled(stack.canUndo())
+        redo.setEnabled(stack.canRedo())
