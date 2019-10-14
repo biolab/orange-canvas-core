@@ -136,9 +136,6 @@ class IntersphinxHelpProvider(BaseInventoryProvider):
         else:
             ref = description.name
 
-        if not self.inventory.isLocalFile() and not self._reply.isFinished():
-            self._reply.waitForReadyRead(2000)
-
         if self.items is None:
             labels = {}
         else:
@@ -272,9 +269,6 @@ class HtmlIndexProvider(BaseInventoryProvider):
 
     def search(self, desc):
         # type: (WidgetDescription) -> QUrl
-        if not self.inventory.isLocalFile() and not self._reply.isFinished():
-            self._reply.waitForReadyRead(2000)
-
         if self.items is None:
             labels = {}  # type: Dict[str, str]
         else:
