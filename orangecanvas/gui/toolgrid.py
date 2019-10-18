@@ -17,6 +17,8 @@ from AnyQt.QtGui import (
 from AnyQt.QtCore import Qt, QObject, QSize, QEvent, QSignalMapper
 from AnyQt.QtCore import Signal, Slot
 
+from orangecanvas.registry import WidgetDescription
+
 __all__ = [
     "ToolGrid"
 ]
@@ -67,6 +69,10 @@ class ToolGridButton(QToolButton):
     def __textLayout(self):
         # type:  () -> None
         fm = self.fontMetrics()
+        desc = self.defaultAction().data()
+        if isinstance(desc, WidgetDescription) and desc.short_name:
+            self.__text = desc.short_name
+            return
         text = self.defaultAction().text()
         words = deque(text.split())
 
@@ -97,7 +103,6 @@ class ToolGridButton(QToolButton):
                     # Warning: hardcoded max lines
                     curr_line = fm.elidedText(line_extended, Qt.ElideRight,
                                               width)
-                    curr_line = curr_line
                 else:
                     # Put the word back
                     words.appendleft(w)
