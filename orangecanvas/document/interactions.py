@@ -284,6 +284,8 @@ class NewLinkAction(UserInteraction):
         # An QUndoCommand
         self.macro = None  # type: Optional[QUndoCommand]
 
+        self.cancelOnEsc = True
+
     def remove_tmp_anchor(self):
         # type: () -> None
         """
