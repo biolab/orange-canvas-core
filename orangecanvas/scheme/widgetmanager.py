@@ -332,9 +332,10 @@ class WidgetManager(QObject):
         node.installEventFilter(self)
         if self.__creation_policy == WidgetManager.Immediate:
             self.ensure_created(node)
-        elif self.__creation_policy == WidgetManager.Normal:
+        else:
             self.__init_queue.append(node)
-            self.__init_timer.start()
+            if self.__creation_policy == WidgetManager.Normal:
+                self.__init_timer.start()
 
     def __on_node_removed(self, node):  # type: (SchemeNode) -> None
         assert self.__workflow is not None
