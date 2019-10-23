@@ -21,12 +21,14 @@ class ActionType(enum.IntEnum):
     NodeAddClick = 0
     NodeAddDrag = 1
     NodeAddMenu = 2
-    NodeAddExtendFromSink = 3
-    NodeAddExtendFromSource = 4
-    NodeRemove = 5
-    LinkAdd = 6
-    LinkRemove = 7
-    LinkEdit = 8
+    NodeAddInsertDrag = 3
+    NodeAddInsertMenu = 4
+    NodeAddExtendFromSink = 5
+    NodeAddExtendFromSource = 6
+    NodeRemove = 7
+    LinkAdd = 8
+    LinkRemove = 9
+    LinkEdit = 10  # ends up transformed into LinkAdd and LinkRemove events
 
 
 class UsageStatistics:
@@ -60,8 +62,9 @@ class UsageStatistics:
     """
     _is_enabled = False
 
-    Invalid, NodeAddClick, NodeAddDrag, NodeAddMenu, NodeAddExtendFromSink, \
-        NodeAddExtendFromSource, NodeRemove, LinkAdd, LinkRemove, LinkEdit = list(ActionType)
+    Invalid, NodeAddClick, NodeAddDrag, NodeAddMenu, NodeAddInsertDrag, NodeAddInsertMenu, \
+    NodeAddExtendFromSink, NodeAddExtendFromSource, NodeRemove, LinkAdd, LinkRemove, LinkEdit \
+        = list(ActionType)
 
     last_search_query = None
 
@@ -105,7 +108,9 @@ class UsageStatistics:
         if not self.is_enabled():
             return
 
-        node_add_action_types = range(6)
+        node_add_action_types = {self.NodeAddClick, self.NodeAddDrag, self.NodeAddMenu,
+                                 self.NodeAddInsertDrag, self.NodeAddInsertMenu,
+                                 self.NodeAddExtendFromSink, self.NodeAddExtendFromSource}
 
         if self._action_type not in node_add_action_types:
             log.info("Invalid action type registered for node addition logging. "
@@ -170,7 +175,7 @@ class UsageStatistics:
         if not self.is_enabled():
             return
 
-        if self._action_type not in [UsageStatistics.LinkAdd, UsageStatistics.LinkEdit]:
+        if self._action_type not in {UsageStatistics.LinkAdd, UsageStatistics.LinkEdit}:
             log.info("Invalid action type registered for link add logging. "
                      "No action was logged.")
             return
@@ -192,7 +197,7 @@ class UsageStatistics:
         if not self.is_enabled():
             return
 
-        if self._action_type not in [UsageStatistics.LinkRemove, UsageStatistics.LinkEdit]:
+        if self._action_type not in {UsageStatistics.LinkRemove, UsageStatistics.LinkEdit}:
             log.info("Invalid action type registered for link remove logging. "
                      "No action was logged.")
             return
