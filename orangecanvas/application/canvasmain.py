@@ -1243,10 +1243,14 @@ class CanvasMainWindow(QMainWindow):
         """
         document = self.current_document()
         scheme = document.scheme()
-        title = self.__title_for_scheme(scheme)
+        path = document.path()
+        if path:
+            filename = os.path.basename(document.path())
+            message = self.tr('Do you want to save changes made to %s?') % filename
+        else:
+            message = self.tr('Do you want to save this workflow?')
         selected = message_question(
-            self.tr('Do you want to save the changes you made to workflow "%s"?')
-                    % title,
+            message,
             self.tr("Save Changes?"),
             self.tr("Your changes will be lost if you do not save them."),
             buttons=QMessageBox.Save | QMessageBox.Cancel | \
