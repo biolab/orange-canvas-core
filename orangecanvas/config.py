@@ -356,7 +356,7 @@ spec = \
      ("stylesheet", str, "orange",
       "QSS stylesheet to use"),
 
-     ("schemeinfo/show-at-new-scheme", bool, True,
+     ("schemeinfo/show-at-new-scheme", bool, False,
       "Show Workflow Properties when creating a new Workflow"),
 
      ("mainwindow/scheme-margins-enabled", bool, False,

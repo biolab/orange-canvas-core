@@ -1037,7 +1037,7 @@ class CanvasMainWindow(QMainWindow):
         newwindow.activateWindow()
 
         settings = QSettings()
-        show = settings.value("schemeinfo/show-at-new-scheme", True,
+        show = settings.value("schemeinfo/show-at-new-scheme", False,
                               type=bool)
         if show:
             newwindow.show_scheme_properties()
@@ -1586,7 +1586,7 @@ class CanvasMainWindow(QMainWindow):
             self, windowTitle=self.tr("Workflow Info"),
         )
         dialog.setFixedSize(725, 450)
-        dialog.setShowAtNewScheme(settings.value(value_key, True, type=bool))
+        dialog.setShowAtNewScheme(settings.value(value_key, False, type=bool))
 
         def onfinished():
             # type: () -> None
