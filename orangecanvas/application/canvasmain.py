@@ -392,6 +392,7 @@ class CanvasMainWindow(QMainWindow):
             shortcut=QKeySequence.New,
             icon=canvas_icons("New.svg")
         )
+
         self.open_action = QAction(
             self.tr("Open"), self,
             objectName="action-open",
@@ -400,6 +401,7 @@ class CanvasMainWindow(QMainWindow):
             shortcut=QKeySequence.Open,
             icon=canvas_icons("Open.svg")
         )
+
         self.open_and_freeze_action = QAction(
             self.tr("Open and Freeze"), self,
             objectName="action-open-and-freeze",
@@ -407,9 +409,11 @@ class CanvasMainWindow(QMainWindow):
                             "propagation."),
             triggered=self.open_and_freeze_scheme
         )
+
         self.open_and_freeze_action.setShortcut(
             QKeySequence(Qt.ControlModifier | Qt.AltModifier | Qt.Key_O)
         )
+
         self.close_window_action = QAction(
             self.tr("Close Window"), self,
             objectName="action-close-window",
@@ -417,6 +421,7 @@ class CanvasMainWindow(QMainWindow):
             shortcut=QKeySequence.Close,
             triggered=self.close,
         )
+
         self.save_action = QAction(
             self.tr("Save"), self,
             objectName="action-save",
@@ -424,6 +429,7 @@ class CanvasMainWindow(QMainWindow):
             triggered=self.save_scheme,
             shortcut=QKeySequence.Save,
         )
+
         self.save_as_action = QAction(
             self.tr("Save As ..."), self,
             objectName="action-save-as",
@@ -449,6 +455,7 @@ class CanvasMainWindow(QMainWindow):
             menuRole=QAction.QuitRole,
             shortcut=QKeySequence.Quit,
         )
+
         self.welcome_action = QAction(
             self.tr("Welcome"), self,
             objectName="welcome-action",
@@ -796,19 +803,20 @@ class CanvasMainWindow(QMainWindow):
         self.widgets_tool_box.setExclusive(
             settings.value("toolbox-dock-exclusive", False, type=bool)
         )
-
         self.toogle_margins_action.setChecked(
             settings.value("scheme-margins-enabled", False, type=bool)
         )
         self.show_output_action.setChecked(
-            settings.value("output-dock/is-visible", False, type=bool))
-
+            settings.value("output-dock/is-visible", False, type=bool)
+        )
         self.canvas_tool_dock.setQuickHelpVisible(
             settings.value("quick-help/visible", True, type=bool)
         )
-
         self.float_widgets_on_top_action.setChecked(
             settings.value("widgets-float-on-top", False, type=bool)
+        )
+        self.autosave_action.setChecked(
+            settings.value("autosave-enabled", True, type=bool)
         )
 
         self.__update_from_settings()
@@ -1947,14 +1955,14 @@ class CanvasMainWindow(QMainWindow):
                           self.dock_widget.expanded())
         settings.setValue("scheme-margins-enabled",
                           self.scheme_margins_enabled)
-
         settings.setValue("widgettoolbox/state",
                           self.widgets_tool_box.saveState())
-
         settings.setValue("quick-help/visible",
                           self.canvas_tool_dock.quickHelpVisible())
         settings.setValue("widgets-float-on-top",
                           self.float_widgets_on_top_action.isChecked())
+        settings.setValue("autosave-enabled",
+                          self.autosave_action.isChecked())
 
         settings.endGroup()
         self.help_dock.close()

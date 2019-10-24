@@ -384,6 +384,9 @@ spec = \
      ("mainwindow/number-of-recent-schemes", int, 15,
       "Number of recent workflows to keep in history"),
 
+     ("mainwindow/autosave-enabled", bool, True,
+      ""),
+
      ("schemeedit/show-channel-names", bool, True,
       "Show channel names"),
 
