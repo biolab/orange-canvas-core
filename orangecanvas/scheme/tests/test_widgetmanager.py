@@ -86,6 +86,24 @@ class TestWidgetManager(unittest.TestCase):
         self.assertEqual(len(spy), 3)
         self.assertSetEqual({n for n, _ in spy}, set(nodes))
 
+    def test_create_on_demand(self):
+        workflow = self.scheme
+        nodes = workflow.nodes
+        wm = TestingWidgetManager()
+        wm.set_creation_policy(WidgetManager.OnDemand)
+        spy = QSignalSpy(wm.widget_for_node_added)
+        wm.set_workflow(workflow)
+        self.assertEqual(len(spy), 0)
+        self.assertFalse(spy.wait(30))
+        self.assertEqual(len(spy), 0)
+        w = wm.widget_for_node(nodes[0])
+        self.assertEqual(list(spy), [[nodes[0], w]])
+        # transition to normal
+        spy = QSignalSpy(wm.widget_for_node_added)
+        wm.set_creation_policy(WidgetManager.Normal)
+        self.assertTrue(spy.wait())
+        self.assertEqual(spy[0][0], nodes[1])
+
     def test_mappings(self):
         workflow = self.scheme
         nodes = workflow.nodes
