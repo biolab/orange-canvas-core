@@ -260,7 +260,8 @@ class ControlPointRect(QGraphicsObject):
         obj = toGraphicsObjectIfPossible(obj)
         if isinstance(obj, ControlPoint):
             etype = event.type()
-            if etype == QEvent.GraphicsSceneMousePress and \
+            if etype in (QEvent.GraphicsSceneMousePress,
+                         QEvent.GraphicsSceneMouseDoubleClick) and \
                     event.button() == Qt.LeftButton:
                 self.__setActiveControl(obj)
 
@@ -414,7 +415,8 @@ class ControlPointLine(QGraphicsObject):
         obj = toGraphicsObjectIfPossible(obj)
         if isinstance(obj, ControlPoint):
             etype = event.type()
-            if etype == QEvent.GraphicsSceneMousePress:
+            if etype in (QEvent.GraphicsSceneMousePress,
+                         QEvent.GraphicsSceneMouseDoubleClick):
                 self.__setActiveControl(obj)
             elif etype == QEvent.GraphicsSceneMouseRelease:
                 self.__setActiveControl(None)
