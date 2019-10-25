@@ -1843,6 +1843,9 @@ class SchemeEditWidget(QWidget):
         Duplicate currently selected nodes.
         """
         nodedups, linkdups = self.__copySelected()
+        if not nodedups:
+            return
+
         pos = nodes_top_left(nodedups)
         self.__paste(nodedups, linkdups, pos + DuplicateOffset,
                      commandname=self.tr("Duplicate"))
@@ -2379,8 +2382,8 @@ def nodes_top_left(nodes):
     # type: (List[SchemeNode]) -> QPointF
     """Return the top left point of bbox containing all the node positions."""
     return QPointF(
-        min(n.position[0] for n in nodes),
-        min(n.position[1] for n in nodes)
+        min((n.position[0] for n in nodes), default=0),
+        min((n.position[1] for n in nodes), default=0)
     )
 
 @contextmanager
