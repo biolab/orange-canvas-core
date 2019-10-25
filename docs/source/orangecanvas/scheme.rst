@@ -17,3 +17,4 @@ Scheme (``scheme``)
    scheme.readwrite
    scheme.widgetmanager
    scheme.signalmanager
+   scheme.events

@@ -5,7 +5,7 @@ import unittest
 from AnyQt.QtWidgets import QWidget, QApplication, QAction
 from AnyQt.QtTest import QSignalSpy
 
-from orangecanvas.scheme import Scheme, NodeEvent
+from orangecanvas.scheme import Scheme, NodeEvent, SchemeLink, LinkEvent
 from orangecanvas.scheme.widgetmanager import WidgetManager
 from orangecanvas.registry import tests as registry_tests
 from orangecanvas.scheme.tests import EventSpy
@@ -185,6 +185,11 @@ class TestWidgetManager(unittest.TestCase):
         w1._evt.clear()
         workflow.set_runtime_env("tt", "aaa")
         self.assertIn(NodeEvent.WorkflowEnvironmentChange, w1._evt)
+
+        w3._evt.clear()
+        l1.set_runtime_state(SchemeLink.Pending)
+        self.assertIn(LinkEvent.InputLinkStateChange, w3._evt)
+        self.assertIn(LinkEvent.OutputLinkStateChange, w1._evt)
 
     def test_actions(self):
         workflow = self.scheme

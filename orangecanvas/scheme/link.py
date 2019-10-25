@@ -10,12 +10,13 @@ import typing
 from traceback import format_exception_only
 from typing import List, Tuple, Union, Optional, Iterable
 
-from AnyQt.QtCore import QObject
+from AnyQt.QtCore import QObject, QCoreApplication
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
 from ..registry.description import normalize_type_simple
 from ..utils import type_lookup
 from .errors import IncompatibleChannelTypeError
+from .events import LinkEvent
 
 if typing.TYPE_CHECKING:
     from ..registry import OutputSignal as Output, InputSignal as Input
@@ -190,20 +191,28 @@ class SchemeLink(QObject):
         """
         Flags indicating the runtime state of a link
         """
-        #: The link has no associated state.
+        #: The link has no associated state (e.g. is not associated with any
+        #: execution contex)
         NoState = 0
-        #: A link is empty when it has no value on it
+        #: A link is empty when it has no value on it.
         Empty = 1
-        #: A link is active when the source node provides a value on output
+        #: A link is active when the source node provides a value on output.
         Active = 2
         #: A link is pending when it's sink node has not yet been notified
         #: of a change (note that Empty|Pending is a valid state)
         Pending = 4
+        #: The link's source node has invalidated the source channel.
+        #: The execution manager should not propagate this links source value
+        #: until this flag is cleared.
+        #:
+        #: .. versionadded:: 0.1.8
+        Invalidated = 8
 
     NoState = State.NoState
     Empty = State.Empty
     Active = State.Active
     Pending = State.Pending
+    Invalidated = State.Invalidated
 
     def __init__(self, source_node, source_channel,
                  sink_node, sink_channel,
@@ -238,7 +247,7 @@ class SchemeLink(QObject):
 
         self.__enabled = enabled
         self.__dynamic_enabled = False
-        self.__state = SchemeLink.NoState
+        self.__state = SchemeLink.NoState  # type: Union[SchemeLink.State, int]
         self.__tool_tip = ""
         self.properties = properties or {}
 
@@ -339,7 +348,7 @@ class SchemeLink(QObject):
                                fset=set_dynamic_enabled)
 
     def set_runtime_state(self, state):
-        # type: (State) -> None
+        # type: (Union[State, int]) -> None
         """
         Set the link's runtime state.
 
@@ -349,16 +358,54 @@ class SchemeLink(QObject):
         """
         if self.__state != state:
             self.__state = state
+            ev = LinkEvent(LinkEvent.InputLinkStateChange, self)
+            QCoreApplication.sendEvent(self.sink_node, ev)
+            ev = LinkEvent(LinkEvent.OutputLinkStateChange, self)
+            QCoreApplication.sendEvent(self.source_node, ev)
             self.state_changed.emit(state)
 
     def runtime_state(self):
-        # type: () -> State
+        # type: () -> Union[State, int]
         """
         Returns
         -------
         state : SchemeLink.State
         """
         return self.__state
+
+    def set_runtime_state_flag(self, flag, on):
+        # type: (State, bool) -> None
+        """
+        Set/unset runtime state flag.
+
+        Parameters
+        ----------
+        flag: SchemeLink.State
+        on: bool
+        """
+        if on:
+            state = self.__state | flag
+        else:
+            state = self.__state & ~flag
+        self.set_runtime_state(state)
+
+    def test_runtime_state(self, flag):
+        # type: (State) -> bool
+        """
+        Test if runtime state flag is on/off
+
+        Parameters
+        ----------
+        flag: SchemeLink.State
+            State flag to test
+
+        Returns
+        -------
+        on: bool
+            True if `flag` is set; False otherwise.
+
+        """
+        return bool(self.__state & flag)
 
     def set_tool_tip(self, tool_tip):
         # type: (str) -> None

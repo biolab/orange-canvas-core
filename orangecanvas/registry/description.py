@@ -353,8 +353,8 @@ class WidgetDescription(object):
     category = None      # type: Optional[str]
     project_name = None  # type: Optional[str]
 
-    inputs = []  # type: List[InputSignal]
-    output = []  # type: List[OutputSignal]
+    inputs = []   # type: List[InputSignal]
+    outputs = []  # type: List[OutputSignal]
 
     replaces = []  # type: List[str]
     keywords = []  # type: List[str]

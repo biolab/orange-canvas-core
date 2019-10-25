@@ -3,7 +3,7 @@ import unittest
 from AnyQt.QtWidgets import QApplication
 from AnyQt.QtTest import QSignalSpy
 
-from orangecanvas.scheme import Scheme, SchemeNode
+from orangecanvas.scheme import Scheme, SchemeNode, SchemeLink
 from orangecanvas.scheme import signalmanager
 from orangecanvas.scheme.signalmanager import (
     SignalManager, Signal,  compress_signals
@@ -44,6 +44,7 @@ class TestSignalManager(unittest.TestCase):
         add = scheme.new_node(reg.widget("add"))
         scheme.new_link(zero, "value", add, "left")
         scheme.new_link(one, "value", add, "right")
+        self.reg = reg
         self.scheme = scheme
 
     def test(self):
@@ -79,6 +80,75 @@ class TestSignalManager(unittest.TestCase):
 
         self.assertEqual(n3.property("-input-left"), None)
         self.assertEqual(n3.property("-input-right"), 'hello')
+
+    def test_invalidated_flags(self):
+        workflow = self.scheme
+        sm = TestingSignalManager()
+        sm.set_workflow(workflow)
+        sm.start()
+
+        n0, n1, n2 = workflow.nodes[:3]
+        l0, l1 = workflow.links[:2]
+
+        self.assertFalse(l0.runtime_state() & SchemeLink.Invalidated)
+        sm.send(n0, n0.description.outputs[0], 'hello', None)
+        self.assertFalse(l0.runtime_state() & SchemeLink.Invalidated)
+        self.assertIn(n2, sm.node_update_front())
+
+        sm.invalidate(n0, n0.description.outputs[0])
+        self.assertTrue(l0.runtime_state() & SchemeLink.Invalidated)
+        self.assertTrue(sm.has_invalidated_outputs(n0))
+        self.assertTrue(sm.has_invalidated_inputs(n2))
+        self.assertNotIn(n2, sm.node_update_front())
+
+        sm.send(n0, n0.description.outputs[0], 'hello', None)
+        self.assertFalse(l0.runtime_state() & SchemeLink.Invalidated)
+        self.assertFalse(sm.has_invalidated_outputs(n0))
+        self.assertFalse(sm.has_invalidated_inputs(n2))
+        self.assertIn(n2, sm.node_update_front())
+
+        sm.invalidate(n1, n1.description.outputs[0])
+        n3 = workflow.new_node(self.reg.widget('add'))
+        l2 = workflow.new_link(
+            n1, n1.output_channel('value'), n3, n3.input_channel('left')
+        )
+
+        self.assertTrue(l2.test_runtime_state(SchemeLink.Invalidated))
+        self.assertTrue(sm.has_invalidated_inputs(n3))
+        self.assertNotIn(n3, sm.node_update_front())
+
+        workflow.remove_link(l2)
+        self.assertFalse(sm.has_invalidated_inputs(n3))
+        self.assertNotIn(n3, sm.node_update_front())
+
+        # invalidated must not propagate via disabled links
+        self.assertNotIn(n2, sm.node_update_front())
+        l1.set_enabled(False)
+        self.assertIn(n2, sm.node_update_front())
+        self.assertFalse(sm.has_invalidated_inputs(n2))
+        l1.set_enabled(True)
+        self.assertNotIn(n2, sm.node_update_front())
+        self.assertTrue(sm.has_invalidated_inputs(n2))
+
+    def test_pending_flags(self):
+        workflow = self.scheme
+        sm = TestingSignalManager()
+        sm.set_workflow(workflow)
+        sm.start()
+        n0, n1, n3 = workflow.nodes[:3]
+        l0, l1 = workflow.links[:2]
+
+        self.assertFalse(n3.test_state_flags(SchemeNode.Pending))
+        self.assertFalse(l0.runtime_state() & SchemeLink.Pending)
+        sm.send(n0, n0.description.outputs[0], 'hello', None)
+        self.assertTrue(n3.test_state_flags(SchemeNode.Pending))
+        self.assertTrue(l0.runtime_state() & SchemeLink.Pending)
+
+        spy = QSignalSpy(sm.processingFinished)
+        assert spy.wait()
+
+        self.assertFalse(n3.test_state_flags(SchemeNode.Pending))
+        self.assertFalse(l0.runtime_state() & SchemeLink.Pending)
 
     def test_compress_signals(self):
         workflow = self.scheme

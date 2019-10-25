@@ -4,13 +4,15 @@ Scheme Node
 ===========
 
 """
+import enum
 import warnings
-from typing import Optional, Dict, Any, List, Tuple, Iterable
+from typing import Optional, Dict, Any, List, Tuple, Iterable, Union
 
-from AnyQt.QtCore import QObject
+from AnyQt.QtCore import QObject, QCoreApplication
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
 from ..registry import WidgetDescription, InputSignal, OutputSignal
+from .events import NodeEvent
 
 
 class UserMessage(object):
@@ -57,6 +59,40 @@ class SchemeNode(QObject):
         Parent object.
 
     """
+    class State(enum.IntEnum):
+        """
+        A workflow node's runtime state flags
+        """
+        #: The node has no state.
+        NoState = 0
+
+        #: The node is running (i.e. executing a task).
+        Running = 1
+
+        #: The node has invalidated inputs. This flag is set when:
+        #:
+        #: * An input link is added or removed
+        #: * An input link is marked as pending
+        #:
+        #: It is set/cleared by the execution manager when the inputs are
+        #: propagated to the node.
+        Pending = 2
+
+        #: The node has invalidated outputs. Execution manager should not
+        #: propagate this node's existing outputs to dependent nodes until
+        #: this flag is cleared.
+        Invalidated = 4
+
+        #: The node is in a state where it does not accept new signals.
+        #: The execution manager should not propagate inputs to this node
+        #: until this flag is cleared.
+        NotReady = 8
+
+    NoState = State.NoState
+    Running = State.Running
+    Pending = State.Pending
+    Invalidated = State.Invalidated
+    NotReady = State.NotReady
 
     def __init__(self, description, title=None, position=None,
                  properties=None, parent=None):
@@ -73,6 +109,7 @@ class SchemeNode(QObject):
         self.__processing_state = 0
         self.__status_message = ""
         self.__state_messages = {}  # type: Dict[str, UserMessage]
+        self.__state = SchemeNode.NoState  # type: Union[SchemeNode.State, int]
         self.properties = properties or {}
 
     def input_channels(self):
@@ -177,15 +214,13 @@ class SchemeNode(QObject):
         """
         Set the node processing state.
         """
-        if self.__processing_state != state:
-            self.__processing_state = state
-            self.processing_state_changed.emit(state)
+        self.set_state_flags(SchemeNode.Running, bool(state))
 
     def processing_state(self):
         """
         The node processing state, 0 for not processing, 1 the node is busy.
         """
-        return self.__processing_state
+        return int(bool(self.state() & SchemeNode.Running))
 
     processing_state = Property(int, fset=set_processing_state,  # type: ignore
                                 fget=processing_state)
@@ -263,6 +298,69 @@ class SchemeNode(QObject):
         Return a list of all state messages.
         """
         return self.__state_messages.values()
+
+    state_changed = Signal(int)
+
+    def set_state(self, state):
+        # type: (Union[State, int]) -> None
+        """
+        Set the node runtime state flags
+
+        Parameters
+        ----------
+        state: SchemeNode.State
+        """
+        if self.__state != state:
+            curr = self.__state
+            self.__state = state
+            QCoreApplication.sendEvent(
+                self, NodeEvent(NodeEvent.NodeStateChange, self)
+            )
+            self.state_changed.emit(state)
+            if curr & SchemeNode.Running != state & SchemeNode.Running:
+                self.processing_state_changed.emit(
+                    int(bool(state & SchemeNode.Running))
+                )
+
+    def state(self):
+        # type: () -> Union[State, int]
+        """
+        Return the node runtime state flags.
+        """
+        return self.__state
+
+    def set_state_flags(self, flags, on):
+        # type: (Union[State, int], bool) -> None
+        """
+        Set the specified state flags on/off.
+
+        Parameters
+        ----------
+        flags: SchemeNode.State
+            Flag to modify
+        on: bool
+            Turn the flag on or off
+        """
+        if on:
+            state = self.__state | flags
+        else:
+            state = self.__state & ~flags
+        self.set_state(state)
+
+    def test_state_flags(self, flag):
+        # type: (State) -> bool
+        """
+        Return True/False if the runtime state flag is set.
+
+        Parameters
+        ----------
+        flag: SchemeNode.State
+
+        Returns
+        -------
+        val: bool
+        """
+        return bool(self.__state & flag)
 
     def __str__(self):
         return "SchemeNode(description_id=%r, title=%r, ...)" % \

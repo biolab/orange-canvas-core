@@ -53,12 +53,16 @@ class WidgetManager(QObject):
     The widgets created with :func:`create_widget_for_node` will automatically
     receive dispatched events:
 
-        * :data:`WorkflowEvent.InputLinkAdded` - when a new input link is added to
-          the workflow.
-        * :data:`LinkEvent.InputLinkRemoved` - when a input link is removed
-        * :data:`LinkEvent.OutputLinkAdded` - when a new output link is added to
-          the workflow
-        * :data:`LinkEvent.InputLinkRemoved` - when a output link is removed
+        * :data:`WorkflowEvent.InputLinkAdded` - when a new input link is
+          added to the workflow.
+        * :data:`LinkEvent.InputLinkRemoved` - when a input link is removed.
+        * :data:`LinkEvent.OutputLinkAdded` - when a new output link is
+          added to the workflow.
+        * :data:`LinkEvent.InputLinkRemoved` - when a output link is removed.
+        * :data:`LinkEvent.InputLinkStateChanged` - when the input link's
+          runtime state changes.
+        * :data:`LinkEvent.OutputLinkStateChanged` - when the output link's
+          runtime state changes.
         * :data:`WorkflowEnvEvent.WorkflowEnvironmentChanged` - when the
           workflow environment changes.
 
@@ -588,10 +592,29 @@ class WidgetManager(QObject):
 
     def eventFilter(self, recv, event):
         # type: (QObject, QEvent) -> bool
-        if event.type() == NodeEvent.NodeActivateRequest \
-                and isinstance(recv, SchemeNode):
-            self.__activate_widget_for_node(recv)
+        if isinstance(recv, SchemeNode):
+            if event.type() == NodeEvent.NodeActivateRequest:
+                self.__activate_widget_for_node(recv)
+            self.__dispatch_events(recv, event)
         return False
+
+    def __dispatch_events(self, node: Node, event: QEvent) -> None:
+        """
+        Dispatch relevant workflow events to the GUI widget
+        """
+        if event.type() in (
+            WorkflowEvent.InputLinkAdded,
+            WorkflowEvent.InputLinkRemoved,
+            WorkflowEvent.InputLinkStateChange,
+            WorkflowEvent.OutputLinkAdded,
+            WorkflowEvent.OutputLinkRemoved,
+            WorkflowEvent.OutputLinkStateChange,
+            WorkflowEvent.NodeStateChange,
+            WorkflowEvent.WorkflowEnvironmentChange,
+        ):
+            item = self.__item_for_node.get(node)
+            if item is not None and item.widget is not None:
+                QCoreApplication.sendEvent(item.widget, event)
 
     def __set_float_on_top_flag(self, widget):
         # type: (QWidget) -> None

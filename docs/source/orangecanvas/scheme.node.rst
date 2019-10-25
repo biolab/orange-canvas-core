@@ -24,3 +24,6 @@ Scheme Node (``node``)
    .. autoattribute:: progress_changed(progress)
 
    .. autoattribute:: processing_state_changed(state)
+
+.. autoclass:: orangecanvas.scheme.node::SchemeNode.State
+   :members:
