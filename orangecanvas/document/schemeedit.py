@@ -970,6 +970,7 @@ class SchemeEditWidget(QWidget):
             SchemeLink(new_node, second_link_source_channel,
                        sink_node, old_link.sink_channel))
 
+        self.usageStatistics().log_node_add(new_node.description.name)
         command = commands.InsertNodeCommand(self.__scheme, new_node, old_link, new_links)
         self.__undoStack.push(command)
 
@@ -1198,6 +1199,7 @@ class SchemeEditWidget(QWidget):
                     link = self.scene().link_for_item(item) if item else None
                     if link and can_insert_node(desc, link):
                         node = self.newNodeHelper(desc, position=(pos.x(), pos.y()))
+                        self.usageStatistics().set_action_type(UsageStatistics.NodeAddInsertDrag)
                         self.insertNode(node, link)
                     else:
                         self.createNewNode(desc, position=(pos.x(), pos.y()))
@@ -1830,6 +1832,7 @@ class SchemeEditWidget(QWidget):
 
         if can_insert_node(desc, original_link):
             new_node = self.newNodeHelper(desc, position=(x, y))
+            self.usageStatistics().set_action_type(UsageStatistics.NodeAddInsertMenu)
             self.insertNode(new_node, original_link)
         else:
             log.info("Cannot insert node: links not possible.")
