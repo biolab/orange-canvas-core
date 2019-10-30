@@ -889,7 +889,8 @@ class CanvasMainWindow(QMainWindow):
         if isinstance(widget_desc, WidgetDescription):
             scheme_widget = self.current_document()
             if scheme_widget:
-                scheme_widget.usageStatistics().set_action_type(UsageStatistics.NodeAddClick)
+                statistics = scheme_widget.usageStatistics()
+                statistics.begin_action(UsageStatistics.ToolboxClick)
                 scheme_widget.createNewNode(widget_desc)
 
     def on_quick_category_action(self, action):
@@ -1856,8 +1857,6 @@ class CanvasMainWindow(QMainWindow):
                 event.ignore()
                 return
 
-        document.usageStatistics().write_statistics()
-
         old_scheme = document.scheme()
 
         # Set an empty scheme to clear the document
@@ -1865,6 +1864,8 @@ class CanvasMainWindow(QMainWindow):
         if old_scheme is not None:
             QApplication.sendEvent(old_scheme, QEvent(QEvent.Close))
             old_scheme.deleteLater()
+
+        document.usageStatistics().close()
 
         geometry = self.saveGeometry()
         state = self.saveState(version=self.SETTINGS_VERSION)

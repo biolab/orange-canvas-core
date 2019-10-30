@@ -1,5 +1,5 @@
 import enum
-import sys
+import itertools
 from datetime import datetime
 import platform
 import json
@@ -7,28 +7,34 @@ import logging
 import os
 from typing import List
 
-import requests
-
-from AnyQt.QtCore import QCoreApplication, QSettings
+from AnyQt.QtCore import QCoreApplication
 
 from orangecanvas import config
+from orangecanvas.scheme import SchemeNode, SchemeLink, Scheme
 
 log = logging.getLogger(__name__)
 
 
+class EventType(enum.IntEnum):
+    NodeAdd = 0
+    NodeRemove = 1
+    LinkAdd = 2
+    LinkRemove = 3
+
+
 class ActionType(enum.IntEnum):
-    Invalid = -1
-    NodeAddClick = 0
-    NodeAddDrag = 1
-    NodeAddMenu = 2
-    NodeAddInsertDrag = 3
-    NodeAddInsertMenu = 4
-    NodeAddExtendFromSink = 5
-    NodeAddExtendFromSource = 6
-    NodeRemove = 7
-    LinkAdd = 8
-    LinkRemove = 9
-    LinkEdit = 10  # ends up transformed into LinkAdd and LinkRemove events
+    Unclassified = 0
+    ToolboxClick = 1
+    ToolboxDrag = 2
+    QuickMenu = 3
+    ExtendFromSource = 4
+    ExtendFromSink = 5
+    InsertDrag = 6
+    InsertMenu = 7
+    Undo = 8
+    Redo = 9
+    Duplicate = 10
+    Load = 11
 
 
 class UsageStatistics:
@@ -41,36 +47,45 @@ class UsageStatistics:
     It is the application's responsibility to ask for permission and
     appropriately handle the collected statistics.
 
-    In certain situations it is not simple to discern user-intended actions
-    from ones done automatically. For this purpose ActionType is employed,
-    set when the user explicitly performs an action.
-
-    The stored action type is automatically cleared after node actions,
-    but should be manually cleared for link actions with the clear_action_type() method.
-
     Data tracked per canvas session:
         date,
         application version,
         operating system,
         anaconda boolean,
-        UUID,
-        a sequence of the following actions:
-            node addition,
-            node removal,
-            link addition,
-            link removal
+        UUID (in Orange3),
+        a sequence of actions of type ActionType
+
+    An action consists of one or more events of type EventType.
+    Events refer to nodes according to a unique integer ID.
+    Each node is also associated with a widget name, assigned in a NodeAdd event.
+    Link events also reference corresponding source/sink channel names.
+
+    Some actions carry metadata (e.g. search query for QuickMenu, Extend).
+
+    Parameters
+    ----------
+    parent: SchemeEditWidget
     """
     _is_enabled = False
-
-    Invalid, NodeAddClick, NodeAddDrag, NodeAddMenu, NodeAddInsertDrag, NodeAddInsertMenu, \
-    NodeAddExtendFromSink, NodeAddExtendFromSource, NodeRemove, LinkAdd, LinkRemove, LinkEdit \
-        = list(ActionType)
-
+    statistics_sessions = []
     last_search_query = None
 
-    def __init__(self):
+    Unclassified, ToolboxClick, ToolboxDrag, QuickMenu, ExtendFromSink, ExtendFromSource, \
+    InsertDrag, InsertMenu, Undo, Redo, Duplicate, Load \
+        = list(ActionType)
+
+    def __init__(self, parent):
+        self.parent = parent
+
         self._actions = []
-        self._action_type = UsageStatistics.Invalid
+        self._events = []
+        self._widget_ids = {}
+        self._id_iter = itertools.count()
+
+        self._action_type = ActionType.Unclassified
+        self._metadata = None
+
+        UsageStatistics.statistics_sessions.append(self)
 
     @classmethod
     def is_enabled(cls) -> bool:
@@ -91,171 +106,304 @@ class UsageStatistics:
         ----------
         state : bool
         """
+        if cls._is_enabled == state:
+            return
+
         cls._is_enabled = state
         log.info("{} usage statistics tracking".format(
             "Enabling" if state else "Disabling"
         ))
+        for session in UsageStatistics.statistics_sessions:
+            if state:
+                # log current scheme state after enabling of statistics
+                scheme = session.parent.scheme()
+                session.log_scheme(scheme)
+            else:
+                session.drop_statistics()
 
-    def log_node_add(self, widget_name, extended_widget=None):
+    def begin_action(self, action_type):
         """
-        Logs an node addition action, based on the currently set action type.
+        Sets the type of action that will be logged upon next call to a log method.
 
-        Parameters
-        ----------
-        widget_name : str
-        extended_widget : str
-        """
-        if not self.is_enabled():
-            return
-
-        node_add_action_types = {self.NodeAddClick, self.NodeAddDrag, self.NodeAddMenu,
-                                 self.NodeAddInsertDrag, self.NodeAddInsertMenu,
-                                 self.NodeAddExtendFromSink, self.NodeAddExtendFromSource}
-
-        if self._action_type not in node_add_action_types:
-            log.info("Invalid action type registered for node addition logging. "
-                     "No action was logged.")
-            return
-
-        action = {
-            "Type": self._action_type,
-            "Widget Name": widget_name,
-        }
-
-        if self._action_type == UsageStatistics.NodeAddMenu:
-            action["Query"] = UsageStatistics.last_search_query
-
-        elif self._action_type == UsageStatistics.NodeAddExtendFromSink or \
-                self._action_type == UsageStatistics.NodeAddExtendFromSource:
-            action["Extended Widget"] = extended_widget
-            action["Query"] = UsageStatistics.last_search_query
-
-        elif self._action_type == UsageStatistics.LinkAdd or \
-                self._action_type == UsageStatistics.LinkRemove:
-            action["Connected Widget"] = extended_widget
-
-        self._action_type = UsageStatistics.Invalid
-        self._actions.append(action)
-
-    def log_node_remove(self, widget_name):
-        """
-        Logs an node removal action.
-
-        Parameters
-        ----------
-        widget_name : str
-        """
-        if not self.is_enabled():
-            return
-
-        if self._action_type is not UsageStatistics.NodeRemove:
-            log.info("Invalid action type registered for node removal logging. "
-                     "No action was logged.")
-            return
-
-        action = {
-            "Type": self._action_type,
-            "Widget Name": widget_name
-        }
-
-        self._action_type = UsageStatistics.Invalid
-        self._actions.append(action)
-
-    def log_link_add(self, source_widget, sink_widget, source_channel, sink_channel):
-        """
-        Logs an link addition action.
-
-        Parameters
-        ----------
-        source_widget : str
-        sink_widget : str
-        source_channel : str
-        sink_channel : str
-        """
-        if not self.is_enabled():
-            return
-
-        if self._action_type not in {UsageStatistics.LinkAdd, UsageStatistics.LinkEdit}:
-            log.info("Invalid action type registered for link add logging. "
-                     "No action was logged.")
-            return
-
-        self._log_link(UsageStatistics.LinkAdd, source_widget, sink_widget, source_channel,
-                       sink_channel)
-
-    def log_link_remove(self, source_widget, sink_widget, source_channel, sink_channel):
-        """
-        Logs an link removal action.
-
-        Parameters
-        ----------
-        source_widget : str
-        sink_widget : str
-        source_channel : str
-        sink_channel : str
-        """
-        if not self.is_enabled():
-            return
-
-        if self._action_type not in {UsageStatistics.LinkRemove, UsageStatistics.LinkEdit}:
-            log.info("Invalid action type registered for link remove logging. "
-                     "No action was logged.")
-            return
-
-        self._log_link(UsageStatistics.LinkRemove, source_widget, sink_widget, source_channel,
-                       sink_channel)
-
-    def _log_link(self, action_type, source_widget, sink_widget, source_channel, sink_channel):
-        action = {
-            "Type": action_type,
-            "Source Widget": source_widget,
-            "Sink Widget": sink_widget,
-            "Source Channel": source_channel,
-            "Sink Channel": sink_channel
-        }
-
-        self._actions.append(action)
-
-    def set_action_type(self, action_type):
-        """
-        Sets the type of action that will be logged upon next call to log_action.
+        Each call to begin_action() should be matched with a call to end_action().
 
         Parameters
         ----------
         action_type : ActionType
         """
-        self._action_type = action_type
+        if not self.is_enabled():
+            return
 
-    def clear_action_type(self):
-        """
-        Clear the currently set action type by setting it to Invalid.
-        """
-        self._action_type = UsageStatistics.Invalid
+        if self._action_type != self.Unclassified:
+            raise ValueError("Tried to set " + str(action_type) + \
+                             " but " + str(self._action_type) + " was already set.")
 
-    def filename(self) -> str:
-        """
-        Return the filename path where the statistics are saved
-        """
-        return os.path.join(config.data_dir(), "usage-statistics.json")
+        self._prepare_action(action_type)
 
-    def load(self) -> 'List[dict]':
+    def begin_extend_action(self, from_sink, extended_widget):
         """
-        Load and return the usage statistics data.
+        Sets the type of action to widget extension in the specified direction,
+        noting the extended widget and query.
 
-        Returns
-        -------
-        data : dict
+        Each call to begin_extend_action() should be matched with a call to end_action().
+
+        Parameters
+        ----------
+        from_sink : bool
+        extended_widget : SchemeNode
         """
         if not self.is_enabled():
-            return []
-        try:
-            with open(self.filename(), "r", encoding="utf-8") as f:
-                return json.load(f)
-        except (FileNotFoundError, PermissionError, IsADirectoryError,
-                UnicodeDecodeError, json.JSONDecodeError):
-            return []
+            return
+
+        if self._events:
+            log.error("Tried to start extend action while current action already has events")
+            return
+
+        # set action type
+        if from_sink:
+            action_type = ActionType.ExtendFromSink
+        else:
+            action_type = ActionType.ExtendFromSource
+
+        # set metadata
+        if extended_widget not in self._widget_ids:
+            log.error("Attempted to extend widget before it was logged. No action type was set.")
+            return
+        extended_id = self._widget_ids[extended_widget]
+
+        metadata = {"Extended Widget": extended_id}
+
+        self._prepare_action(action_type, metadata)
+
+    def begin_insert_action(self, via_drag, original_link):
+        """
+        Sets the type of action to widget insertion via the specified way,
+        noting the old link's source and sink widgets.
+
+        Each call to begin_insert_action() should be matched with a call to end_action().
+
+        Parameters
+        ----------
+        via_drag : bool
+        original_link : SchemeLink
+        """
+        if not self.is_enabled():
+            return
+
+        if self._events:
+            log.error("Tried to start insert action while current action already has events")
+            return
+
+        source_widget = original_link.source_node
+        sink_widget = original_link.sink_node
+
+        # set action type
+        if via_drag:
+            action_type = ActionType.InsertDrag
+        else:
+            action_type = ActionType.InsertMenu
+
+        # set metadata
+        if source_widget not in self._widget_ids or sink_widget not in self._widget_ids:
+            log.error("Attempted to log insert action between unknown widgets. "
+                      "No action was logged.")
+            self._clear_action()
+            return
+        src_id, sink_id = self._widget_ids[source_widget], self._widget_ids[sink_widget]
+
+        metadata = {"Source Widget": src_id,
+                    "Sink Widget": sink_id}
+
+        self._prepare_action(action_type, metadata)
+
+    def _prepare_action(self, action_type, metadata=None):
+        """
+        Sets the type of action and metadata that will be logged upon next call to a log method.
+
+        Parameters
+        ----------
+        action_type : ActionType
+        metadata : Dict[str, Any]
+        """
+        self._action_type = action_type
+        self._metadata = metadata
+
+    def end_action(self):
+        """
+        Ends the started action, concatenating the relevant events and adding it to
+        the list of actions.
+        """
+        if not self.is_enabled():
+            return
+
+        if not self._events:
+            log.info("End action called but no events were logged.")
+            self._clear_action()
+            return
+
+        action = {
+            "Type": self._action_type,
+            "Events": self._events
+        }
+
+        # add metadata
+        if self._metadata:
+            action.update(self._metadata)
+
+        # add search query if relevant
+        if self._action_type in {ActionType.ExtendFromSource, ActionType.ExtendFromSink,
+                                 ActionType.QuickMenu}:
+            action["Query"] = self.last_search_query
+
+        self._actions.append(action)
+        self._clear_action()
+
+    def _clear_action(self):
+        """
+        Clear the current action.
+        """
+        self._events = []
+        self._action_type = ActionType.Unclassified
+        self._metadata = None
+        self.last_search_query = ""
+
+    def log_node_add(self, widget):
+        """
+        Logs an node addition action, based on the currently set action type.
+
+        Parameters
+        ----------
+        widget : SchemeNode
+        """
+        if not self.is_enabled():
+            return
+
+        # get or generate id for widget
+        if widget in self._widget_ids:
+            widget_id = self._widget_ids[widget]
+        else:
+            widget_id = next(self._id_iter)
+            self._widget_ids[widget] = widget_id
+
+        event = {
+            "Type": EventType.NodeAdd,
+            "Widget Name": widget.description.id,
+            "Widget": widget_id
+        }
+
+        self._events.append(event)
+
+    def log_node_remove(self, widget):
+        """
+        Logs an node removal action.
+
+        Parameters
+        ----------
+        widget : SchemeNode
+        """
+        if not self.is_enabled():
+            return
+
+        # get id for widget
+        if widget not in self._widget_ids:
+            log.error("Attempted to log node removal before its addition. No action was logged.")
+            self._clear_action()
+            return
+        widget_id = self._widget_ids[widget]
+
+        event = {
+            "Type": EventType.NodeRemove,
+            "Widget": widget_id
+        }
+
+        self._events.append(event)
+
+    def log_link_add(self, link):
+        """
+        Logs a link addition action.
+
+        Parameters
+        ----------
+        link : SchemeLink
+        """
+        if not self.is_enabled():
+            return
+
+        self._log_link(EventType.LinkAdd, link)
+
+    def log_link_remove(self, link):
+        """
+        Logs a link removal action.
+
+        Parameters
+        ----------
+        link : SchemeLink
+        """
+        if not self.is_enabled():
+            return
+
+        self._log_link(EventType.LinkRemove, link)
+
+    def _log_link(self, action_type, link):
+        source_widget = link.source_node
+        sink_widget = link.sink_node
+
+        # get id for widgets
+        if source_widget not in self._widget_ids or sink_widget not in self._widget_ids:
+            log.error("Attempted to log link action between unknown widgets. No action was logged.")
+            self._clear_action()
+            return
+
+        src_id, sink_id = self._widget_ids[source_widget], self._widget_ids[sink_widget]
+
+        event = {
+            "Type": action_type,
+            "Source Widget": src_id,
+            "Sink Widget": sink_id,
+            "Source Channel": link.source_channel.name,
+            "Sink Channel": link.sink_channel.name
+        }
+
+        self._events.append(event)
+
+    def log_scheme(self, scheme):
+        """
+        Log all nodes and links in a scheme.
+
+        Parameters
+        ----------
+        scheme : Scheme
+        """
+        if not self.is_enabled():
+            return
+
+        if not scheme or not scheme.nodes:
+            return
+
+        self.begin_action(ActionType.Load)
+
+        # first log nodes
+        for node in scheme.nodes:
+            self.log_node_add(node)
+
+        # then log links
+        for link in scheme.links:
+            self.log_link_add(link)
+
+        self.end_action()
+
+    def drop_statistics(self):
+        """
+        Clear all data in the statistics session.
+        """
+        self._actions = []
+        self._widget_ids = {}
+        self._id_iter = itertools.count()
 
     def write_statistics(self):
+        """
+        Write the statistics session to file, and clear it.
+        """
         if not self.is_enabled():
             return
 
@@ -278,6 +426,43 @@ class UsageStatistics:
         with open(statistics_path, 'w') as f:
             json.dump(data, f)
 
+        self.drop_statistics()
+
+    def close(self):
+        """
+        Close statistics session, effectively not updating it upon
+        toggling statistics tracking.
+        """
+        UsageStatistics.statistics_sessions.remove(self)
+
     @staticmethod
     def set_last_search_query(query):
+        if not UsageStatistics.is_enabled():
+            return
+
         UsageStatistics.last_search_query = query
+
+    @staticmethod
+    def filename() -> str:
+        """
+        Return the filename path where the statistics are saved
+        """
+        return os.path.join(config.data_dir(), "usage-statistics.json")
+
+    @staticmethod
+    def load() -> 'List[dict]':
+        """
+        Load and return the usage statistics data.
+
+        Returns
+        -------
+        data : dict
+        """
+        if not UsageStatistics.is_enabled():
+            return []
+        try:
+            with open(UsageStatistics.filename(), "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (FileNotFoundError, PermissionError, IsADirectoryError,
+                UnicodeDecodeError, json.JSONDecodeError):
+            return []

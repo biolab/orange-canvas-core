@@ -32,8 +32,7 @@ from AnyQt.QtGui import (
 )
 from AnyQt.QtCore import (
     Qt, QObject, QEvent, QSignalMapper, QCoreApplication, QPoint, QPointF,
-    QMimeData
-)
+    QMimeData, Slot)
 from AnyQt.QtCore import pyqtProperty as Property, pyqtSignal as Signal
 
 from ..registry import WidgetDescription, WidgetRegistry
@@ -69,6 +68,28 @@ DuplicateOffset = QPointF(0, 120)
 class NoWorkflowError(RuntimeError):
     def __init__(self, message: str = "No workflow model is set", **kwargs):
         super().__init__(message, *kwargs)
+
+
+class UndoStack(QUndoStack):
+    def __init__(self, parent, statistics: UsageStatistics):
+        QUndoStack.__init__(self, parent)
+        self._statistics = statistics
+
+    @Slot()
+    def undo(self):
+        self._statistics.begin_action(UsageStatistics.Undo)
+        super().undo()
+        self._statistics.end_action()
+
+    @Slot()
+    def redo(self):
+        self._statistics.begin_action(UsageStatistics.Redo)
+        super().redo()
+        self._statistics.end_action()
+
+    def push(self, macro):
+        super().push(macro)
+        self._statistics.end_action()
 
 
 class SchemeEditWidget(QWidget):
@@ -127,7 +148,9 @@ class SchemeEditWidget(QWidget):
         self.__quickMenu = None   # type: Optional[quickmenu.QuickMenu]
         self.__quickTip = ""
 
-        self.__undoStack = QUndoStack(self)
+        self.__statistics = UsageStatistics(self)
+
+        self.__undoStack = UndoStack(self, self.__statistics)
         self.__undoStack.cleanChanged[bool].connect(self.__onCleanChanged)
 
         # Preferred position for paste command. Updated on every mouse button
@@ -187,7 +210,6 @@ class SchemeEditWidget(QWidget):
         self.__linkMenu.addAction(self.__linkResetAction)
 
         self.__suggestions = Suggestions()
-        self.__statistics = UsageStatistics()
 
     def __setupActions(self):
         self.__cleanUpAction = QAction(
@@ -688,6 +710,12 @@ class SchemeEditWidget(QWidget):
                         self.__signalManagerStateChanged)
                 self.__widgetManager = None
 
+                self.__scheme.node_added.disconnect(self.__statistics.log_node_add)
+                self.__scheme.node_removed.disconnect(self.__statistics.log_node_remove)
+                self.__scheme.link_added.disconnect(self.__statistics.log_link_add)
+                self.__scheme.link_removed.disconnect(self.__statistics.log_link_remove)
+                self.__statistics.write_statistics()
+
             self.__scheme = scheme
             self.__suggestions.set_scheme(self)
 
@@ -701,6 +729,12 @@ class SchemeEditWidget(QWidget):
                 if sm:
                     sm.stateChanged.connect(self.__signalManagerStateChanged)
                 self.__widgetManager = getattr(scheme, "widget_manager", None)
+
+                self.__scheme.node_added.connect(self.__statistics.log_node_add)
+                self.__scheme.node_removed.connect(self.__statistics.log_node_remove)
+                self.__scheme.link_added.connect(self.__statistics.log_link_add)
+                self.__scheme.link_removed.connect(self.__statistics.log_link_remove)
+                self.__statistics.log_scheme(self.__scheme)
             else:
                 self.__cleanProperties = []
 
@@ -840,7 +874,6 @@ class SchemeEditWidget(QWidget):
         """
         if self.__scheme is None:
             raise NoWorkflowError()
-        self.__statistics.log_node_add(node.description.name)
         command = commands.AddNodeCommand(self.__scheme, node)
         self.__undoStack.push(command)
 
@@ -970,7 +1003,6 @@ class SchemeEditWidget(QWidget):
             SchemeLink(new_node, second_link_source_channel,
                        sink_node, old_link.sink_channel))
 
-        self.usageStatistics().log_node_add(new_node.description.name)
         command = commands.InsertNodeCommand(self.__scheme, new_node, old_link, new_links)
         self.__undoStack.push(command)
 
@@ -1017,9 +1049,6 @@ class SchemeEditWidget(QWidget):
                 self.__undoStack.push(
                     commands.RemoveNodeCommand(self.__scheme, node)
                 )
-                statistics = self.usageStatistics()
-                statistics.set_action_type(UsageStatistics.NodeRemove)
-                statistics.log_node_remove(node.description.name)
             elif isinstance(item, items.annotationitem.Annotation):
                 if item.hasFocus() or item.isAncestorOf(scene.focusItem()):
                     # Clear input focus from the item to be removed.
@@ -1193,15 +1222,16 @@ class SchemeEditWidget(QWidget):
                 except KeyError:
                     log.error("Unknown qualified name '%s'", qname)
                 else:
-                    self.__statistics.set_action_type(UsageStatistics.NodeAddDrag)
+                    statistics = self.usageStatistics()
                     pos = event.scenePos()
                     item = self.__scene.item_at(event.scenePos(), items.LinkItem)
                     link = self.scene().link_for_item(item) if item else None
                     if link and can_insert_node(desc, link):
+                        statistics.begin_insert_action(True, link)
                         node = self.newNodeHelper(desc, position=(pos.x(), pos.y()))
-                        self.usageStatistics().set_action_type(UsageStatistics.NodeAddInsertDrag)
                         self.insertNode(node, link)
                     else:
+                        statistics.begin_action(UsageStatistics.ToolboxDrag)
                         self.createNewNode(desc, position=(pos.x(), pos.y()))
                 return True
 
@@ -1772,14 +1802,6 @@ class SchemeEditWidget(QWidget):
         if self.__contextMenuTarget:
             self.removeLink(self.__contextMenuTarget)
 
-            statistics = self.usageStatistics()
-            statistics.set_action_type(UsageStatistics.LinkRemove)
-            statistics.log_link_remove(self.__contextMenuTarget.source_node.description.name,
-                                       self.__contextMenuTarget.sink_node.description.name,
-                                       self.__contextMenuTarget.source_channel.name,
-                                       self.__contextMenuTarget.sink_channel.name)
-            statistics.clear_action_type()
-
     def __linkReset(self):
         # type: () -> None
         """
@@ -1831,8 +1853,9 @@ class SchemeEditWidget(QWidget):
             return
 
         if can_insert_node(desc, original_link):
+            statistics = self.usageStatistics()
+            statistics.begin_insert_action(False, original_link)
             new_node = self.newNodeHelper(desc, position=(x, y))
-            self.usageStatistics().set_action_type(UsageStatistics.NodeAddInsertMenu)
             self.insertNode(new_node, original_link)
         else:
             log.info("Cannot insert node: links not possible.")
@@ -1959,6 +1982,8 @@ class SchemeEditWidget(QWidget):
             macrocommands.append(
                 commands.AddLinkCommand(scheme, linkdup, parent=command))
 
+        statistics = self.usageStatistics()
+        statistics.begin_action(UsageStatistics.Duplicate)
         self.__undoStack.push(command)
         scene = self.__scene
 
