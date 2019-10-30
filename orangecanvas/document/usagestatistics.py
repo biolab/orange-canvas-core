@@ -255,35 +255,6 @@ class UsageStatistics:
                 UnicodeDecodeError, json.JSONDecodeError):
             return []
 
-    def send_statistics(self, url: str) -> None:
-        """
-        Send the statistics to the remote at `url`.
-
-        The contents are send via POST file upload (multipart/form-data)
-
-        Does nothing if not enabled.
-
-        Parameters
-        ----------
-        url : str
-        """
-        if self.is_enabled():
-            data = self.load()
-            try:
-                r = requests.post(url, files={'file': json.dumps(data)})
-                if r.status_code != 200:
-                    log.warning("Error communicating with server while attempting to send "
-                                "usage statistics.")
-                    return
-                # success - wipe statistics file
-                log.info("Usage statistics sent.")
-                with open(self.filename(), 'w', encoding="utf-8") as f:
-                    json.dump([], f)
-            except (ConnectionError, requests.exceptions.RequestException):
-                log.warning("Connection error while attempting to send usage statistics.")
-            except Exception:
-                log.warning("Failed to send usage statistics.")
-
     def write_statistics(self):
         if not self.is_enabled():
             return
