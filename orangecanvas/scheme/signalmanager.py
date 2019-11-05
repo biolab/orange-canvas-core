@@ -551,12 +551,7 @@ class SignalManager(QObject):
 
         If no node is eligible for update do nothing and return `False`.
         """
-        node_update_front = self.node_update_front()
-        if node_update_front:
-            self.process_node(node_update_front[0])
-            return True
-        else:
-            return False
+        return self.__process_next_helper(use_max_active=False)
 
     def process_node(self, node):
         # type: (SchemeNode) -> None
@@ -934,18 +929,22 @@ class SignalManager(QObject):
         if not self.__input_queue:
             return
 
-        eligible = self.node_update_front()
-        eligible = [n for n in eligible if self.is_ready(n)]
+        if self.__process_next_helper(use_max_active=True):
+            # Schedule another update (will be a noop if nothing to do).
+            self._update()
+
+    def __process_next_helper(self, use_max_active=True) -> bool:
+        eligible = [n for n in self.node_update_front() if self.is_ready(n)]
         if not eligible:
-            return
-
-        nactive = len(set(self.active_nodes()) | set(self.blocking_nodes()))
+            return False
         max_active = self.max_active()
-        assert max_active >= 1
-        log.info("'UpdateRequest' event, queued signals: %i, nactive: %i "
-                 "(max_active: %i)",
-                 len(self.__input_queue), nactive, max_active)
+        nactive = len(set(self.active_nodes()) | set(self.blocking_nodes()))
 
+        log.debug(
+            "Process next, queued signals: %i, nactive: %i "
+            "(max_active: %i)",
+            len(self.__input_queue), nactive, max_active
+        )
         _ = lambda nodes: list(map(attrgetter('title'), nodes))
         log.debug("Pending nodes: %s", _(self.pending_nodes()))
         log.debug("Blocking nodes: %s", _(self.blocking_nodes()))
@@ -962,15 +961,14 @@ class SignalManager(QObject):
 
         # Return if over committed, except in the case that the selected_node
         # is already active.
-        if nactive >= max_active and selected_node is None:
-            return
+        if use_max_active and nactive >= max_active and selected_node is None:
+            return False
 
         if selected_node is None:
             selected_node = eligible[0]
 
         self.process_node(selected_node)
-        # Schedule another update (will be a noop if nothing to do).
-        self._update()
+        return True
 
     def _update(self):  # type: () -> None
         """
