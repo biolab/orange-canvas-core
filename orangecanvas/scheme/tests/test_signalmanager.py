@@ -150,6 +150,25 @@ class TestSignalManager(unittest.TestCase):
         self.assertFalse(n3.test_state_flags(SchemeNode.Pending))
         self.assertFalse(l0.runtime_state() & SchemeLink.Pending)
 
+    def test_ready_flags(self):
+        workflow = self.scheme
+        sm = TestingSignalManager()
+        sm.set_workflow(workflow)
+        sm.start()
+
+        n0, n1, n3 = workflow.nodes[:3]
+        l0, l1 = workflow.links[:2]
+        sm.send(n0, n0.output_channel("value"), 'hello', None)
+        sm.send(n1, n1.output_channel("value"), 'hello', None)
+        self.assertIn(n3, sm.node_update_front())
+        n3.set_state_flags(SchemeNode.NotReady, True)
+        spy = QSignalSpy(sm.processingStarted[SchemeNode])
+        sm.process_next()
+        self.assertNotIn([n3], list(spy))
+        n3.set_state_flags(SchemeNode.NotReady, False)
+        assert spy.wait()
+        self.assertIn([n3], list(spy))
+
     def test_compress_signals(self):
         workflow = self.scheme
         link = workflow.links[0]
