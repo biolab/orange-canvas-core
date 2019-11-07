@@ -990,7 +990,7 @@ class SignalManager(QObject):
 
         * a node's outputs change (note that this is already done by `send`)
         * any change in the node that influences its eligibility to be picked
-          for an input update (is_eligible_for_update, is_blocking ...).
+          for an input update (is_ready, is_blocking ...).
 
         Multiple update requests are merged into one.
         """
