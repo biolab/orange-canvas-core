@@ -1356,8 +1356,7 @@ class SchemeEditWidget(QWidget):
             event.accept()
             return True
 
-        item = scene.item_at(event.scenePos(), items.LinkItem,
-                             buttons=Qt.LeftButton)
+        item = scene.item_at(event.scenePos(), items.LinkItem)
 
         if item is not None and event.button() == Qt.LeftButton:
             link = self.scene().link_for_item(item)
@@ -1453,8 +1452,7 @@ class SchemeEditWidget(QWidget):
             menu.popup(globalPos)
             return True
 
-        item = self.scene().item_at(scenePos, items.LinkItem,
-                                    buttons=Qt.RightButton)
+        item = self.scene().item_at(scenePos, items.LinkItem)
         if item is not None:
             link = self.scene().link_for_item(item)
             self.__linkEnableAction.setChecked(link.enabled)
