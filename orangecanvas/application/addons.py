@@ -1298,6 +1298,25 @@ def installable_items(pypipackages, installed=[]):
     return items
 
 
+def is_requirement_available(
+        req: Union[pkg_resources.Requirement, str],
+        working_set: Optional[pkg_resources.WorkingSet] = None
+) -> bool:
+    if not isinstance(req, Requirement):
+        req = Requirement.parse(req)
+    try:
+        if working_set is None:
+            d = pkg_resources.get_distribution(req)
+        else:
+            d = working_set.find(req)
+    except pkg_resources.VersionConflict:
+        return False
+    except pkg_resources.ResolutionError:
+        return False
+    else:
+        return d is not None
+
+
 def have_install_permissions():
     """Check if we can create a file in the site-packages folder.
     This works on a Win7 miniconda install, where os.access did not. """

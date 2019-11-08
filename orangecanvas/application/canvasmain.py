@@ -7,10 +7,14 @@ import sys
 import logging
 import operator
 import io
+import traceback
 
+from xml.sax.saxutils import escape
 from functools import partial
 from types import SimpleNamespace
-from typing import Optional, List, Union, Any, cast, Dict, Callable
+from typing import (
+    Optional, List, Union, Any, cast, Dict, Callable, IO, Sequence
+)
 
 import pkg_resources
 
@@ -47,6 +51,7 @@ from AnyQt.QtCore import (
 from orangecanvas.utils.overlay import NotificationOverlay
 
 from ..scheme import Scheme
+from ..scheme import readwrite
 from ..gui.dropshadow import DropShadowFrame
 from ..gui.dock import CollapsibleDockWidget
 from ..gui.quickhelp import QuickHelpTipEvent
@@ -68,6 +73,8 @@ from ..gui.itemmodels import FilterProxyModel
 from ..registry import WidgetRegistry, WidgetDescription, CategoryDescription
 from ..registry.qt import QtWidgetRegistry
 from ..utils.settings import QSettings_readArray, QSettings_writeArray
+from ..utils.qinvoke import qinvoke
+from ..utils import unique
 
 from . import welcomedialog
 from . import addons
@@ -1134,7 +1141,27 @@ class CanvasMainWindow(QMainWindow):
         document, updates the recent scheme list and the loaded scheme path
         property.
         """
-        new_scheme = self.new_scheme_from(filename)
+        new_scheme = None  # type: Optional[Scheme]
+        try:
+            with open(filename, "rb") as f:
+                res = self.check_requires(f)
+                if not res:
+                    return
+                f.seek(0, os.SEEK_SET)
+                new_scheme = self.new_scheme_from_contents_and_path(f, filename)
+        except Exception as err:
+            mb = QMessageBox(
+                parent=self, windowTitle=self.tr("Error"),
+                icon=QMessageBox.Critical,
+                text=self.tr("Could not open: '{}'")
+                         .format(os.path.basename(filename)),
+                informativeText=self.tr("Error was: {}").format(err),
+                detailedText="".join(traceback.format_exc())
+            )
+            mb.setAttribute(Qt.WA_DeleteOnClose)
+            mb.setWindowModality(Qt.WindowModal)
+            mb.open()
+
         if new_scheme is not None:
             self.set_new_scheme(new_scheme)
 
@@ -1152,21 +1179,60 @@ class CanvasMainWindow(QMainWindow):
         Create and return a new :class:`scheme.Scheme` from a saved
         `filename`. Return `None` if an error occurs.
         """
+        f = None  # type: Optional[IO]
+        try:
+            f = open(filename, "rb")
+        except OSError as err:
+            mb = QMessageBox(
+                parent=self, windowTitle="Error", icon=QMessageBox.Critical,
+                text=self.tr("Could not open: '{}'")
+                         .format(os.path.basename(filename)),
+                informativeText=self.tr("Error was: {}").format(err),
+            )
+            mb.setAttribute(Qt.WA_DeleteOnClose)
+            mb.setWindowModality(Qt.WindowModal)
+            mb.open()
+            return None
+        else:
+            return self.new_scheme_from_contents_and_path(f, filename)
+        finally:
+            if f is not None:
+                f.close()
+
+    def new_scheme_from_contents_and_path(
+            self, fileobj: IO, path: str) -> Optional[Scheme]:
+        """
+        Create and return a new :class:`scheme.Scheme` from contents of
+        `fileobj`. Return `None` if an error occurs.
+
+        In case of an error show an error message dialog and return `None`.
+
+        Parameters
+        ----------
+        fileobj: IO
+            An open readable IO stream.
+        path: str
+            Associated filesystem path.
+
+        Returns
+        -------
+        workflow: Optional[Scheme]
+        """
         new_scheme = config.workflow_constructor(parent=self)
-        new_scheme.set_runtime_env("basedir", os.path.dirname(filename))
+        new_scheme.set_runtime_env("basedir", os.path.dirname(path))
         errors = []  # type: List[Exception]
         try:
-            with open(filename, "rb") as f:
-                new_scheme.load_from(
-                    f, registry=self.widget_registry,
-                    error_handler=errors.append
-                )
-        except Exception:
+            new_scheme.load_from(
+                fileobj, registry=self.widget_registry,
+                error_handler=errors.append
+            )
+        except Exception:  # pylint: disable=broad-except
+            log.exception("")
             message_critical(
                  self.tr("Could not load an Orange Workflow file"),
                  title=self.tr("Error"),
                  informative_text=self.tr("An unexpected error occurred "
-                                          "while loading '%s'.") % filename,
+                                          "while loading '%s'.") % path,
                  exc_info=True,
                  parent=self)
             return None
@@ -1182,6 +1248,82 @@ class CanvasMainWindow(QMainWindow):
                 details="\n".join(map(repr, errors))
             )
         return new_scheme
+
+    def check_requires(self, fileobj: IO) -> bool:
+        requires = scheme_requires(fileobj, self.widget_registry)
+        requires = [req for req in requires
+                    if not addons.is_requirement_available(req)]
+        if requires:
+            details_ = [
+                "<h4>Required packages:</h4><ul>",
+                *["<li>{}</li>".format(escape(r)) for r in requires],
+                "</ul>"
+            ]
+            details = "".join(details_)
+            mb = QMessageBox(
+                parent=self,
+                objectName="install-requirements-message-box",
+                icon=QMessageBox.Question,
+                windowTitle="Install Additional Packages",
+                text="This workflow requires additional packages to run. "
+                     "<br/>" + details + "<br/>"
+                     "Would you like to install them now?",
+                standardButtons=QMessageBox.Ok | QMessageBox.Abort |
+                                QMessageBox.Ignore,
+                informativeText=(
+                    "After installation you will have to restart the "
+                    "application and reopen the workflow"),
+            )
+            mb.setDefaultButton(QMessageBox.Ok)
+            bignore = mb.button(QMessageBox.Ignore)
+            bignore.setText("Load Partial")
+            bignore.setToolTip(
+                "Load partial workflow by omitting missing nodes and links."
+            )
+            mb.setWindowModality(Qt.WindowModal)
+            mb.setAttribute(Qt.WA_DeleteOnClose, True)
+            status = mb.exec()
+            if status == QMessageBox.Abort:
+                return False
+            elif status == QMessageBox.Ignore:
+                return True
+
+            status = self.install_requirements(requires)
+
+            if status == QDialog.Rejected:
+                return False
+            else:
+                message_information(
+                    title="Please Restart",
+                    text="Please restart and reopen the file.",
+                    parent=self
+                )
+                return False
+        return True
+
+    def install_requirements(self, requires: Sequence[str]) -> int:
+        dlg = addons.AddonManagerDialog(
+            parent=self, windowTitle="Install required packages",
+            modal=True
+        )
+        dlg.setConfig(config.default)
+        req = addons.Requirement
+        names = [req.parse(r).project_name for r in requires]
+        normalized_names = {addons.normalize_name(r) for r in names}
+
+        def set_state(*args):
+            # select all query items for installation
+            # TODO: What if some of the `names` failed.
+            items = dlg.items()
+            state = dlg.itemState()
+            for item in items:
+                if item.normalized_name in normalized_names:
+                    normalized_names.remove(item.normalized_name)
+                    state.append((addons.Install, item))
+            dlg.setItemState(state)
+        f = dlg.runQueryAndAddResults(names)
+        f.add_done_callback(qinvoke(set_state, context=dlg))
+        return dlg.exec()
 
     def reload_last(self):
         # type: () -> None
@@ -2164,4 +2306,20 @@ class UrlDropEventFilter(QObject):
 class RecentItem(SimpleNamespace):
     title = ""  # type: str
     path = ""  # type: str
+
+
+def scheme_requires(
+        stream: IO, registry: Optional[WidgetRegistry] = None
+) -> List[str]:
+    """
+    Inspect the given ows workflow `stream` and return a list of project names
+    recorded as implementers of the contained nodes.
+
+    Nodes are first mapped through any `replaces` entries in `registry` first.
+    """
+    # parse to 'intermediate' form and run replacements with registry.
+    desc = readwrite.parse_ows_stream(stream)
+    if registry is not None:
+        desc = readwrite.resolve_replaced(desc, registry)
+    return list(unique(m.project_name for m in desc.nodes if m.project_name))
 
