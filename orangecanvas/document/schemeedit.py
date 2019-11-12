@@ -1247,6 +1247,13 @@ class SchemeEditWidget(QWidget):
             self._setUserInteractionHandler(handler)
             return handler.mousePressEvent(event)
 
+        link_item = scene.item_at(pos, items.LinkItem)
+        if link_item and event.button() == Qt.MiddleButton:
+            link = self.scene().link_for_item(link_item)
+            self.removeLink(link)
+            event.accept()
+            return True
+
         any_item = scene.item_at(pos)
         if not any_item:
             self.__emptyClickButtons |= event.button()
