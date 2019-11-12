@@ -1247,6 +1247,8 @@ def have_install_permissions():
         return True
     except PermissionError:
         return False
+    except OSError:
+        return False
 
 
 class Command(enum.Enum):
