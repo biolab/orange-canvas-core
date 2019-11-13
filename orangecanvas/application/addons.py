@@ -1,3 +1,4 @@
+import re
 import subprocess
 import types
 import enum
@@ -52,6 +53,10 @@ Requirement = pkg_resources.Requirement
 Distribution = pkg_resources.Distribution
 
 log = logging.getLogger(__name__)
+
+
+def normalize_name(name):
+    return re.sub(r"[-_.]+", "-", name).lower()
 
 
 class Installable(
@@ -113,6 +118,13 @@ class Available(
     ----------
     installable : Installable
     """
+    @property
+    def project_name(self):
+        return self.installable.name
+
+    @property
+    def normalized_name(self):
+        return normalize_name(self.project_name)
 
 
 class Installed(
@@ -145,6 +157,17 @@ class Installed(
     def __new__(cls, installable, local, required=False, constraint=None):
         # type: (Optional[Installable], Distribution, bool, Optional[Requirement]) -> Installed
         return super().__new__(cls, installable, local, required, constraint)
+
+    @property
+    def project_name(self):
+        if self.installable is not None:
+            return self.installable.name
+        else:
+            return self.local.project_name
+
+    @property
+    def normalized_name(self):
+        return normalize_name(self.project_name)
 
 
 #: An installable item/slot
