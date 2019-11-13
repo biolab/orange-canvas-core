@@ -12,13 +12,14 @@ import json
 import traceback
 import typing
 
+from xml.sax.saxutils import escape
 from concurrent.futures import ThreadPoolExecutor, Future
 from collections import deque
 
 from typing import (
     List, Dict, Any, Optional, Union, Tuple, NamedTuple, Callable, AnyStr,
-    Iterable,
-    IO)
+    Iterable, IO, TypeVar
+)
 
 import requests
 import pkg_resources
@@ -35,7 +36,7 @@ from AnyQt.QtGui import (
 )
 from AnyQt.QtCore import (
     QSortFilterProxyModel, QItemSelectionModel,
-    Qt, QObject, QMetaObject, QSize, QTimer, QThread, Q_ARG,
+    Qt, QObject, QSize, QTimer, QThread,
     QSettings, QStandardPaths, QEvent, QAbstractItemModel, QModelIndex
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
@@ -43,6 +44,8 @@ from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 from orangecanvas.utils import unique, name_lookup, markup
 from orangecanvas.utils.shtools import python_process, create_process, \
     temp_named_file
+
+from ..utils.qinvoke import qinvoke
 from ..gui.utils import message_warning, message_critical as message_error
 from ..help.manager import get_dist_meta, parse_meta
 
@@ -53,6 +56,9 @@ Requirement = pkg_resources.Requirement
 Distribution = pkg_resources.Distribution
 
 log = logging.getLogger(__name__)
+
+A = TypeVar("A")
+B = TypeVar("B")
 
 
 def normalize_name(name):
@@ -655,25 +661,6 @@ class AddonManagerWidget(QWidget):
         return QSize(480, 420)
 
 
-def method_queued(method, sig, conntype=Qt.QueuedConnection):
-    # type: (types.MethodType, Tuple[type, ...], int) -> Callable[[], bool]
-    name = method.__name__
-    obj = method.__self__
-    if not isinstance(obj, QObject):
-        raise TypeError()
-
-    def call(*args):
-        args = [Q_ARG(atype, arg) for atype, arg in zip(sig, args)]
-        return QMetaObject.invokeMethod(obj, name, conntype, *args)
-
-    return call
-
-
-class _QueryResult(types.SimpleNamespace):
-    queryname = None    # type: str
-    installable = None  # type: Optional[Installable]
-
-
 class AddonManagerDialog(QDialog):
     """
     A add-on manager dialog.
@@ -760,7 +747,7 @@ class AddonManagerDialog(QDialog):
             lambda config=config: (config, list_available_versions(config)),
         )
         self.__f_pypi_addons.add_done_callback(
-            method_queued(self.__on_query_done, (object,))
+            qinvoke(self.__on_query_done, context=self)
         )
 
     @Slot(object)
@@ -824,6 +811,43 @@ class AddonManagerDialog(QDialog):
         """
         self.addonwidget.setItems(items)
 
+    def items(self) -> List[Item]:
+        return self.addonwidget.items()
+
+    def itemState(self) -> List['Action']:
+        return self.addonwidget.itemState()
+
+    def setItemState(self, steps: List['Action']) -> None:
+        self.addonwidget.setItemState(steps)
+
+    def runQueryAndAddResults(
+            self, names: List[str]
+    ) -> 'Future[List[_QueryResult]]':
+        """
+        Run a background query for the specified names and add results to
+        the model.
+
+        Parameters
+        ----------
+        names: List[str]
+            List of package names to query.
+        """
+        f = self.__executor.submit(query_pypi, names)
+        f.add_done_callback(
+            qinvoke(self.__on_add_query_finish, context=self)
+        )
+        progress = self.progressDialog()
+        progress.setLabelText("Running query")
+        progress.setMinimumDuration(1000)
+        # make sure self is also visible, when progress dialog is, so it is
+        # clear from where it came.
+        self.show()
+        progress.show()
+        f.add_done_callback(
+            qinvoke(lambda f: progress.hide(), context=progress)
+        )
+        return f
+
     @Slot(object)
     def addInstallable(self, installable):
         # type: (Installable) -> None
@@ -856,6 +880,12 @@ class AddonManagerDialog(QDialog):
         self.addonwidget.setItems(items + [new])
         self.addonwidget.setItemState(state)  # restore state
 
+    def addItems(self, items: List[Item]):
+        state = self.itemState()
+        items = self.items() + items
+        self.setItems(items)
+        self.setItemState(state)  # restore state
+
     def __run_add_package_dialog(self):
         self.__add_package_by_name_dialog = dlg = QDialog(
             self, windowTitle="Add add-on by name",
@@ -885,28 +915,12 @@ class AddonManagerDialog(QDialog):
         vlayout.addWidget(buttons)
         vlayout.setSizeConstraint(QVBoxLayout.SetFixedSize)
         dlg.setLayout(vlayout)
-        f = None
 
         def query():
-            nonlocal f
             name = nameentry.text()
-
-            def query_pypi(name):
-                # type: (str) -> _QueryResult
-                res, = pypi_json_query_project_meta([name])
-                inst = None  # type: Optional[Installable]
-                if res is not None:
-                    inst = installable_from_json_response(res)
-                else:
-                    inst = None
-                return _QueryResult(queryname=name, installable=inst)
-            f = self.__executor.submit(query_pypi, name)
-
             okb.setDisabled(True)
-
-            f.add_done_callback(
-                method_queued(self.__on_add_single_query_finish, (object,))
-            )
+            self.runQueryAndAddResults([name])
+            dlg.accept()
         buttons.accepted.connect(query)
         buttons.rejected.connect(dlg.reject)
         dlg.exec_()
@@ -916,28 +930,30 @@ class AddonManagerDialog(QDialog):
         message_error(text, title="Error", details=error_details)
 
     @Slot(object)
-    def __on_add_single_query_finish(self, f):
-        # type: (Future[_QueryResult]) -> None
+    def __on_add_query_finish(self, f):
+        # type: (Future[List[_QueryResult]]) -> None
         error_text = ""
         error_details = ""
+        result = None
         try:
             result = f.result()
         except Exception:
             log.error("Query error:", exc_info=True)
             error_text = "Failed to query package index"
             error_details = traceback.format_exc()
-            pkg = None
         else:
-            pkg = result.installable
-            if pkg is None:
-                error_text = "'{}' not was not found".format(result.queryname)
-        dlg = self.__add_package_by_name_dialog
-        assert dlg is not None
-        if pkg:
-            self.addInstallable(pkg)
-            dlg.accept()
-        else:
-            dlg.reject()
+            not_found = [r.queryname for r in result if r.installable is None]
+            if not_found:
+                error_text = "".join([
+                    "The following packages were not found:<ul>",
+                    *["<li>{}<li/>".format(escape(n)) for n in not_found],
+                    "<ul/>"
+                ])
+        if result:
+            for r in result:
+                if r.installable is not None:
+                    self.addInstallable(r.installable)
+        if error_text:
             self.__show_error_for_query(error_text, error_details)
 
     def progressDialog(self):
@@ -1168,6 +1184,34 @@ def _session(cachedir=None):
         )
     )
     return session
+
+
+def optional_map(
+        func: Callable[[A], B]
+) -> Callable[[Optional[A]], Optional[B]]:
+    def f(x: Optional[A]) -> Optional[B]:
+        return func(x) if x is not None else None
+    return f
+
+
+class _QueryResult(types.SimpleNamespace):
+    def __init__(
+            self, queryname: str, installable: Optional[Installable], **kwargs
+    ) -> None:
+        self.queryname = queryname
+        self.installable = installable
+        super().__init__(**kwargs)
+
+
+def query_pypi(names: List[str]) -> List[_QueryResult]:
+    res = pypi_json_query_project_meta(names)
+    installable_from_json_response_ = optional_map(
+        installable_from_json_response
+    )
+    return [
+        _QueryResult(name, installable_from_json_response_(r))
+        for name, r in zip(names, res)
+    ]
 
 
 def list_available_versions(config, session=None):
@@ -1469,14 +1513,14 @@ def run_command(command, raise_on_fail=True, **kwargs):
         process = python_process(command[1:], **kwargs)
     else:
         process = create_process(command, **kwargs)
-    rcode, output = run_process(process)
+    rcode, output = run_process(process, file=sys.stdout)
     if rcode != 0 and raise_on_fail:
         raise CommandFailed(command, rcode, output)
     else:
         return rcode, output
 
 
-def run_process(process: 'subprocess.Popen', **kwargs) -> Tuple[int, AnyStr]:
+def run_process(process: 'subprocess.Popen', **kwargs) -> Tuple[int, List[AnyStr]]:
     file = kwargs.pop("file", sys.stdout)  # type: Optional[IO]
     if file is ...:
         file = sys.stdout
