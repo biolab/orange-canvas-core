@@ -1,10 +1,10 @@
+import subprocess
 import types
 import enum
 import sys
 import sysconfig
 import os
 import logging
-import errno
 import shlex
 import itertools
 import json
@@ -16,8 +16,8 @@ from collections import deque
 
 from typing import (
     List, Dict, Any, Optional, Union, Tuple, NamedTuple, Callable, AnyStr,
-    Iterable
-)
+    Iterable,
+    IO)
 
 import requests
 import pkg_resources
@@ -1446,30 +1446,28 @@ def run_command(command, raise_on_fail=True, **kwargs):
         process = python_process(command[1:], **kwargs)
     else:
         process = create_process(command, **kwargs)
+    rcode, output = run_process(process)
+    if rcode != 0 and raise_on_fail:
+        raise CommandFailed(command, rcode, output)
+    else:
+        return rcode, output
+
+
+def run_process(process: 'subprocess.Popen', **kwargs) -> Tuple[int, AnyStr]:
+    file = kwargs.pop("file", sys.stdout)  # type: Optional[IO]
+    if file is ...:
+        file = sys.stdout
 
     output = []
     while process.poll() is None:
-        try:
-            line = process.stdout.readline()
-        except IOError as ex:
-            if ex.errno != errno.EINTR:
-                raise
-        else:
-            output.append(line)
-            print(line, end="")
+        line = process.stdout.readline()
+        output.append(line)
+        print(line, end="", file=file)
     # Read remaining output if any
     line = process.stdout.read()
     if line:
         output.append(line)
-        print(line, end="")
-
-    if process.returncode != 0:
-        log.info("Command %s failed with %s",
-                 " ".join(command), process.returncode)
-        log.debug("Output:\n%s", "\n".join(output))
-        if raise_on_fail:
-            raise CommandFailed(command, process.returncode, output)
-
+        print(line, end="", file=file)
     return process.returncode, output
 
 
