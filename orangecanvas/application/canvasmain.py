@@ -1913,8 +1913,16 @@ class CanvasMainWindow(QMainWindow):
         Close the main window.
         """
         document = self.current_document()
+        path = document.path()
         if document.isModifiedStrict():
-            if self.ask_save_changes() == QDialog.Rejected:
+            if path and self.autosave_action.isChecked():
+                curr_scheme = document.scheme()
+                assert curr_scheme is not None
+                if not self.save_scheme_to(curr_scheme, path):
+                    # if fails to save, reset path and retry
+                    document.setPath("")
+                    self.closeEvent(event)
+            elif self.ask_save_changes() == QDialog.Rejected:
                 # Reject the event
                 event.ignore()
                 return
