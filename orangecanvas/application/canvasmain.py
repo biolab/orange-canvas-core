@@ -26,8 +26,8 @@ from AnyQt.QtGui import (
 )
 from AnyQt.QtCore import (
     Qt, QObject, QEvent, QSize, QUrl, QFile, QByteArray, QFileInfo,
-    QSettings, QStandardPaths, QAbstractItemModel, QT_VERSION
-)
+    QSettings, QStandardPaths, QAbstractItemModel, QT_VERSION,
+    Slot, QWaitCondition, QThread, QMutex, pyqtSignal)
 
 try:
     from AnyQt.QtWebEngineWidgets import QWebEngineView
@@ -431,6 +431,17 @@ class CanvasMainWindow(QMainWindow):
             triggered=self.save_scheme_as,
             shortcut=QKeySequence.SaveAs,
         )
+
+        self.autosave_action = QAction(
+            self.tr("Autosave"), self,
+            checkable=True,
+            objectName="action-autosave",
+            toolTip=self.tr("Automatically save changes."),
+            triggered=lambda b: self.save_scheme() if b else None,  # save when enabled manually
+        )
+        self.autosave_action.toggled.connect(self.set_autosave)
+        self.autosave_thread = None
+
         self.quit_action = QAction(
             self.tr("Quit"), self,
             objectName="quit-action",
@@ -651,6 +662,7 @@ class CanvasMainWindow(QMainWindow):
         sep.setObjectName("close-window-actions-separator")
         file_menu.addAction(self.save_action)
         file_menu.addAction(self.save_as_action)
+        file_menu.addAction(self.autosave_action)
         sep = file_menu.addSeparator()
         sep.setObjectName("save-actions-separator")
         file_menu.addAction(self.show_properties_action)
@@ -1407,6 +1419,57 @@ class CanvasMainWindow(QMainWindow):
                 parent=self
             )
             return False
+
+    @Slot(bool)
+    def _schedule_autosave(self, isModified):
+        if not isModified:
+            # (method is called on both change and save)
+            return
+
+        path = self.current_document().path()
+        if not path:
+            # if document has not yet been saved, return
+            return
+
+        class AutosaveThread(QThread):
+            save_timer = pyqtSignal()
+
+            def __init__(self):
+                QThread.__init__(self)
+                self.mutex = QMutex()
+
+            def run(self):
+                wait = QWaitCondition()
+                self.mutex.lock()
+                wait.wait(self.mutex, 60000)  # 60 seconds
+                self.save_timer.emit()
+
+        if self.autosave_thread:
+            # autosave already scheduled
+            return
+
+        self.autosave_thread = AutosaveThread()
+
+        document = self.current_document()
+        curr_scheme = document.scheme()
+        assert curr_scheme is not None
+
+        def save_after_timer():
+            self.autosave_thread = None
+            if self.save_scheme_to(curr_scheme, path):
+                document.setModified(False)
+            else:
+                # upon unsuccessful save, disable autosave
+                self.autosave_action.setChecked(False)
+
+        self.autosave_thread.save_timer.connect(save_after_timer)
+        self.autosave_thread.run()
+
+    def set_autosave(self, enabled):
+        if enabled:
+            self.scheme_widget.modificationChanged.connect(self._schedule_autosave)
+        else:
+            self.scheme_widget.modificationChanged.disconnect(self._schedule_autosave)
 
     def recent_scheme(self):
         # type: () -> int
