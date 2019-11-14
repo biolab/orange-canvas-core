@@ -31,8 +31,7 @@ from AnyQt.QtWidgets import (
     QStyledItemDelegate, QStyle, QApplication, QStyleOptionViewItem
 )
 from AnyQt.QtGui import (
-    QStandardItemModel, QStandardItem, QPalette, QTextOption,
-    QDropEvent, QDragEnterEvent
+    QStandardItemModel, QStandardItem, QTextOption, QDropEvent, QDragEnterEvent
 )
 from AnyQt.QtCore import (
     QSortFilterProxyModel, QItemSelectionModel,
@@ -547,16 +546,12 @@ class AddonManagerWidget(QWidget):
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
 
         self.__details = QTextBrowser(
-            frameShape=QTextBrowser.NoFrame,
+            objectName="description-text-area",
             readOnly=True,
             lineWrapMode=QTextBrowser.WidgetWidth,
             openExternalLinks=True,
         )
-
         self.__details.setWordWrapMode(QTextOption.WordWrap)
-        palette = QPalette(self.palette())
-        palette.setColor(QPalette.Base, Qt.transparent)
-        self.__details.setPalette(palette)
         self.layout().addWidget(self.__details)
 
     def setItems(self, items):
