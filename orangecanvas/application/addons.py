@@ -1048,7 +1048,7 @@ class AddonManagerDialog(QDialog):
 
         if QMessageBox.Ok == message_restart(self):
             self.accept()
-            self.parent().close()
+            QApplication.closeAllWindows()
         else:
             self.reject()
 
