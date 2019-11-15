@@ -74,7 +74,7 @@ class UsageStatistics:
     InsertDrag, InsertMenu, Undo, Redo, Duplicate, Load \
         = list(ActionType)
 
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         self.parent = parent
 
         self._actions = []
@@ -84,8 +84,6 @@ class UsageStatistics:
 
         self._action_type = ActionType.Unclassified
         self._metadata = None
-
-        UsageStatistics.statistics_sessions.append(self)
 
     @classmethod
     def is_enabled(cls) -> bool:
@@ -120,6 +118,19 @@ class UsageStatistics:
                 session.log_scheme(scheme)
             else:
                 session.drop_statistics()
+
+    @classmethod
+    def register_session(cls, session):
+        """
+        Register a session, effectively updating upon enabling/disabling statistics.
+        Upon enable, the open workflow is loaded.
+        Upon disable, the statistics session is cleared.
+
+        Parameters
+        ----------
+        session: UsageStatistics
+        """
+        cls.statistics_sessions.append(session)
 
     def begin_action(self, action_type):
         """

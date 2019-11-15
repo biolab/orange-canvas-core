@@ -149,6 +149,7 @@ class SchemeEditWidget(QWidget):
         self.__quickTip = ""
 
         self.__statistics = UsageStatistics(self)
+        UsageStatistics.register_session(self.__statistics)
 
         self.__undoStack = UndoStack(self, self.__statistics)
         self.__undoStack.cleanChanged[bool].connect(self.__onCleanChanged)
