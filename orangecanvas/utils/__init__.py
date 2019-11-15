@@ -3,7 +3,9 @@ import types
 from functools import reduce
 
 import typing
-from typing import Iterable, Set, Any, Optional, Union, Tuple, Callable, Mapping
+from typing import (
+    Iterable, Set, Any, Optional, Union, Tuple, Callable, Mapping, List, Dict
+)
 
 from .qtcompat import toPyObject
 
@@ -20,6 +22,7 @@ __all__ = [
     "unique",
     "assocv",
     "assocf",
+    "group_by_all",
     "mapping_get"
 ]
 
@@ -210,6 +213,25 @@ def assocf(seq, predicate):
         if predicate(k):
             return k, v
     return None
+
+
+def group_by_all(sequence, key=None):
+    # type: (Iterable[V], Callable[[V], K]) -> List[Tuple[K, List[V]]]
+    order_seen = []
+    groups = {}  # type: Dict[K, List[V]]
+
+    for item in sequence:
+        if key is not None:
+            item_key = key(item)
+        else:
+            item_key = item  # type: ignore
+        if item_key in groups:
+            groups[item_key].append(item)
+        else:
+            groups[item_key] = [item]
+            order_seen.append(item_key)
+
+    return [(key, groups[key]) for key in order_seen]
 
 
 def mapping_get(
