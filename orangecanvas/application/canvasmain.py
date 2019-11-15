@@ -10,10 +10,11 @@ import io
 import traceback
 
 from xml.sax.saxutils import escape
-from functools import partial
+from functools import partial, reduce
 from types import SimpleNamespace
 from typing import (
-    Optional, List, Union, Any, cast, Dict, Callable, IO, Sequence
+    Optional, List, Union, Any, cast, Dict, Callable, IO, Sequence, Iterable,
+    Tuple, TypeVar,
 )
 
 import pkg_resources
@@ -50,8 +51,9 @@ from AnyQt.QtCore import (
 
 from orangecanvas.utils.overlay import NotificationOverlay
 
-from ..scheme import Scheme
+from ..scheme import Scheme, IncompatibleChannelTypeError
 from ..scheme import readwrite
+from ..scheme.readwrite import UnknownWidgetDefinition
 from ..gui.dropshadow import DropShadowFrame
 from ..gui.dock import CollapsibleDockWidget
 from ..gui.quickhelp import QuickHelpTipEvent
@@ -74,7 +76,7 @@ from ..registry import WidgetRegistry, WidgetDescription, CategoryDescription
 from ..registry.qt import QtWidgetRegistry
 from ..utils.settings import QSettings_readArray, QSettings_writeArray
 from ..utils.qinvoke import qinvoke
-from ..utils import unique
+from ..utils import unique, group_by_all
 
 from . import welcomedialog
 from . import addons
@@ -1237,6 +1239,7 @@ class CanvasMainWindow(QMainWindow):
                  parent=self)
             return None
         if errors:
+            details = render_error_details(errors)
             message_warning(
                 self.tr("Errors occurred while loading the workflow."),
                 title=self.tr("Problem"),
@@ -1245,7 +1248,8 @@ class CanvasMainWindow(QMainWindow):
                      "of the widgets/links in the "
                      "workflow."
                 ),
-                details="\n".join(map(repr, errors))
+                details=details,
+                parent=self,
             )
         return new_scheme
 
@@ -2323,3 +2327,65 @@ def scheme_requires(
         desc = readwrite.resolve_replaced(desc, registry)
     return list(unique(m.project_name for m in desc.nodes if m.project_name))
 
+
+K = TypeVar("K")
+V = TypeVar("V")
+
+
+def render_error_details(errors: Iterable[Exception]) -> str:
+    """
+    Render a detailed error report for observed errors during workflow load.
+
+    Parameters
+    ----------
+    errors : Iterable[Exception]
+
+    Returns
+    -------
+    text: str
+    """
+    def collectall(
+            items: Iterable[Tuple[K, Iterable[V]]], pred: Callable[[K], bool]
+    ) -> Sequence[V]:
+        return reduce(
+            list.__iadd__, (v for k, v in items if pred(k)),
+            []
+        )
+
+    errors_by_type = group_by_all(errors, key=type)
+    missing_node_defs = collectall(
+        errors_by_type, lambda k: issubclass(k, UnknownWidgetDefinition)
+    )
+    link_type_erors = collectall(
+        errors_by_type, lambda k: issubclass(k, IncompatibleChannelTypeError)
+    )
+    other = collectall(
+        errors_by_type,
+        lambda k: not issubclass(k, (UnknownWidgetDefinition,
+                                     IncompatibleChannelTypeError))
+    )
+    contents = []
+    if missing_node_defs is not None:
+        contents.extend([
+            "Missing node definitions:",
+            *["  \N{BULLET} " + e.args[0] for e in missing_node_defs],
+            "",
+            # "(possibly due to missing install requirements)"
+        ])
+
+    if link_type_erors:
+        contents.extend([
+            "Incompatible connection types:",
+            *["  \N{BULLET} " + e.args[0] for e in link_type_erors],
+            ""
+        ])
+
+    if other:
+        def format_exception(e: BaseException):
+            return "".join(traceback.format_exception_only(type(e), e))
+        contents.extend([
+            "Unqualified errors:",
+            *["  \N{BULLET} " + format_exception(e) for e in other]
+        ])
+
+    return "\n".join(contents)
