@@ -465,8 +465,6 @@ class NewLinkAction(UserInteraction):
             if item:
                 # If the release was over a node item then connect them
                 node = self.scene.node_for_item(item)
-                statistics = self.document.usageStatistics()
-                statistics.set_action_type(UsageStatistics.LinkAdd)
             else:
                 # Release on an empty canvas part
                 # Show a quick menu popup for a new widget creation.
@@ -518,7 +516,8 @@ class NewLinkAction(UserInteraction):
                        for output in source.outputs
                        for input in sink.inputs)
 
-        if self.direction == self.FROM_SINK:
+        from_sink = self.direction == self.FROM_SINK
+        if from_sink:
             # Reverse the argument order.
             is_compatible = reversed_arguments(is_compatible)
             suggestion_sort = self.suggestions.get_source_suggestions(from_desc.name)
@@ -553,15 +552,11 @@ class NewLinkAction(UserInteraction):
             # stays as it was
             offset = 31 * (-1 if self.direction == self.FROM_SINK else
                            1 if self.direction == self.FROM_SOURCE else 0)
+            statistics = self.document.usageStatistics()
+            statistics.begin_extend_action(from_sink, node)
             node = self.document.newNodeHelper(desc,
                                                position=(pos.x() + offset,
                                                          pos.y()))
-            statistics = self.document.usageStatistics()
-            if self.direction == self.FROM_SINK:
-                statistics.set_action_type(UsageStatistics.NodeAddExtendFromSink)
-            else:
-                statistics.set_action_type(UsageStatistics.NodeAddExtendFromSource)
-            statistics.log_node_add(node.description.name, from_desc.name)
             return node
         else:
             return None
@@ -574,7 +569,6 @@ class NewLinkAction(UserInteraction):
         detailed dialog for link editing.
 
         """
-        stat = self.document.usageStatistics()
         try:
             possible = self.scheme.propose_links(source_node, sink_node)
 
@@ -582,8 +576,6 @@ class NewLinkAction(UserInteraction):
                       [(s1.name, s2.name, w) for s1, s2, w in possible])
 
             if not possible:
-                # should action_type have been set to LinkAdd, reset it, as no link is possible
-                stat.clear_action_type()
                 raise NoPossibleLinksError
 
             source, sink, w = possible[0]
@@ -627,7 +619,6 @@ class NewLinkAction(UserInteraction):
                     raise
                 if rstatus == EditLinksDialog.Rejected:
                     raise UserCanceledError
-                stat.set_action_type(UsageStatistics.LinkEdit)
             else:
                 # links_to_add now needs to be a list of actual SchemeLinks
                 links_to_add = [
@@ -640,8 +631,6 @@ class NewLinkAction(UserInteraction):
             self.cleanup()
 
             for link in links_to_remove:
-                stat.log_link_add(source_node.description.name, sink_node.description.name,
-                                  link.source_channel.name, link.sink_channel.name)
                 commands.RemoveLinkCommand(self.scheme, link,
                                            parent=self.macro)
 
@@ -654,12 +643,8 @@ class NewLinkAction(UserInteraction):
                 )
 
                 if not duplicate:
-                    stat.log_link_add(source_node.description.name, sink_node.description.name,
-                                      link.source_channel.name, link.sink_channel.name)
                     commands.AddLinkCommand(self.scheme, link,
                                             parent=self.macro)
-
-            stat.clear_action_type()
 
         except scheme.IncompatibleChannelTypeError:
             log.info("Cannot connect: invalid channel types.")
@@ -902,9 +887,10 @@ class NewNodeAction(UserInteraction):
             view = self.document.view()
             pos = view.mapToScene(view.mapFromGlobal(pos))
 
+            statistics = self.document.usageStatistics()
+            statistics.begin_action(UsageStatistics.QuickMenu)
             node = self.document.newNodeHelper(desc,
                                                position=(pos.x(), pos.y()))
-            self.document.usageStatistics().set_action_type(UsageStatistics.NodeAddMenu)
             self.document.addNode(node)
             return node
         else:
@@ -1110,8 +1096,6 @@ class EditNodeLinksAction(UserInteraction):
         rval = dlg.exec_()
 
         if rval == EditLinksDialog.Accepted:
-            statistics = self.document.usageStatistics()
-            statistics.set_action_type(UsageStatistics.LinkEdit)
             links_spec = dlg.links()
 
             links_to_add = set(links_spec) - set(existing_links)
@@ -1144,20 +1128,13 @@ class EditNodeLinksAction(UserInteraction):
                                                sink_channel=sink_channel)
                 assert len(links) == 1
                 self.document.removeLink(links[0])
-                statistics.log_link_remove(links[0].source_node.description.name,
-                                           links[0].sink_node.description.name,
-                                           links[0].source_channel.name, links[0].sink_channel.name)
 
             for source_channel, sink_channel in links_to_add:
                 link = scheme.SchemeLink(self.source_node, source_channel,
                                          self.sink_node, sink_channel)
 
                 self.document.addLink(link)
-                statistics.log_link_add(link.source_node.description.name,
-                                        link.sink_node.description.name,
-                                        link.source_channel.name, link.sink_channel.name)
 
-            statistics.clear_action_type()
             stack.endMacro()
 
 
