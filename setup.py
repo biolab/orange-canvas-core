@@ -2,7 +2,7 @@
 from setuptools import setup, find_packages
 
 NAME = "orange-canvas-core"
-VERSION = "0.1.9.dev0"
+VERSION = "0.1.9"
 DESCRIPTION = "Core component of Orange Canvas"
 
 with open("README.rst", "rt", encoding="utf-8") as f:
