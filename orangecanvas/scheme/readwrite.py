@@ -24,13 +24,15 @@ from ast import literal_eval
 
 import logging
 
-from typing import NamedTuple, Dict, Tuple, List, Union, Any, Optional
+from typing import (
+    NamedTuple, Dict, Tuple, List, Union, Any, Optional, AnyStr, IO
+)
 
 from . import SchemeNode, SchemeLink
 from .annotations import SchemeTextAnnotation, SchemeArrowAnnotation
 from .errors import IncompatibleChannelTypeError
 
-from ..registry import global_registry
+from ..registry import global_registry, WidgetRegistry
 from ..registry import WidgetDescription, InputSignal, OutputSignal
 
 log = logging.getLogger(__name__)
@@ -123,9 +125,9 @@ _scheme = NamedTuple(
         ("title", str),
         ("version", str),
         ("description", str),
-        ("nodes", 'List[_node]'),
-        ("links", 'List[_link]'),
-        ("annotations", 'List[_annotation]'),
+        ("nodes", List['_node']),
+        ("links", List['_link']),
+        ("annotations", List['_annotation']),
         ("session_state", '_session_data')
     ]
 )
@@ -135,7 +137,7 @@ _node = NamedTuple(
         ("id", str),
         ("title", str),
         ("name", str),
-        ("position", 'Tuple[float, float]'),
+        ("position", Tuple[float, float]),
         ("project_name", str),
         ("qualified_name", str),
         ("version", str),
@@ -317,7 +319,7 @@ def parse_ows_etree_v_2_0(tree):
 
 
 def parse_ows_stream(stream):
-    # type: (...) -> _scheme
+    # type: (Union[AnyStr, IO]) -> _scheme
     doc = parse(stream)
     scheme_el = doc.getroot()
     if scheme_el.tag != "scheme":
@@ -342,7 +344,7 @@ def parse_ows_stream(stream):
         raise ValueError()
 
 
-def resolve_replaced(scheme_desc, registry):
+def resolve_replaced(scheme_desc: _scheme, registry: WidgetRegistry) -> _scheme:
     widgets = registry.widgets()
     nodes_by_id = {}  # type: Dict[str, _node]
     replacements = {}
@@ -376,7 +378,7 @@ def resolve_replaced(scheme_desc, registry):
 
     # replace links
     links = scheme_desc.links
-    for i, link in list(enumerate(links)):  # type: _link
+    for i, link in list(enumerate(links)):
         nsource = nodes_by_id[link.source_node_id]
         nsink = nodes_by_id[link.sink_node_id]
 
