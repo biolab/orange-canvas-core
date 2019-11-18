@@ -2,8 +2,10 @@ import os
 import tempfile
 from unittest.mock import patch
 
-from AnyQt.QtWidgets import QToolButton, QDialog
+from AnyQt.QtWidgets import QToolButton, QDialog, QMessageBox
 
+from .. import addons
+from ...utils.shtools import temp_named_file
 from ...gui.test import QAppTestCase
 from ..canvasmain import CanvasMainWindow
 from ..widgettoolbox import WidgetToolBox
@@ -121,6 +123,30 @@ class TestMainWindowLoad(TestMainWindowBase):
             w.save_scheme()
             self.assertEqual(w.current_document().path(), self.filename)
 
+    def test_open_ows_req(self):
+        w = self.w
+        with temp_named_file(TEST_OWS_REQ.decode()) as f:
+            with patch("AnyQt.QtWidgets.QMessageBox.exec",
+                       return_value=QMessageBox.Ignore):
+                w.load_scheme(f)
+                self.assertEqual(w.current_document().path(), f)
+
+            with patch("AnyQt.QtWidgets.QMessageBox.exec",
+                       return_value=QMessageBox.Abort):
+                w.load_scheme(f)
+                self.assertEqual(w.current_document().path(), f)
+
+    def test_install_requirements_dialog(self):
+        def query(names):
+            return [addons._QueryResult(
+                        name, addons.Installable(name, "0.0", "", "", "", []))
+                    for name in names]
+        w = self.w
+        with patch.object(addons, "query_pypi", query), \
+             patch.object(addons.AddonManagerDialog, "exec",
+                          return_value=QDialog.Rejected):
+            w.install_requirements(["uber-package-shiny", "spasm"])
+
 
 TEST_OWS = b"""\
 <?xml version='1.0' encoding='utf-8'?>
@@ -130,6 +156,34 @@ TEST_OWS = b"""\
         <node id="1" name="one" position="(0, 0)" qualified_name="one" />
         <node id="2" name="add" position="(0, 0)" qualified_name="add" />
         <node id="3" name="negate" position="(0, 0)" qualified_name="negate" />
+    </nodes>
+    <links>
+        <link enabled="true" id="0" sink_channel="left"
+              sink_node_id="2" source_channel="value" source_node_id="0" />
+        <link enabled="true" id="1" sink_channel="right" sink_node_id="2"
+              source_channel="value" source_node_id="1" />
+        <link enabled="true" id="2" sink_channel="value" sink_node_id="3"
+              source_channel="result" source_node_id="2" />
+    </links>
+    <annotations>
+        <arrow end="(10, 10)" fill="red" id="0" start="(0, 0)" />
+        <text id="1" rect="(0, 100, 200, 200)" type="text/plain">$$</text>
+    </annotations>
+</scheme>
+"""
+
+TEST_OWS_REQ = b"""\
+<?xml version='1.0' encoding='utf-8'?>
+<scheme description="" title="" version="2.0">
+    <nodes>
+        <node id="0" name="zero" position="(0, 0)" qualified_name="zero"
+              project_name="foo" />
+        <node id="1" name="one" position="(0, 0)" qualified_name="one"
+              project_name="foo" />
+        <node id="2" name="add" position="(0, 0)" qualified_name="add"
+              project_name="foo" />
+        <node id="3" name="negate" position="(0, 0)" qualified_name="negate"
+              project_name="foo" />
     </nodes>
     <links>
         <link enabled="true" id="0" sink_channel="left"
