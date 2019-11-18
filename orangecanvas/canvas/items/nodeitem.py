@@ -846,24 +846,22 @@ class NameTextItem(QGraphicsTextItem):
         self.__selected = False
         self.__palette = None  # type: Optional[QPalette]
         self.__content = ""
+        #: The cached text background shape when this item is selected
+        self.__cachedBackgroundPath = None  # type: Optional[QPainterPath]
+        self.document().documentLayoutChanged.connect(self.__onLayoutChanged)
+
+    def __onLayoutChanged(self):
+        self.__cachedBackgroundPath = None
+        self.update()
 
     def paint(self, painter, option, widget=None):
         # type: (QPainter, QStyleOptionGraphicsItem, Optional[QWidget]) -> None
         if self.__selected:
+            path = self.__textBackgroundPath()
             painter.save()
             painter.setPen(QPen(Qt.NoPen))
             painter.setBrush(self.palette().color(QPalette.Highlight))
-            doc = self.document()
-            margin = doc.documentMargin()
-            painter.translate(margin, margin)
-            offset = min(margin, 2)
-            for line in self._lines(doc):
-                rect = line.naturalTextRect()
-                painter.drawRoundedRect(
-                    rect.adjusted(-offset, -offset, offset, offset),
-                    3, 3
-                )
-
+            painter.drawPath(path)
             painter.restore()
 
         super().paint(painter, option, widget)
@@ -881,6 +879,23 @@ class NameTextItem(QGraphicsTextItem):
             blocklayout = block.layout()
             for i in range(blocklayout.lineCount()):
                 yield blocklayout.lineAt(i)
+
+    def __textBackgroundPath(self) -> QPainterPath:
+        # return a path outlining all the text lines.
+        if self.__cachedBackgroundPath is None:
+            doc = self.document()
+            margin = doc.documentMargin()
+            path = QPainterPath()
+            offset = min(margin, 2)
+            for line in self._lines(doc):
+                rect = line.naturalTextRect()
+                rect.translate(margin, margin)
+                rect = rect.adjusted(-offset, -offset, offset, offset)
+                p = QPainterPath()
+                p.addRoundedRect(rect, 3, 3)
+                path = path.united(p)
+            self.__cachedBackgroundPath = path
+        return self.__cachedBackgroundPath
 
     def setSelectionState(self, state):
         # type: (bool) -> None
@@ -919,6 +934,7 @@ class NameTextItem(QGraphicsTextItem):
         # type: (str) -> None
         if contents != self.__content:
             self.__content = contents
+            self.__cachedBackgroundPath = None
             super().setHtml(contents)
 
 
