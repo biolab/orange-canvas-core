@@ -1,12 +1,18 @@
 import unittest
+from unittest.mock import patch
 
+from AnyQt.QtWidgets import QMessageBox
+
+from AnyQt.QtCore import QEventLoop
+from orangecanvas.application import addons
 from orangecanvas.gui.test import QAppTestCase
+from orangecanvas.utils.qinvoke import qinvoke
 
 from ..addons import (
     Available, Installed, Installable, Distribution, Requirement, is_updatable,
     AddonManagerWidget, Install, Upgrade, Uninstall,
-    installable_items, installable_from_json_response
-)
+    installable_items, installable_from_json_response,
+    AddonManagerDialog)
 
 
 class TestUtils(unittest.TestCase):
@@ -94,3 +100,26 @@ class TestAddonManagerWidget(QAppTestCase):
         state = [(Uninstall, items[0])]
         w.setItemState(state)
         self.assertSequenceEqual(state, w.itemState())
+
+    def test_run_query(self):
+        w = AddonManagerDialog()
+
+        query_res = [
+            addons._QueryResult("uber-pkg", None),
+            addons._QueryResult(
+                "unter-pkg", Installable("unter-pkg", "0.0.0", "", "", "", []))
+        ]
+
+        def query(names):
+            return query_res
+
+        with patch.object(QMessageBox, "exec_", return_value=QMessageBox.Ok), \
+             patch.object(addons, "query_pypi", query):
+            f = w.runQueryAndAddResults(
+                ["uber-pkg", "unter-pkg"],
+            )
+            loop = QEventLoop()
+            f.add_done_callback(qinvoke(lambda f: loop.quit(), loop))
+            loop.exec()
+            items = w.items()
+            self.assertEqual(items, [Available(query_res[1].installable)])
