@@ -1562,19 +1562,35 @@ class CanvasMainWindow(QMainWindow):
         # First write the scheme to a buffer so we don't truncate an
         # existing scheme file if `scheme.save_to` raises an error.
         buffer = io.BytesIO()
+        scheme.set_runtime_env("basedir", os.path.abspath(dirname))
         try:
-            scheme.set_runtime_env("basedir", os.path.abspath(dirname))
-            scheme.save_to(buffer, pretty=True)
-        except Exception:
-            log.error("Error saving %r to %r", scheme, filename, exc_info=True)
-            message_critical(
-                self.tr('An error occurred while trying to save workflow '
-                        '"%s" to "%s"') % (title, basename),
-                title=self.tr("Error saving %s") % basename,
-                exc_info=True,
-                parent=self
+            scheme.save_to(
+                buffer, pretty=True, pickle_fallback=False
             )
-            return False
+        except (TypeError, ValueError):  # need more specific error type
+            mb = QMessageBox(
+                parent=self, windowTitle="Unsafe contents",
+                icon=QMessageBox.Warning,
+                text="The workflow contains parameters that can not be safely "
+                     "deserialized.",
+                standardButtons=QMessageBox.Ok
+            )
+            mb.exec()
+            buffer.truncate(0)
+            try:
+                scheme.save_to(
+                    buffer, pretty=True, pickle_fallback=True
+                )
+            except Exception:  # pylint: disable=broad-except
+                log.error("Error saving %r to %r", scheme, filename, exc_info=True)
+                message_critical(
+                    self.tr('An error occurred while trying to save workflow '
+                            '"%s" to "%s"') % (title, basename),
+                    title=self.tr("Error saving %s") % basename,
+                    exc_info=True,
+                    parent=self
+                )
+                return False
 
         try:
             with open(filename, "wb") as f:
