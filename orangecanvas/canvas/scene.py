@@ -932,6 +932,7 @@ def grab_svg(scene):
     painter = QPainter(gen)
 
     # Draw background.
+    painter.setPen(Qt.NoPen)
     painter.setBrush(scene.palette().base())
     painter.drawRect(target_rect)
 
