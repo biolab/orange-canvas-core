@@ -1231,7 +1231,7 @@ class CanvasMainWindow(QMainWindow):
         except Exception:  # pylint: disable=broad-except
             log.exception("")
             message_critical(
-                 self.tr("Could not load an Orange Workflow file"),
+                 self.tr("Could not load an Orange Workflow file."),
                  title=self.tr("Error"),
                  informative_text=self.tr("An unexpected error occurred "
                                           "while loading '%s'.") % path,
@@ -1241,12 +1241,11 @@ class CanvasMainWindow(QMainWindow):
         if errors:
             details = render_error_details(errors)
             message_warning(
-                self.tr("Errors occurred while loading the workflow."),
-                title=self.tr("Problem"),
+                self.tr("Could not load the full workflow."),
+                title=self.tr("Workflow Partially Loaded"),
                 informative_text=self.tr(
-                     "There were problems loading some "
-                     "of the widgets/links in the "
-                     "workflow."
+                     "Some of the nodes/links could not be reconstructed "
+                     "and were omitted from the workflow."
                 ),
                 details=details,
                 parent=self,
@@ -1269,18 +1268,21 @@ class CanvasMainWindow(QMainWindow):
                 objectName="install-requirements-message-box",
                 icon=QMessageBox.Question,
                 windowTitle="Install Additional Packages",
-                text="This workflow requires additional packages to run. "
+                text="Workflow you are trying to load contains widgets "
+                     "from missing add-ons."
                      "<br/>" + details + "<br/>"
                      "Would you like to install them now?",
                 standardButtons=QMessageBox.Ok | QMessageBox.Abort |
                                 QMessageBox.Ignore,
                 informativeText=(
                     "After installation you will have to restart the "
-                    "application and reopen the workflow"),
+                    "application and reopen the workflow."),
             )
             mb.setDefaultButton(QMessageBox.Ok)
+            bok = mb.button(QMessageBox.Ok)
+            bok.setText("Install add-ons")
             bignore = mb.button(QMessageBox.Ignore)
-            bignore.setText("Load Partial")
+            bignore.setText("Ignore missing widgets")
             bignore.setToolTip(
                 "Load partial workflow by omitting missing nodes and links."
             )
