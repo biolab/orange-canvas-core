@@ -10,7 +10,7 @@ from orangecanvas.utils.qinvoke import qinvoke
 
 from ..addons import (
     Available, Installed, Installable, Distribution, Requirement, is_updatable,
-    AddonManagerWidget, Install, Upgrade, Uninstall,
+    Install, Upgrade, Uninstall,
     installable_items, installable_from_json_response,
     AddonManagerDialog)
 
@@ -71,7 +71,7 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(inst.version, "1.0")
 
 
-class TestAddonManagerWidget(QAppTestCase):
+class TestAddonManagerDialog(QAppTestCase):
     def test_widget(self):
         items = [
             Installed(
@@ -86,7 +86,7 @@ class TestAddonManagerWidget(QAppTestCase):
                 Distribution(project_name="a", version="0.0")
             ),
         ]
-        w = AddonManagerWidget()
+        w = AddonManagerDialog()
         w.setItems(items)
         _ = w.items()
         state = w.itemState()
