@@ -755,10 +755,12 @@ class AddonManagerDialog(QDialog):
                 exc_info=(etype, exc, tb)
             )
             message_warning(
-                "Could not retrieve package list",
+                "There's an issue with the internet connection.",
                 title="Error",
                 informative_text=
-                    "".join(traceback.format_exception_only(etype, exc)),
+                    "Please check you are connected to the internet.\n\n"
+                    "If you are behind a proxy, please set it in Preferences "
+                    "- Network.",
                 details=
                     "".join(traceback.format_exception(etype, exc, tb)),
                 parent=self
