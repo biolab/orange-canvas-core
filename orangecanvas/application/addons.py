@@ -25,7 +25,7 @@ import requests
 import pkg_resources
 
 from AnyQt.QtWidgets import (
-    QWidget, QDialog, QLabel, QLineEdit, QTreeView, QHeaderView,
+    QWidget, QDialog, QLineEdit, QTreeView, QHeaderView,
     QTextBrowser, QDialogButtonBox, QProgressDialog, QVBoxLayout,
     QPushButton, QFormLayout, QHBoxLayout, QMessageBox,
     QStyledItemDelegate, QStyle, QApplication, QStyleOptionViewItem
@@ -505,13 +505,7 @@ class AddonManagerWidget(QWidget):
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
         self.__items = []  # type: List[Item]
-
         self.setLayout(QVBoxLayout())
-
-        self.__header = QLabel(
-            wordWrap=True,
-            textFormat=Qt.RichText
-        )
         self.__search = QLineEdit(
             placeholderText=self.tr("Filter")
         )
