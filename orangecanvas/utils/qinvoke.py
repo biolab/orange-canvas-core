@@ -1,5 +1,4 @@
-
-from typing import TypeVar, Callable, overload, TYPE_CHECKING
+from typing import TypeVar, Callable, overload
 from AnyQt.QtCore import Qt, QObject, Signal
 
 from functools import wraps
@@ -13,70 +12,74 @@ class _InvokeCaller(QObject):
     sig = Signal(object, object)
 
 
-if TYPE_CHECKING:
-    A = TypeVar("A")
-    T1 = TypeVar("T1")
-    T2 = TypeVar("T2")
-    T3 = TypeVar("T3")
-    T4 = TypeVar("T4")
-    T5 = TypeVar("T5")
-    T6 = TypeVar("T6")
+A = TypeVar("A")
+T1 = TypeVar("T1")
+T2 = TypeVar("T2")
+T3 = TypeVar("T3")
+T4 = TypeVar("T4")
+T5 = TypeVar("T5")
+T6 = TypeVar("T6")
 
 
-    @overload
-    def qinvoke(
-            func: Callable[[], A], context: QObject,
-            type: Qt.ConnectionType = Qt.QueuedConnection
-    ) -> Callable[[], None]: ...
+@overload
+def qinvoke(
+        func: Callable[[], A], context: QObject,
+        type: Qt.ConnectionType = Qt.QueuedConnection
+) -> Callable[[], None]: ...
 
 
-    @overload
-    def qinvoke(
-            func: Callable[[T1], A], context: QObject,
-            type: Qt.ConnectionType = Qt.QueuedConnection
-    ) -> Callable[[T1], None]: ...
+@overload
+def qinvoke(
+        func: Callable[[T1], A], context: QObject,
+        type: Qt.ConnectionType = Qt.QueuedConnection
+) -> Callable[[T1], None]: ...
 
 
-    @overload
-    def qinvoke(
-            func: Callable[[T1, T2], A], context: QObject,
-            type: Qt.ConnectionType = Qt.QueuedConnection
-    ) -> Callable[[T1, T2], None]: ...
+@overload
+def qinvoke(
+        func: Callable[[T1, T2], A], context: QObject,
+        type: Qt.ConnectionType = Qt.QueuedConnection
+) -> Callable[[T1, T2], None]: ...
 
 
-    @overload
-    def qinvoke(
-            func: Callable[[T1, T2, T3], A], context: QObject,
-            type: Qt.ConnectionType = Qt.QueuedConnection
-    ) -> Callable[[T1, T2, T3], None]: ...
-
-    @overload
-    def qinvoke(
-            func: Callable[[T1, T2, T3, T4], A], context: QObject,
-            type: Qt.ConnectionType = Qt.QueuedConnection
-    ) -> Callable[[T1, T2, T3, T4], None]: ...
-
-    @overload
-    def qinvoke(
-            func: Callable[[T1, T2, T3, T4, T5], A], context: QObject,
-            type: Qt.ConnectionType = Qt.QueuedConnection
-    ) -> Callable[[T1, T2, T3, T4, T5], None]: ...
-
-    @overload
-    def qinvoke(
-            func: Callable[[T1, T2, T3, T4, T5, T6], A], context: QObject,
-            type: Qt.ConnectionType = Qt.QueuedConnection
-    ) -> Callable[[T1, T2, T3, T4, T5, T6], None]: ...
+@overload
+def qinvoke(
+        func: Callable[[T1, T2, T3], A], context: QObject,
+        type: Qt.ConnectionType = Qt.QueuedConnection
+) -> Callable[[T1, T2, T3], None]: ...
 
 
-    @overload
-    def qinvoke(
-            context: QObject, type: Qt.ConnectionType = Qt.QueuedConnection
-    ) -> Callable[[Callable[..., A]], Callable[..., None]]: ...
+@overload
+def qinvoke(
+        func: Callable[[T1, T2, T3, T4], A], context: QObject,
+        type: Qt.ConnectionType = Qt.QueuedConnection
+) -> Callable[[T1, T2, T3, T4], None]: ...
+
+
+@overload
+def qinvoke(
+        func: Callable[[T1, T2, T3, T4, T5], A], context: QObject,
+        type: Qt.ConnectionType = Qt.QueuedConnection
+) -> Callable[[T1, T2, T3, T4, T5], None]: ...
+
+
+@overload
+def qinvoke(
+        func: Callable[[T1, T2, T3, T4, T5, T6], A], context: QObject,
+        type: Qt.ConnectionType = Qt.QueuedConnection
+) -> Callable[[T1, T2, T3, T4, T5, T6], None]: ...
+
+
+@overload
+def qinvoke(
+        *, context: QObject, type: Qt.ConnectionType = Qt.QueuedConnection
+) -> Callable[[Callable[..., A]], Callable[..., None]]: ...
 
 
 def qinvoke(func: Callable = None, context: QObject = None, type=Qt.QueuedConnection):
     """
+    Wrap and return a callable, such that it will be executed in the
+    `context`'s thread/event loop.
 
     Parameters
     ----------
@@ -84,18 +87,19 @@ def qinvoke(func: Callable = None, context: QObject = None, type=Qt.QueuedConnec
         The function to be executed.
     context: QObject
         The invoking context. The `func` will be called in the specific event
-        loop of context. If context is deleted then the
+        loop of `context`. If `context` is deleted then the call will be a
+        noop.
     type: Qt.ConnectionType
+        The connection type.
 
     Returns
     -------
     wrapped: Callable[..., None]
-        A wrapped funcion taking the same arguments as `func`, but retuning
+        A wrapped function taking the same arguments as `func`, but retuning
         no value. Calling this function will schedule `func` to be called from
         `context`'s event loop.
-
     """
-    def decorator(func: 'Callable[..., A]') -> 'Callable[..., None]':
+    def decorator(func: Callable[..., A]) -> Callable[..., None]:
         emitter = _InvokeEmitter()
         # caller 'lives' in context's thread. If context is deleted so is the
         # caller (child objects are deleted before parents). This is used to
