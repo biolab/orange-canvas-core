@@ -100,6 +100,9 @@ class TestAddonManagerDialog(QAppTestCase):
         state = [(Uninstall, items[0])]
         w.setItemState(state)
         self.assertSequenceEqual(state, w.itemState())
+        updateTopLayout = w._AddonManagerDialog__updateTopLayout
+        updateTopLayout(False)
+        updateTopLayout(True)
 
     def test_run_query(self):
         w = AddonManagerDialog()

@@ -511,7 +511,8 @@ class AddonManagerDialog(QDialog):
 
     stateChanged = Signal()
 
-    def __init__(self, parent=None, acceptDrops=True, **kwargs):
+    def __init__(self, parent=None, acceptDrops=True, *,
+                 enableFilterAndAdd=True, **kwargs):
         super().__init__(parent, acceptDrops=acceptDrops, **kwargs)
         layout = QVBoxLayout()
         self.setLayout(layout)
@@ -590,9 +591,25 @@ class AddonManagerDialog(QDialog):
 
         sh = QShortcut(QKeySequence.Find, self.__search)
         sh.activated.connect(self.__search.setFocus)
+        self.__updateTopLayout(enableFilterAndAdd)
 
     def sizeHint(self):
         return super().sizeHint().expandedTo(QSize(620, 540))
+
+    def __updateTopLayout(self, enabled):
+        layout = self.__tophlayout
+        if not enabled and layout.parentWidget() is self:
+            for i in range(layout.count()):
+                item = layout.itemAt(i)
+                if item.widget() is not None:
+                    item.widget().hide()
+            self.layout().removeItem(layout)
+        elif enabled and layout.parentWidget() is not self:
+            for i in range(layout.count()):
+                item = layout.itemAt(i)
+                if item.widget() is not None:
+                    item.widget().show()
+            self.layout().insertLayout(0, layout)
 
     def __data_changed(
             self, topleft: QModelIndex, bottomright: QModelIndex, roles=()

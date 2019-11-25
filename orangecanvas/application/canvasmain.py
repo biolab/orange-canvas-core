@@ -1310,6 +1310,7 @@ class CanvasMainWindow(QMainWindow):
     def install_requirements(self, requires: Sequence[str]) -> int:
         dlg = addons.AddonManagerDialog(
             parent=self, windowTitle="Install required packages",
+            enableFilterAndAdd=False,
             modal=True
         )
         dlg.setConfig(config.default)
