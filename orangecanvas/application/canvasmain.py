@@ -1313,6 +1313,7 @@ class CanvasMainWindow(QMainWindow):
             enableFilterAndAdd=False,
             modal=True
         )
+        dlg.setStyle(QApplication.style())
         dlg.setConfig(config.default)
         req = addons.Requirement
         names = [req.parse(r).project_name for r in requires]
@@ -1847,6 +1848,7 @@ class CanvasMainWindow(QMainWindow):
         dlg = addons.AddonManagerDialog(
             self, windowTitle=self.tr("Add-ons"), modal=True
         )
+        dlg.setStyle(QApplication.style())
         dlg.setAttribute(Qt.WA_DeleteOnClose)
         dlg.start(config.default)
         return dlg.exec_()
