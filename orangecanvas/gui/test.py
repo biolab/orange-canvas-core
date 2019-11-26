@@ -11,6 +11,8 @@ from AnyQt.QtCore import QCoreApplication, QTimer, QStandardPaths, QPoint, Qt
 from AnyQt.QtGui import QMouseEvent
 from AnyQt.QtTest import QTest
 
+DEFAULT_TIMEOUT = 50
+
 
 class QCoreAppTestCase(unittest.TestCase):
     _AppClass = QCoreApplication
@@ -34,14 +36,8 @@ class QCoreAppTestCase(unittest.TestCase):
 
     def setUp(self):
         super(QCoreAppTestCase, self).setUp()
-        self._quittimer = QTimer(interval=100)
-        self._quittimer.timeout.connect(self.app.quit)
-        self._quittimer.start()
 
     def tearDown(self):
-        self._quittimer.stop()
-        self._quittimer.timeout.disconnect(self.app.quit)
-        self._quittimer = None
         super(QCoreAppTestCase, self).tearDown()
 
     @classmethod
@@ -53,14 +49,14 @@ class QCoreAppTestCase(unittest.TestCase):
         super(QCoreAppTestCase, cls).tearDownClass()
         QStandardPaths.setTestModeEnabled(False)
 
+    @classmethod
+    def qWait(cls, timeout=DEFAULT_TIMEOUT):
+        QTest.qWait(timeout)
+
 
 class QAppTestCase(QCoreAppTestCase):
     _AppClass = QApplication
     app = None  # type: QApplication
-
-    def tearDown(self):
-        QTest.qWait(10)
-        super(QAppTestCase, self).tearDown()
 
 
 def mouseMove(widget, buttons, modifier=Qt.NoModifier, pos=QPoint(), delay=-1):
