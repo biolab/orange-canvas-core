@@ -217,6 +217,9 @@ def description_rich_text(item):  # type: (Item) -> str
         description = item.installable.description
         content_type = item.installable.description_content_type
 
+    if not content_type:
+        # if not defined try rst and fallback to plain text
+        content_type = "text/x-rst"
     try:
         html = markup.render_as_rich_text(description, content_type)
     except Exception:
