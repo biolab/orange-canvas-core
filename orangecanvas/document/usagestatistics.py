@@ -7,7 +7,7 @@ import logging
 import os
 from typing import List
 
-from AnyQt.QtCore import QCoreApplication
+from AnyQt.QtCore import QCoreApplication, QSettings
 
 from orangecanvas import config
 from orangecanvas.scheme import SchemeNode, SchemeLink, Scheme
@@ -412,6 +412,7 @@ class UsageStatistics:
             "Date": str(datetime.now().date()),
             "Application Version": QCoreApplication.applicationVersion(),
             "Operating System": platform.system() + " " + platform.release(),
+            "Launch Count": QSettings().value('startup/launch-count', 0, type=int),
             "Session": self._actions
         }
 
