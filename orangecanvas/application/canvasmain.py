@@ -377,8 +377,6 @@ class CanvasMainWindow(QMainWindow):
         self.help_dock.setWidget(self.help_view)
         self.addDockWidget(Qt.RightDockWidgetArea, self.help_dock)
 
-        self.notification_overlay = NotificationOverlay(self.scheme_widget)
-
         self.setMinimumSize(600, 500)
 
     def setup_actions(self):
