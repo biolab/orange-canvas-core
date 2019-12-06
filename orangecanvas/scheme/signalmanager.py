@@ -19,14 +19,14 @@ from functools import partial, reduce
 
 import typing
 from typing import (
-    Any, Optional, List, Tuple, NamedTuple, Iterable, Callable, Set, Dict,
+    Any, Optional, List, NamedTuple, Iterable, Callable, Set, Dict,
     Sequence, Union, DefaultDict
 )
 
 from AnyQt.QtCore import QObject, QTimer, QSettings
 from AnyQt.QtCore import pyqtSignal, pyqtSlot as Slot
 
-from ..utils import unique, mapping_get
+from ..utils import unique, mapping_get, group_by_all
 from ..registry import OutputSignal
 from .scheme import Scheme, SchemeNode, SchemeLink
 
@@ -1106,25 +1106,6 @@ def traverse_bf(start, expand):
             yield item
             visited.add(item)
             queue.extend(expand(item))
-
-
-def group_by_all(sequence, key=None):
-    # type: (Iterable[V], Callable[[V], K]) -> List[Tuple[K, List[V]]]
-    order_seen = []
-    groups = {}  # type: Dict[K, List[V]]
-
-    for item in sequence:
-        if key is not None:
-            item_key = key(item)
-        else:
-            item_key = item  # type: ignore
-        if item_key in groups:
-            groups[item_key].append(item)
-        else:
-            groups[item_key] = [item]
-            order_seen.append(item_key)
-
-    return [(key, groups[key]) for key in order_seen]
 
 
 def strongly_connected_components(nodes, expand):

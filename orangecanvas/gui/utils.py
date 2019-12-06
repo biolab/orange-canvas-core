@@ -9,11 +9,12 @@ import ctypes
 from contextlib import contextmanager
 
 from AnyQt.QtWidgets import (
-    QWidget, QMessageBox, QStyleOption, QStyle
+    QWidget, QMessageBox, QStyleOption, QStyle, QTextEdit
 )
 from AnyQt.QtGui import (
     QGradient, QLinearGradient, QRadialGradient, QBrush, QPainter,
-    QPaintEvent, QColor, QPixmap, QPixmapCache)
+    QPaintEvent, QColor, QPixmap, QPixmapCache, QTextOption
+)
 from AnyQt.QtCore import Qt, QPointF, QPoint, QRect, QRectF
 
 import sip
@@ -299,6 +300,9 @@ def message(icon, text, title=None, informative_text=None, details=None,
 
     if details:
         mbox.setDetailedText(details)
+        dtextedit = mbox.findChild(QTextEdit)
+        if dtextedit is not None:
+            dtextedit.setWordWrapMode(QTextOption.NoWrap)
 
     if default_button is not None:
         mbox.setDefaultButton(default_button)

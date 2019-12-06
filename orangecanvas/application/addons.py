@@ -1,47 +1,52 @@
+import re
+import subprocess
 import types
 import enum
 import sys
 import sysconfig
 import os
 import logging
-import errno
 import shlex
 import itertools
 import json
 import traceback
 import typing
 
+from xml.sax.saxutils import escape
 from concurrent.futures import ThreadPoolExecutor, Future
 from collections import deque
 
 from typing import (
     List, Dict, Any, Optional, Union, Tuple, NamedTuple, Callable, AnyStr,
-    Iterable
+    Iterable, IO, TypeVar
 )
 
 import requests
 import pkg_resources
 
 from AnyQt.QtWidgets import (
-    QWidget, QDialog, QLabel, QLineEdit, QTreeView, QHeaderView,
+    QDialog, QLineEdit, QTreeView, QHeaderView,
     QTextBrowser, QDialogButtonBox, QProgressDialog, QVBoxLayout,
     QPushButton, QFormLayout, QHBoxLayout, QMessageBox,
-    QStyledItemDelegate, QStyle, QApplication, QStyleOptionViewItem
+    QStyledItemDelegate, QStyle, QApplication, QStyleOptionViewItem,
+    QShortcut
 )
 from AnyQt.QtGui import (
-    QStandardItemModel, QStandardItem, QPalette, QTextOption,
-    QDropEvent, QDragEnterEvent
+    QStandardItemModel, QStandardItem, QTextOption, QDropEvent, QDragEnterEvent,
+    QKeySequence
 )
 from AnyQt.QtCore import (
     QSortFilterProxyModel, QItemSelectionModel,
-    Qt, QObject, QMetaObject, QSize, QTimer, QThread, Q_ARG,
-    QSettings, QStandardPaths, QEvent, QAbstractItemModel, QModelIndex
+    Qt, QObject, QSize, QTimer, QThread,
+    QSettings, QStandardPaths, QEvent, QAbstractItemModel, QModelIndex,
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
 from orangecanvas.utils import unique, name_lookup, markup
 from orangecanvas.utils.shtools import python_process, create_process, \
     temp_named_file
+
+from ..utils.qinvoke import qinvoke
 from ..gui.utils import message_warning, message_critical as message_error
 from ..help.manager import get_dist_meta, parse_meta
 
@@ -52,6 +57,13 @@ Requirement = pkg_resources.Requirement
 Distribution = pkg_resources.Distribution
 
 log = logging.getLogger(__name__)
+
+A = TypeVar("A")
+B = TypeVar("B")
+
+
+def normalize_name(name):
+    return re.sub(r"[-_.]+", "-", name).lower()
 
 
 class Installable(
@@ -113,6 +125,13 @@ class Available(
     ----------
     installable : Installable
     """
+    @property
+    def project_name(self):
+        return self.installable.name
+
+    @property
+    def normalized_name(self):
+        return normalize_name(self.project_name)
 
 
 class Installed(
@@ -145,6 +164,17 @@ class Installed(
     def __new__(cls, installable, local, required=False, constraint=None):
         # type: (Optional[Installable], Distribution, bool, Optional[Requirement]) -> Installed
         return super().__new__(cls, installable, local, required, constraint)
+
+    @property
+    def project_name(self):
+        if self.installable is not None:
+            return self.installable.name
+        else:
+            return self.local.project_name
+
+    @property
+    def normalized_name(self):
+        return normalize_name(self.project_name)
 
 
 #: An installable item/slot
@@ -473,35 +503,57 @@ class TristateCheckItemDelegate(QStyledItemDelegate):
             return Qt.Unchecked if state == Qt.Checked else Qt.Checked
 
 
-class AddonManagerWidget(QWidget):
+class AddonManagerDialog(QDialog):
+    """
+    A add-on manager dialog.
+    """
+    #: cached packages list.
+    __packages = None  # type: List[Installable]
+    __f_pypi_addons = None
+    __config = None    # type: Optional[Config]
 
     stateChanged = Signal()
 
-    def __init__(self, parent=None, **kwargs):
-        super().__init__(parent, **kwargs)
-        self.__items = []  # type: List[Item]
-
-        self.setLayout(QVBoxLayout())
-
-        self.__header = QLabel(
-            wordWrap=True,
-            textFormat=Qt.RichText
+    def __init__(self, parent=None, acceptDrops=True, *,
+                 enableFilterAndAdd=True, **kwargs):
+        super().__init__(parent, acceptDrops=acceptDrops, **kwargs)
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+        self.__tophlayout = tophlayout = QHBoxLayout(
+            objectName="top-hbox-layout"
         )
+        tophlayout.setContentsMargins(0, 0, 0, 0)
+
         self.__search = QLineEdit(
-            placeholderText=self.tr("Filter")
+            objectName="filter-edit",
+            placeholderText=self.tr("Filter...")
         )
-        self.tophlayout = topline = QHBoxLayout()
-        topline.addWidget(self.__search)
-        self.layout().addLayout(topline)
-
+        self.__addmore = QPushButton(
+            self.tr("Add more..."),
+            toolTip=self.tr("Add an add-on not listed below"),
+            autoDefault=False
+        )
         self.__view = view = QTreeView(
+            objectName="add-ons-view",
             rootIsDecorated=False,
             editTriggers=QTreeView.NoEditTriggers,
             selectionMode=QTreeView.SingleSelection,
             alternatingRowColors=True
         )
         view.setItemDelegateForColumn(0, TristateCheckItemDelegate(view))
-        self.layout().addWidget(view)
+
+        self.__details = QTextBrowser(
+            objectName="description-text-area",
+            readOnly=True,
+            lineWrapMode=QTextBrowser.WidgetWidth,
+            openExternalLinks=True,
+        )
+        self.__details.setWordWrapMode(QTextOption.WordWrap)
+
+        self.__buttons = buttons = QDialogButtonBox(
+            orientation=Qt.Horizontal,
+            standardButtons=QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
+        )
 
         self.__model = model = PluginsModel()
         model.dataChanged.connect(self.__data_changed)
@@ -520,180 +572,67 @@ class AddonManagerWidget(QWidget):
         header.setSectionResizeMode(0, QHeaderView.Fixed)
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
 
-        self.__details = QTextBrowser(
-            frameShape=QTextBrowser.NoFrame,
-            readOnly=True,
-            lineWrapMode=QTextBrowser.WidgetWidth,
-            openExternalLinks=True,
-        )
-
-        self.__details.setWordWrapMode(QTextOption.WordWrap)
-        palette = QPalette(self.palette())
-        palette.setColor(QPalette.Base, Qt.transparent)
-        self.__details.setPalette(palette)
-        self.layout().addWidget(self.__details)
-
-    def setItems(self, items):
-        # type: (List[Item]) -> None
-        """
-        Set a list of items to display.
-
-        Parameters
-        ----------
-        items: List[Item]
-            A list of :class:`Available` or :class:`Installed`
-        """
-        self.__items = items
-        model = self.__model
-        model.setRowCount(0)
-
-        for item in items:
-            row = model.createRow(item)
-            model.appendRow(row)
-
-        model.sort(1)
-
-        self.__view.resizeColumnToContents(0)
-        self.__view.setColumnWidth(
-            1, max(150, self.__view.sizeHintForColumn(1)))
-        self.__view.setColumnWidth(
-            2, max(150, self.__view.sizeHintForColumn(2)))
-
-        if self.__items:
-            self.__view.selectionModel().select(
-                self.__view.model().index(0, 0),
-                QItemSelectionModel.Select | QItemSelectionModel.Rows
-            )
-
-    def items(self):
-        # type: () -> List[Item]
-        """
-        Return a list of items.
-
-        Return
-        ------
-        items: List[Item]
-        """
-        return list(self.__items)
-
-    def itemState(self):
-        # type: () -> List['Action']
-        """
-        Return the current `items` state encoded as a list of actions to be
-        performed.
-
-        Return
-        ------
-        actions : List['Action']
-            For every item that is has been changed in the GUI interface
-            return a tuple of (command, item) where Ccmmand is one of
-             `Install`, `Uninstall`, `Upgrade`.
-        """
-        return self.__model.itemState()
-
-    def setItemState(self, steps):
-        # type: (List['Action']) -> None
-        """
-        Set the current state as a list of actions to perform.
-
-        i.e. `w.setItemState([(Install, item1), (Uninstall, item2)])`
-        will mark item1 for installation and item2 for uninstallation, all
-        other items will be reset to their default state
-
-        Parameters
-        ----------
-        steps : List[Tuple[Command, Item]]
-            State encoded as a list of commands.
-        """
-        self.__model.setItemState(steps)
-
-    def __selected_row(self):
-        indices = self.__view.selectedIndexes()
-        if indices:
-            proxy = self.__view.model()
-            indices = [proxy.mapToSource(index) for index in indices]
-            return indices[0].row()
-        else:
-            return -1
-
-    def __data_changed(self, topleft, bottomright):
-        self.stateChanged.emit()
-
-    def __update_details(self):
-        index = self.__selected_row()
-        if index == -1:
-            text = ""
-            self.__details.setText("")
-        else:
-            item = self.__model.item(index, PluginsModel.StateColumn)
-            text = item.data(DetailedText)
-            if not isinstance(text, str):
-                text = ""
-        self.__details.setText(text)
-
-    def sizeHint(self):
-        return QSize(480, 420)
-
-
-def method_queued(method, sig, conntype=Qt.QueuedConnection):
-    # type: (types.MethodType, Tuple[type, ...], int) -> Callable[[], bool]
-    name = method.__name__
-    obj = method.__self__
-    if not isinstance(obj, QObject):
-        raise TypeError()
-
-    def call(*args):
-        args = [Q_ARG(atype, arg) for atype, arg in zip(sig, args)]
-        return QMetaObject.invokeMethod(obj, name, conntype, *args)
-
-    return call
-
-
-class _QueryResult(types.SimpleNamespace):
-    queryname = None    # type: str
-    installable = None  # type: Optional[Installable]
-
-
-class AddonManagerDialog(QDialog):
-    """
-    A add-on manager dialog.
-    """
-    #: cached packages list.
-    __packages = None  # type: List[Installable]
-    __f_pypi_addons = None
-    __config = None    # type: Optional[Config]
-
-    def __init__(self, parent=None, acceptDrops=True, **kwargs):
-        super().__init__(parent, acceptDrops=acceptDrops, **kwargs)
-        self.setLayout(QVBoxLayout())
-
-        self.addonwidget = AddonManagerWidget()
-        self.addonwidget.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().addWidget(self.addonwidget)
-        buttons = QDialogButtonBox(
-            orientation=Qt.Horizontal,
-            standardButtons=QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
-
-        )
-        addmore = QPushButton(
-            "Add more...", toolTip="Add an add-on not listed below",
-            autoDefault=False
-        )
-        self.addonwidget.tophlayout.addWidget(addmore)
-        addmore.clicked.connect(self.__run_add_package_dialog)
+        self.__addmore.clicked.connect(self.__run_add_package_dialog)
 
         buttons.accepted.connect(self.__accepted)
         buttons.rejected.connect(self.reject)
 
-        self.layout().addWidget(buttons)
-        self.__progress = None  # type: Optional[QProgressDialog]
+        tophlayout.addWidget(self.__search)
+        tophlayout.addWidget(self.__addmore)
+        layout.addLayout(tophlayout)
+        layout.addWidget(self.__view)
+        layout.addWidget(self.__details)
+        layout.addWidget(self.__buttons)
 
+        self.__progress = None  # type: Optional[QProgressDialog]
         self.__executor = ThreadPoolExecutor(max_workers=1)
         # The installer thread
         self.__thread = None
         # The installer object
         self.__installer = None
         self.__add_package_by_name_dialog = None  # type: Optional[QDialog]
+
+        sh = QShortcut(QKeySequence.Find, self.__search)
+        sh.activated.connect(self.__search.setFocus)
+        self.__updateTopLayout(enableFilterAndAdd)
+
+    def sizeHint(self):
+        return super().sizeHint().expandedTo(QSize(620, 540))
+
+    def __updateTopLayout(self, enabled):
+        layout = self.__tophlayout
+        if not enabled and layout.parentWidget() is self:
+            for i in range(layout.count()):
+                item = layout.itemAt(i)
+                if item.widget() is not None:
+                    item.widget().hide()
+            self.layout().removeItem(layout)
+        elif enabled and layout.parentWidget() is not self:
+            for i in range(layout.count()):
+                item = layout.itemAt(i)
+                if item.widget() is not None:
+                    item.widget().show()
+            self.layout().insertLayout(0, layout)
+
+    def __data_changed(
+            self, topleft: QModelIndex, bottomright: QModelIndex, roles=()
+    ) -> None:
+        if topleft.column() <= 0 <= bottomright.column():
+            if roles and Qt.CheckStateRole in roles:
+                self.stateChanged.emit()
+            else:
+                self.stateChanged.emit()
+
+    def __update_details(self):
+        selmodel = self.__view.selectionModel()
+        idcs = selmodel.selectedRows(PluginsModel.StateColumn)
+        if idcs:
+            text = idcs[0].data(DetailedText)
+            if not isinstance(text, str):
+                text = ""
+        else:
+            text = ""
+        self.__details.setText(text)
 
     def setConfig(self, config):
         self.__config = config
@@ -740,7 +679,7 @@ class AddonManagerDialog(QDialog):
             lambda config=config: (config, list_available_versions(config)),
         )
         self.__f_pypi_addons.add_done_callback(
-            method_queued(self.__on_query_done, (object,))
+            qinvoke(self.__on_query_done, context=self)
         )
 
     @Slot(object)
@@ -804,7 +743,92 @@ class AddonManagerDialog(QDialog):
         ----------
         items: List[Items]
         """
-        self.addonwidget.setItems(items)
+        model = self.__model
+        model.setRowCount(0)
+
+        for item in items:
+            row = model.createRow(item)
+            model.appendRow(row)
+
+        self.__view.resizeColumnToContents(0)
+        self.__view.setColumnWidth(
+            1, max(150, self.__view.sizeHintForColumn(1))
+        )
+        if self.__view.model().rowCount():
+            self.__view.selectionModel().select(
+                self.__view.model().index(0, 0),
+                QItemSelectionModel.Select | QItemSelectionModel.Rows
+            )
+        self.stateChanged.emit()
+
+    def items(self) -> List[Item]:
+        """
+        Return a list of items.
+
+        Return
+        ------
+        items: List[Item]
+        """
+        model = self.__model
+        data, index = model.data, model.index
+        return [data(index(i, 1), Qt.UserRole) for i in range(model.rowCount())]
+
+    def itemState(self) -> List['Action']:
+        """
+        Return the current `items` state encoded as a list of actions to be
+        performed.
+
+        Return
+        ------
+        actions : List['Action']
+            For every item that is has been changed in the GUI interface
+            return a tuple of (command, item) where Command is one of
+            `Install`, `Uninstall`, `Upgrade`.
+        """
+        return self.__model.itemState()
+
+    def setItemState(self, steps: List['Action']) -> None:
+        """
+        Set the current state as a list of actions to perform.
+
+        i.e. `w.setItemState([(Install, item1), (Uninstall, item2)])`
+        will mark item1 for installation and item2 for uninstallation, all
+        other items will be reset to their default state.
+
+        Parameters
+        ----------
+        steps : List[Tuple[Command, Item]]
+            State encoded as a list of commands.
+        """
+        self.__model.setItemState(steps)
+
+    def runQueryAndAddResults(
+            self, names: List[str]
+    ) -> 'Future[List[_QueryResult]]':
+        """
+        Run a background query for the specified names and add results to
+        the model.
+
+        Parameters
+        ----------
+        names: List[str]
+            List of package names to query.
+        """
+        f = self.__executor.submit(query_pypi, names)
+        f.add_done_callback(
+            qinvoke(self.__on_add_query_finish, context=self)
+        )
+        progress = self.progressDialog()
+        progress.setLabelText("Running query")
+        progress.setMinimumDuration(1000)
+        # make sure self is also visible, when progress dialog is, so it is
+        # clear from where it came.
+        self.show()
+        progress.show()
+        f.add_done_callback(
+            qinvoke(lambda f: progress.hide(), context=progress)
+        )
+        return f
 
     @Slot(object)
     def addInstallable(self, installable):
@@ -816,7 +840,7 @@ class AddonManagerDialog(QDialog):
         ----------
         installable: Installable
         """
-        items = self.addonwidget.items()
+        items = self.items()
         if installable.name in {item.installable.name for item in items
                                 if item.installable is not None}:
             return
@@ -834,9 +858,15 @@ class AddonManagerDialog(QDialog):
 
         new = next(filter(match, new_), None)
         assert new is not None
-        state = self.addonwidget.itemState()
-        self.addonwidget.setItems(items + [new])
-        self.addonwidget.setItemState(state)  # restore state
+        state = self.itemState()
+        self.setItems(items + [new])
+        self.setItemState(state)  # restore state
+
+    def addItems(self, items: List[Item]):
+        state = self.itemState()
+        items = self.items() + items
+        self.setItems(items)
+        self.setItemState(state)  # restore state
 
     def __run_add_package_dialog(self):
         self.__add_package_by_name_dialog = dlg = QDialog(
@@ -867,28 +897,12 @@ class AddonManagerDialog(QDialog):
         vlayout.addWidget(buttons)
         vlayout.setSizeConstraint(QVBoxLayout.SetFixedSize)
         dlg.setLayout(vlayout)
-        f = None
 
         def query():
-            nonlocal f
             name = nameentry.text()
-
-            def query_pypi(name):
-                # type: (str) -> _QueryResult
-                res, = pypi_json_query_project_meta([name])
-                inst = None  # type: Optional[Installable]
-                if res is not None:
-                    inst = installable_from_json_response(res)
-                else:
-                    inst = None
-                return _QueryResult(queryname=name, installable=inst)
-            f = self.__executor.submit(query_pypi, name)
-
             okb.setDisabled(True)
-
-            f.add_done_callback(
-                method_queued(self.__on_add_single_query_finish, (object,))
-            )
+            self.runQueryAndAddResults([name])
+            dlg.accept()
         buttons.accepted.connect(query)
         buttons.rejected.connect(dlg.reject)
         dlg.exec_()
@@ -898,28 +912,30 @@ class AddonManagerDialog(QDialog):
         message_error(text, title="Error", details=error_details)
 
     @Slot(object)
-    def __on_add_single_query_finish(self, f):
-        # type: (Future[_QueryResult]) -> None
+    def __on_add_query_finish(self, f):
+        # type: (Future[List[_QueryResult]]) -> None
         error_text = ""
         error_details = ""
+        result = None
         try:
             result = f.result()
         except Exception:
             log.error("Query error:", exc_info=True)
             error_text = "Failed to query package index"
             error_details = traceback.format_exc()
-            pkg = None
         else:
-            pkg = result.installable
-            if pkg is None:
-                error_text = "'{}' not was not found".format(result.queryname)
-        dlg = self.__add_package_by_name_dialog
-        assert dlg is not None
-        if pkg:
-            self.addInstallable(pkg)
-            dlg.accept()
-        else:
-            dlg.reject()
+            not_found = [r.queryname for r in result if r.installable is None]
+            if not_found:
+                error_text = "".join([
+                    "The following packages were not found:<ul>",
+                    *["<li>{}<li/>".format(escape(n)) for n in not_found],
+                    "<ul/>"
+                ])
+        if result:
+            for r in result:
+                if r.installable is not None:
+                    self.addInstallable(r.installable)
+        if error_text:
             self.__show_error_for_query(error_text, error_details)
 
     def progressDialog(self):
@@ -986,17 +1002,17 @@ class AddonManagerDialog(QDialog):
 
         for installable in packages:
             self.addInstallable(installable)
-        items = self.addonwidget.items()
+        items = self.items()
         # lookup items for the new entries
         new_items = [item for item in items if item.installable in packages]
         state_new = [(Install, item) if isinstance(item, Available) else
                      (Upgrade, item) for item in new_items]
-        state = self.addonwidget.itemState()
-        self.addonwidget.setItemState(state + state_new)
+        state = self.itemState()
+        self.setItemState(state + state_new)
         event.acceptProposedAction()
 
     def __accepted(self):
-        steps = self.addonwidget.itemState()
+        steps = self.itemState()
 
         if steps:
             # Move all uninstall steps to the front
@@ -1053,7 +1069,8 @@ class AddonManagerDialog(QDialog):
 
         if QMessageBox.Ok == message_restart(self):
             self.accept()
-            QApplication.closeAllWindows()
+            QTimer.singleShot(0, QApplication.closeAllWindows)
+            QTimer.singleShot(0, QApplication.quit)
         else:
             self.reject()
 
@@ -1152,6 +1169,34 @@ def _session(cachedir=None):
     return session
 
 
+def optional_map(
+        func: Callable[[A], B]
+) -> Callable[[Optional[A]], Optional[B]]:
+    def f(x: Optional[A]) -> Optional[B]:
+        return func(x) if x is not None else None
+    return f
+
+
+class _QueryResult(types.SimpleNamespace):
+    def __init__(
+            self, queryname: str, installable: Optional[Installable], **kwargs
+    ) -> None:
+        self.queryname = queryname
+        self.installable = installable
+        super().__init__(**kwargs)
+
+
+def query_pypi(names: List[str]) -> List[_QueryResult]:
+    res = pypi_json_query_project_meta(names)
+    installable_from_json_response_ = optional_map(
+        installable_from_json_response
+    )
+    return [
+        _QueryResult(name, installable_from_json_response_(r))
+        for name, r in zip(names, res)
+    ]
+
+
 def list_available_versions(config, session=None):
     # type: (config.Config, Optional[requests.Session]) -> List[Installable]
     if session is None:
@@ -1239,6 +1284,25 @@ def installable_items(pypipackages, installed=[]):
             assert False
         items.append(item)
     return items
+
+
+def is_requirement_available(
+        req: Union[pkg_resources.Requirement, str],
+        working_set: Optional[pkg_resources.WorkingSet] = None
+) -> bool:
+    if not isinstance(req, Requirement):
+        req = Requirement.parse(req)
+    try:
+        if working_set is None:
+            d = pkg_resources.get_distribution(req)
+        else:
+            d = working_set.find(req)
+    except pkg_resources.VersionConflict:
+        return False
+    except pkg_resources.ResolutionError:
+        return False
+    else:
+        return d is not None
 
 
 def have_install_permissions():
@@ -1451,30 +1515,28 @@ def run_command(command, raise_on_fail=True, **kwargs):
         process = python_process(command[1:], **kwargs)
     else:
         process = create_process(command, **kwargs)
+    rcode, output = run_process(process, file=sys.stdout)
+    if rcode != 0 and raise_on_fail:
+        raise CommandFailed(command, rcode, output)
+    else:
+        return rcode, output
+
+
+def run_process(process: 'subprocess.Popen', **kwargs) -> Tuple[int, List[AnyStr]]:
+    file = kwargs.pop("file", sys.stdout)  # type: Optional[IO]
+    if file is ...:
+        file = sys.stdout
 
     output = []
     while process.poll() is None:
-        try:
-            line = process.stdout.readline()
-        except IOError as ex:
-            if ex.errno != errno.EINTR:
-                raise
-        else:
-            output.append(line)
-            print(line, end="")
+        line = process.stdout.readline()
+        output.append(line)
+        print(line, end="", file=file)
     # Read remaining output if any
     line = process.stdout.read()
     if line:
         output.append(line)
-        print(line, end="")
-
-    if process.returncode != 0:
-        log.info("Command %s failed with %s",
-                 " ".join(command), process.returncode)
-        log.debug("Output:\n%s", "\n".join(output))
-        if raise_on_fail:
-            raise CommandFailed(command, process.returncode, output)
-
+        print(line, end="", file=file)
     return process.returncode, output
 
 

@@ -1,12 +1,18 @@
 import unittest
+from unittest.mock import patch
 
+from AnyQt.QtWidgets import QMessageBox
+
+from AnyQt.QtCore import QEventLoop
+from orangecanvas.application import addons
 from orangecanvas.gui.test import QAppTestCase
+from orangecanvas.utils.qinvoke import qinvoke
 
 from ..addons import (
     Available, Installed, Installable, Distribution, Requirement, is_updatable,
-    AddonManagerWidget, Install, Upgrade, Uninstall,
-    installable_items, installable_from_json_response
-)
+    Install, Upgrade, Uninstall,
+    installable_items, installable_from_json_response,
+    AddonManagerDialog)
 
 
 class TestUtils(unittest.TestCase):
@@ -65,7 +71,7 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(inst.version, "1.0")
 
 
-class TestAddonManagerWidget(QAppTestCase):
+class TestAddonManagerDialog(QAppTestCase):
     def test_widget(self):
         items = [
             Installed(
@@ -80,7 +86,7 @@ class TestAddonManagerWidget(QAppTestCase):
                 Distribution(project_name="a", version="0.0")
             ),
         ]
-        w = AddonManagerWidget()
+        w = AddonManagerDialog()
         w.setItems(items)
         _ = w.items()
         state = w.itemState()
@@ -94,3 +100,29 @@ class TestAddonManagerWidget(QAppTestCase):
         state = [(Uninstall, items[0])]
         w.setItemState(state)
         self.assertSequenceEqual(state, w.itemState())
+        updateTopLayout = w._AddonManagerDialog__updateTopLayout
+        updateTopLayout(False)
+        updateTopLayout(True)
+
+    def test_run_query(self):
+        w = AddonManagerDialog()
+
+        query_res = [
+            addons._QueryResult("uber-pkg", None),
+            addons._QueryResult(
+                "unter-pkg", Installable("unter-pkg", "0.0.0", "", "", "", []))
+        ]
+
+        def query(names):
+            return query_res
+
+        with patch.object(QMessageBox, "exec_", return_value=QMessageBox.Ok), \
+             patch.object(addons, "query_pypi", query):
+            f = w.runQueryAndAddResults(
+                ["uber-pkg", "unter-pkg"],
+            )
+            loop = QEventLoop()
+            f.add_done_callback(qinvoke(lambda f: loop.quit(), loop))
+            loop.exec()
+            items = w.items()
+            self.assertEqual(items, [Available(query_res[1].installable)])
