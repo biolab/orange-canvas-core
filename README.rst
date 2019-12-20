@@ -13,7 +13,7 @@ Orange Canvas Core
    :target: https://orange-canvas-core.readthedocs.io/en/latest/?badge=latest
    :alt: Documentation Status
 
-Orange Canvas Core is is a framework for building graphical user
+Orange Canvas Core is a framework for building graphical user
 interfaces for editing workflows. It is a component used to build
 the Orange Canvas (http://orange.biolab.si) data-mining application
 (for which it was developed in the first place).
