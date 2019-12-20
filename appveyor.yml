@@ -13,7 +13,7 @@ environment:
     - PYTHON: C:\Python37-x64
       TEST_ENV: PyQt5~=5.13.0
     - PYTHON: C:\Python38-x64
-      TEST_ENV: PyQt5~=5.13.0
+      TEST_ENV: PyQt5~=5.14.0
 
 cache:
   - '%LOCALAPPDATA%\pip\cache -> appveyor.yml'
