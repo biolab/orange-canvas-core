@@ -231,7 +231,7 @@ class SchemeEditWidget(QWidget):
         # Create a font size menu for the new annotation action.
         self.__fontMenu = QMenu("Font Size", self)
         self.__fontActionGroup = group = QActionGroup(
-            self, exclusive=True, triggered=self.__onFontSizeTriggered
+            self, triggered=self.__onFontSizeTriggered
         )
 
         def font(size):
@@ -260,7 +260,7 @@ class SchemeEditWidget(QWidget):
         # Create a color menu for the arrow annotation action
         self.__arrowColorMenu = QMenu("Arrow Color",)
         self.__arrowColorActionGroup = group = QActionGroup(
-            self, exclusive=True, triggered=self.__onArrowColorTriggered
+            self, triggered=self.__onArrowColorTriggered
         )
 
         def color_icon(color):

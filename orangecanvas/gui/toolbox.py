@@ -326,8 +326,8 @@ class ToolBox(QFrame):
 
         self.__tabActionGroup = QActionGroup(
             self, objectName="toolbox-tab-action-group",
-            exclusive=self.__exclusive
         )
+        self.__tabActionGroup.setExclusive(self.__exclusive)
         self.__actionMapper = QSignalMapper(self)
         self.__actionMapper.mapped[QObject].connect(self.__onTabActionToggled)
 
