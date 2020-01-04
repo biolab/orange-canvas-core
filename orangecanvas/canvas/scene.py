@@ -78,11 +78,14 @@ class CanvasScene(QGraphicsScene):
     #: Signal emitted when an :class:`NodeItem` has been double clicked.
     node_item_double_clicked = Signal(object)
 
-    #: An node item has been activated (clicked)
+    #: An node item has been activated (double-clicked)
     node_item_activated = Signal(object)
 
     #: An node item has been hovered
     node_item_hovered = Signal(object)
+
+    #: Link item has been activated (double-clicked)
+    link_item_activated = Signal(object)
 
     #: Link item has been hovered
     link_item_hovered = Signal(object)
@@ -131,6 +134,10 @@ class CanvasScene(QGraphicsScene):
         self.position_change_mapper = QSignalMapper(self)
         self.position_change_mapper.mapped[QObject].connect(
             self._on_position_change
+        )
+        self.link_activated_mapper = QSignalMapper(self)
+        self.link_activated_mapper.mapped[QObject].connect(
+            lambda node: self.link_item_activated.emit(node)
         )
 
     def clear_scene(self):  # type: () -> None
@@ -380,6 +387,7 @@ class CanvasScene(QGraphicsScene):
         self.activated_mapper.removeMappings(item)
         self.hovered_mapper.removeMappings(item)
         self.position_change_mapper.removeMappings(item)
+        self.link_activated_mapper.removeMappings(item)
 
         item.hide()
         self.removeItem(item)
@@ -417,6 +425,9 @@ class CanvasScene(QGraphicsScene):
         """
         Add a link (:class:`.LinkItem`) to the scene.
         """
+        self.link_activated_mapper.setMapping(item, item)
+        item.activated.connect(self.link_activated_mapper.map)
+
         if item.scene() is not self:
             self.addItem(item)
 
