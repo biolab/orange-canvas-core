@@ -57,8 +57,7 @@ class TestWidgetToolBox(test.QAppTestCase):
         w.setLayout(layout)
         w.show()
         one_action.trigger()
-
-        self.app.exec_()
+        self.qWait()
 
     def test_toolbox(self):
 
@@ -91,4 +90,4 @@ class TestWidgetToolBox(test.QAppTestCase):
         box.setTabButtonHeight(40)
         box.setTabIconSize(QSize(30, 30))
 
-        self.app.exec_()
+        self.qWait()

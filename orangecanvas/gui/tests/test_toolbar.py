@@ -40,7 +40,6 @@ class ToolBoxTest(test.QAppTestCase):
                                  msg="insertAction does not preserve "
                                      "action order")
 
-        # self.singleShot(2000, lambda: w.setOrientation(Qt.Vertical))
-        # self.singleShot(5000, lambda: w.removeAction(actions[1]))
-
-        self.app.exec_()
+        self.singleShot(10, lambda: w.setOrientation(Qt.Vertical))
+        self.singleShot(50, lambda: w.removeAction(actions[1]))
+        self.qWait()

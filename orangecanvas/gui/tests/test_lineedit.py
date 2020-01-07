@@ -47,4 +47,4 @@ class TestSearchWidget(QAppTestCase):
 
         b = line.button(LineEdit.RightPosition)
         b.setFlat(False)
-        self.app.exec_()
+        self.qWait()

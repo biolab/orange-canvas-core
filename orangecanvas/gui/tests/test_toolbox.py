@@ -51,7 +51,7 @@ class TestToolBox(test.QAppTestCase):
         self.assertIs(w.widget(2), p3)
         self.assertIs(w.widget(3), p4)
 
-        self.app.exec_()
+        self.qWait()
 
     def test_tool_box_exclusive(self):
         w = toolbox.ToolBox()

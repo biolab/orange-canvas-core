@@ -44,7 +44,7 @@ class TestCanvasDockWidget(test.QAppTestCase):
         dock.setCollapsedWidget(toolbar)
 
         dock.show()
-        self.app.exec_()
+        self.qWait()
 
     def test_canvas_tool_dock(self):
         reg = registry_tests.small_testing_registry()
@@ -54,7 +54,7 @@ class TestCanvasDockWidget(test.QAppTestCase):
         dock.toolbox.setModel(reg.model())
 
         dock.show()
-        self.app.exec_()
+        self.qWait()
 
     def test_splitter_resizer(self):
         w = QSplitter(orientation=Qt.Vertical)
@@ -71,10 +71,12 @@ class TestCanvasDockWidget(test.QAppTestCase):
                 resizer.close()
 
         w.show()
-        timer = QTimer(resizer, interval=1000)
+        timer = QTimer(resizer, interval=100)
         timer.timeout.connect(toogle)
         timer.start()
-        self.app.exec_()
+        toogle()
+        self.qWait()
+        timer.stop()
 
     def test_category_toolbar(self):
         reg = registry_tests.small_testing_registry()
@@ -83,8 +85,7 @@ class TestCanvasDockWidget(test.QAppTestCase):
         w = QuickCategoryToolbar()
         w.setModel(reg.model())
         w.show()
-
-        self.app.exec_()
+        self.qWait()
 
 
 class TestPopupMenu(test.QAppTestCase):
@@ -96,4 +97,5 @@ class TestPopupMenu(test.QAppTestCase):
         w = CategoryPopupMenu()
         w.setModel(model)
         w.setRootIndex(model.index(0, 0))
-        w.exec_()
+        w.show()
+        self.qWait()

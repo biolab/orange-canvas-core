@@ -63,7 +63,7 @@ class TestGraphicsPathObject(TestItems):
         self.scene.addItem(obj)
         self.view.show()
 
-        self.app.exec_()
+        self.qWait()
 
     def test_shapeFromPath(self):
         path = QPainterPath()

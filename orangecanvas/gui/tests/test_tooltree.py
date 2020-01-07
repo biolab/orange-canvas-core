@@ -41,7 +41,7 @@ class TestToolTree(QAppTestCase):
 
         tree.show()
 
-        self.app.exec_()
+        self.qWait()
 
     def test_tooltree_registry(self):
         reg = QtWidgetRegistry(small_testing_registry())
@@ -56,7 +56,7 @@ class TestToolTree(QAppTestCase):
 
         tree.triggered.connect(p)
 
-        self.app.exec_()
+        self.qWait()
 
     def test_flattened(self):
         reg = QtWidgetRegistry(small_testing_registry())
@@ -98,4 +98,4 @@ class TestToolTree(QAppTestCase):
 
         tree.triggered.connect(p)
 
-        self.app.exec_()
+        self.qWait()

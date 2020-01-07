@@ -3,8 +3,8 @@ Basic Qt testing framework
 ==========================
 """
 import unittest
-
 import gc
+from typing import Callable, Any
 
 from AnyQt.QtWidgets import QApplication, QWidget
 from AnyQt.QtCore import QCoreApplication, QTimer, QStandardPaths, QPoint, Qt
@@ -52,6 +52,10 @@ class QCoreAppTestCase(unittest.TestCase):
     @classmethod
     def qWait(cls, timeout=DEFAULT_TIMEOUT):
         QTest.qWait(timeout)
+
+    @classmethod
+    def singleShot(cls, timeout: int, slot: 'Callable[[], Any]'):
+        QTimer.singleShot(timeout, slot)
 
 
 class QAppTestCase(QCoreAppTestCase):

@@ -76,10 +76,11 @@ class TestAnchorLayout(QAppTestCase):
             cons_item.setPos(path.pointAtPercent(t % 1.0))
             negate_item.setPos(path.pointAtPercent((t + 0.5) % 1.0))
 
-        timer = QTimer(negate_item, interval=20)
+        timer = QTimer(negate_item, interval=5)
         timer.start()
         timer.timeout.connect(advance)
-        self.app.exec_()
+        self.qWait()
+        timer.stop()
 
     def widget_desc(self):
         reg = small_testing_registry()

@@ -55,8 +55,7 @@ class TestStackedWidget(test.QAppTestCase):
                                  widgets())
 
         stack.setCurrentIndex(1)
-        # wait until animation finished
-        self.app.exec_()
+        self.qWait()
 
         self.assertEqual(stack.currentIndex(), 1)
 
@@ -76,4 +75,5 @@ class TestStackedWidget(test.QAppTestCase):
         timer = QTimer(stack, interval=1000)
         timer.timeout.connect(toogle)
         timer.start()
-        self.app.exec_()
+        self.qWait()
+        timer.stop()

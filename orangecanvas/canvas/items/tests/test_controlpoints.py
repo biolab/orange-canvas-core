@@ -34,7 +34,7 @@ class TestControlPoints(TestItems):
         control.rectEdited.connect(rect.setRect)
 
         self.view.show()
-        self.app.exec_()
+        self.qWait()
 
         self.assertEqual(rect.rect(), control.rect())
 
@@ -56,6 +56,6 @@ class TestControlPoints(TestItems):
         control.lineEdited.connect(line.setLine)
 
         self.view.show()
-        self.app.exec_()
+        self.qWait()
 
         self.assertEqual(control.line(), line.line())

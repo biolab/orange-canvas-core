@@ -34,8 +34,7 @@ class TestAnnotationItem(TestItems):
         annot._TextAnnotation__textItem.setFocus()
         self.scene.addItem(annot)
         self.scene.addItem(annot2)
-
-        self.app.exec_()
+        self.qWait()
 
     def test_arrowannotation(self):
         item = ArrowItem()
@@ -64,4 +63,5 @@ class TestAnnotationItem(TestItems):
         timer = QTimer(item, interval=10)
         timer.timeout.connect(advance)
         timer.start()
-        self.app.exec_()
+        self.qWait()
+        timer.stop()

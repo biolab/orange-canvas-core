@@ -87,7 +87,7 @@ class TestScene(QAppTestCase):
         self.assertTrue(one_item.outputAnchors())
         self.assertTrue(negate_item.inputAnchors())
 
-        self.app.exec_()
+        self.qWait()
 
     def test_scene_with_scheme(self):
         """Test scene through modifying the scheme.
@@ -145,7 +145,7 @@ class TestScene(QAppTestCase):
         test_scheme.add_link(link1)
         self.assertTrue(len(self.scene.link_items()) == 1)
         self.assertSequenceEqual(self.scene.link_items(), link_items)
-        self.app.exec_()
+        self.qWait()
 
     def test_scheme_construction(self):
         """Test construction (editing) of the scheme through the scene.
@@ -225,7 +225,7 @@ class TestScene(QAppTestCase):
         self.assertSequenceEqual(test_scheme.links,
                                  [link1, link2])
 
-        self.app.exec_()
+        self.qWait()
 
     def widget_desc(self):
         reg = small_testing_registry()

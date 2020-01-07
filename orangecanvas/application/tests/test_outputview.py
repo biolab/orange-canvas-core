@@ -38,12 +38,13 @@ class TestOutputView(QAppTestCase):
             text = output.toPlainText()
             self.assertLessEqual(len(text.splitlines()), 5)
 
-        timer = QTimer(output, interval=500)
+        timer = QTimer(output, interval=25)
         timer.timeout.connect(advance)
         timer.start()
-        self.app.exec_()
+        self.qWait(100)
+        timer.stop()
 
-    def test_formated(self):
+    def test_formatted(self):
         output = OutputView()
         output.show()
 
@@ -56,8 +57,7 @@ class TestOutputView(QAppTestCase):
 
         bold = output.formatted(weight=100, underline=True)
         bold.write("Shutup")
-
-        self.app.exec_()
+        self.qWait()
 
     def test_threadsafe(self):
         output = OutputView()
@@ -101,9 +101,7 @@ class TestOutputView(QAppTestCase):
 
         pool = multiprocessing.pool.ThreadPool(100)
         res = pool.map_async(printer, range(10000))
-
-        self.app.exec_()
-
+        self.qWait()
         res.wait()
 
         # force all pending enqueued emits
@@ -138,7 +136,5 @@ class TestOutputView(QAppTestCase):
 
         pool = multiprocessing.pool.ThreadPool(10)
         res = pool.map_async(raise_exception, range(100))
-
-        self.app.exec_()
-
+        self.qWait(100)
         res.wait()
