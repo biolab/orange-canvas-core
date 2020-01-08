@@ -961,9 +961,9 @@ class CanvasMainWindow(QMainWindow):
         margin = 20 if enabled else 0
 
         if self.dockWidgetArea(self.dock_widget) == Qt.LeftDockWidgetArea:
-            margins = (margin / 2, 0, margin, 0)
+            margins = (margin // 2, 0, margin, 0)
         else:
-            margins = (margin, 0, margin / 2, 0)
+            margins = (margin, 0, margin // 2, 0)
 
         central.layout().setContentsMargins(*margins)
 
