@@ -47,7 +47,7 @@ class TestWidgetToolBox(test.QAppTestCase):
         # Test order of buttons
         grid_layout = grid.layout()
         for i in range(len(actions)):
-            button = grid_layout.itemAtPosition(i / 4, i % 4).widget()
+            button = grid_layout.itemAtPosition(i // 4, i % 4).widget()
             self.assertIs(button.defaultAction(), actions[i])
 
         grid.actionTriggered.connect(triggered_actions2.append)

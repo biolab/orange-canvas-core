@@ -100,7 +100,8 @@ class TestDropShadow(test.QAppTestCase):
         )
         @oanim.valueChanged.connect
         def _(value):
-            f.setOffset(QPoint(15 * math.cos(value), 15 * math.sin(value)))
+            f.setOffset(QPoint(int(15 * math.cos(value)),
+                               int(15 * math.sin(value))))
         oanim.start()
         w.show()
         self.qWait()
