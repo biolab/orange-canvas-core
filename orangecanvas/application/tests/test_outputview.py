@@ -111,6 +111,7 @@ class TestOutputView(QAppTestCase):
 
         self.assertTrue(all(correct))
         self.assertEqual(len(correct), 10000)
+        pool.close()
 
     def test_excepthook(self):
         output = OutputView()
@@ -138,3 +139,4 @@ class TestOutputView(QAppTestCase):
         res = pool.map_async(raise_exception, range(100))
         self.qWait(100)
         res.wait()
+        pool.close()
