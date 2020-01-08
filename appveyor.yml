@@ -28,4 +28,6 @@ build_script:
 
 test_script:
   - >-
+    %PYTHON%\python.exe -m pip list --format=freeze
+  - >-
     %PYTHON%\python.exe -m unittest discover -v .
