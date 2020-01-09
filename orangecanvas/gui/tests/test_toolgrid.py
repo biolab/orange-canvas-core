@@ -95,4 +95,4 @@ class TestToolGrid(test.QAppTestCase):
         action_a.trigger()
 
         w.show()
-        self.app.exec_()
+        self.qWait()

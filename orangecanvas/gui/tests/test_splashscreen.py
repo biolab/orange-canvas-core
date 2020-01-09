@@ -45,5 +45,5 @@ class TestSplashScreen(QAppTestCase):
         timer = QTimer(w, interval=1)
         timer.timeout.connect(advance_time)
         timer.start()
-
-        self.app.exec_()
+        self.qWait()
+        timer.stop()

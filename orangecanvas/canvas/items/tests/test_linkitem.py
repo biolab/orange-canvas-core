@@ -88,7 +88,7 @@ class TestLinkItem(TestItems):
         self.assertTrue(len(negate_item.inputAnchors()) == 1)
         self.assertTrue(len(one_item.outputAnchors()) == 1)
 
-        self.app.exec_()
+        self.qWait()
 
     def test_dynamic_link(self):
         link = LinkItem()
@@ -121,4 +121,5 @@ class TestLinkItem(TestItems):
         timer = QTimer(link, interval=0)
         timer.timeout.connect(advance)
         timer.start()
-        self.app.exec_()
+        self.qWait()
+        timer.stop()

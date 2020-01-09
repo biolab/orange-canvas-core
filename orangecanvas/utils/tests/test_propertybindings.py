@@ -124,7 +124,7 @@ class Test(test.QAppTestCase):
         w.setLayout(layout)
         w.show()
 
-        self.app.exec_()
+        self.qWait()
 
     def test_expr(self):
         obj1 = QObject()

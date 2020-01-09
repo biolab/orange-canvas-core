@@ -33,8 +33,7 @@ class TestMenu(QAppTestCase):
 
         menu.popup(QPoint(200, 200))
         menu.activateWindow()
-
-        self.app.exec_()
+        self.qWait()
 
     def test_menu_with_registry(self):
         registry = QtWidgetRegistry(small_testing_registry())
@@ -57,6 +56,7 @@ class TestMenu(QAppTestCase):
         menu.hovered.connect(hovered)
         self.app.setActiveWindow(menu)
 
+        self.singleShot(100, menu.close)
         rval = menu.exec_(QPoint(200, 200))
 
         if triggered_action:

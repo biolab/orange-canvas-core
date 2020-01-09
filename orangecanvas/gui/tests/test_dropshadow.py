@@ -46,7 +46,7 @@ class TestDropShadow(test.QAppTestCase):
             duration=3000
         )
         ranim.start()
-        self.app.exec_()
+        self.qWait()
 
     def test1(self):
         class FT(QToolBar):
@@ -84,7 +84,7 @@ class TestDropShadow(test.QAppTestCase):
             duration=3000
         )
         ranim.start()
-        self.app.exec_()
+        self.qWait()
 
     def test_offset(self):
         w = QWidget()
@@ -100,10 +100,11 @@ class TestDropShadow(test.QAppTestCase):
         )
         @oanim.valueChanged.connect
         def _(value):
-            f.setOffset(QPoint(15 * math.cos(value), 15 * math.sin(value)))
+            f.setOffset(QPoint(int(15 * math.cos(value)),
+                               int(15 * math.sin(value))))
         oanim.start()
         w.show()
-        self.app.exec_()
+        self.qWait()
 
 
 if __name__ == "__main__":

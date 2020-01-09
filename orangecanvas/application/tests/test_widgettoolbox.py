@@ -47,7 +47,7 @@ class TestWidgetToolBox(test.QAppTestCase):
         # Test order of buttons
         grid_layout = grid.layout()
         for i in range(len(actions)):
-            button = grid_layout.itemAtPosition(i / 4, i % 4).widget()
+            button = grid_layout.itemAtPosition(i // 4, i % 4).widget()
             self.assertIs(button.defaultAction(), actions[i])
 
         grid.actionTriggered.connect(triggered_actions2.append)
@@ -57,8 +57,7 @@ class TestWidgetToolBox(test.QAppTestCase):
         w.setLayout(layout)
         w.show()
         one_action.trigger()
-
-        self.app.exec_()
+        self.qWait()
 
     def test_toolbox(self):
 
@@ -91,4 +90,4 @@ class TestWidgetToolBox(test.QAppTestCase):
         box.setTabButtonHeight(40)
         box.setTabIconSize(QSize(30, 30))
 
-        self.app.exec_()
+        self.qWait()

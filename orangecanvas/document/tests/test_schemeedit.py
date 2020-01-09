@@ -235,6 +235,7 @@ class TestSchemeEdit(QAppTestCase):
         node = SchemeNode(
             self.reg.widget("one"), title="title1", position=(10000, 100))
         self.w.addNode(node)
+        w.setFixedSize(300, 300)
         w.show()
         assert QTest.qWaitForWindowExposed(w, 500)
         w.ensureVisible(node)

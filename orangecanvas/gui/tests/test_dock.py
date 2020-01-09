@@ -34,11 +34,11 @@ class TestDock(test.QAppTestCase):
         dock.setExpanded(True)
         dock.setExpanded(False)
 
-        timer = QTimer(dock, interval=200)
+        timer = QTimer(dock, interval=50)
         timer.timeout.connect(lambda: dock.setExpanded(not dock.expanded()))
         timer.start()
-
-        # self.app.exec_()
+        self.qWait()
+        timer.stop()
 
     def test_dock_mainwinow(self):
         mw = QMainWindow()
@@ -55,8 +55,8 @@ class TestDock(test.QAppTestCase):
         mw.setCentralWidget(QTextEdit())
         mw.show()
 
-        timer = QTimer(dock, interval=200)
+        timer = QTimer(dock, interval=50)
         timer.timeout.connect(lambda: dock.setExpanded(not dock.expanded()))
         timer.start()
-
-        # self.app.exec_()
+        self.qWait()
+        timer.stop()

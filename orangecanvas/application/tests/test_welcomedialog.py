@@ -31,9 +31,10 @@ class TestDialog(QAppTestCase):
         action = [None]
 
         def p(a):
-            print(str(a.text()))
             action[0] = a
 
         d.triggered.connect(p)
-        self.app.exec_()
+        self.singleShot(0, action1.trigger)
+        self.qWait()
         self.assertIs(action[0], d.triggeredAction())
+        self.assertIs(action[0], action1)

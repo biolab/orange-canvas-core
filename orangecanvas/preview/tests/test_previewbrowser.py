@@ -41,4 +41,4 @@ class TestPreviewBrowser(test.QAppTestCase):
             print(index)
 
         w.currentIndexChanged.connect(p)
-        self.app.exec_()
+        self.qWait()

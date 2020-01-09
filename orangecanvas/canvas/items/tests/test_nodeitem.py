@@ -81,7 +81,7 @@ class TestNodeItem(TestItems):
         nb_item.setProcessingState(1)
 
         def progress():
-            p = (nb_item.progress() + 1) % 100
+            p = (nb_item.progress() + 25) % 100
             nb_item.setProgress(p)
 
             if p > 50:
@@ -93,11 +93,11 @@ class TestNodeItem(TestItems):
 
             negate_item.setAnchorRotation(50 - p)
 
-        timer = QTimer(nb_item, interval=10)
+        timer = QTimer(nb_item, interval=5)
         timer.start()
         timer.timeout.connect(progress)
-
-        self.app.exec_()
+        self.qWait()
+        timer.stop()
 
     def test_nodeanchors(self):
         one_item = NodeItem()
@@ -126,7 +126,7 @@ class TestNodeItem(TestItems):
         anchor = one_item.newOutputAnchor()
         self.assertIsInstance(anchor, AnchorPoint)
 
-        self.app.exec_()
+        self.qWait()
 
     def test_anchoritem(self):
         anchoritem = NodeAnchorItem(None)
@@ -167,8 +167,9 @@ class TestNodeItem(TestItems):
             t = [(t + 0.05) % 1.0 for t in t]
             anchoritem.setAnchorPositions(t)
 
-        timer = QTimer(anchoritem, interval=20)
+        timer = QTimer(anchoritem, interval=10)
         timer.start()
         timer.timeout.connect(advance)
 
-        self.app.exec_()
+        self.qWait()
+        timer.stop()

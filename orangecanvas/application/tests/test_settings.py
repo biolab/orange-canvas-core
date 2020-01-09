@@ -23,7 +23,7 @@ class TestUserSettings(test.QAppTestCase):
         settings = UserSettingsDialog()
         settings.show()
 
-        self.app.exec_()
+        self.qWait()
         registry.set_global_registry(None)
 
     def test_settings_model(self):
@@ -45,7 +45,7 @@ class TestUserSettings(test.QAppTestCase):
         view.setModel(model)
 
         view.show()
-        self.app.exec_()
+        self.qWait()
 
     def test_conda_checkbox(self):
         """
