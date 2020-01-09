@@ -17,12 +17,14 @@ from ..utils.propertybindings import (
 from AnyQt.QtWidgets import (
     QWidget, QMainWindow, QComboBox, QCheckBox, QListView, QTabWidget,
     QToolBar, QAction, QStackedWidget, QVBoxLayout, QHBoxLayout,
-    QFormLayout, QSizePolicy, QDialogButtonBox, QLineEdit, QLabel
+    QFormLayout, QSizePolicy, QDialogButtonBox, QLineEdit, QLabel,
+    QStyleFactory
 )
 from AnyQt.QtGui import QStandardItemModel, QStandardItem
 from AnyQt.QtCore import (
-    Qt, QEventLoop, QAbstractItemModel, QModelIndex, QSettings
-)
+    Qt, QEventLoop, QAbstractItemModel, QModelIndex, QSettings,
+    Property,
+    Signal)
 
 log = logging.getLogger(__name__)
 
@@ -350,6 +352,12 @@ class UserSettingsDialog(QMainWindow):
         form.addRow(self.tr("Tool box"), toolbox)
         tab.setLayout(form)
 
+        # Style tab
+        tab = StyleConfigWidget()
+        self.addTab(tab, self.tr("&Style"), toolTip="Application style")
+        self.bind(tab, "selectedStyle_", "application-style/style-name")
+        self.bind(tab, "selectedPalette_", "application-style/palette")
+
         # Output Tab
         tab = QWidget()
         self.addTab(tab, self.tr("Output"),
@@ -481,6 +489,12 @@ class UserSettingsDialog(QMainWindow):
             if icon:
                 self.tab.setTabIcon(i, icon)
 
+    def setCurrentIndex(self, index: int):
+        if self.__macUnified:
+            self.stack.setCurrentIndex(index)
+        else:
+            self.tab.setCurrentIndex(index)
+
     def widget(self, index):
         if self.__macUnified:
             return self.stack.widget(index)
@@ -533,6 +547,107 @@ class UserSettingsDialog(QMainWindow):
     def __macOnToolBarAction(self, action):
         index = action.data()
         self.stack.setCurrentIndex(index)
+
+
+class StyleConfigWidget(QWidget):
+    DisplayNames = {
+        "windowsvista": "Windows (default)",
+        "macintosh": "macOS (default)",
+        "windows": "MS Windows 9x",
+    }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._current_palette = ""
+        form = QFormLayout()
+        styles = QStyleFactory.keys()
+        styles = [
+            (self.DisplayNames.get(st.lower(), st.capitalize()), st)
+            for st in styles]
+        # First style is assumed default. We unset its userData key so it
+        # is cleared in persistent settings, allowing default style resolution
+        # on application start.
+        self.style_cb = style_cb = QComboBox(objectName="style-cb")
+        for name, key in styles:
+            self.style_cb.addItem(name, userData=key)
+
+        style_cb.currentIndexChanged.connect(self._style_changed)
+
+        self.colors_cb = colors_cb = QComboBox(objectName="palette-cb")
+        colors_cb.addItem("Default", userData="")
+        colors_cb.addItem("Breeze Dark", userData="breeze-dark")
+        colors_cb.addItem("Zion Reversed", userData="zion-reversed")
+        colors_cb.addItem("Dark", userData="dark")
+
+        form.addRow("Style", style_cb)
+        form.addRow("Color theme", colors_cb)
+        label = QLabel(
+            "<small>Changes will be applied on next application startup.</small>",
+            enabled=False,
+        )
+        label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        form.addRow(label)
+        self.setLayout(form)
+        self._update_colors_enabled_state()
+
+        style_cb.currentIndexChanged.connect(self.selectedStyleChanged)
+        colors_cb.currentIndexChanged.connect(self.selectedPaletteChanged)
+
+    def _style_changed(self):
+        self._update_colors_enabled_state()
+
+    def _update_colors_enabled_state(self):
+        current = self.style_cb.currentData(Qt.UserRole)
+        enable = current is not None and current.lower() in ("fusion", "windows")
+        self._set_palette_enabled(enable)
+
+    def _set_palette_enabled(self, state: bool):
+        cb = self.colors_cb
+        if cb.isEnabled() != state:
+            cb.setEnabled(state)
+            if not state:
+                current = cb.currentData(Qt.UserRole)
+                self._current_palette = current
+                cb.setCurrentIndex(-1)
+            else:
+                index = cb.findData(self._current_palette, Qt.UserRole)
+                if index == -1:
+                    index = 0
+                cb.setCurrentIndex(index)
+
+    def selectedStyle(self) -> str:
+        return self.style_cb.currentData()
+
+    def setSelectedStyle(self, style: str):
+        idx = self.style_cb.findData(style, Qt.DisplayRole, Qt.MatchFixedString)
+        if idx == -1:
+            idx = 0  # select the default style
+        self.style_cb.setCurrentIndex(idx)
+
+    selectedStyleChanged = Signal()
+    selectedStyle_ = Property(
+        str, selectedStyle, setSelectedStyle,
+        notify=selectedStyleChanged
+    )
+
+    def selectedPalette(self) -> str:
+        key = self.colors_cb.currentData(Qt.UserRole)
+        return key if key is not None else ""
+
+    def setSelectedPalette(self, key: str):
+        if not self.colors_cb.isEnabled():
+            self._current_palette = key
+            return
+        idx = self.colors_cb.findData(key, Qt.UserRole, Qt.MatchFixedString)
+        if idx == -1:
+            idx = 0  # select the default color theme
+        self.colors_cb.setCurrentIndex(idx)
+
+    selectedPaletteChanged = Signal()
+    selectedPalette_ = Property(
+        str, selectedPalette, setSelectedPalette,
+        notify=selectedPaletteChanged
+    )
 
 
 def category_state(cat, settings):
