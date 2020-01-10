@@ -17,7 +17,7 @@ from AnyQt.QtWidgets import (
 from AnyQt.QtGui import (
     QPen, QBrush, QColor, QPainterPath, QTransform, QPalette,
 )
-from AnyQt.QtCore import Qt, QPointF, QRectF, QLineF, QEvent, QPropertyAnimation
+from AnyQt.QtCore import Qt, QPointF, QRectF, QLineF, QEvent, QPropertyAnimation, Signal, QTimer
 
 from .nodeitem import AnchorPoint, SHADOW_COLOR
 from .utils import stroke_path
@@ -305,6 +305,8 @@ class LinkItem(QGraphicsWidget):
     central point (:func:`setSourceName`, :func:`setSinkName`)
 
     """
+    #: Signal emitted when the item has been activated (double-click)
+    activated = Signal()
 
     #: Z value of the item
     Z_VALUE = 0
@@ -609,6 +611,11 @@ class LinkItem(QGraphicsWidget):
                 self.sourceAnchor.setHoverState(state)
             self.curveItem.setHoverState(state)
             self.__updatePen()
+
+    def mouseDoubleClickEvent(self, event):
+        # type: (QGraphicsSceneMouseEvent) -> None
+        super().mouseDoubleClickEvent(event)
+        QTimer.singleShot(0, self.activated.emit)
 
     def hoverEnterEvent(self, event):
         # type: (QGraphicsSceneHoverEvent) -> None

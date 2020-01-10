@@ -501,6 +501,7 @@ class SchemeEditWidget(QWidget):
             scene.set_registry(self.__registry)
         scene.focusItemChanged.connect(self.__onFocusItemChanged)
         scene.selectionChanged.connect(self.__onSelectionChanged)
+        scene.link_item_activated.connect(self.__onLinkActivate)
         scene.node_item_activated.connect(self.__onNodeActivate)
         scene.annotation_added.connect(self.__onAnnotationAdded)
         scene.annotation_removed.connect(self.__onAnnotationRemoved)
@@ -1393,16 +1394,6 @@ class SchemeEditWidget(QWidget):
             event.accept()
             return True
 
-        item = scene.item_at(event.scenePos(), items.LinkItem)
-
-        if item is not None and event.button() == Qt.LeftButton:
-            link = self.scene().link_for_item(item)
-            action = interactions.EditNodeLinksAction(self, link.source_node,
-                                                      link.sink_node)
-            action.edit_links()
-            event.accept()
-            return True
-
         return False
 
     def sceneKeyPressEvent(self, event):
@@ -1578,6 +1569,12 @@ class SchemeEditWidget(QWidget):
                                    priority=QuickHelpTipEvent.Permanent)
 
             QCoreApplication.sendEvent(self, ev)
+
+    def __onLinkActivate(self, item):
+        link = self.scene().link_for_item(item)
+        action = interactions.EditNodeLinksAction(self, link.source_node,
+                                                  link.sink_node)
+        action.edit_links()
 
     def __onNodeActivate(self, item):
         # type: (items.NodeItem) -> None
