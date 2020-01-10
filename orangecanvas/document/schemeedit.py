@@ -1270,7 +1270,8 @@ class SchemeEditWidget(QWidget):
 
         pos = event.scenePos()
 
-        anchor_item = scene.item_at(pos, items.NodeAnchorItem)
+        anchor_item = scene.item_at(
+            pos, items.NodeAnchorItem, buttons=Qt.LeftButton)
         if anchor_item and event.button() == Qt.LeftButton:
             # Start a new link starting at item
             scene.clearSelection()
