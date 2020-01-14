@@ -302,6 +302,7 @@ class LinkAnchorIndicator(QGraphicsEllipseItem):
     def __init__(self, parent=None):
         # type: (Optional[QGraphicsItem]) -> None
         super().__init__(parent)
+        self.setAcceptedMouseButtons(Qt.NoButton)
         self.setRect(-3.5, -3.5, 7., 7.)
         self.setPen(QPen(Qt.NoPen))
         self.setBrush(QBrush(QColor("#9CACB4")))
