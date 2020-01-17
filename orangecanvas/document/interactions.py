@@ -1157,6 +1157,7 @@ class NewArrowAnnotation(UserInteraction):
         self.arrow_item = None  # type: Optional[items.ArrowAnnotation]
         self.annotation = None  # type: Optional[scheme.SchemeArrowAnnotation]
         self.color = "red"
+        self.cancelOnEsc = True
 
     def start(self):
         # type: () -> None
@@ -1237,6 +1238,12 @@ class NewArrowAnnotation(UserInteraction):
         else:
             return super().mouseReleaseEvent(event)
 
+    def cancel(self, reason=UserInteraction.OtherReason):  # type: (int) -> None
+        if self.arrow_item is not None:
+            self.scene.removeItem(self.arrow_item)
+            self.arrow_item = None
+        super().cancel(reason)
+
     def end(self):
         # type: () -> None
         self.down_pos = None
@@ -1271,6 +1278,7 @@ class NewTextAnnotation(UserInteraction):
         self.annotation = None  # type: Optional[scheme.SchemeTextAnnotation]
         self.control = None  # type: Optional[controlpoints.ControlPointRect]
         self.font = document.font()  # type: QFont
+        self.cancelOnEsc = True
 
     def setFont(self, font):
         # type: (QFont) -> None
@@ -1386,6 +1394,13 @@ class NewTextAnnotation(UserInteraction):
         rect = QRectF(QPointF(point.x(), point.y() - spacing - margin),
                       QSizeF(150, spacing + 2 * margin))
         return rect
+
+    def cancel(self, reason=UserInteraction.OtherReason):  # type: (int) -> None
+        if self.annotation_item is not None:
+            self.annotation_item.clearFocus()
+            self.scene.removeItem(self.annotation_item)
+            self.annotation_item = None
+        super().cancel(reason)
 
     def end(self):
         # type: () -> None
