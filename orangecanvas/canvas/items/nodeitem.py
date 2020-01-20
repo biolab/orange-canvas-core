@@ -564,8 +564,13 @@ class NodeAnchorItem(GraphicsPathObject):
 
         self.setAnchored(bool(self.__points))
 
-        hover = self.__hover and len(self.__points) > 1  # a stylistic choice
-        anchor.setHoverState(hover)
+        hover_for_color = self.__hover and len(self.__points) > 1  # a stylistic choice
+        anchor.setHoverState(hover_for_color)
+
+        # when an anchor is added, the anchor is no longer hovered
+        # the color should stay the same, but the shadow should fade out
+        self.__hover = False
+        self.__updateShadowState()
 
         return index
 
@@ -658,14 +663,14 @@ class NodeAnchorItem(GraphicsPathObject):
         self.__hover = True
         brush = self.connectedHoverBrush if self.anchored else self.normalHoverBrush
         self.setBrush(brush)
-        self.__updateShadowState()
+        self.__updateHoverState()
         return super().hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event):
         self.__hover = False
         brush = self.connectedBrush if self.anchored else self.normalBrush
         self.setBrush(brush)
-        self.__updateShadowState()
+        self.__updateHoverState()
         return super().hoverLeaveEvent(event)
 
     def setAnimationEnabled(self, enabled):
@@ -675,6 +680,12 @@ class NodeAnchorItem(GraphicsPathObject):
         """
         if self.__animationEnabled != enabled:
             self.__animationEnabled = enabled
+
+    def __updateHoverState(self):
+        self.__updateShadowState()
+
+        for indicator in self.anchorPoints():
+            indicator.setHoverState(self.__hover)
 
     def __updateShadowState(self):
         # type: () -> None
@@ -692,9 +703,6 @@ class NodeAnchorItem(GraphicsPathObject):
             self.__blurAnimation.start()
         else:
             self.shadow.setBlurRadius(radius)
-
-        for anchor in self.anchorPoints():
-            anchor.setHoverState(self.__hover)
 
     def __updatePositions(self):
         # type: () -> None
