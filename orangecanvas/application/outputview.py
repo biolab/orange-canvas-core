@@ -1,5 +1,6 @@
 """
 """
+import io
 import sys
 import warnings
 import traceback
@@ -301,6 +302,36 @@ class TextStream(QObject):
     def readable(self):
         # type: () -> bool
         return False
+
+    def seekable(self):
+        # type: () -> bool
+        return False
+
+    encoding = None
+    errors = None
+    newlines = None
+    buffer = None
+
+    def detach(self):
+        raise io.UnsupportedOperation("detach")
+
+    def read(self, size=-1):
+        raise io.UnsupportedOperation("read")
+
+    def readline(self, size=-1):
+        raise io.UnsupportedOperation("readline")
+
+    def readlines(self):
+        raise io.UnsupportedOperation("readlines")
+
+    def fileno(self):
+        raise io.UnsupportedOperation("fileno")
+
+    def seek(self, offset, whence=io.SEEK_SET):
+        raise io.UnsupportedOperation("seek")
+
+    def tell(self):
+        raise io.UnsupportedOperation("tell")
 
 
 class ExceptHook(QObject):
