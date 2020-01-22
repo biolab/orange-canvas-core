@@ -207,6 +207,26 @@ class TestSchemeEdit(QAppTestCase):
         self.assertEqual(len(workflow.annotations), 1)
         self.assertIsInstance(workflow.annotations[0], SchemeArrowAnnotation)
 
+    def test_arrow_annotation_action_cancel(self):
+        w = self.w
+        workflow = w.scheme()
+        view = w.view()
+        w.resize(300, 300)
+        actions = w.toolbarActions()
+        action = action_by_name(actions, "new-arrow-action")
+        action.trigger()
+        self.assertTrue(action.isChecked())
+        # cancel immediately after activating
+        QTest.keyClick(view.viewport(), Qt.Key_Escape)
+        self.assertFalse(action.isChecked())
+        action.trigger()
+        # cancel after mouse press and drag
+        QTest.mousePress(view.viewport(), Qt.LeftButton, pos=QPoint(50, 50))
+        mouseMove(view.viewport(), Qt.LeftButton, pos=QPoint(100, 100))
+        QTest.keyClick(view.viewport(), Qt.Key_Escape)
+        self.assertFalse(action.isChecked())
+        self.assertEqual(workflow.annotations, [])
+
     def test_text_annotation_action(self):
         w = self.w
         workflow = w.scheme()
@@ -223,6 +243,27 @@ class TestSchemeEdit(QAppTestCase):
 
         self.assertEqual(len(workflow.annotations), 1)
         self.assertIsInstance(workflow.annotations[0], SchemeTextAnnotation)
+
+    def test_text_annotation_action_cancel(self):
+        w = self.w
+        workflow = w.scheme()
+        view = w.view()
+        w.resize(300, 300)
+        actions = w.toolbarActions()
+        action = action_by_name(actions, "new-text-action")
+        action.trigger()
+        self.assertTrue(action.isChecked())
+        # cancel immediately after activating
+        QTest.keyClick(view.viewport(), Qt.Key_Escape)
+        self.assertFalse(action.isChecked())
+        action.trigger()
+        # cancel after mouse press and drag
+        QTest.mousePress(view.viewport(), Qt.LeftButton, pos=QPoint(50, 50))
+        mouseMove(view.viewport(), Qt.LeftButton, pos=QPoint(100, 100))
+        QTest.keyClick(view.viewport(), Qt.Key_Escape)
+        self.assertFalse(action.isChecked())
+        w.scene().setFocusItem(None)
+        self.assertEqual(workflow.annotations, [])
 
     def test_path(self):
         w = self.w
