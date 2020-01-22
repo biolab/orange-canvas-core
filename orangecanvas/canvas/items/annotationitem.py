@@ -420,9 +420,8 @@ class TextAnnotation(Annotation):
         if obj is self.__textItem and \
                 not (self.__textItem.hasFocus() and
                      self.__textItem.textInteractionFlags() & Qt.TextEditable) and \
-                event.type() in {QEvent.GraphicsSceneContextMenu} and \
-                event.modifiers() & Qt.AltModifier:
-            # Handle Alt + context menu events here
+                event.type() == QEvent.GraphicsSceneContextMenu:
+            # Handle context menu events here
             self.contextMenuEvent(event)
             event.accept()
             return True
@@ -447,50 +446,47 @@ class TextAnnotation(Annotation):
 
     def contextMenuEvent(self, event):
         # type: (QGraphicsSceneContextMenuEvent) -> None
-        if event.modifiers() & Qt.AltModifier:
-            menu = QMenu(event.widget())
-            menu.setAttribute(Qt.WA_DeleteOnClose)
-            formatmenu = menu.addMenu("Render as")
-            group = QActionGroup(self)
+        menu = QMenu(event.widget())
+        menu.setAttribute(Qt.WA_DeleteOnClose)
+        formatmenu = menu.addMenu("Render as")
+        group = QActionGroup(self)
 
-            def makeaction(text, parent, data=None, **kwargs):
-                # type: (str, QObject, Any, Any) -> QAction
-                action = QAction(text, parent, **kwargs)
-                if data is not None:
-                    action.setData(data)
-                return action
+        def makeaction(text, parent, data=None, **kwargs):
+            # type: (str, QObject, Any, Any) -> QAction
+            action = QAction(text, parent, **kwargs)
+            if data is not None:
+                action.setData(data)
+            return action
 
-            formatactions = [
-                makeaction("Plain Text", group, checkable=True,
-                           toolTip=self.tr("Render contents as plain text"),
-                           data="text/plain"),
-                makeaction("HTML", group, checkable=True,
-                           toolTip=self.tr("Render contents as HTML"),
-                           data="text/html"),
-                makeaction("RST", group, checkable=True,
-                           toolTip=self.tr("Render contents as RST "
-                                           "(reStructuredText)"),
-                           data="text/rst"),
-                makeaction("Markdown", group, checkable=True,
-                           toolTip=self.tr("Render contents as Markdown"),
-                           data="text/markdown")
-            ]
-            for action in formatactions:
-                action.setChecked(action.data() == self.__contentType.lower())
-                formatmenu.addAction(action)
+        formatactions = [
+            makeaction("Plain Text", group, checkable=True,
+                       toolTip=self.tr("Render contents as plain text"),
+                       data="text/plain"),
+            makeaction("HTML", group, checkable=True,
+                       toolTip=self.tr("Render contents as HTML"),
+                       data="text/html"),
+            makeaction("RST", group, checkable=True,
+                       toolTip=self.tr("Render contents as RST "
+                                       "(reStructuredText)"),
+                       data="text/rst"),
+            makeaction("Markdown", group, checkable=True,
+                       toolTip=self.tr("Render contents as Markdown"),
+                       data="text/markdown")
+        ]
+        for action in formatactions:
+            action.setChecked(action.data() == self.__contentType.lower())
+            formatmenu.addAction(action)
 
-            def ontriggered(action):
-                # type: (QAction) -> None
-                mimetype = action.data()
-                content = self.content()
-                self.setContent(content, mimetype)
-                self.editingFinished.emit()
+        def ontriggered(action):
+            # type: (QAction) -> None
+            mimetype = action.data()
+            content = self.content()
+            self.setContent(content, mimetype)
+            self.editingFinished.emit()
 
-            menu.triggered.connect(ontriggered)
-            menu.popup(event.screenPos())
-            event.accept()
-        else:
-            event.ignore()
+        menu.triggered.connect(ontriggered)
+        menu.popup(event.screenPos())
+        event.accept()
 
 
 class ArrowItem(GraphicsPathObject):
