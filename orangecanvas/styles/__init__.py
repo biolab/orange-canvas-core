@@ -87,7 +87,48 @@ def zion_reversed() -> QPalette:
     return palette
 
 
+def dark():
+    text = Qt.white
+    base = QColor(0x20, 0x20, 0x20)
+    window = QColor(0x30, 0x30, 0x30)
+    textdisabled = QColor(0x9B, 0x9B, 0x9B)
+    highlight = QColor(0x2E, 0x93, 0xFF)
+    highlight_disabled = window
+    link = QColor(0x2E, 0x93, 0xFF)
+
+    light = QColor(174, 174, 174)
+    mid = QColor(89, 89, 89)
+    dark = QColor(118, 118, 118)
+    shadow = QColor(141, 141, 141)
+    palette = QPalette()
+    palette.setColor(QPalette.Window, window)
+    palette.setColor(QPalette.WindowText, text)
+    palette.setColor(QPalette.Disabled, QPalette.WindowText, textdisabled)
+    palette.setColor(QPalette.Base, base)
+    palette.setColor(QPalette.AlternateBase, window)
+    palette.setColor(QPalette.Disabled, QPalette.Base, window)
+    palette.setColor(QPalette.Disabled, QPalette.AlternateBase, window)
+    palette.setColor(QPalette.ToolTipBase, window)
+    palette.setColor(QPalette.ToolTipText, text)
+    palette.setColor(QPalette.Text, text)
+    palette.setColor(QPalette.Disabled, QPalette.Text, textdisabled)
+    palette.setColor(QPalette.Button, window)
+    palette.setColor(QPalette.ButtonText, text)
+    palette.setColor(QPalette.Disabled, QPalette.ButtonText, textdisabled)
+    palette.setColor(QPalette.BrightText, Qt.white)
+    palette.setColor(QPalette.Highlight, highlight)
+    palette.setColor(QPalette.Disabled, QPalette.Highlight, highlight_disabled)
+    palette.setColor(QPalette.HighlightedText, text)
+    palette.setColor(QPalette.Light, light)
+    palette.setColor(QPalette.Mid, mid)
+    palette.setColor(QPalette.Dark, dark)
+    palette.setColor(QPalette.Shadow, shadow)
+    palette.setColor(QPalette.Link, link)
+    return palette
+
+
 colorthemes = {
     "breeze-dark": breeze_dark,
-    "dark": zion_reversed
+    "zion-reversed": zion_reversed,
+    "dark": dark
 }  # type: Mapping[str, Callable[[],QPalette]]
