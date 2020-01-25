@@ -10,6 +10,7 @@ import logging
 import itertools
 import unicodedata
 import copy
+import dictdiffer
 
 from operator import attrgetter
 from urllib.parse import urlencode
@@ -158,7 +159,10 @@ class SchemeEditWidget(QWidget):
         self.__pasteOrigin = QPointF(20, 20)
 
         # scheme node properties when set to a clean state
-        self.__cleanProperties = []
+        self.__cleanProperties = {}
+
+        # list of links when set to a clean state
+        self.__cleanLinks = []
 
         self.__editFinishedMapper = QSignalMapper(self)
         self.__editFinishedMapper.mapped[QObject].connect(
@@ -584,11 +588,14 @@ class SchemeEditWidget(QWidget):
         if not modified:
             if self.__scheme:
                 self.__cleanProperties = node_properties(self.__scheme)
+                self.__cleanLinks = list(self.__scheme.links)
             else:
-                self.__cleanProperties = []
+                self.__cleanProperties = {}
+                self.__cleanLinks = []
             self.__undoStack.setClean()
         else:
-            self.__cleanProperties = []
+            self.__cleanProperties = {}
+            self.__cleanLinks = []
 
     modified = Property(bool, fget=isModified, fset=setModified)
 
@@ -610,6 +617,28 @@ class SchemeEditWidget(QWidget):
                   propertiesChanged)
 
         return self.isModified() or propertiesChanged
+
+    def uncleanProperties(self):
+        """
+        Returns node properties differences since last clean state.
+        """
+        currentProperties = node_properties(self.__scheme)
+
+        # ignore contexts
+        ignore = set((node, "context_settings")
+                     for node in currentProperties.keys())
+
+        return list(dictdiffer.diff(
+            self.__cleanProperties,
+            currentProperties,
+            ignore=ignore
+        ))
+
+    def cleanNodes(self):
+        return list(self.__cleanProperties.keys())
+
+    def cleanLinks(self):
+        return self.__cleanLinks
 
     def setQuickMenuTriggers(self, triggers):
         # type: (int) -> None
@@ -726,6 +755,7 @@ class SchemeEditWidget(QWidget):
                 self.__scheme.title_changed.connect(self.titleChanged)
                 self.titleChanged.emit(scheme.title)
                 self.__cleanProperties = node_properties(scheme)
+                self.__cleanLinks = list(scheme.links)
                 sm = scheme.findChild(signalmanager.SignalManager)
                 if sm:
                     sm.stateChanged.connect(self.__signalManagerStateChanged)
@@ -737,7 +767,8 @@ class SchemeEditWidget(QWidget):
                 self.__scheme.link_removed.connect(self.__statistics.log_link_remove)
                 self.__statistics.log_scheme(self.__scheme)
             else:
-                self.__cleanProperties = []
+                self.__cleanProperties = {}
+                self.__cleanLinks = []
 
             self.__teardownScene(self.__scene)
             self.__scene.deleteLater()
@@ -2339,9 +2370,11 @@ def is_printable(unichar):
 
 
 def node_properties(scheme):
-    # type: (Scheme) -> List[Dict[str, Any]]
+    # type: (Scheme) -> Dict[str, Dict[str, Any]]
     scheme.sync_node_properties()
-    return [dict(node.properties) for node in scheme.nodes]
+    return {
+        node: dict(node.properties) for node in scheme.nodes
+    }
 
 
 def can_insert_node(new_node_desc, original_link):
