@@ -36,6 +36,7 @@ from AnyQt.QtCore import (
     QMimeData, Slot)
 from AnyQt.QtCore import pyqtProperty as Property, pyqtSignal as Signal
 
+from orangecanvas.document.commands import UndoCommand
 from ..registry import WidgetDescription, WidgetRegistry
 from .suggestions import Suggestions
 from .usagestatistics import UsageStatistics
@@ -2007,7 +2008,7 @@ class SchemeEditWidget(QWidget):
         if commandname is None:
             commandname = self.tr("Paste")
         # create nodes, links
-        command = QUndoCommand(commandname)
+        command = UndoCommand(commandname)
         macrocommands = []
         for nodedup in nodedups:
             macrocommands.append(

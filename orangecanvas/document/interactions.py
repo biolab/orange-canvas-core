@@ -31,6 +31,7 @@ from AnyQt.QtCore import (
 )
 from AnyQt.QtCore import pyqtSignal as Signal
 
+from orangecanvas.document.commands import UndoCommand
 from .usagestatistics import UsageStatistics
 from ..registry.description import WidgetDescription, OutputSignal, InputSignal
 from ..registry.qt import QtWidgetRegistry
@@ -281,8 +282,8 @@ class NewLinkAction(UserInteraction):
         self.tmp_anchor_point = None     # type: Optional[items.AnchorPoint]
         # An `AnchorPoint` following the mouse cursor
         self.cursor_anchor_point = None  # type: Optional[items.AnchorPoint]
-        # An QUndoCommand
-        self.macro = None  # type: Optional[QUndoCommand]
+        # An UndoCommand
+        self.macro = None  # type: Optional[UndoCommand]
 
         self.cancelOnEsc = True
 
@@ -460,7 +461,7 @@ class NewLinkAction(UserInteraction):
             node = None  # type: Optional[Node]
             stack = self.document.undoStack()
 
-            self.macro = QUndoCommand(self.tr("Add link"))
+            self.macro = UndoCommand(self.tr("Add link"))
 
             if item:
                 # If the release was over a node item then connect them
