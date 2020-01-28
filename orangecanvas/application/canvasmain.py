@@ -31,8 +31,7 @@ from AnyQt.QtGui import (
 )
 from AnyQt.QtCore import (
     Qt, QObject, QEvent, QSize, QUrl, QFile, QByteArray, QFileInfo,
-    QSettings, QStandardPaths, QAbstractItemModel, QT_VERSION
-)
+    QSettings, QStandardPaths, QAbstractItemModel, QT_VERSION)
 
 try:
     from AnyQt.QtWebEngineWidgets import QWebEngineView
@@ -48,8 +47,6 @@ except ImportError:
 from AnyQt.QtCore import (
     pyqtProperty as Property, pyqtSignal as Signal
 )
-
-from orangecanvas.utils.overlay import NotificationOverlay
 
 from ..scheme import Scheme, IncompatibleChannelTypeError
 from ..scheme import readwrite
@@ -71,11 +68,13 @@ from .outputview import OutputView, TextStream
 from .settings import UserSettingsDialog, category_state
 from ..document.schemeedit import SchemeEditWidget
 from ..document.quickmenu import QuickMenu
+from ..document.commands import UndoCommand
 from ..gui.itemmodels import FilterProxyModel
 from ..registry import WidgetRegistry, WidgetDescription, CategoryDescription
 from ..registry.qt import QtWidgetRegistry
 from ..utils.settings import QSettings_readArray, QSettings_writeArray
 from ..utils.qinvoke import qinvoke
+from ..utils.pickle import Pickler, Unpickler, glob_scratch_swps, swp_name
 from ..utils import unique, group_by_all
 
 from . import welcomedialog
@@ -220,6 +219,9 @@ class CanvasMainWindow(QMainWindow):
 
         self.scheme_widget = SchemeEditWidget()
         self.scheme_widget.setScheme(config.workflow_constructor(parent=self))
+
+        # Save crash recovery swap file on changes to workflow
+        self.scheme_widget.undoCommandAdded.connect(self.save_swp)
 
         dropfilter = UrlDropEventFilter(self)
         dropfilter.urlDropped.connect(self.open_scheme_file)
@@ -1556,6 +1558,39 @@ class CanvasMainWindow(QMainWindow):
                 parent=self
             )
             return False
+
+    def save_swp(self):
+        """
+        Save a difference of node properties and the undostack to
+        '.<workflow-filename>.swp.p' in the same directory.
+
+        If the workflow has not yet been saved, save to
+        'scratch.ows.p' in configdir/scratch-crashes.
+        """
+        document = self.current_document()
+        undoStack = document.undoStack()
+
+        if not document.isModifiedStrict() and undoStack.isClean():
+            return
+
+        swpname = swp_name(self)
+        self.save_swp_to(swpname)
+
+    def save_swp_to(self, filename):
+        """
+        Save a tuple of properties diff and undostack diff to a file.
+        """
+        document = self.current_document()
+        undoStack = document.undoStack()
+
+        propertiesDiff = document.uncleanProperties()
+        undoDiff = [UndoCommand.from_QUndoCommand(undoStack.command(i))
+                    for i in
+                    range(undoStack.cleanIndex(), undoStack.count())]
+        diff = (propertiesDiff, undoDiff)
+
+        with open(filename, "wb") as f:
+            Pickler(f, document).dump(diff)
 
     def recent_scheme(self):
         # type: () -> int

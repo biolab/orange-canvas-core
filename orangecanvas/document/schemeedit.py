@@ -73,25 +73,40 @@ class NoWorkflowError(RuntimeError):
 
 
 class UndoStack(QUndoStack):
+
+    indexIncremented = Signal()
+
     def __init__(self, parent, statistics: UsageStatistics):
         QUndoStack.__init__(self, parent)
-        self._statistics = statistics
+        self.__statistics = statistics
+        self.__previousIndex = self.index()
+        self.__currentIndex = self.index()
+
+        self.indexChanged.connect(self.__refreshIndex)
+
+    @Slot(int)
+    def __refreshIndex(self, newIndex):
+        self.__previousIndex = self.__currentIndex
+        self.__currentIndex = newIndex
+
+        if self.__previousIndex < newIndex:
+            self.indexIncremented.emit()
 
     @Slot()
     def undo(self):
-        self._statistics.begin_action(UsageStatistics.Undo)
+        self.__statistics.begin_action(UsageStatistics.Undo)
         super().undo()
-        self._statistics.end_action()
+        self.__statistics.end_action()
 
     @Slot()
     def redo(self):
-        self._statistics.begin_action(UsageStatistics.Redo)
+        self.__statistics.begin_action(UsageStatistics.Redo)
         super().redo()
-        self._statistics.end_action()
+        self.__statistics.end_action()
 
     def push(self, macro):
         super().push(macro)
-        self._statistics.end_action()
+        self.__statistics.end_action()
 
 
 class SchemeEditWidget(QWidget):
@@ -154,6 +169,7 @@ class SchemeEditWidget(QWidget):
 
         self.__undoStack = UndoStack(self, self.__statistics)
         self.__undoStack.cleanChanged[bool].connect(self.__onCleanChanged)
+        self.__undoStack.indexIncremented.connect(self.undoCommandAdded)
 
         # Preferred position for paste command. Updated on every mouse button
         # press and copy operation.
@@ -621,17 +637,21 @@ class SchemeEditWidget(QWidget):
 
     def uncleanProperties(self):
         """
-        Returns node properties differences since last clean state.
+        Returns node properties differences since last clean state,
+        excluding unclean nodes.
         """
         currentProperties = node_properties(self.__scheme)
+        currentCleanNodeProperties = {k: v
+                                      for k, v in currentProperties.items()
+                                      if k in self.cleanNodes()}
 
         # ignore contexts
         ignore = set((node, "context_settings")
-                     for node in currentProperties.keys())
+                     for node in currentCleanNodeProperties.keys())
 
         return list(dictdiffer.diff(
             self.__cleanProperties,
-            currentProperties,
+            currentCleanNodeProperties,
             ignore=ignore
         ))
 
