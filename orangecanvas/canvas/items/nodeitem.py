@@ -16,14 +16,17 @@ from typing import Dict, Any, Optional, List, Iterable, Tuple
 from AnyQt.QtWidgets import (
     QGraphicsItem, QGraphicsObject, QGraphicsTextItem, QGraphicsWidget,
     QGraphicsDropShadowEffect, QStyle, QApplication, QGraphicsSceneMouseEvent,
-    QGraphicsSceneContextMenuEvent, QStyleOptionGraphicsItem, QWidget, QGraphicsEllipseItem)
+    QGraphicsSceneContextMenuEvent, QStyleOptionGraphicsItem, QWidget,
+    QGraphicsEllipseItem
+)
 from AnyQt.QtGui import (
     QPen, QBrush, QColor, QPalette, QIcon, QPainter, QPainterPath,
-    QPainterPathStroker, QTextDocument, QTextBlock, QTextLine
+    QPainterPathStroker, QTextDocument, QTextBlock, QTextLine,
+    QConicalGradient
 )
 from AnyQt.QtCore import (
     Qt, QEvent, QPointF, QRectF, QRect, QSize, QTime, QTimer,
-    QPropertyAnimation, QEasingCurve, QObject
+    QPropertyAnimation, QEasingCurve, QObject, QVariantAnimation
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
@@ -95,11 +98,12 @@ class NodeBodyItem(GraphicsPathObject):
 
         self.__processingState = 0
         self.__progress = -1.
+        self.__spinnerValue = 0
         self.__animationEnabled = False
         self.__isSelected = False
         self.__hover = False
         self.__shapeRect = QRectF(-10, -10, 20, 20)
-
+        self.palette = QPalette()
         self.setAcceptHoverEvents(True)
 
         self.setFlag(QGraphicsItem.ItemSendsScenePositionChanges, True)
@@ -126,14 +130,24 @@ class NodeBodyItem(GraphicsPathObject):
         shadowitem.setGraphicsEffect(self.shadow)
         shadowitem.setFlag(QGraphicsItem.ItemStacksBehindParent)
         self.__shadow = shadowitem
-        self.__blurAnimation = QPropertyAnimation(self.shadow, b"blurRadius",
-                                                  self)
-        self.__blurAnimation.setDuration(100)
+        self.__blurAnimation = QPropertyAnimation(
+            self.shadow, b"blurRadius", self, duration=100
+        )
         self.__blurAnimation.finished.connect(self.__on_finished)
 
-        self.__pingAnimation = QPropertyAnimation(self, b"scale", self)
-        self.__pingAnimation.setDuration(250)
+        self.__pingAnimation = QPropertyAnimation(
+            self, b"scale", self, duration=250
+        )
         self.__pingAnimation.setKeyValues([(0.0, 1.0), (0.5, 1.1), (1.0, 1.0)])
+
+        self.__spinnerAnimation = QVariantAnimation(
+            self, startValue=0, endValue=360, duration=2000, loopCount=-1,
+        )
+        self.__spinnerAnimation.valueChanged.connect(self.update)
+        self.__spinnerStartTimer = QTimer(
+            self, interval=3000, singleShot=True,
+            timeout=self.__progressTimeout
+        )
 
     # TODO: The body item should allow the setting of arbitrary painter
     # paths (for instance rounded rect, ...)
@@ -172,18 +186,26 @@ class NodeBodyItem(GraphicsPathObject):
         """
         if self.__processingState != state:
             self.__processingState = state
+            self.stopSpinner()
             if not state and self.__animationEnabled:
                 self.ping()
+            if state:
+                self.__spinnerStartTimer.start()
+            else:
+                self.__spinnerStartTimer.stop()
 
     def setProgress(self, progress):
         # type: (float) -> None
         """
         Set the progress indicator state of the node. `progress` should
         be a number between 0 and 100.
-
         """
-        self.__progress = progress
-        self.update()
+        if self.__progress != progress:
+            self.__progress = progress
+            if self.__progress >= 0:
+                self.stopSpinner()
+            self.update()
+            self.__spinnerStartTimer.start()
 
     def ping(self):
         # type: () -> None
@@ -191,6 +213,20 @@ class NodeBodyItem(GraphicsPathObject):
         Trigger a 'ping' animation.
         """
         animation_restart(self.__pingAnimation)
+
+    def startSpinner(self):
+        self.__spinnerAnimation.start()
+        self.__spinnerStartTimer.stop()
+        self.update()
+
+    def stopSpinner(self):
+        self.__spinnerAnimation.stop()
+        self.__spinnerStartTimer.stop()
+        self.update()
+
+    def __progressTimeout(self):
+        if self.__processingState:
+            self.startSpinner()
 
     def hoverEnterEvent(self, event):
         self.__hover = True
@@ -212,17 +248,24 @@ class NodeBodyItem(GraphicsPathObject):
             # Prevent the default bounding rect selection indicator.
             option.state = QStyle.State(option.state ^ QStyle.State_Selected)
         super().paint(painter, option, widget)
-        if self.__progress >= 0:
+        if self.__progress >= 0 or self.__processingState \
+                or self.__spinnerAnimation.state() == QVariantAnimation.Running:
             # Draw the progress meter over the shape.
             # Set the clip to shape so the meter does not overflow the shape.
+            rect = self.__shapeRect
             painter.save()
             painter.setClipPath(self.shape(), Qt.ReplaceClip)
             color = self.palette.color(QPalette.ButtonText)
             pen = QPen(color, 5)
             painter.setPen(pen)
-            painter.setRenderHints(QPainter.Antialiasing)
-            span = max(1, int(self.__progress * 57.60))
-            painter.drawArc(self.__shapeRect, 90 * 16, -span)
+            spinner = self.__spinnerAnimation
+            indeterminate = spinner.state() != QVariantAnimation.Stopped
+            if indeterminate:
+                draw_spinner(painter, rect, 5, color,
+                             self.__spinnerAnimation.currentValue())
+            else:
+                span = max(1, int(360 * self.__progress / 100))
+                draw_progress(painter, rect, 5, color, span)
             painter.restore()
 
     def __updateShadowState(self):
@@ -326,6 +369,34 @@ class LinkAnchorIndicator(QGraphicsEllipseItem):
         painter.setBrush(brush)
         painter.setPen(self.pen())
         painter.drawEllipse(self.rect())
+
+
+def draw_spinner(painter, rect, penwidth, color, angle):
+    # type: (QPainter, QRectF, int, QColor, int) -> None
+    gradient = QConicalGradient()
+    color2 = QColor(color)
+    color2.setAlpha(0)
+
+    stops = [
+        (0.0, color),
+        (1.0, color2),
+    ]
+    gradient.setStops(stops)
+    gradient.setCoordinateMode(QConicalGradient.ObjectBoundingMode)
+    gradient.setCenter(0.5, 0.5)
+    gradient.setAngle(-angle)
+    pen = QPen()
+    pen.setCapStyle(Qt.RoundCap)
+    pen.setWidthF(penwidth)
+    pen.setBrush(gradient)
+    painter.setPen(pen)
+    painter.drawEllipse(rect)
+
+
+def draw_progress(painter, rect, penwidth, color, angle):
+    # type: (QPainter, QRectF, int, QColor, int) -> None
+    painter.setPen(QPen(color, penwidth))
+    painter.drawArc(rect, 90 * 16, -angle * 16)
 
 
 class AnchorPoint(QGraphicsObject):
