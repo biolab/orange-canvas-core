@@ -368,3 +368,13 @@ class SchemeNode(QObject):
 
     def __repr__(self):
         return str(self)
+
+    def __getstate__(self):
+        return self.description, \
+               self.__title, \
+               self.__position, \
+               self.properties, \
+               self.parent()
+
+    def __setstate__(self, state):
+        self.__init__(*state)
