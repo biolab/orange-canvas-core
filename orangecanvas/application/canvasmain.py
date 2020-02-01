@@ -74,7 +74,7 @@ from ..registry import WidgetRegistry, WidgetDescription, CategoryDescription
 from ..registry.qt import QtWidgetRegistry
 from ..utils.settings import QSettings_readArray, QSettings_writeArray
 from ..utils.qinvoke import qinvoke
-from ..utils.pickle import Pickler, Unpickler, glob_scratch_swps, swp_name
+from ..utils.pickle import Pickler, Unpickler, glob_scratch_swps, swp_name, canvas_scratch_name_memo
 from ..utils import unique, group_by_all
 
 from . import welcomedialog
@@ -1072,6 +1072,8 @@ class CanvasMainWindow(QMainWindow):
             window.freeze_action.setChecked(True)
         window.load_scheme(filename)
 
+        self.load_swp()
+
     def open_example_scheme(self, path):  # type: (str) -> None
         # open an workflow without filename/directory tracking.
         if self.is_transient():
@@ -1591,6 +1593,70 @@ class CanvasMainWindow(QMainWindow):
 
         with open(filename, "wb") as f:
             Pickler(f, document).dump(diff)
+
+    def load_swp(self):
+        """
+        Load and restore the undostack and widget properties from
+        '.<workflow-filename>.swp.p' in the same directory, or
+        'scratch.ows.p' in the config directory if it's a scratch workflow.
+        """
+        document = self.scheme_widget
+        undoStack = document.undoStack()
+
+        def unpickle_to_canvas(filename, canvas):
+            document = canvas.current_document()
+            undoStack = document.undoStack()
+
+            with open(filename, "rb") as f:
+                loaded = Unpickler(f, document.scheme()).load()
+            os.remove(filename)
+
+            undoStack.indexChanged.disconnect(canvas.save_swp)
+            canvas.load_diff(loaded)
+            undoStack.indexChanged.connect(canvas.save_swp)
+
+        if document.path():
+            # load hidden file in same directory
+            swpname = swp_name(self)
+            if not os.path.exists(swpname):
+                return
+
+            unpickle_to_canvas(swpname, self)
+        else:
+            # load scratch files in config directory
+            swpnames = [name for name in glob_scratch_swps()
+                        if name not in canvas_scratch_name_memo.values()]
+            if not swpnames:
+                return
+
+            unpickle_to_canvas(swpnames[0], self)
+
+            for swpname in swpnames[1:]:
+                w = self.create_new_window()
+
+                unpickle_to_canvas(swpname, w)
+
+                w.raise_()
+                w.show()
+                w.activateWindow()
+
+    def load_diff(self, properties_and_commands):
+        """
+        Load a diff of node properties and UndoCommands
+
+        Parameters
+        ---------
+        properties_and_commands : ({SchemeNode : {}}, [UndoCommand])
+        """
+        document = self.scheme_widget
+        undoStack = document.undoStack()
+
+        commands = properties_and_commands[1]
+        for c in commands:
+            undoStack.push(c)
+
+        properties = properties_and_commands[0]
+        document.restoreProperties(properties)
 
     def recent_scheme(self):
         # type: () -> int

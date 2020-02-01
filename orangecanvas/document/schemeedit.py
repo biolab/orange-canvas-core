@@ -655,6 +655,9 @@ class SchemeEditWidget(QWidget):
             ignore=ignore
         ))
 
+    def restoreProperties(self, dict_diff):
+        dictdiffer.patch(dict_diff, node_properties(self.__scheme), in_place=True)
+
     def cleanNodes(self):
         return list(self.__cleanProperties.keys())
 
