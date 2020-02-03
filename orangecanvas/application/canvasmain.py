@@ -1042,7 +1042,7 @@ class CanvasMainWindow(QMainWindow):
         Create and show a new CanvasMainWindow instance.
         """
         newwindow = self.create_new_window()
-        newwindow.load_swp()
+        newwindow.ask_load_swp_if_exists()
 
         newwindow.raise_()
         newwindow.show()
@@ -1074,7 +1074,7 @@ class CanvasMainWindow(QMainWindow):
             window.freeze_action.setChecked(True)
         window.load_scheme(filename)
 
-        self.load_swp()
+        self.ask_load_swp_if_exists()
 
     def open_example_scheme(self, path):  # type: (str) -> None
         # open an workflow without filename/directory tracking.
@@ -1596,26 +1596,74 @@ class CanvasMainWindow(QMainWindow):
         with open(filename, "wb") as f:
             Pickler(f, document).dump(diff)
 
+    def clear_swp(self):
+        """
+        Delete the document's swp file, should it exist.
+        """
+        document = self.current_document()
+        path = document.path()
+
+        if path or self in canvas_scratch_name_memo:
+            swpname = swp_name(self)
+            if os.path.exists(swpname):
+                os.remove(swpname)
+        else:
+            swpnames = glob_scratch_swps()
+            for swpname in swpnames:
+                os.remove(swpname)
+
+    def ask_load_swp_if_exists(self):
+        """
+        Should a swp file for this canvas exist,
+        ask the user if they wish to restore changes,
+        loading on yes, discarding on no.
+        """
+        document = self.current_document()
+        path = document.path()
+
+        if path:
+            swpname = swp_name(self)
+            if not os.path.exists(swpname):
+                return
+        else:
+            swpnames = glob_scratch_swps()
+            if not swpnames:
+                return
+
+        self.ask_load_swp()
+
+    def ask_load_swp(self):
+        """
+        Ask to restore changes, loading swp file on yes,
+        clearing swp file on no.
+        """
+        title = self.tr('Restore unsaved changes from crash?')
+
+        selected = message_information(
+            title,
+            self.tr("Restore Changes?"),
+            self.tr("Orange seems to have crashed at some point.\n"
+                    "Changes will be discarded if not restored now."),
+            buttons=QMessageBox.Yes | QMessageBox.No,
+            default_button=QMessageBox.Yes,
+            parent=self)
+
+        if selected == QMessageBox.Yes:
+            self.load_swp()
+        elif selected == QMessageBox.No:
+            self.clear_swp()
+        else:
+            assert False
+
     def load_swp(self):
         """
         Load and restore the undostack and widget properties from
         '.<workflow-filename>.swp.p' in the same directory, or
-        'scratch.ows.p' in the config directory if it's a scratch workflow.
+        'scratch.ows.p' in configdir/scratch-crashes
+        if the workflow has not yet been saved.
         """
         document = self.scheme_widget
         undoStack = document.undoStack()
-
-        def unpickle_to_canvas(filename, canvas):
-            document = canvas.current_document()
-            undoStack = document.undoStack()
-
-            with open(filename, "rb") as f:
-                loaded = Unpickler(f, document.scheme()).load()
-            os.remove(filename)
-
-            undoStack.indexChanged.disconnect(canvas.save_swp)
-            canvas.load_diff(loaded)
-            undoStack.indexChanged.connect(canvas.save_swp)
 
         if document.path():
             # load hidden file in same directory
@@ -1623,7 +1671,7 @@ class CanvasMainWindow(QMainWindow):
             if not os.path.exists(swpname):
                 return
 
-            unpickle_to_canvas(swpname, self)
+            self.load_swp_from(swpname)
         else:
             # load scratch files in config directory
             swpnames = [name for name in glob_scratch_swps()
@@ -1631,16 +1679,40 @@ class CanvasMainWindow(QMainWindow):
             if not swpnames:
                 return
 
-            unpickle_to_canvas(swpnames[0], self)
+            self.load_swp_from(swpnames[0])
 
             for swpname in swpnames[1:]:
                 w = self.create_new_window()
 
-                unpickle_to_canvas(swpname, w)
+                w.load_swp_from(swpname)
 
                 w.raise_()
                 w.show()
                 w.activateWindow()
+
+    def load_swp_from(self, filename):
+        """
+        Load a diff of node properties and UndoCommands from a file
+        """
+        document = self.current_document()
+        undoStack = document.undoStack()
+
+        with open(filename, "rb") as f:
+            # type: ({SchemeNode : {}}, [UndoCommand])
+            loaded = Unpickler(f, document.scheme()).load()
+
+        os.remove(filename)
+
+        document.undoCommandAdded.disconnect(self.save_swp)
+
+        commands = loaded[1]
+        for c in commands:
+            undoStack.push(c)
+
+        properties = loaded[0]
+        document.restoreProperties(properties)
+
+        document.undoCommandAdded.connect(self.save_swp)
 
     def load_diff(self, properties_and_commands):
         """
