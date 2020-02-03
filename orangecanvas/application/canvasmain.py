@@ -1477,6 +1477,7 @@ class CanvasMainWindow(QMainWindow):
         if filename:
             settings.setValue("last-scheme-dir", os.path.dirname(filename))
             if self.save_scheme_to(curr_scheme, filename):
+                self.clear_swp()
                 document.setPath(filename)
                 document.setModified(False)
                 self.add_recent_scheme(curr_scheme.title, document.path())
@@ -2180,6 +2181,8 @@ class CanvasMainWindow(QMainWindow):
                 # Reject the event
                 event.ignore()
                 return
+
+        self.clear_swp()
 
         old_scheme = document.scheme()
 
