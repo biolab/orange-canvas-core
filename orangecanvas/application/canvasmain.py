@@ -1042,6 +1042,8 @@ class CanvasMainWindow(QMainWindow):
         Create and show a new CanvasMainWindow instance.
         """
         newwindow = self.create_new_window()
+        newwindow.load_swp()
+
         newwindow.raise_()
         newwindow.show()
         newwindow.activateWindow()
