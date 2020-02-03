@@ -5,6 +5,7 @@ User settings/preference dialog
 """
 import sys
 import logging
+from functools import cmp_to_key
 from collections import namedtuple
 
 from .. import config
@@ -561,6 +562,11 @@ class StyleConfigWidget(QWidget):
         self._current_palette = ""
         form = QFormLayout()
         styles = QStyleFactory.keys()
+        styles = sorted(styles, key=cmp_to_key(
+            lambda a, b:
+                1 if a.lower() == "windows" and b.lower() == "fusion" else
+                (-1 if a.lower() == "fusion" and b.lower() == "windows" else 0)
+        ))
         styles = [
             (self.DisplayNames.get(st.lower(), st.capitalize()), st)
             for st in styles]
