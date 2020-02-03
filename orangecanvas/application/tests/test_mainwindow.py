@@ -6,6 +6,7 @@ from AnyQt.QtWidgets import QToolButton, QDialog, QMessageBox
 
 from .. import addons
 from ...utils.shtools import temp_named_file
+from ...utils.pickle import swp_name
 from ...gui.test import QAppTestCase
 from ..canvasmain import CanvasMainWindow
 from ..widgettoolbox import WidgetToolBox
@@ -137,6 +138,48 @@ class TestMainWindowLoad(TestMainWindowBase):
                    return_value=(self.filename, "")) as f:
             w.save_scheme()
             self.assertEqual(w.current_document().path(), self.filename)
+
+    def test_save_swp(self):
+        w = self.w
+        swpname = swp_name(w)
+
+        with patch.object(w, "save_swp_to") as f:
+            w.save_swp()
+            f.assert_not_called()
+
+        desc = self.registry.widgets()[0]
+        w.current_document().createNewNode(desc)
+
+        w = self.w
+        with patch.object(w, "save_swp_to") as f:
+            w.save_swp()
+            f.assert_called_with(swpname)
+
+        w.clear_swp()
+
+    def test_load_swp(self):
+        w = self.w
+        swpname = swp_name(w)
+
+        w2 = MainWindow()
+        w2.set_widget_registry(self.registry)
+
+        with patch.object(w2, "load_swp_from") as f:
+            w2.load_swp()
+            f.assert_not_called()
+
+        desc = self.registry.widgets()[0]
+        w.current_document().createNewNode(desc)
+
+        from orangecanvas.utils.pickle import canvas_scratch_name_memo as memo
+        memo.clear()
+
+        with patch.object(w2, "load_swp_from") as f:
+            w2.load_swp()
+            f.assert_called_with(swpname)
+
+        w2.clear_swp()
+        del w2
 
     def test_open_ows_req(self):
         w = self.w
