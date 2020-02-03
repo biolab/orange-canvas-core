@@ -29,6 +29,7 @@ class TestMainWindowBase(QAppTestCase):
         self.w.set_widget_registry(self.registry)
 
     def tearDown(self):
+        self.w.clear_swp()
         self.w.deleteLater()
         for w in MainWindow._instances:
             w.deleteLater()
