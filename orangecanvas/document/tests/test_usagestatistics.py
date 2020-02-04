@@ -5,7 +5,7 @@ from orangecanvas.application.widgettoolbox import WidgetToolBox
 from orangecanvas.document.usagestatistics import UsageStatistics, EventType
 
 
-class TestLinksEditDialog(TestMainWindowBase):
+class TestUsageStatistics(TestMainWindowBase):
     def setUp(self):
         super().setUp()
         self.stats = self.w.current_document().usageStatistics()
