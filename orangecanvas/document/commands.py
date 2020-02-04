@@ -93,22 +93,11 @@ class InsertNodeCommand(QUndoCommand):
             parent=None # type: Optional[QUndoCommand]
     ):  # type: (...) -> None
         super().__init__("Insert widget into link", parent)
-        self.scheme = scheme
-        self.inserted_widget = new_node
-        self.original_link = old_link
-        self.new_links = new_links
 
-    def redo(self):
-        self.scheme.add_node(self.inserted_widget)
-        self.scheme.remove_link(self.original_link)
-        self.scheme.add_link(self.new_links[0])
-        self.scheme.add_link(self.new_links[1])
-
-    def undo(self):
-        self.scheme.remove_link(self.new_links[0])
-        self.scheme.remove_link(self.new_links[1])
-        self.scheme.add_link(self.original_link)
-        self.scheme.remove_node(self.inserted_widget)
+        AddNodeCommand(scheme, new_node, parent=self)
+        RemoveLinkCommand(scheme, old_link, parent=self)
+        for link in new_links:
+            AddLinkCommand(scheme, link, parent=self)
 
 
 class AddAnnotationCommand(QUndoCommand):
