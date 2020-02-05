@@ -582,6 +582,7 @@ class StyleConfigWidget(QWidget):
 
         self.colors_cb = colors_cb = QComboBox(objectName="palette-cb")
         colors_cb.addItem("Default", userData="")
+        colors_cb.addItem("Breeze Light", userData="breeze-light")
         colors_cb.addItem("Breeze Dark", userData="breeze-dark")
         colors_cb.addItem("Zion Reversed", userData="zion-reversed")
         colors_cb.addItem("Dark", userData="dark")
