@@ -8,13 +8,6 @@ import logging
 from functools import cmp_to_key
 from collections import namedtuple
 
-from .. import config
-from ..utils.settings import SettingChangedEvent
-
-from ..utils.propertybindings import (
-    AbstractBoundProperty, PropertyBinding, BindingManager
-)
-
 from AnyQt.QtWidgets import (
     QWidget, QMainWindow, QComboBox, QCheckBox, QListView, QTabWidget,
     QToolBar, QAction, QStackedWidget, QVBoxLayout, QHBoxLayout,
@@ -26,6 +19,12 @@ from AnyQt.QtCore import (
     Qt, QEventLoop, QAbstractItemModel, QModelIndex, QSettings,
     Property,
     Signal)
+
+from .. import config
+from ..utils.settings import SettingChangedEvent
+from ..utils.propertybindings import (
+    AbstractBoundProperty, PropertyBinding, BindingManager
+)
 
 log = logging.getLogger(__name__)
 
@@ -569,10 +568,12 @@ class StyleConfigWidget(QWidget):
         ))
         styles = [
             (self.DisplayNames.get(st.lower(), st.capitalize()), st)
-            for st in styles]
-        # First style is assumed default. We unset its userData key so it
-        # is cleared in persistent settings, allowing default style resolution
-        # on application start.
+            for st in styles
+        ]
+        # Default style with empty userData key so it cleared in
+        # persistent settings, allowing for default style resolution
+        # on application star.
+        styles = [("Default", "")] + styles
         self.style_cb = style_cb = QComboBox(objectName="style-cb")
         for name, key in styles:
             self.style_cb.addItem(name, userData=key)
@@ -622,9 +623,12 @@ class StyleConfigWidget(QWidget):
                 cb.setCurrentIndex(index)
 
     def selectedStyle(self) -> str:
-        return self.style_cb.currentData()
+        """Return the current selected style key."""
+        key = self.style_cb.currentData()
+        return key if key is not None else ""
 
-    def setSelectedStyle(self, style: str):
+    def setSelectedStyle(self, style: str) -> None:
+        """Set the current selected style key."""
         idx = self.style_cb.findData(style, Qt.DisplayRole, Qt.MatchFixedString)
         if idx == -1:
             idx = 0  # select the default style
@@ -637,10 +641,12 @@ class StyleConfigWidget(QWidget):
     )
 
     def selectedPalette(self) -> str:
+        """The current selected palette key."""
         key = self.colors_cb.currentData(Qt.UserRole)
         return key if key is not None else ""
 
-    def setSelectedPalette(self, key: str):
+    def setSelectedPalette(self, key: str) -> None:
+        """Set the current selected palette key."""
         if not self.colors_cb.isEnabled():
             self._current_palette = key
             return
