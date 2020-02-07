@@ -20,7 +20,7 @@ from AnyQt.QtGui import (
 )
 
 from AnyQt.QtCore import (
-    Qt, QCoreApplication, QPoint, QRect, QSettings, QStandardPaths
+    Qt, QCoreApplication, QPoint, QRect, QSettings, QStandardPaths, QEvent
 )
 
 from .utils.settings import Settings, config_slot
@@ -86,6 +86,9 @@ class Config:
         QCoreApplication.setApplicationName(self.ApplicationName)
         QCoreApplication.setApplicationVersion(self.ApplicationVersion)
         QSettings.setDefaultFormat(QSettings.IniFormat)
+        app = QCoreApplication.instance()
+        if app is not None:
+            QCoreApplication.sendEvent(app, QEvent(QEvent.PolishRequest))
 
     def application_icon(self):
         # type: () -> QIcon
