@@ -16,7 +16,6 @@ class TestStackedWidget(test.QAppTestCase):
         window.setLayout(layout)
 
         stack = stackedwidget.AnimatedStackedWidget(animationEnabled=False)
-        stack.transitionFinished.connect(self.app.exit)
 
         layout.addStretch(2)
         layout.addWidget(stack)
@@ -66,14 +65,13 @@ class TestStackedWidget(test.QAppTestCase):
         self.assertSequenceEqual([widget1, widget2, widget3],
                                  widgets())
 
-        stack.transitionFinished.disconnect(self.app.exit)
-
         def toogle():
             idx = stack.currentIndex()
             stack.setCurrentIndex((idx + 1) % stack.count())
 
-        timer = QTimer(stack, interval=1000)
+        timer = QTimer(stack, interval=100)
         timer.timeout.connect(toogle)
         timer.start()
-        self.qWait()
+        self.qWait(200)
         timer.stop()
+        window.deleteLater()
