@@ -13,18 +13,30 @@ from ...registry import tests as registry_tests
 
 
 class MainWindow(CanvasMainWindow):
-    pass
+    _instances = []
+
+    def create_new_window(self):  # type: () -> CanvasMainWindow
+        inst = super().create_new_window()
+        MainWindow._instances.append(inst)
+        return inst
 
 
 class TestMainWindowBase(QAppTestCase):
     def setUp(self):
+        super().setUp()
         self.w = MainWindow()
         self.registry = registry_tests.small_testing_registry()
         self.w.set_widget_registry(self.registry)
 
     def tearDown(self):
+        self.w.deleteLater()
+        for w in MainWindow._instances:
+            w.deleteLater()
+        MainWindow._instances.clear()
         del self.w
         del self.registry
+        self.qWait(1)
+        super().tearDown()
 
 
 class TestMainWindow(TestMainWindowBase):
@@ -39,6 +51,7 @@ class TestMainWindow(TestMainWindowBase):
         new.show()
 
         w.set_scheme_margins_enabled(True)
+        new.deleteLater()
 
     def test_new_window(self):
         w = self.w
@@ -99,6 +112,7 @@ class TestMainWindowLoad(TestMainWindowBase):
     def tearDown(self):
         self.file.close()
         os.remove(self.filename)
+        super().tearDown()
 
     def test_open_example_scheme(self):
         self.file.write(TEST_OWS)
