@@ -75,6 +75,8 @@ class WidgetManager(QObject):
     #: A QWidget was removed, hidden and will be deleted when appropriate.
     widget_for_node_removed = Signal(SchemeNode, QWidget)
 
+    __init_queue = None  # type: Deque[SchemeNode]
+
     class CreationPolicy(enum.Enum):
         """
         Widget Creation Policy.
@@ -102,7 +104,7 @@ class WidgetManager(QObject):
         self.__item_for_node = {}  # type: Dict[SchemeNode, Item]
         self.__item_for_widget = {}  # type: Dict[QWidget, Item]
 
-        self.__init_queue = deque()  # type: Deque[SchemeNode]
+        self.__init_queue = deque()
 
         self.__init_timer = QTimer(self, singleShot=True)
         self.__init_timer.timeout.connect(self.__process_init_queue)
