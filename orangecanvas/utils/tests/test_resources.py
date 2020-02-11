@@ -8,11 +8,9 @@ from orangecanvas.resources import icon_loader
 class TestIconLoader(unittest.TestCase):
     def setUp(self):
         from AnyQt.QtWidgets import QApplication
-        self.app = QApplication([])
-
-    def tearDown(self):
-        self.app.exit()
-        del self.app
+        self.app = QApplication.instance()
+        if self.app is None:
+            self.app = QApplication([])
 
     def test_loader(self):
         loader = icon_loader()
