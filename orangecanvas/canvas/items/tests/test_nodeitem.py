@@ -79,6 +79,8 @@ class TestNodeItem(TestItems):
 
         one_item.setInfoMessage("I am back.")
         nb_item.setProcessingState(1)
+        negate_item.setProcessingState(1)
+        negate_item.shapeItem.startSpinner()
 
         def progress():
             p = (nb_item.progress() + 25) % 100
