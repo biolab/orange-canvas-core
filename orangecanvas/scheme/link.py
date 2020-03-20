@@ -431,3 +431,20 @@ class SchemeLink(QObject):
             self.source_node.title, self.source_channel.name,
             self.sink_node.title, self.sink_channel.name
         )
+
+    def __getstate__(self):
+        return self.source_node, \
+               self.source_channel.name, \
+               self.sink_node, \
+               self.sink_channel.name, \
+               self.__enabled, \
+               self.properties, \
+               self.parent()
+
+    def __setstate__(self, state):
+        mutable_state = list(state)
+        # correct source channel
+        mutable_state[1] = state[0].output_channel(state[1])
+        # correct sink channel
+        mutable_state[3] = state[2].input_channel(state[3])
+        self.__init__(*mutable_state)

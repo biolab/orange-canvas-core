@@ -10,6 +10,7 @@ import logging
 import itertools
 import unicodedata
 import copy
+import dictdiffer
 
 from operator import attrgetter
 from urllib.parse import urlencode
@@ -35,6 +36,7 @@ from AnyQt.QtCore import (
     QMimeData, Slot)
 from AnyQt.QtCore import pyqtProperty as Property, pyqtSignal as Signal
 
+from orangecanvas.document.commands import UndoCommand
 from ..registry import WidgetDescription, WidgetRegistry
 from .suggestions import Suggestions
 from .usagestatistics import UsageStatistics
@@ -71,25 +73,40 @@ class NoWorkflowError(RuntimeError):
 
 
 class UndoStack(QUndoStack):
+
+    indexIncremented = Signal()
+
     def __init__(self, parent, statistics: UsageStatistics):
         QUndoStack.__init__(self, parent)
-        self._statistics = statistics
+        self.__statistics = statistics
+        self.__previousIndex = self.index()
+        self.__currentIndex = self.index()
+
+        self.indexChanged.connect(self.__refreshIndex)
+
+    @Slot(int)
+    def __refreshIndex(self, newIndex):
+        self.__previousIndex = self.__currentIndex
+        self.__currentIndex = newIndex
+
+        if self.__previousIndex < newIndex:
+            self.indexIncremented.emit()
 
     @Slot()
     def undo(self):
-        self._statistics.begin_action(UsageStatistics.Undo)
+        self.__statistics.begin_action(UsageStatistics.Undo)
         super().undo()
-        self._statistics.end_action()
+        self.__statistics.end_action()
 
     @Slot()
     def redo(self):
-        self._statistics.begin_action(UsageStatistics.Redo)
+        self.__statistics.begin_action(UsageStatistics.Redo)
         super().redo()
-        self._statistics.end_action()
+        self.__statistics.end_action()
 
     def push(self, macro):
         super().push(macro)
-        self._statistics.end_action()
+        self.__statistics.end_action()
 
 
 class SchemeEditWidget(QWidget):
@@ -152,13 +169,17 @@ class SchemeEditWidget(QWidget):
 
         self.__undoStack = UndoStack(self, self.__statistics)
         self.__undoStack.cleanChanged[bool].connect(self.__onCleanChanged)
+        self.__undoStack.indexIncremented.connect(self.undoCommandAdded)
 
         # Preferred position for paste command. Updated on every mouse button
         # press and copy operation.
         self.__pasteOrigin = QPointF(20, 20)
 
         # scheme node properties when set to a clean state
-        self.__cleanProperties = []
+        self.__cleanProperties = {}
+
+        # list of links when set to a clean state
+        self.__cleanLinks = []
 
         self.__editFinishedMapper = QSignalMapper(self)
         self.__editFinishedMapper.mapped[QObject].connect(
@@ -584,11 +605,14 @@ class SchemeEditWidget(QWidget):
         if not modified:
             if self.__scheme:
                 self.__cleanProperties = node_properties(self.__scheme)
+                self.__cleanLinks = list(self.__scheme.links)
             else:
-                self.__cleanProperties = []
+                self.__cleanProperties = {}
+                self.__cleanLinks = []
             self.__undoStack.setClean()
         else:
-            self.__cleanProperties = []
+            self.__cleanProperties = {}
+            self.__cleanLinks = []
 
     modified = Property(bool, fget=isModified, fset=setModified)
 
@@ -610,6 +634,35 @@ class SchemeEditWidget(QWidget):
                   propertiesChanged)
 
         return self.isModified() or propertiesChanged
+
+    def uncleanProperties(self):
+        """
+        Returns node properties differences since last clean state,
+        excluding unclean nodes.
+        """
+        currentProperties = node_properties(self.__scheme)
+        currentCleanNodeProperties = {k: v
+                                      for k, v in currentProperties.items()
+                                      if k in self.cleanNodes()}
+
+        # ignore contexts
+        ignore = set((node, "context_settings")
+                     for node in currentCleanNodeProperties.keys())
+
+        return list(dictdiffer.diff(
+            self.__cleanProperties,
+            currentCleanNodeProperties,
+            ignore=ignore
+        ))
+
+    def restoreProperties(self, dict_diff):
+        dictdiffer.patch(dict_diff, node_properties(self.__scheme), in_place=True)
+
+    def cleanNodes(self):
+        return list(self.__cleanProperties.keys())
+
+    def cleanLinks(self):
+        return self.__cleanLinks
 
     def setQuickMenuTriggers(self, triggers):
         # type: (int) -> None
@@ -726,6 +779,7 @@ class SchemeEditWidget(QWidget):
                 self.__scheme.title_changed.connect(self.titleChanged)
                 self.titleChanged.emit(scheme.title)
                 self.__cleanProperties = node_properties(scheme)
+                self.__cleanLinks = list(scheme.links)
                 sm = scheme.findChild(signalmanager.SignalManager)
                 if sm:
                     sm.stateChanged.connect(self.__signalManagerStateChanged)
@@ -737,7 +791,8 @@ class SchemeEditWidget(QWidget):
                 self.__scheme.link_removed.connect(self.__statistics.log_link_remove)
                 self.__statistics.log_scheme(self.__scheme)
             else:
-                self.__cleanProperties = []
+                self.__cleanProperties = {}
+                self.__cleanLinks = []
 
             self.__teardownScene(self.__scene)
             self.__scene.deleteLater()
@@ -1976,7 +2031,7 @@ class SchemeEditWidget(QWidget):
         if commandname is None:
             commandname = self.tr("Paste")
         # create nodes, links
-        command = QUndoCommand(commandname)
+        command = UndoCommand(commandname)
         macrocommands = []
         for nodedup in nodedups:
             macrocommands.append(
@@ -2339,9 +2394,11 @@ def is_printable(unichar):
 
 
 def node_properties(scheme):
-    # type: (Scheme) -> List[Dict[str, Any]]
+    # type: (Scheme) -> Dict[str, Dict[str, Any]]
     scheme.sync_node_properties()
-    return [dict(node.properties) for node in scheme.nodes]
+    return {
+        node: dict(node.properties) for node in scheme.nodes
+    }
 
 
 def can_insert_node(new_node_desc, original_link):

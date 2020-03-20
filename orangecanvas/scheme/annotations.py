@@ -108,6 +108,16 @@ class SchemeArrowAnnotation(BaseSchemeAnnotation):
 
     color = Property(str, fget=color, fset=set_color)  # type: ignore
 
+    def __getstate__(self):
+        return self.__start_pos, \
+               self.__end_pos, \
+               self.__color, \
+               self.__anchor, \
+               self.parent()
+
+    def __setstate__(self, state):
+        self.__init__(*state)
+
 
 class SchemeTextAnnotation(BaseSchemeAnnotation):
     """
@@ -253,3 +263,14 @@ class SchemeTextAnnotation(BaseSchemeAnnotation):
         return dict(self.__font)
 
     font = Property(str, fget=font, fset=set_font)  # type: ignore
+
+    def __getstate__(self):
+        return self.__rect, \
+               self.__content, \
+               self.__content_type, \
+               self.__font, \
+               self.__anchor, \
+               self.parent()
+
+    def __setstate__(self, state):
+        self.__init__(*state)

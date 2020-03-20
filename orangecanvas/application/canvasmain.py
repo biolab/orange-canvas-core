@@ -31,8 +31,7 @@ from AnyQt.QtGui import (
 )
 from AnyQt.QtCore import (
     Qt, QObject, QEvent, QSize, QUrl, QFile, QByteArray, QFileInfo,
-    QSettings, QStandardPaths, QAbstractItemModel, QT_VERSION
-)
+    QSettings, QStandardPaths, QAbstractItemModel, QT_VERSION)
 
 try:
     from AnyQt.QtWebEngineWidgets import QWebEngineView
@@ -48,8 +47,6 @@ except ImportError:
 from AnyQt.QtCore import (
     pyqtProperty as Property, pyqtSignal as Signal
 )
-
-from orangecanvas.utils.overlay import NotificationOverlay
 
 from ..scheme import Scheme, IncompatibleChannelTypeError
 from ..scheme import readwrite
@@ -71,11 +68,13 @@ from .outputview import OutputView, TextStream
 from .settings import UserSettingsDialog, category_state
 from ..document.schemeedit import SchemeEditWidget
 from ..document.quickmenu import QuickMenu
+from ..document.commands import UndoCommand
 from ..gui.itemmodels import FilterProxyModel
 from ..registry import WidgetRegistry, WidgetDescription, CategoryDescription
 from ..registry.qt import QtWidgetRegistry
 from ..utils.settings import QSettings_readArray, QSettings_writeArray
 from ..utils.qinvoke import qinvoke
+from ..utils.pickle import Pickler, Unpickler, glob_scratch_swps, swp_name, canvas_scratch_name_memo
 from ..utils import unique, group_by_all
 
 from . import welcomedialog
@@ -220,6 +219,9 @@ class CanvasMainWindow(QMainWindow):
 
         self.scheme_widget = SchemeEditWidget()
         self.scheme_widget.setScheme(config.workflow_constructor(parent=self))
+
+        # Save crash recovery swap file on changes to workflow
+        self.scheme_widget.undoCommandAdded.connect(self.save_swp)
 
         dropfilter = UrlDropEventFilter(self)
         dropfilter.urlDropped.connect(self.open_scheme_file)
@@ -1040,6 +1042,8 @@ class CanvasMainWindow(QMainWindow):
         Create and show a new CanvasMainWindow instance.
         """
         newwindow = self.create_new_window()
+        newwindow.ask_load_swp_if_exists()
+
         newwindow.raise_()
         newwindow.show()
         newwindow.activateWindow()
@@ -1069,6 +1073,8 @@ class CanvasMainWindow(QMainWindow):
         if kwargs.get("freeze", False):
             window.freeze_action.setChecked(True)
         window.load_scheme(filename)
+
+        self.ask_load_swp_if_exists()
 
     def open_example_scheme(self, path):  # type: (str) -> None
         # open an workflow without filename/directory tracking.
@@ -1471,6 +1477,7 @@ class CanvasMainWindow(QMainWindow):
         if filename:
             settings.setValue("last-scheme-dir", os.path.dirname(filename))
             if self.save_scheme_to(curr_scheme, filename):
+                self.clear_swp()
                 document.setPath(filename)
                 document.setModified(False)
                 self.add_recent_scheme(curr_scheme.title, document.path())
@@ -1556,6 +1563,175 @@ class CanvasMainWindow(QMainWindow):
                 parent=self
             )
             return False
+
+    def save_swp(self):
+        """
+        Save a difference of node properties and the undostack to
+        '.<workflow-filename>.swp.p' in the same directory.
+
+        If the workflow has not yet been saved, save to
+        'scratch.ows.p' in configdir/scratch-crashes.
+        """
+        document = self.current_document()
+        undoStack = document.undoStack()
+
+        if not document.isModifiedStrict() and undoStack.isClean():
+            return
+
+        swpname = swp_name(self)
+        self.save_swp_to(swpname)
+
+    def save_swp_to(self, filename):
+        """
+        Save a tuple of properties diff and undostack diff to a file.
+        """
+        document = self.current_document()
+        undoStack = document.undoStack()
+
+        propertiesDiff = document.uncleanProperties()
+        undoDiff = [UndoCommand.from_QUndoCommand(undoStack.command(i))
+                    for i in
+                    range(undoStack.cleanIndex(), undoStack.count())]
+        diff = (propertiesDiff, undoDiff)
+
+        with open(filename, "wb") as f:
+            Pickler(f, document).dump(diff)
+
+    def clear_swp(self):
+        """
+        Delete the document's swp file, should it exist.
+        """
+        document = self.current_document()
+        path = document.path()
+
+        if path or self in canvas_scratch_name_memo:
+            swpname = swp_name(self)
+            if os.path.exists(swpname):
+                os.remove(swpname)
+        else:
+            swpnames = glob_scratch_swps()
+            for swpname in swpnames:
+                os.remove(swpname)
+
+    def ask_load_swp_if_exists(self):
+        """
+        Should a swp file for this canvas exist,
+        ask the user if they wish to restore changes,
+        loading on yes, discarding on no.
+        """
+        document = self.current_document()
+        path = document.path()
+
+        if path:
+            swpname = swp_name(self)
+            if not os.path.exists(swpname):
+                return
+        else:
+            swpnames = glob_scratch_swps()
+            if not swpnames:
+                return
+
+        self.ask_load_swp()
+
+    def ask_load_swp(self):
+        """
+        Ask to restore changes, loading swp file on yes,
+        clearing swp file on no.
+        """
+        title = self.tr('Restore unsaved changes from crash?')
+
+        selected = message_information(
+            title,
+            self.tr("Restore Changes?"),
+            self.tr("Orange seems to have crashed at some point.\n"
+                    "Changes will be discarded if not restored now."),
+            buttons=QMessageBox.Yes | QMessageBox.No,
+            default_button=QMessageBox.Yes,
+            parent=self)
+
+        if selected == QMessageBox.Yes:
+            self.load_swp()
+        elif selected == QMessageBox.No:
+            self.clear_swp()
+        else:
+            assert False
+
+    def load_swp(self):
+        """
+        Load and restore the undostack and widget properties from
+        '.<workflow-filename>.swp.p' in the same directory, or
+        'scratch.ows.p' in configdir/scratch-crashes
+        if the workflow has not yet been saved.
+        """
+        document = self.scheme_widget
+        undoStack = document.undoStack()
+
+        if document.path():
+            # load hidden file in same directory
+            swpname = swp_name(self)
+            if not os.path.exists(swpname):
+                return
+
+            self.load_swp_from(swpname)
+        else:
+            # load scratch files in config directory
+            swpnames = [name for name in glob_scratch_swps()
+                        if name not in canvas_scratch_name_memo.values()]
+            if not swpnames:
+                return
+
+            self.load_swp_from(swpnames[0])
+
+            for swpname in swpnames[1:]:
+                w = self.create_new_window()
+
+                w.load_swp_from(swpname)
+
+                w.raise_()
+                w.show()
+                w.activateWindow()
+
+    def load_swp_from(self, filename):
+        """
+        Load a diff of node properties and UndoCommands from a file
+        """
+        document = self.current_document()
+        undoStack = document.undoStack()
+
+        with open(filename, "rb") as f:
+            # type: ({SchemeNode : {}}, [UndoCommand])
+            loaded = Unpickler(f, document.scheme()).load()
+
+        os.remove(filename)
+
+        document.undoCommandAdded.disconnect(self.save_swp)
+
+        commands = loaded[1]
+        for c in commands:
+            undoStack.push(c)
+
+        properties = loaded[0]
+        document.restoreProperties(properties)
+
+        document.undoCommandAdded.connect(self.save_swp)
+
+    def load_diff(self, properties_and_commands):
+        """
+        Load a diff of node properties and UndoCommands
+
+        Parameters
+        ---------
+        properties_and_commands : ({SchemeNode : {}}, [UndoCommand])
+        """
+        document = self.scheme_widget
+        undoStack = document.undoStack()
+
+        commands = properties_and_commands[1]
+        for c in commands:
+            undoStack.push(c)
+
+        properties = properties_and_commands[0]
+        document.restoreProperties(properties)
 
     def recent_scheme(self):
         # type: () -> int
@@ -2005,6 +2181,8 @@ class CanvasMainWindow(QMainWindow):
                 # Reject the event
                 event.ignore()
                 return
+
+        self.clear_swp()
 
         old_scheme = document.scheme()
 
