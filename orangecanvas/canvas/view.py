@@ -2,11 +2,13 @@
 Canvas Graphics View
 """
 import logging
+import sys
 
 from AnyQt.QtWidgets import QGraphicsView, QAction
 from AnyQt.QtGui import QCursor, QIcon, QKeySequence, QTransform, QWheelEvent
 from AnyQt.QtCore import Qt, QRect, QSize, QRectF, QPoint, QTimer, Property
 from AnyQt.QtCore import pyqtSignal as Signal
+
 log = logging.getLogger(__name__)
 
 
@@ -86,6 +88,7 @@ class CanvasView(QGraphicsView):
     def wheelEvent(self, event: QWheelEvent):
         if event.modifiers() & Qt.ControlModifier \
                 and event.buttons() == Qt.NoButton:
+            # Zoom
             delta = event.angleDelta().y()
             # use mouse position as anchor while zooming
             anchor = self.transformationAnchor()
@@ -93,6 +96,25 @@ class CanvasView(QGraphicsView):
             self.__setZoomLevel(self.__zoomLevel + 10 * delta / 120)
             self.setTransformationAnchor(anchor)
             event.accept()
+        elif event.source() == Qt.MouseEventNotSynthesized \
+                   and (event.angleDelta().x() == 0 \
+                   and not self.verticalScrollBar().isVisible()) \
+                   or (sys.platform == 'darwin' and event.modifiers() & Qt.ShiftModifier
+                       or sys.platform != 'darwin' and event.modifiers() & Qt.AltModifier):
+            # Scroll horizontally
+            x, y = event.angleDelta().x(), event.angleDelta().y()
+            sign_value = x if x != 0 else y
+            sign = 1 if sign_value >= 0 else -1
+            new_angle_delta = QPoint(sign * max(abs(x), abs(y), sign_value), 0)
+            new_pixel_delta = QPoint(0, 0)
+            new_modifiers = event.modifiers() & ~(Qt.ShiftModifier | Qt.AltModifier)
+            new_event = QWheelEvent(
+                event.pos(), event.globalPos(), new_pixel_delta,
+                new_angle_delta, event.buttons(), new_modifiers,
+                event.phase(), event.inverted(), event.source()
+            )
+            event.accept()
+            super().wheelEvent(new_event)
         else:
             super().wheelEvent(event)
 
