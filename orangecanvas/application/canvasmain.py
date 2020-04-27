@@ -1594,8 +1594,11 @@ class CanvasMainWindow(QMainWindow):
                     range(undoStack.cleanIndex(), undoStack.count())]
         diff = (propertiesDiff, undoDiff)
 
-        with open(filename, "wb") as f:
-            Pickler(f, document).dump(diff)
+        try:
+            with open(filename, "wb") as f:
+                Pickler(f, document).dump(diff)
+        except Exception:
+            log.error("Could not write swp file %r.", filename, exc_info=True)
 
     def clear_swp(self):
         """
