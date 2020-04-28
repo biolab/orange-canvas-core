@@ -1594,8 +1594,11 @@ class CanvasMainWindow(QMainWindow):
                     range(undoStack.cleanIndex(), undoStack.count())]
         diff = (propertiesDiff, undoDiff)
 
-        with open(filename, "wb") as f:
-            Pickler(f, document).dump(diff)
+        try:
+            with open(filename, "wb") as f:
+                Pickler(f, document).dump(diff)
+        except Exception:
+            log.error("Could not write swp file %r.", filename, exc_info=True)
 
     def clear_swp(self):
         """
@@ -1698,11 +1701,21 @@ class CanvasMainWindow(QMainWindow):
         document = self.current_document()
         undoStack = document.undoStack()
 
-        with open(filename, "rb") as f:
-            # type: ({SchemeNode : {}}, [UndoCommand])
-            loaded = Unpickler(f, document.scheme()).load()
-
-        os.remove(filename)
+        try:
+            with open(filename, "rb") as f:
+                # type: ({SchemeNode : {}}, [UndoCommand])
+                loaded = Unpickler(f, document.scheme()).load()
+        except Exception:
+            log.error("Could not load swp file: %r", filename, exc_info=True)
+            message_critical(
+                "Could not load restore data.", title="Error", exc_info=True,
+            )
+            return
+        else:
+            try:
+                os.remove(filename)
+            except OSError:
+                pass
 
         document.undoCommandAdded.disconnect(self.save_swp)
 
