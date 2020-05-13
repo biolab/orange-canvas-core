@@ -3,11 +3,12 @@ Canvas Graphics View
 """
 import logging
 import sys
+from typing import cast
 
-from AnyQt.QtWidgets import QGraphicsView, QAction
+from AnyQt.QtWidgets import QGraphicsView, QAction, QGestureEvent, QPinchGesture
 from AnyQt.QtGui import QCursor, QIcon, QKeySequence, QTransform, QWheelEvent
-from AnyQt.QtCore import Qt, QRect, QSize, QRectF, QPoint, QTimer, Property
-from AnyQt.QtCore import pyqtSignal as Signal
+from AnyQt.QtCore import Qt, QRect, QSize, QRectF, QPoint, QTimer, QEvent
+from AnyQt.QtCore import Property, pyqtSignal as Signal
 
 log = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ class CanvasView(QGraphicsView):
     def __init__(self, *args):
         super().__init__(*args)
         self.setAlignment(Qt.AlignTop | Qt.AlignLeft)
-
+        self.grabGesture(Qt.PinchGesture)
         self.__backgroundIcon = QIcon()
 
         self.__autoScroll = False
@@ -117,6 +118,23 @@ class CanvasView(QGraphicsView):
             super().wheelEvent(new_event)
         else:
             super().wheelEvent(event)
+
+    def gestureEvent(self, event: QGestureEvent):
+        gesture = event.gesture(Qt.PinchGesture)
+        if gesture is None:
+            return
+        if gesture.state() == Qt.GestureStarted:
+            event.accept(gesture)
+        elif gesture.changeFlags() & QPinchGesture.ScaleFactorChanged:
+            self.__setZoomLevel(self.__zoomLevel * gesture.scaleFactor())
+            event.accept()
+        elif gesture.state() == Qt.GestureFinished:
+            event.accept()
+
+    def event(self, event: QEvent) -> bool:
+        if event.type() == QEvent.Gesture:
+            self.gestureEvent(cast(QGestureEvent, event))
+        return super().event(event)
 
     def zoomIn(self):
         self.__setZoomLevel(self.__zoomLevel + 10)
