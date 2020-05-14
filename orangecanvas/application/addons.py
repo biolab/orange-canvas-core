@@ -1415,36 +1415,25 @@ class PipInstaller:
 
     def install(self, pkg):
         # type: (Installable) -> None
-        constraints = config.default.core_packages()
-        constraints = ("\n".join(constraints))
-        with temp_named_file(constraints, suffix=".txt") as cfile:
-            cmd = [
-                "python", "-m", "pip",  "install",
-                      "--constraint", cfile,
-            ] + self.arguments
+        cmd = ["python", "-m", "pip",  "install"] + self.arguments
+        if pkg.package_url.startswith(("http://", "https://")):
+            cmd.append(pkg.name)
+        else:
+            # Package url is path to the (local) wheel
+            cmd.append(pkg.package_url)
 
-            if pkg.package_url.startswith(("http://", "https://")):
-                cmd.append(pkg.name)
-            else:
-                # Package url is path to the (local) wheel
-                cmd.append(pkg.package_url)
-
-            run_command(cmd)
+        run_command(cmd)
 
     def upgrade(self, package):
-        constraints = config.default.core_packages()
-        constraints = ("\n".join(constraints))
-        with temp_named_file(constraints, suffix=".txt") as cfile:
-            cmd = [
-                "python", "-m", "pip", "install",
-                    "--upgrade", "--upgrade-strategy=only-if-needed",
-                    "--constraint", cfile,
-            ] + self.arguments
-            if package.package_url.startswith(("http://", "https://")):
-                cmd.append(package.name)
-            else:
-                cmd.append(package.package_url)
-            run_command(cmd)
+        cmd = [
+            "python", "-m", "pip", "install",
+                "--upgrade", "--upgrade-strategy=only-if-needed",
+        ] + self.arguments
+        if package.package_url.startswith(("http://", "https://")):
+            cmd.append(package.name)
+        else:
+            cmd.append(package.package_url)
+        run_command(cmd)
 
     def uninstall(self, dist):
         cmd = ["python", "-m", "pip", "uninstall", "--yes", dist.project_name]
