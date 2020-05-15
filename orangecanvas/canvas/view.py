@@ -3,11 +3,13 @@ Canvas Graphics View
 """
 import logging
 import sys
-from typing import cast
+from typing import cast, Optional
 
 from AnyQt.QtWidgets import QGraphicsView, QAction, QGestureEvent, QPinchGesture
 from AnyQt.QtGui import QCursor, QIcon, QKeySequence, QTransform, QWheelEvent
-from AnyQt.QtCore import Qt, QRect, QSize, QRectF, QPoint, QTimer, QEvent
+from AnyQt.QtCore import (
+    Qt, QRect, QSize, QRectF, QPoint, QTimer, QEvent, QPointF
+)
 from AnyQt.QtCore import Property, pyqtSignal as Signal
 
 log = logging.getLogger(__name__)
@@ -126,7 +128,10 @@ class CanvasView(QGraphicsView):
         if gesture.state() == Qt.GestureStarted:
             event.accept(gesture)
         elif gesture.changeFlags() & QPinchGesture.ScaleFactorChanged:
-            self.__setZoomLevel(self.__zoomLevel * gesture.scaleFactor())
+            anchor = gesture.centerPoint().toPoint()
+            anchor = self.mapToScene(anchor)
+            self.__setZoomLevel(self.__zoomLevel * gesture.scaleFactor(),
+                                anchor=anchor)
             event.accept()
         elif gesture.state() == Qt.GestureFinished:
             event.accept()
@@ -160,8 +165,8 @@ class CanvasView(QGraphicsView):
     def setZoomLevel(self, level):
         self.__setZoomLevel(level)
 
-    def __setZoomLevel(self, scale):
-        # type: (float) -> None
+    def __setZoomLevel(self, scale, anchor=None):
+        # type: (float, Optional[QPointF]) -> None
         self.__zoomLevel = max(30, min(scale, 300))
         scale = round(self.__zoomLevel)
         self.__zoomOutAction.setEnabled(scale != 30)
@@ -170,7 +175,13 @@ class CanvasView(QGraphicsView):
             self.__effectiveZoomLevel = scale
             transform = QTransform()
             transform.scale(scale / 100, scale / 100)
+            if anchor is not None:
+                anchor = self.mapFromScene(anchor)
             self.setTransform(transform)
+            if anchor is not None:
+                center = self.viewport().rect().center()
+                diff = self.mapToScene(center) - self.mapToScene(anchor)
+                self.centerOn(anchor + diff)
             self.zoomLevelChanged.emit(scale)
 
     zoomLevelChanged = Signal(float)
