@@ -3,11 +3,14 @@ Canvas Graphics View
 """
 import logging
 import sys
+from typing import cast, Optional
 
-from AnyQt.QtWidgets import QGraphicsView, QAction
+from AnyQt.QtWidgets import QGraphicsView, QAction, QGestureEvent, QPinchGesture
 from AnyQt.QtGui import QCursor, QIcon, QKeySequence, QTransform, QWheelEvent
-from AnyQt.QtCore import Qt, QRect, QSize, QRectF, QPoint, QTimer, Property
-from AnyQt.QtCore import pyqtSignal as Signal
+from AnyQt.QtCore import (
+    Qt, QRect, QSize, QRectF, QPoint, QTimer, QEvent, QPointF
+)
+from AnyQt.QtCore import Property, pyqtSignal as Signal
 
 log = logging.getLogger(__name__)
 
@@ -19,7 +22,7 @@ class CanvasView(QGraphicsView):
     def __init__(self, *args):
         super().__init__(*args)
         self.setAlignment(Qt.AlignTop | Qt.AlignLeft)
-
+        self.grabGesture(Qt.PinchGesture)
         self.__backgroundIcon = QIcon()
 
         self.__autoScroll = False
@@ -118,6 +121,26 @@ class CanvasView(QGraphicsView):
         else:
             super().wheelEvent(event)
 
+    def gestureEvent(self, event: QGestureEvent):
+        gesture = event.gesture(Qt.PinchGesture)
+        if gesture is None:
+            return
+        if gesture.state() == Qt.GestureStarted:
+            event.accept(gesture)
+        elif gesture.changeFlags() & QPinchGesture.ScaleFactorChanged:
+            anchor = gesture.centerPoint().toPoint()
+            anchor = self.mapToScene(anchor)
+            self.__setZoomLevel(self.__zoomLevel * gesture.scaleFactor(),
+                                anchor=anchor)
+            event.accept()
+        elif gesture.state() == Qt.GestureFinished:
+            event.accept()
+
+    def event(self, event: QEvent) -> bool:
+        if event.type() == QEvent.Gesture:
+            self.gestureEvent(cast(QGestureEvent, event))
+        return super().event(event)
+
     def zoomIn(self):
         self.__setZoomLevel(self.__zoomLevel + 10)
 
@@ -142,8 +165,8 @@ class CanvasView(QGraphicsView):
     def setZoomLevel(self, level):
         self.__setZoomLevel(level)
 
-    def __setZoomLevel(self, scale):
-        # type: (float) -> None
+    def __setZoomLevel(self, scale, anchor=None):
+        # type: (float, Optional[QPointF]) -> None
         self.__zoomLevel = max(30, min(scale, 300))
         scale = round(self.__zoomLevel)
         self.__zoomOutAction.setEnabled(scale != 30)
@@ -152,7 +175,13 @@ class CanvasView(QGraphicsView):
             self.__effectiveZoomLevel = scale
             transform = QTransform()
             transform.scale(scale / 100, scale / 100)
+            if anchor is not None:
+                anchor = self.mapFromScene(anchor)
             self.setTransform(transform)
+            if anchor is not None:
+                center = self.viewport().rect().center()
+                diff = self.mapToScene(center) - self.mapToScene(anchor)
+                self.centerOn(anchor + diff)
             self.zoomLevelChanged.emit(scale)
 
     zoomLevelChanged = Signal(float)
