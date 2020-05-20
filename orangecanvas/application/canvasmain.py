@@ -1631,7 +1631,8 @@ class CanvasMainWindow(QMainWindow):
                 return
         else:
             swpnames = glob_scratch_swps()
-            if not swpnames:
+            if not swpnames or \
+                    all([s in canvas_scratch_name_memo.values() for s in swpnames]):
                 return
 
         self.ask_load_swp()
