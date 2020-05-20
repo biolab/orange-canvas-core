@@ -2,6 +2,8 @@ import glob
 import os
 import pickle
 
+from PyQt5.QtCore import QSettings
+
 from orangecanvas import config
 from ..scheme import Scheme, SchemeNode, SchemeLink
 
@@ -58,6 +60,9 @@ def swp_name(canvas):
         dirname = os.path.dirname(document.path())
         return os.path.join(dirname, '.' + filename + ".swp.p")
     # else it's a scratch workflow
+
+    if not QSettings().value('startup/load-crashed-workflows', True, type=bool):
+        return None
 
     global canvas_scratch_name_memo
     if canvas in canvas_scratch_name_memo:
