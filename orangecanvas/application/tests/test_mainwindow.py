@@ -181,6 +181,14 @@ class TestMainWindowLoad(TestMainWindowBase):
         w2.clear_swp()
         del w2
 
+    def test_dont_load_swp_on_new_window(self):
+        w = self.w
+        desc = self.registry.widgets()[0]
+        w.current_document().createNewNode(desc)
+
+        with patch.object(CanvasMainWindow, 'ask_load_swp', self.fail):
+            w.new_workflow_window()
+
     def test_open_ows_req(self):
         w = self.w
         with temp_named_file(TEST_OWS_REQ.decode()) as f:
