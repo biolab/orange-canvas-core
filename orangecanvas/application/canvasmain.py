@@ -1579,7 +1579,8 @@ class CanvasMainWindow(QMainWindow):
             return
 
         swpname = swp_name(self)
-        self.save_swp_to(swpname)
+        if swpname is not None:
+            self.save_swp_to(swpname)
 
     def save_swp_to(self, filename):
         """
@@ -1630,8 +1631,11 @@ class CanvasMainWindow(QMainWindow):
             if not os.path.exists(swpname):
                 return
         else:
+            if not QSettings().value('startup/load-crashed-workflows', True, type=bool):
+                return
             swpnames = glob_scratch_swps()
-            if not swpnames:
+            if not swpnames or \
+                    all([s in canvas_scratch_name_memo.values() for s in swpnames]):
                 return
 
         self.ask_load_swp()

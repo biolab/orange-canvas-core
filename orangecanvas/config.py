@@ -351,10 +351,13 @@ rc = {}  # type: ignore
 
 spec = \
     [("startup/show-splash-screen", bool, True,
-      "Show splash screen at startup"),
+      "Show splash screen on startup"),
 
      ("startup/show-welcome-screen", bool, True,
-      "Show Welcome screen at startup"),
+      "Show Welcome screen on startup"),
+
+     ("startup/load-crashed-workflows", bool, True,
+      "Load crashed scratch workflows on startup"),
 
      ("stylesheet", str, "orange",
       "QSS stylesheet to use"),
