@@ -1058,12 +1058,13 @@ class AddonManagerDialog(QDialog):
             icon = QMessageBox.Information
             buttons = QMessageBox.Ok | QMessageBox.Cancel
             title = 'Information'
-            text = 'Orange needs to be restarted for the changes to take effect.'
-
+            name = QApplication.applicationName() or 'Orange'
+            text = ('{} needs to be restarted for the changes to take effect.'
+                    .format(name))
             msg_box = QMessageBox(icon, title, text, buttons, parent)
             msg_box.setDefaultButton(QMessageBox.Ok)
-            msg_box.setInformativeText('Press OK to close Orange now.')
-
+            msg_box.setInformativeText('Press OK to close {} now.'
+                                       .format(name))
             msg_box.button(QMessageBox.Cancel).setText('Close later')
             return msg_box.exec_()
 

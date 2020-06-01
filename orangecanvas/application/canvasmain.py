@@ -1646,12 +1646,12 @@ class CanvasMainWindow(QMainWindow):
         clearing swp file on no.
         """
         title = self.tr('Restore unsaved changes from crash?')
-
+        name = QApplication.applicationName() or "Orange"
         selected = message_information(
             title,
             self.tr("Restore Changes?"),
-            self.tr("Orange seems to have crashed at some point.\n"
-                    "Changes will be discarded if not restored now."),
+            self.tr("{} seems to have crashed at some point.\n"
+                    "Changes will be discarded if not restored now.").format(name),
             buttons=QMessageBox.Yes | QMessageBox.No,
             default_button=QMessageBox.Yes,
             parent=self)
@@ -2029,12 +2029,14 @@ class CanvasMainWindow(QMainWindow):
         # type: () -> int
         """Open the add-on manager dialog.
         """
+        name = QApplication.applicationName() or "Orange"
         from .addons import have_install_permissions
         if not have_install_permissions():
             QMessageBox(QMessageBox.Warning,
                         "Add-ons: insufficient permissions",
-                        "Insufficient permissions to install add-ons. Try starting Orange "
-                        "as a system administrator or install Orange in user folders.",
+                        "Insufficient permissions to install add-ons. Try starting {} "
+                        "as a system administrator or install {} in user folders."
+                        .format(name),
                         parent=self).exec_()
         dlg = addons.AddonManagerDialog(
             self, windowTitle=self.tr("Add-ons"), modal=True
