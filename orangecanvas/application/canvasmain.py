@@ -160,6 +160,7 @@ class CanvasMainWindow(QMainWindow):
         self.__registry_model = None  # type: Optional[QAbstractItemModel]
         # Proxy widget registry model
         self.__proxy_model = None  # type: Optional[FilterProxyModel]
+        self.__streams = []  # type: List[TextStream]
 
         # TODO: Help view and manager to separate singleton instance.
         self.help = None  # type: HelpManager
@@ -1028,8 +1029,12 @@ class CanvasMainWindow(QMainWindow):
             stdout.stream.connect(logview.write)
 
         if isinstance(stderr, TextStream):
-            err_formater = logview.formated(color=Qt.red)
-            stderr.stream.connect(err_formater.write)
+            err_formatter = logview.formatted(color=Qt.red)
+            stderr.stream.connect(err_formatter.write)
+
+        for stream in self.__streams:
+            if stream not in (stdout, stderr):
+                window.connect_output_stream(stream)
 
         CanvasMainWindow._instances.append(window)
         window.destroyed.connect(
@@ -2438,6 +2443,26 @@ class CanvasMainWindow(QMainWindow):
                     0, QtWidgetRegistry.CATEGORY_DESC_ROLE,
                     category_filter_function(visible_state))
             ])
+
+    def connect_output_stream(self, stream: TextStream):
+        """
+        Connect a :class:`TextStream` instance to this window's output view.
+
+        The `stream` will be 'inherited' by new windows created by
+        `create_new_window`.
+        """
+        self.__streams.append(stream)
+        view = self.output_view()
+        stream.stream.connect(view.write)
+
+    def disconnect_output_stream(self, stream: TextStream):
+        """
+        Disconnect a :class:`TextStream` instance from this window's
+        output view.
+        """
+        self.__streams.remove(stream)
+        view = self.output_view()
+        stream.stream.disconnect(view.write)
 
 
 def updated_flags(flags, mask, state):

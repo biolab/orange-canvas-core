@@ -5,6 +5,7 @@ from unittest.mock import patch
 from AnyQt.QtWidgets import QToolButton, QDialog, QMessageBox
 
 from .. import addons
+from ..outputview import TextStream
 from ...utils.shtools import temp_named_file
 from ...utils.pickle import swp_name
 from ...gui.test import QAppTestCase
@@ -47,13 +48,34 @@ class TestMainWindow(TestMainWindowBase):
         new = w.create_new_window()
         self.assertIsInstance(new, MainWindow)
         r1 = new.widget_registry
-        self.assertTrue(r1.widgets(), self.registry.widgets())
+        self.assertEqual(r1.widgets(), self.registry.widgets())
 
         w.show()
         new.show()
 
         w.set_scheme_margins_enabled(True)
         new.deleteLater()
+        stream = TextStream()
+        w.connect_output_stream(stream)
+
+    def test_connect_output_stream(self):
+        w = self.w
+        stream = TextStream()
+        w.connect_output_stream(stream)
+        stream.write("Hello")
+        self.assertEqual(w.output_view().toPlainText(), "Hello")
+        w.disconnect_output_stream(stream)
+        stream.write("Bye")
+        self.assertEqual(w.output_view().toPlainText(), "Hello")
+
+    def test_create_new_window_streams(self):
+        w = self.w
+        stream = TextStream()
+        w.connect_output_stream(stream)
+        new = w.create_new_window()
+        stream.write("Hello")
+        self.assertEqual(w.output_view().toPlainText(), "Hello")
+        self.assertEqual(new.output_view().toPlainText(), "Hello")
 
     def test_new_window(self):
         w = self.w
