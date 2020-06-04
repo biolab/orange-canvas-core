@@ -76,6 +76,7 @@ class Installable(
             ("package_url", str),
             ("release_urls", List['ReleaseUrl']),
             ("description_content_type", Optional[str]),
+            ("force", bool),
         ))):
     """
     An installable distribution from PyPi
@@ -96,6 +97,7 @@ class Installable(
 
 Installable.__new__.__defaults__ = (
     None,  # description_content_type = None,
+    False,  # force = False
 )
 
 
@@ -194,6 +196,9 @@ def is_updatable(item):
             v2 = pkg_resources.parse_version(inst.version)
         except ValueError:
             return False
+
+        if inst.force:
+            return True
 
         if item.constraint is not None and str(v2) not in item.constraint:
             return False
@@ -363,7 +368,8 @@ class PluginsModel(QStandardItemModel):
         if updatable:
             assert dist is not None
             assert ins is not None
-            version = "{} < {}".format(dist.version, ins.version)
+            comp = "<" if not ins.force else "->"
+            version = "{} {} {}".format(dist.version, comp, ins.version)
 
         item3 = QStandardItem(version)
         item3.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
@@ -841,9 +847,6 @@ class AddonManagerDialog(QDialog):
         installable: Installable
         """
         items = self.items()
-        if installable.name in {item.installable.name for item in items
-                                if item.installable is not None}:
-            return
         installed = [ep.dist for ep in self.config().addon_entry_points()]
         new_ = installable_items([installable], filter(None, installed))
 
@@ -859,7 +862,13 @@ class AddonManagerDialog(QDialog):
         new = next(filter(match, new_), None)
         assert new is not None
         state = self.itemState()
-        self.setItems(items + [new])
+        replace = next(filter(match, items), None)
+        if replace is not None:
+            items[items.index(replace)] = new
+            self.setItems(items)
+            # the state for the replaced item will be removed by setItemState
+        else:
+            self.setItems(items + [new])
         self.setItemState(state)  # restore state
 
     def addItems(self, items: List[Item]):
@@ -997,7 +1006,7 @@ class AddonManagerDialog(QDialog):
                 names.append(name)
                 packages.append(
                     Installable(name, vers, summary,
-                                descr or summary, path, [path], content_type)
+                                descr or summary, path, [path], content_type, True)
                 )
 
         for installable in packages:
@@ -1372,7 +1381,8 @@ class Installer(QObject):
         command, pkg = self.__queue.popleft()
 
         try:
-            if command == Install:
+            if command == Install \
+                    or (command == Upgrade and pkg.installable.force):
                 self.setStatusMessage(
                     "Installing {}".format(pkg.installable.name))
                 if self.conda:
