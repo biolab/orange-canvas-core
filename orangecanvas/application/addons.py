@@ -327,7 +327,7 @@ class PluginsModel(QStandardItemModel):
             ins, dist = item.installable, item.local
             name = dist.project_name
             summary = get_dist_meta(dist).get("Summary", "")
-            version = ins.version if ins is not None else dist.version
+            version = dist.version
             item_is_core = item.required
         else:
             installed = False
