@@ -1,9 +1,16 @@
+import os
+import tempfile
 import unittest
+from contextlib import contextmanager
 from unittest.mock import patch
+from zipfile import ZipFile
 
 from AnyQt.QtWidgets import QMessageBox
 
-from AnyQt.QtCore import QEventLoop
+from AnyQt.QtCore import QEventLoop, QUrl, QMimeData, QPoint, Qt
+from PyQt5.QtGui import QDropEvent
+from pkg_resources import EntryPoint
+
 from orangecanvas.application import addons
 from orangecanvas.gui.test import QAppTestCase
 from orangecanvas.utils.qinvoke import qinvoke
@@ -71,6 +78,19 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(inst.version, "1.0")
 
 
+@contextmanager
+def addon_archive(pkginfo):
+    file = tempfile.NamedTemporaryFile("wb", delete=False, suffix=".zip")
+    name = file.name
+    file.close()
+    with ZipFile(name, 'w') as myzip:
+        myzip.writestr('PKG-INFO', pkginfo)
+    try:
+        yield name
+    finally:
+        os.remove(name)
+
+
 class TestAddonManagerDialog(QAppTestCase):
     def test_widget(self):
         items = [
@@ -103,6 +123,53 @@ class TestAddonManagerDialog(QAppTestCase):
         updateTopLayout = w._AddonManagerDialog__updateTopLayout
         updateTopLayout(False)
         updateTopLayout(True)
+
+    @patch("orangecanvas.config.default.addon_entry_points",
+           return_value=[EntryPoint(
+               "a", "b", dist=Distribution(project_name="foo", version="1.0"))])
+    def test_drop(self, p1):
+        items = [
+            Installed(
+                Installable("foo", "1.1", "", "", "", []),
+                Distribution(project_name="foo", version="1.0"),
+            ),
+        ]
+        w = AddonManagerDialog()
+        w.setItems(items)
+
+        # drop an addon already in the list
+        pkginfo = "Metadata-Version: 1.0\nName: foo\nVersion: 0.9"
+        with addon_archive(pkginfo) as fn:
+            event = self._drop_event(QUrl.fromLocalFile(fn))
+            w.dropEvent(event)
+        items = w.items()
+        self.assertEqual(1, len(items))
+        self.assertEqual("0.9", items[0].installable.version)
+        self.assertEqual(True, items[0].installable.force)
+        state = [(Upgrade, items[0])]
+        self.assertSequenceEqual(state, w.itemState())
+
+        # drop a new addon
+        pkginfo = "Metadata-Version: 1.0\nName: foo2\nVersion: 0.8"
+        with addon_archive(pkginfo) as fn:
+            event = self._drop_event(QUrl.fromLocalFile(fn))
+            w.dropEvent(event)
+        items = w.items()
+        self.assertEqual(2, len(items))
+        self.assertEqual("0.8", items[1].installable.version)
+        self.assertEqual(True, items[1].installable.force)
+        state = state + [(Install, items[1])]
+        self.assertSequenceEqual(state, w.itemState())
+
+    def _drop_event(self, url):
+        # make sure data does not get garbage collected before it used
+        # pylint: disable=attribute-defined-outside-init
+        self.event_data = data = QMimeData()
+        data.setUrls([QUrl(url)])
+
+        return QDropEvent(
+            QPoint(0, 0), Qt.MoveAction, data,
+            Qt.NoButton, Qt.NoModifier, QDropEvent.Drop)
 
     def test_run_query(self):
         w = AddonManagerDialog()
