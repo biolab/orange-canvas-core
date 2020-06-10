@@ -1428,11 +1428,13 @@ class PipInstaller:
         # type: (Installable) -> None
         cmd = ["python", "-m", "pip",  "install"] + self.arguments
         if pkg.package_url.startswith(("http://", "https://")):
-            cmd.append(pkg.name)
+            version = (
+                "=={}".format(pkg.version) if pkg.version is not None else ""
+            )
+            cmd.append(pkg.name + version)
         else:
             # Package url is path to the (local) wheel
             cmd.append(pkg.package_url)
-
         run_command(cmd)
 
     def upgrade(self, package):
@@ -1441,7 +1443,11 @@ class PipInstaller:
                 "--upgrade", "--upgrade-strategy=only-if-needed",
         ] + self.arguments
         if package.package_url.startswith(("http://", "https://")):
-            cmd.append(package.name)
+            version = (
+                "=={}".format(package.version) if package.version is not None
+                else ""
+            )
+            cmd.append(package.name + version)
         else:
             cmd.append(package.package_url)
         run_command(cmd)
@@ -1478,13 +1484,15 @@ class CondaInstaller:
             return conda
 
     def install(self, pkg, raise_on_fail=False):
+        version = "={}".format(pkg.version) if pkg.version is not None else ""
         cmd = [self.conda, "install", "--yes", "--quiet",
-               self._normalize(pkg.name)]
+               self._normalize(pkg.name) + version]
         run_command(cmd, raise_on_fail=raise_on_fail)
 
     def upgrade(self, pkg, raise_on_fail=False):
-        cmd = [self.conda, "upgrade", "--yes", "--quiet",
-               self._normalize(pkg.name)]
+        version = "={}".format(pkg.version) if pkg.version is not None else ""
+        cmd = [self.conda, "install", "--yes", "--quiet",
+               self._normalize(pkg.name) + version]
         run_command(cmd, raise_on_fail=raise_on_fail)
 
     def uninstall(self, dist, raise_on_fail=False):
