@@ -1054,7 +1054,9 @@ def compress_signals(signals):
         return any(sig.value is None for sig in signals)
 
     for (link, id), signals_grouped in groups:
-        if len(signals_grouped) > 1 and has_none(signals_grouped[1:]):
+        if has_none(signals_grouped[:1]):
+            signals.append(signals_grouped[0])
+        elif len(signals_grouped) > 1 and has_none(signals_grouped[1:]):
             signals.append(signals_grouped[0])
             signals.append(Signal(link, None, id))
         else:

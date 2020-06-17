@@ -209,6 +209,14 @@ class TestSignalManager(unittest.TestCase):
             compress_signals(signals_in),
             signals_in[1:],
         )
+        signals_in = [
+            Signal(link, None, 1),
+            Signal(link, None, 1),
+        ]
+        self.assertSequenceEqual(
+            compress_signals(signals_in),
+            signals_in[1:],
+        )
 
 
 class TestSCC(unittest.TestCase):
