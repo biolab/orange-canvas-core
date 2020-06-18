@@ -1486,12 +1486,14 @@ class CondaInstaller:
     def install(self, pkg, raise_on_fail=False):
         version = "={}".format(pkg.version) if pkg.version is not None else ""
         cmd = [self.conda, "install", "--yes", "--quiet",
+               "--satisfied-skip-solve",
                self._normalize(pkg.name) + version]
         run_command(cmd, raise_on_fail=raise_on_fail)
 
     def upgrade(self, pkg, raise_on_fail=False):
         version = "={}".format(pkg.version) if pkg.version is not None else ""
         cmd = [self.conda, "install", "--yes", "--quiet",
+               "--satisfied-skip-solve",
                self._normalize(pkg.name) + version]
         run_command(cmd, raise_on_fail=raise_on_fail)
 
