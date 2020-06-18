@@ -20,7 +20,7 @@ from functools import partial, reduce
 import typing
 from typing import (
     Any, Optional, List, NamedTuple, Iterable, Callable, Set, Dict,
-    Sequence, Union, DefaultDict
+    Sequence, Union, DefaultDict, Type
 )
 
 from AnyQt.QtCore import QObject, QTimer, QSettings
@@ -65,6 +65,19 @@ class Signal(
     --------
     InputSignal.flags, OutputSignal.flags
     """
+    New: 'Type[New]'
+    Update: 'Type[Update]'
+    Close: 'Type[Close]'
+
+
+class New(Signal): ...
+class Update(Signal): ...
+class Close(Signal): ...
+
+
+Signal.New = New
+Signal.Update = Update
+Signal.Close = Close
 
 
 is_enabled = attrgetter("enabled")
@@ -353,7 +366,9 @@ class SignalManager(QObject):
         )
         if link.enabled:
             log.info("Scheduling signal data update for '%s'.", link)
-            self._schedule(self.signals_on_link(link))
+            self._schedule(
+                [Signal.New(*s) for s in self.signals_on_link(link)]
+            )
             self._update()
 
         link.enabled_changed.connect(self.__on_link_enabled_changed)
@@ -443,7 +458,7 @@ class SignalManager(QObject):
         )
         signals = []
         for link in links:
-            signals.append(Signal(link, value, id))
+            signals.append(Signal.Update(link, value, id))
             link.set_runtime_state_flag(SchemeLink.Invalidated, False)
 
         self._schedule(signals)
@@ -487,7 +502,7 @@ class SignalManager(QObject):
         """
         contents = self.link_contents(link)
         ids = contents.keys()
-        signals = [Signal(link, None, id) for id in ids]
+        signals = [Signal.Close(link, None, id) for id in ids]
 
         self._schedule(signals)
 
@@ -591,7 +606,7 @@ class SignalManager(QObject):
                     link.set_dynamic_enabled(enabled)
                     if not enabled:
                         # Send None instead (clear the link)
-                        sig = Signal(link, None, sig.id)
+                        sig = sig._replace(value=None)
                 res.append(sig)
             return res
         signals_in = process_dynamic(signals_in)
