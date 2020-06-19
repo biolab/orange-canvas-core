@@ -2039,9 +2039,9 @@ class CanvasMainWindow(QMainWindow):
         if not have_install_permissions():
             QMessageBox(QMessageBox.Warning,
                         "Add-ons: insufficient permissions",
-                        "Insufficient permissions to install add-ons. Try starting {} "
-                        "as a system administrator or install {} in user folders."
-                        .format(name),
+                        "Insufficient permissions to install add-ons. Try starting {name} "
+                        "as a system administrator or install {name} in user folders."
+                        .format(name=name),
                         parent=self).exec_()
         dlg = addons.AddonManagerDialog(
             self, windowTitle=self.tr("Add-ons"), modal=True
