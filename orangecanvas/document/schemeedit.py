@@ -1045,19 +1045,14 @@ class SchemeEditWidget(QWidget):
         source_node = old_link.source_node
         sink_node = old_link.sink_node
 
-        possible_links = (self.__scheme.propose_links(source_node, new_node),
-                          self.__scheme.propose_links(new_node, sink_node))
-
-        first_link_sink_channel = [l[1] for l in possible_links[0]
-                                   if l[0] == old_link.source_channel][0]
-        second_link_source_channel = [l[0] for l in possible_links[1]
-                                      if l[1] == old_link.sink_channel][0]
+        proposed_links = (self.__scheme.propose_links(source_node, new_node)[0],
+                          self.__scheme.propose_links(new_node, sink_node)[0])
 
         new_links = (
-            SchemeLink(source_node, old_link.source_channel,
-                       new_node, first_link_sink_channel),
-            SchemeLink(new_node, second_link_source_channel,
-                       sink_node, old_link.sink_channel))
+            SchemeLink(source_node, proposed_links[0][0],
+                       new_node, proposed_links[0][1]),
+            SchemeLink(new_node, proposed_links[1][0],
+                       sink_node, proposed_links[1][1]))
 
         command = commands.InsertNodeCommand(self.__scheme, new_node, old_link, new_links)
         self.__undoStack.push(command)
@@ -2403,10 +2398,12 @@ def node_properties(scheme):
 
 def can_insert_node(new_node_desc, original_link):
     # type: (WidgetDescription, SchemeLink) -> bool
-    return any(scheme.compatible_channels(original_link.source_channel, input)
-               for input in new_node_desc.inputs) and \
-           any(scheme.compatible_channels(output, original_link.sink_channel)
-               for output in new_node_desc.outputs)
+    return any(any(scheme.compatible_channels(output, input)
+                   for input in new_node_desc.inputs)
+               for output in original_link.source_node.output_channels()) and \
+           any(any(scheme.compatible_channels(output, input)
+                   for output in new_node_desc.outputs)
+               for input in original_link.sink_node.input_channels())
 
 
 def uniquify(item, names, pattern="{item}-{_}", start=0):
