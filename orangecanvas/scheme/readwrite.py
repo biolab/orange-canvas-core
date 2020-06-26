@@ -37,6 +37,9 @@ from ..registry import WidgetDescription, InputSignal, OutputSignal
 
 log = logging.getLogger(__name__)
 
+# protocol v4 is supported since Python 3.4, protocol v5 since Python 3.8
+PICKLE_PROTOCOL = 4
+
 
 class UnknownWidgetDefinition(Exception):
     pass
@@ -715,14 +718,16 @@ def dumps(obj, format="literal", prettyprint=False, pickle_fallback=False):
                         exc_info=True)
 
     elif format == "pickle":
-        return base64.encodebytes(pickle.dumps(obj)).decode('ascii'), "pickle"
+        return base64.encodebytes(pickle.dumps(obj, protocol=PICKLE_PROTOCOL)). \
+                   decode('ascii'), "pickle"
 
     else:
         raise ValueError("Unsupported format %r" % format)
 
     if pickle_fallback:
         log.warning("Using pickle fallback")
-        return base64.encodebytes(pickle.dumps(obj)).decode('ascii'), "pickle"
+        return base64.encodebytes(pickle.dumps(obj, protocol=PICKLE_PROTOCOL)). \
+                   decode('ascii'), "pickle"
     else:
         raise Exception("Something strange happened.")
 
