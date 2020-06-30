@@ -40,6 +40,10 @@ if typing.TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+Node = SchemeNode
+Link = SchemeLink
+Annotation = BaseSchemeAnnotation
+
 
 class Scheme(QObject):
     """
@@ -75,17 +79,26 @@ class Scheme(QObject):
     # Signal emitted when a `node` is added to the scheme.
     node_added = Signal(SchemeNode)
 
+    # Signal emitted when a `node` is inserted to the scheme.
+    node_inserted = Signal(int, Node)
+
     # Signal emitted when a `node` is removed from the scheme.
     node_removed = Signal(SchemeNode)
 
     # Signal emitted when a `link` is added to the scheme.
     link_added = Signal(SchemeLink)
 
+    # Signal emitted when a `link` is added to the scheme.
+    link_inserted = Signal(int, Link)
+
     # Signal emitted when a `link` is removed from the scheme.
     link_removed = Signal(SchemeLink)
 
     # Signal emitted when a `annotation` is added to the scheme.
     annotation_added = Signal(BaseSchemeAnnotation)
+
+    # Signal emitted when a `annotation` is added to the scheme.
+    annotation_inserted = Signal(int, BaseSchemeAnnotation)
 
     # Signal emitted when a `annotation` is removed from the scheme.
     annotation_removed = Signal(BaseSchemeAnnotation)
@@ -191,16 +204,23 @@ class Scheme(QObject):
             Node instance to add to the scheme.
 
         """
+        self.insert_node(len(self.__nodes), node)
+
+    def insert_node(self, index: int, node: Node):
+        """
+        Insert `node` into self.nodes at the specified position `index`
+        """
         assert isinstance(node, SchemeNode)
         check_arg(node not in self.__nodes,
                   "Node already in scheme.")
-        self.__nodes.append(node)
+        self.__nodes.insert(index, node)
 
         ev = events.NodeEvent(events.NodeEvent.NodeAdded, node)
         QCoreApplication.sendEvent(self, ev)
 
         log.info("Added node %r to scheme %r." % (node.title, self.title))
         self.node_added.emit(node)
+        self.node_inserted.emit(index, node)
 
     def new_node(self, description, title=None, position=None,
                  properties=None):
@@ -278,6 +298,25 @@ class Scheme(QObject):
         for link in links_out + links_in:
             self.remove_link(link)
 
+    def insert_link(self, index: int, link: Link):
+        """
+        Insert `link` into `self.links` at the specified position `index`.
+        """
+        assert isinstance(link, SchemeLink)
+        self.check_connect(link)
+        self.__links.insert(index, link)
+
+        ev = events.LinkEvent(events.LinkEvent.LinkAdded, link)
+        QCoreApplication.sendEvent(self, ev)
+
+        log.info("Added link %r (%r) -> %r (%r) to scheme %r." % \
+                 (link.source_node.title, link.source_channel.name,
+                  link.sink_node.title, link.sink_channel.name,
+                  self.title)
+                 )
+        self.link_inserted.emit(index, link)
+        self.link_added.emit(link)
+
     def add_link(self, link):
         # type: (SchemeLink) -> None
         """
@@ -289,21 +328,7 @@ class Scheme(QObject):
             An initialized link instance to add to the scheme.
 
         """
-        assert isinstance(link, SchemeLink)
-
-        self.check_connect(link)
-        self.__links.append(link)
-
-        ev = events.LinkEvent(events.LinkEvent.LinkAdded, link)
-        QCoreApplication.sendEvent(self, ev)
-
-        log.info("Added link %r (%r) -> %r (%r) to scheme %r." % \
-                 (link.source_node.title, link.source_channel.name,
-                  link.sink_node.title, link.sink_channel.name,
-                  self.title)
-                 )
-
-        self.link_added.emit(link)
+        self.insert_link(len(self.__links), link)
 
     def new_link(self, source_node, source_channel,
                  sink_node, sink_channel):
@@ -620,20 +645,28 @@ class Scheme(QObject):
 
         return sorted(proposed_links, key=itemgetter(-1), reverse=True)
 
+    def insert_annotation(self, index: int, annotation: Annotation) -> None:
+        """
+        Insert `annotation` into `self.annotations` at the specified
+        position `index`.
+        """
+        assert isinstance(annotation, BaseSchemeAnnotation)
+        if annotation in self.__annotations:
+            raise ValueError("Cannot add the same annotation multiple times")
+        self.__annotations.insert(index, annotation)
+        ev = events.AnnotationEvent(events.AnnotationEvent.AnnotationAdded,
+                                    annotation)
+        QCoreApplication.sendEvent(self, ev)
+        self.annotation_inserted.emit(index, annotation)
+        self.annotation_added.emit(annotation)
+
     def add_annotation(self, annotation):
         # type: (BaseSchemeAnnotation) -> None
         """
         Add an annotation (:class:`BaseSchemeAnnotation` subclass) instance
         to the scheme.
         """
-        assert isinstance(annotation, BaseSchemeAnnotation)
-        if annotation in self.__annotations:
-            raise ValueError("Cannot add the same annotation multiple times")
-        self.__annotations.append(annotation)
-        ev = events.AnnotationEvent(events.AnnotationEvent.AnnotationAdded,
-                                    annotation)
-        QCoreApplication.sendEvent(self, ev)
-        self.annotation_added.emit(annotation)
+        self.insert_annotation(len(self.__annotations), annotation)
 
     def remove_annotation(self, annotation):
         # type: (BaseSchemeAnnotation) -> None
