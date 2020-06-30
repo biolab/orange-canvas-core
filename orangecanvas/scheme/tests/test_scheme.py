@@ -1,6 +1,7 @@
 """
 Tests for Scheme
 """
+from AnyQt.QtTest import QSignalSpy
 
 from ...gui import test
 from ...registry.tests import small_testing_registry
@@ -110,3 +111,43 @@ class TestScheme(test.QCoreAppTestCase):
         scheme.remove_annotation(text_annot)
         self.assertSequenceEqual(annotations_added, [arrow_annot])
         self.assertSequenceEqual(scheme.annotations, annotations_added)
+
+    def test_insert_node(self):
+        reg = small_testing_registry()
+        one_desc = reg.widget("one")
+        n1, n2 = SchemeNode(one_desc), SchemeNode(one_desc)
+        w = Scheme()
+        spy = QSignalSpy(w.node_inserted)
+        w.add_node(n1)
+        w.insert_node(0, n2)
+        self.assertSequenceEqual(list(spy), [[0, n1], [0, n2]])
+        self.assertSequenceEqual(w.nodes, [n2, n1])
+
+    def test_insert_link(self):
+        reg = small_testing_registry()
+        one_desc = reg.widget("one")
+        add_desc = reg.widget("add")
+        n1, n2, n3 = SchemeNode(one_desc), SchemeNode(one_desc), SchemeNode(add_desc)
+        w = Scheme()
+        spy = QSignalSpy(w.link_inserted)
+        w.add_node(n1)
+        w.add_node(n2)
+        w.add_node(n3)
+        l1 = SchemeLink(n1, "value", n3, "left")
+        l2 = SchemeLink(n2, "value", n3, "right")
+        w.add_link(l1)
+        w.insert_link(0, l2)
+        self.assertSequenceEqual(list(spy), [[0, l1], [0, l2]])
+        self.assertSequenceEqual(w.links, [l2, l1])
+
+    def test_insert_annotation(self):
+        w = Scheme()
+        a1 = SchemeTextAnnotation((0, 0, 1, 1), "a1")
+        a2 = SchemeTextAnnotation((0, 0, 1, 1), "a2")
+        a3 = SchemeTextAnnotation((0, 0, 1, 1), "a3")
+        spy = QSignalSpy(w.annotation_inserted)
+        w.insert_annotation(0, a1)
+        w.insert_annotation(1, a2)
+        w.insert_annotation(0, a3)
+        self.assertSequenceEqual(w.annotations, [a3, a1, a2])
+        self.assertSequenceEqual(list(spy), [[0, a1], [1, a2], [0, a3]])
