@@ -98,7 +98,7 @@ class RemoveNodeCommand(UndoCommand):
         super().__init__("Remove %s" % node.title, parent)
         self.scheme = scheme
         self.node = node
-
+        self._index = -1
         links = scheme.input_links(self.node) + \
                 scheme.output_links(self.node)
 
@@ -108,10 +108,12 @@ class RemoveNodeCommand(UndoCommand):
     def redo(self):
         # redo child commands
         super().redo()
+        self._index = self.scheme.nodes.index(self.node)
         self.scheme.remove_node(self.node)
 
     def undo(self):
-        self.scheme.add_node(self.node)
+        assert self._index != -1
+        self.scheme.insert_node(self._index, self.node)
         # Undo child commands
         super().undo()
 
@@ -136,12 +138,16 @@ class RemoveLinkCommand(UndoCommand):
         super().__init__("Remove link", parent)
         self.scheme = scheme
         self.link = link
+        self._index = -1
 
     def redo(self):
+        self._index = self.scheme.links.index(self.link)
         self.scheme.remove_link(self.link)
 
     def undo(self):
-        self.scheme.add_link(self.link)
+        assert self._index != -1
+        self.scheme.insert_link(self._index, self.link)
+        self._index = -1
 
 
 class InsertNodeCommand(UndoCommand):
@@ -181,12 +187,16 @@ class RemoveAnnotationCommand(UndoCommand):
         super().__init__("Remove annotation", parent)
         self.scheme = scheme
         self.annotation = annotation
+        self._index = -1
 
     def redo(self):
+        self._index = self.scheme.annotations.index(self.annotation)
         self.scheme.remove_annotation(self.annotation)
 
     def undo(self):
-        self.scheme.add_annotation(self.annotation)
+        assert self._index != -1
+        self.scheme.insert_annotation(self._index, self.annotation)
+        self._index = -1
 
 
 class MoveNodeCommand(UndoCommand):
