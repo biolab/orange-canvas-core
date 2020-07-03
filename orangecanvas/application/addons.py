@@ -255,10 +255,13 @@ def description_rich_text(item):  # type: (Item) -> str
     if not content_type:
         # if not defined try rst and fallback to plain text
         content_type = "text/x-rst"
-    try:
-        html = markup.render_as_rich_text(description, content_type)
-    except Exception:
-        html = markup.render_as_rich_text(description, "text/plain")
+    if content_type == "text/markdown":
+        html = markup.render_markdown(description)
+    else:
+        try:
+            html = markup.render_as_rich_text(description, content_type)
+        except Exception:
+            html = markup.render_as_rich_text(description, "text/plain")
     return html
 
 
