@@ -12,7 +12,7 @@ from AnyQt.QtCore import QObject, QCoreApplication
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
 from ..registry import WidgetDescription, InputSignal, OutputSignal
-from .events import NodeEvent
+from .events import NodeEvent, NodeInputChannelEvent, NodeOutputChannelEvent
 
 
 class UserMessage(object):
@@ -111,6 +111,9 @@ class SchemeNode(QObject):
         self.__status_message = ""
         self.__state_messages = {}  # type: Dict[str, UserMessage]
         self.__state = SchemeNode.NoState  # type: Union[SchemeNode.State, int]
+        # I/O channels added at runtime/config
+        self.__inputs = []  # type: List[InputSignal]
+        self.__outputs = []  # type: List[OutputSignal]
         self.properties = properties or {}
 
     def input_channels(self):
@@ -118,14 +121,70 @@ class SchemeNode(QObject):
         """
         Return a list of input channels (:class:`InputSignal`) for the node.
         """
-        return list(self.description.inputs)
+        return list(self.description.inputs) + self.__inputs
+
+    input_channel_inserted = Signal(int, InputSignal)
+    input_channel_removed = Signal(int, InputSignal)
+
+    def add_input_channel(self, signal: InputSignal):
+        """Add `signal` input channel."""
+        self.insert_input_channel(len(self.input_channels()), signal)
+
+    def insert_input_channel(self, index, signal: InputSignal):
+        inputs = self.description.inputs
+        if 0 <= index < len(inputs):
+            raise IndexError("Cannot insert into predefined inputs")
+        self.__inputs.insert(index - len(inputs), signal)
+        QCoreApplication.sendEvent(
+            self, NodeInputChannelEvent(NodeEvent.InputChannelAdded, self, signal, index)
+        )
+        self.input_channel_inserted.emit(index, signal)
+
+    def remove_input_channel(self, index) -> InputSignal:
+        inputs = self.description.inputs
+        if 0 <= index < len(inputs):
+            raise IndexError("Cannot remove predefined inputs")
+        r = self.__inputs.pop(index - len(inputs))
+        QCoreApplication.sendEvent(
+            self, NodeInputChannelEvent(NodeEvent.InputChannelRemoved, self, r, index)
+        )
+        self.input_channel_removed.emit(index, r)
+        return r
 
     def output_channels(self):
         # type: () -> List[OutputSignal]
         """
         Return a list of output channels (:class:`OutputSignal`) for the node.
         """
-        return list(self.description.outputs)
+        return list(self.description.outputs) + self.__outputs
+
+    output_channel_inserted = Signal(int, OutputSignal)
+    output_channel_removed = Signal(int, OutputSignal)
+
+    def add_output_channel(self, signal: OutputSignal):
+        """Add `signal` output channel."""
+        self.insert_output_channel(len(self.output_channels()), signal)
+
+    def insert_output_channel(self, index, signal: OutputSignal):
+        outputs = self.description.outputs
+        if 0 <= index < len(outputs):
+            raise IndexError("Cannot insert into predefined outputs")
+        self.__outputs.insert(index - len(outputs), signal)
+        QCoreApplication.sendEvent(
+            self, NodeOutputChannelEvent(NodeEvent.OutputChannelAdded, self, signal, index)
+        )
+        self.output_channel_inserted.emit(index, signal)
+
+    def remove_output_channel(self, index) -> OutputSignal:
+        outputs = self.description.outputs
+        if 0 <= index < len(outputs):
+            raise IndexError("Cannot remove predefined output")
+        r = self.__outputs.pop(index - len(outputs))
+        QCoreApplication.sendEvent(
+            self, NodeOutputChannelEvent(NodeEvent.OutputChannelRemoved, self, r, index)
+        )
+        self.output_channel_removed.emit(index, r)
+        return r
 
     def input_channel(self, name):
         # type: (str) -> InputSignal
