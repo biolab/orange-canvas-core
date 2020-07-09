@@ -12,11 +12,14 @@ from typing import Any, Union, cast
 
 from AnyQt.QtCore import QEvent
 
+from orangecanvas.registry import InputSignal, OutputSignal
+
 if typing.TYPE_CHECKING:
     from orangecanvas.scheme import SchemeLink, SchemeNode, BaseSchemeAnnotation
 
 __all__ = [
-    "WorkflowEvent", "NodeEvent", "LinkEvent", "AnnotationEvent",
+    "WorkflowEvent", "NodeEvent", "NodeInputChannelEvent",
+    "NodeOutputChannelEvent", "LinkEvent", "AnnotationEvent",
     "WorkflowEnvChanged"
 ]
 
@@ -47,6 +50,11 @@ class WorkflowEvent(QEvent):
 
     #: An output Link has been removed from a node (:class:`LinkEvent`)
     OutputLinkRemoved = QEvent.Type(QEvent.registerEventType())
+
+    InputChannelAdded = QEvent.registerEventType()
+    InputChannelRemoved = QEvent.registerEventType()
+    OutputChannelAdded = QEvent.registerEventType()
+    OutputChannelRemoved = QEvent.registerEventType()
 
     #: Node's (runtime) state has changed (:class:`NodeEvent`)
     NodeStateChange = QEvent.Type(QEvent.registerEventType())
@@ -107,6 +115,10 @@ class NodeEvent(WorkflowEvent):
         * :data:`WorkflowEvent.NodeActivateRequest`
         * :data:`WorkflowEvent.ActivateParentRequest`
         * :data:`WorkflowEvent.OutputLinkRemoved`
+        * :data:`WorkflowEvent.InputChannelAdded`
+        * :data:`WorkflowEvent.InputChannelRemoved`
+        * :data:`WorkflowEvent.OutputChannelAdded`
+        * :data:`WorkflowEvent.OutputChannelRemoved`
 
     Parameters
     ----------
@@ -137,6 +149,34 @@ class NodeEvent(WorkflowEvent):
 
         .. versionadded:: 0.1.16
         """
+        return self.__pos
+
+
+class NodeInputChannelEvent(NodeEvent):
+    def __init__(self, etype, node, channel, pos=-1):
+        # type: (QEvent.Type, SchemeNode, InputSignal, int) -> None
+        super().__init__(etype, node)
+        self.__channel = channel
+        self.__pos = pos
+
+    def channel(self) -> InputSignal:
+        return self.__channel
+
+    def pos(self):
+        return self.__pos
+
+
+class NodeOutputChannelEvent(NodeEvent):
+    def __init__(self, etype, node, channel, pos=-1):
+        # type: (QEvent.Type, SchemeNode, OutputSignal, int) -> None
+        super().__init__(etype, node)
+        self.__channel = channel
+        self.__pos = pos
+
+    def channel(self) -> OutputSignal:
+        return self.__channel
+
+    def pos(self):
         return self.__pos
 
 
