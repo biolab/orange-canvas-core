@@ -323,6 +323,8 @@ class WidgetManager(QObject):
         # send all the post creation notification events
         workflow = self.__workflow
         assert workflow is not None
+        ev = NodeEvent(NodeEvent.NodeAdded, node)
+        QCoreApplication.sendEvent(w, ev)
         inputs = workflow.find_links(sink_node=node)
         raise_ancestors.setEnabled(bool(inputs))
         for i, link in enumerate(inputs):
@@ -386,6 +388,8 @@ class WidgetManager(QObject):
             widget.removeEventFilter(self.__activation_monitor)
             windowmanager = WindowListManager.instance()
             windowmanager.removeWindow(widget)
+            ev = NodeEvent(NodeEvent.NodeRemoved, node)
+            QCoreApplication.sendEvent(widget, ev)
             item.widget = None
             self.widget_for_node_removed.emit(node, widget)
             self.delete_widget_for_node(node, widget)
