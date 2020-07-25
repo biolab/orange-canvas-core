@@ -573,9 +573,10 @@ class NodeAnchorItem(GraphicsPathObject):
         if anchored:
             self.setPath(self.__fullStroke)
             self.__shadow.setPath(self.__fullStroke)
-            hover = self.__hover and len(self.__points) > 1  # a stylistic choice
-            brush = self.connectedHoverBrush if hover else self.connectedBrush
-            self.setBrush(brush)
+            self.shadow.setEnabled(False)
+            self.__hover = False
+            self.__updateHoverState()
+            self.setBrush(self.connectedBrush)
         else:
             self.setPath(self.__dottedStroke)
             self.__shadow.setPath(self.__dottedStroke)
