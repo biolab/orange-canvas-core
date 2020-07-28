@@ -1037,10 +1037,10 @@ class AddonManagerDialog(QDialog):
             # from the finished signal (keep alive until then).
             sip.transferto(self.__thread, None)
             self.__thread.finished.connect(self.__thread.deleteLater)
-            self.__thread.start()
             self.__installer.moveToThread(self.__thread)
             self.__installer.finished.connect(self.__on_installer_finished)
             self.__installer.error.connect(self.__on_installer_error)
+            self.__thread.start()
 
             progress = self.progressDialog()
 
