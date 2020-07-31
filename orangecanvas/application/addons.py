@@ -76,6 +76,7 @@ class Installable(
             ("description", str),
             ("package_url", str),
             ("release_urls", List['ReleaseUrl']),
+            ("requirements", List[str]),
             ("description_content_type", Optional[str]),
             ("force", bool),
         ))):
@@ -97,6 +98,7 @@ class Installable(
     """
 
 Installable.__new__.__defaults__ = (
+    [],
     None,  # description_content_type = None,
     False,  # force = False
 )
@@ -1004,10 +1006,12 @@ class AddonManagerDialog(QDialog):
                 summary = meta.get("Summary", "")
                 descr = meta.get("Description", "")
                 content_type = meta.get("Description-Content-Type", None)
+                requirements = meta.get("Requires-Dist", "")
                 names.append(name)
                 packages.append(
                     Installable(name, vers, summary,
-                                descr or summary, path, [path], content_type, True)
+                                descr or summary, path, [path], requirements,
+                                content_type, True)
                 )
 
         for installable in packages:
@@ -1023,6 +1027,35 @@ class AddonManagerDialog(QDialog):
 
     def __accepted(self):
         steps = self.itemState()
+
+        # warn about implicit upgrades of required core packages
+        core_required = {}
+        for item in self.items():
+            if isinstance(item, Installed) and item.required:
+                core_required[item.local.project_name] = item.local.version
+
+        core_upgrade = set()
+        for step in steps:
+            if step[0] in [Upgrade, Install]:
+                inst = step[1].installable
+                if inst.name in core_required:  # direct upgrade of a core package
+                    core_upgrade.add(inst.name)
+                if inst.requirements:  # indirect upgrade of a core package as a requirement
+                    for req in pkg_resources.parse_requirements(inst.requirements):
+                        if req.name in core_required and core_required[req.name] not in req:
+                            core_upgrade.add(req.name)  # current doesn't meet requirements
+
+        if core_upgrade:
+            icon = QMessageBox.Warning
+            buttons = QMessageBox.Ok | QMessageBox.Cancel
+            title = "Warning"
+            text = "This action will upgrade some core packages:\n"
+            text += "\n".join(sorted(core_upgrade))
+            msg_box = QMessageBox(icon, title, text, buttons, self)
+            msg_box.setInformativeText("Do you want to continue?")
+            msg_box.setDefaultButton(QMessageBox.Ok)
+            if msg_box.exec() != QMessageBox.Ok:
+                steps = []
 
         if steps:
             # Move all uninstall steps to the front
@@ -1157,9 +1190,10 @@ def installable_from_json_response(meta):
                                python_version=r.get("python_version", ""),
                                package_type=r["packagetype"])
                     for r in distributions]
+    requirements = info.get("requires_dist", [])
 
     return Installable(name, version, summary, description, package_url, release_urls,
-                       content_type)
+                       requirements, content_type)
 
 
 def _session(cachedir=None):
