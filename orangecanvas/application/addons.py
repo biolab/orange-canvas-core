@@ -42,9 +42,10 @@ from AnyQt.QtCore import (
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
-from orangecanvas.utils import unique, name_lookup, markup
-from orangecanvas.utils.shtools import python_process, create_process, \
-    temp_named_file
+import sip
+
+from orangecanvas.utils import unique, name_lookup, markup, qualified_name
+from orangecanvas.utils.shtools import python_process, create_process
 
 from ..utils.qinvoke import qinvoke
 from ..gui.utils import message_warning, message_critical as message_error
@@ -966,13 +967,13 @@ class AddonManagerDialog(QDialog):
         super().done(retcode)
         if self.__thread is not None:
             self.__thread.quit()
-            self.__thread.wait(1000)
+            self.__thread = None
 
     def closeEvent(self, event):
         super().closeEvent(event)
         if self.__thread is not None:
             self.__thread.quit()
-            self.__thread.wait(1000)
+            self.__thread = None
 
     ADDON_EXTENSIONS = ('.zip', '.whl', '.tar.gz')
 
@@ -1029,12 +1030,17 @@ class AddonManagerDialog(QDialog):
                 steps, key=lambda step: 0 if step[0] == Uninstall else 1
             )
             self.__installer = Installer(steps=steps)
-            self.__thread = QThread(self)
-            self.__thread.start()
-
+            self.__thread = QThread(
+                objectName=qualified_name(type(self)) + "::InstallerThread",
+            )
+            # transfer ownership to c++; the instance is (deferred) deleted
+            # from the finished signal (keep alive until then).
+            sip.transferto(self.__thread, None)
+            self.__thread.finished.connect(self.__thread.deleteLater)
             self.__installer.moveToThread(self.__thread)
             self.__installer.finished.connect(self.__on_installer_finished)
             self.__installer.error.connect(self.__on_installer_error)
+            self.__thread.start()
 
             progress = self.progressDialog()
 
@@ -1046,10 +1052,17 @@ class AddonManagerDialog(QDialog):
         else:
             self.accept()
 
-    def __on_installer_error(self, command, pkg, retcode, output):
+    def __on_installer_finished_common(self):
         if self.__progress is not None:
             self.__progress.close()
             self.__progress = None
+
+        if self.__thread is not None:
+            self.__thread.quit()
+            self.__thread = None
+
+    def __on_installer_error(self, command, pkg, retcode, output):
+        self.__on_installer_finished_common()
         message_error(
             "An error occurred while running a subprocess", title="Error",
             informative_text="{} exited with non zero status.".format(command),
@@ -1059,9 +1072,7 @@ class AddonManagerDialog(QDialog):
         self.reject()
 
     def __on_installer_finished(self):
-        if self.__progress is not None:
-            self.__progress.close()
-            self.__progress = None
+        self.__on_installer_finished_common()
 
         def message_restart(parent):
             icon = QMessageBox.Information

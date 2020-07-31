@@ -5,9 +5,9 @@ from contextlib import contextmanager
 from unittest.mock import patch
 from zipfile import ZipFile
 
-from AnyQt.QtWidgets import QMessageBox
-
+from AnyQt.QtWidgets import QMessageBox, QDialogButtonBox
 from AnyQt.QtCore import QEventLoop, QUrl, QMimeData, QPoint, Qt
+from AnyQt.QtTest import QTest
 from PyQt5.QtGui import QDropEvent
 from pkg_resources import EntryPoint
 
@@ -183,7 +183,7 @@ class TestAddonManagerDialog(QAppTestCase):
         def query(names):
             return query_res
 
-        with patch.object(QMessageBox, "exec_", return_value=QMessageBox.Ok), \
+        with patch.object(QMessageBox, "exec_", return_value=QMessageBox.Cancel), \
              patch.object(addons, "query_pypi", query):
             f = w.runQueryAndAddResults(
                 ["uber-pkg", "unter-pkg"],
@@ -193,3 +193,21 @@ class TestAddonManagerDialog(QAppTestCase):
             loop.exec()
             items = w.items()
             self.assertEqual(items, [Available(query_res[1].installable)])
+
+    def test_install(self):
+        w = AddonManagerDialog()
+        foo = Available(Installable("foo", "1.1", "", "", "", []))
+        w.setItems([foo])
+        w.setItemState([(Install, foo)])
+        with patch.object(addons.PipInstaller, "install",
+                          lambda self, pkg: None), \
+             patch.object(addons.CondaInstaller, "install",
+                          lambda self, pkg, raise_on_fail: None), \
+             patch.object(QMessageBox, "exec_", return_value=QMessageBox.Cancel):
+            b = w.findChild(QDialogButtonBox)
+            b.accepted.emit()
+            QTest.qWait(1)
+            w.reject()
+            QTest.qWait(1)
+
+        w.deleteLater()
