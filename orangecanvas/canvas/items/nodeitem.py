@@ -14,15 +14,14 @@ from xml.sax.saxutils import escape
 from typing import Dict, Any, Optional, List, Iterable, Tuple
 
 from AnyQt.QtWidgets import (
-    QGraphicsItem, QGraphicsObject, QGraphicsTextItem, QGraphicsWidget,
+    QGraphicsItem, QGraphicsObject, QGraphicsWidget,
     QGraphicsDropShadowEffect, QStyle, QApplication, QGraphicsSceneMouseEvent,
     QGraphicsSceneContextMenuEvent, QStyleOptionGraphicsItem, QWidget,
     QGraphicsEllipseItem
 )
 from AnyQt.QtGui import (
     QPen, QBrush, QColor, QPalette, QIcon, QPainter, QPainterPath,
-    QPainterPathStroker, QTextDocument, QTextBlock, QTextLine,
-    QConicalGradient
+    QPainterPathStroker, QConicalGradient
 )
 from AnyQt.QtCore import (
     Qt, QEvent, QPointF, QRectF, QRect, QSize, QTime, QTimer,
@@ -31,6 +30,7 @@ from AnyQt.QtCore import (
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
 from .graphicspathobject import GraphicsPathObject
+from .graphicstextitem import GraphicsTextItem
 from .utils import saturated, radial_gradient
 
 from ...scheme.node import UserMessage
@@ -917,105 +917,6 @@ class GraphicsIconItem(QGraphicsWidget):
             self.__icon.paint(painter, target, Qt.AlignCenter, mode)
 
 
-class NameTextItem(QGraphicsTextItem):
-    def __init__(self, *args, **kwargs):
-        # type: (Any, Any) -> None
-        super().__init__(*args, **kwargs)
-        self.__selected = False
-        self.__palette = None  # type: Optional[QPalette]
-        self.__content = ""
-        #: The cached text background shape when this item is selected
-        self.__cachedBackgroundPath = None  # type: Optional[QPainterPath]
-        self.document().documentLayoutChanged.connect(self.__onLayoutChanged)
-
-    def __onLayoutChanged(self):
-        self.__cachedBackgroundPath = None
-        self.update()
-
-    def paint(self, painter, option, widget=None):
-        # type: (QPainter, QStyleOptionGraphicsItem, Optional[QWidget]) -> None
-        if self.__selected:
-            path = self.__textBackgroundPath()
-            painter.save()
-            painter.setPen(QPen(Qt.NoPen))
-            painter.setBrush(self.palette().color(QPalette.Highlight))
-            painter.drawPath(path)
-            painter.restore()
-
-        super().paint(painter, option, widget)
-
-    def _blocks(self, doc):
-        # type: (QTextDocument) -> Iterable[QTextBlock]
-        block = doc.begin()
-        while block != doc.end():
-            yield block
-            block = block.next()
-
-    def _lines(self, doc):
-        # type: (QTextDocument) -> Iterable[QTextLine]
-        for block in self._blocks(doc):
-            blocklayout = block.layout()
-            for i in range(blocklayout.lineCount()):
-                yield blocklayout.lineAt(i)
-
-    def __textBackgroundPath(self) -> QPainterPath:
-        # return a path outlining all the text lines.
-        if self.__cachedBackgroundPath is None:
-            doc = self.document()
-            margin = doc.documentMargin()
-            path = QPainterPath()
-            offset = min(margin, 2)
-            for line in self._lines(doc):
-                rect = line.naturalTextRect()
-                rect.translate(margin, margin)
-                rect = rect.adjusted(-offset, -offset, offset, offset)
-                p = QPainterPath()
-                p.addRoundedRect(rect, 3, 3)
-                path = path.united(p)
-            self.__cachedBackgroundPath = path
-        return self.__cachedBackgroundPath
-
-    def setSelectionState(self, state):
-        # type: (bool) -> None
-        if self.__selected != state:
-            self.__selected = state
-            self.__updateDefaultTextColor()
-            self.update()
-
-    def setPalette(self, palette):
-        # type: (QPalette) -> None
-        if self.__palette != palette:
-            self.__palette = QPalette(palette)
-            self.__updateDefaultTextColor()
-            self.update()
-
-    def palette(self):
-        # type: () -> QPalette
-        if self.__palette is None:
-            scene = self.scene()
-            if scene is not None:
-                return scene.palette()
-            else:
-                return QPalette()
-        else:
-            return QPalette(self.__palette)
-
-    def __updateDefaultTextColor(self):
-        # type: () -> None
-        if self.__selected:
-            role = QPalette.HighlightedText
-        else:
-            role = QPalette.WindowText
-        self.setDefaultTextColor(self.palette().color(role))
-
-    def setHtml(self, contents):
-        # type: (str) -> None
-        if contents != self.__content:
-            self.__content = contents
-            self.__cachedBackgroundPath = None
-            super().setHtml(contents)
-
-
 class NodeItem(QGraphicsWidget):
     """
     An widget node item in the canvas.
@@ -1096,8 +997,7 @@ class NodeItem(QGraphicsWidget):
         self.outputAnchorItem.hide()
 
         # Title caption item
-        self.captionTextItem = NameTextItem(self)
-
+        self.captionTextItem = GraphicsTextItem(self)
         self.captionTextItem.setPlainText("")
         self.captionTextItem.setPos(0, 33)
 
