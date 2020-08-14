@@ -11,7 +11,7 @@ import typing
 from typing import List, Tuple, Optional, Any
 
 from AnyQt.QtWidgets import (
-    QGraphicsItem, QGraphicsPathItem, QGraphicsWidget, QGraphicsTextItem,
+    QGraphicsItem, QGraphicsPathItem, QGraphicsWidget,
     QGraphicsDropShadowEffect, QGraphicsSceneHoverEvent,
 )
 from AnyQt.QtGui import (
@@ -20,6 +20,7 @@ from AnyQt.QtGui import (
 from AnyQt.QtCore import Qt, QPointF, QRectF, QLineF, QEvent, QPropertyAnimation, Signal, QTimer
 
 from .nodeitem import AnchorPoint, SHADOW_COLOR
+from .graphicstextitem import GraphicsTextItem
 from .utils import stroke_path
 
 from ...scheme import SchemeLink
@@ -41,6 +42,7 @@ class LinkCurveItem(QGraphicsPathItem):
         self.__animationEnabled = False
         self.__hover = False
         self.__enabled = True
+        self.__selected = False
         self.__shape = None  # type: Optional[QPainterPath]
         self.__curvepath = QPainterPath()
         self.__curvepath_disabled = None  # type: Optional[QPainterPath]
@@ -73,9 +75,17 @@ class LinkCurveItem(QGraphicsPathItem):
 
     def setHoverState(self, state):
         # type: (bool) -> None
-        self.prepareGeometryChange()
-        self.__hover = state
-        self.__update()
+        if self.__hover != state:
+            self.prepareGeometryChange()
+            self.__hover = state
+            self.__update()
+
+    def setSelectionState(self, state):
+        # type: (bool) -> None
+        if self.__selected != state:
+            self.prepareGeometryChange()
+            self.__selected = state
+            self.__update()
 
     def setLinkEnabled(self, state):
         # type: (bool) -> None
@@ -120,8 +130,7 @@ class LinkCurveItem(QGraphicsPathItem):
 
     def __update(self):
         # type: () -> None
-        radius = 5 if self.__hover else 0
-
+        radius = 5 if self.__hover or self.__selected else 0
         if radius != 0 and not self.shadow.isEnabled():
             self.shadow.setEnabled(True)
 
@@ -342,7 +351,7 @@ class LinkItem(QGraphicsWidget):
 
         self.curveItem = LinkCurveItem(self)
 
-        self.linkTextItem = QGraphicsTextItem(self)
+        self.linkTextItem = GraphicsTextItem(self)
         self.linkTextItem.setAcceptedMouseButtons(Qt.NoButton)
         self.linkTextItem.setAcceptHoverEvents(False)
         self.__sourceName = ""
@@ -767,7 +776,7 @@ class LinkItem(QGraphicsWidget):
         normal.setStyle(pen_style)
         hover.setStyle(pen_style)
 
-        if self.hover:
+        if self.hover or self.isSelected():
             pen = hover
         else:
             pen = normal
@@ -782,3 +791,9 @@ class LinkItem(QGraphicsWidget):
     def __updateFont(self):
         # type: () -> None
         self.linkTextItem.setFont(self.font())
+
+    def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value: Any) -> Any:
+        if change == QGraphicsItem.ItemSelectedHasChanged:
+            self.linkTextItem.setSelectionState(value)
+            self.curveItem.setSelectionState(value)
+        return super().itemChange(change, value)
