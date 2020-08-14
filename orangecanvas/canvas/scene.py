@@ -712,6 +712,10 @@ class CanvasScene(QGraphicsScene):
         """
         return [item for item in self.__node_items if item.isSelected()]
 
+    def selected_link_items(self):
+        # type: () -> List[LinkItem]
+        return [item for item in self.__link_items if item.isSelected()]
+
     def selected_annotation_items(self):
         # type: () -> List[Annotation]
         """

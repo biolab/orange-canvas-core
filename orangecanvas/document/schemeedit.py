@@ -524,6 +524,7 @@ class SchemeEditWidget(QWidget):
         scene.focusItemChanged.connect(self.__onFocusItemChanged)
         scene.selectionChanged.connect(self.__onSelectionChanged)
         scene.link_item_activated.connect(self.__onLinkActivate)
+        scene.link_item_added.connect(self.__onLinkAdded)
         scene.node_item_activated.connect(self.__onNodeActivate)
         scene.annotation_added.connect(self.__onAnnotationAdded)
         scene.annotation_removed.connect(self.__onAnnotationRemoved)
@@ -1099,10 +1100,15 @@ class SchemeEditWidget(QWidget):
             return
         scene = self.scene()
         self.__undoStack.beginMacro(self.tr("Remove"))
+        # order LinkItem removes before NodeItems; Removing NodeItems also
+        # removes links so some links in selected could already be removed by
+        # a preceding NodeItem remove
+        selected = sorted(
+            selected, key=lambda item: not isinstance(item, items.LinkItem))
         for item in selected:
             assert self.__scheme is not None
             if isinstance(item, items.NodeItem):
-                node = self.scene().node_for_item(item)
+                node = scene.node_for_item(item)
                 self.__undoStack.push(
                     commands.RemoveNodeCommand(self.__scheme, node)
                 )
@@ -1110,9 +1116,14 @@ class SchemeEditWidget(QWidget):
                 if item.hasFocus() or item.isAncestorOf(scene.focusItem()):
                     # Clear input focus from the item to be removed.
                     scene.focusItem().clearFocus()
-                annot = self.scene().annotation_for_item(item)
+                annot = scene.annotation_for_item(item)
                 self.__undoStack.push(
                     commands.RemoveAnnotationCommand(self.__scheme, annot)
+                )
+            elif isinstance(item, items.LinkItem):
+                link = scene.link_for_item(item)
+                self.__undoStack.push(
+                    commands.RemoveLinkCommand(self.__scheme, link)
                 )
         self.__undoStack.endMacro()
 
@@ -1182,6 +1193,11 @@ class SchemeEditWidget(QWidget):
         """
         return list(map(self.scene().node_for_item,
                         self.scene().selected_node_items()))
+
+    def selectedLinks(self):
+        # type: () -> List[SchemeLink]
+        return list(map(self.scene().link_for_item,
+                        self.scene().selected_link_items()))
 
     def selectedAnnotations(self):
         # type: () -> List[BaseSchemeAnnotation]
@@ -1341,7 +1357,6 @@ class SchemeEditWidget(QWidget):
             self.removeLink(link)
             event.accept()
             return True
-
         any_item = scene.item_at(pos)
         if not any_item:
             self.__emptyClickButtons |= event.button()
@@ -1588,10 +1603,11 @@ class SchemeEditWidget(QWidget):
         # type: () -> None
         nodes = self.selectedNodes()
         annotations = self.selectedAnnotations()
+        links = self.selectedLinks()
 
         self.__openSelectedAction.setEnabled(bool(nodes))
         self.__removeSelectedAction.setEnabled(
-            bool(nodes) or bool(annotations)
+            bool(nodes or annotations or links)
         )
 
         self.__helpAction.setEnabled(len(nodes) == 1)
@@ -1604,7 +1620,7 @@ class SchemeEditWidget(QWidget):
         else:
             self.__openSelectedAction.setText(self.tr("Open"))
 
-        if len(nodes) + len(annotations) > 1:
+        if len(nodes) + len(annotations) + len(links) > 1:
             self.__removeSelectedAction.setText(self.tr("Remove All"))
         else:
             self.__removeSelectedAction.setText(self.tr("Remove"))
@@ -1632,6 +1648,9 @@ class SchemeEditWidget(QWidget):
         action = interactions.EditNodeLinksAction(self, link.source_node,
                                                   link.sink_node)
         action.edit_links()
+
+    def __onLinkAdded(self, item: items.LinkItem) -> None:
+        item.setFlag(QGraphicsItem.ItemIsSelectable)
 
     def __onNodeActivate(self, item):
         # type: (items.NodeItem) -> None
