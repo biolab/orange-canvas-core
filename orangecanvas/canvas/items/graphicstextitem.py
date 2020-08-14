@@ -23,7 +23,8 @@ class GraphicsTextItem(QGraphicsTextItem):
         self.__cachedBackgroundPath = None  # type: Optional[QPainterPath]
         self.__styleState = QStyle.State(0)
         super().__init__(*args, **kwargs)
-        self.document().documentLayoutChanged.connect(self.__onLayoutChanged)
+        layout = self.document().documentLayout()
+        layout.update.connect(self.__onLayoutChanged)
 
     def __onLayoutChanged(self):
         self.__cachedBackgroundPath = None
