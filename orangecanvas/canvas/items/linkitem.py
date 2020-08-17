@@ -12,7 +12,7 @@ from typing import List, Tuple, Optional, Any
 
 from AnyQt.QtWidgets import (
     QGraphicsItem, QGraphicsPathItem, QGraphicsWidget,
-    QGraphicsDropShadowEffect, QGraphicsSceneHoverEvent,
+    QGraphicsDropShadowEffect, QGraphicsSceneHoverEvent, QStyle
 )
 from AnyQt.QtGui import (
     QPen, QBrush, QColor, QPainterPath, QTransform, QPalette,
@@ -737,15 +737,7 @@ class LinkItem(QGraphicsWidget):
         """
         if self.__state != state:
             self.__state = state
-
-            if state & LinkItem.Pending:
-                self.sinkAnchor.setBrush(QBrush(Qt.red))
-            else:
-                self.sinkAnchor.setBrush(QBrush(QColor("#9CACB4")))
-            if state & LinkItem.Invalidated:
-                self.sourceAnchor.setBrush(QBrush(Qt.red))
-            else:
-                self.sourceAnchor.setBrush(QBrush(QColor("#9CACB4")))
+            self.__updateAnchors()
             self.__updatePen()
 
     def runtimeState(self):
@@ -792,8 +784,23 @@ class LinkItem(QGraphicsWidget):
         # type: () -> None
         self.linkTextItem.setFont(self.font())
 
+    def __updateAnchors(self):
+        state = QStyle.State(0)
+        if self.hover:
+            state |= QStyle.State_MouseOver
+        if self.isSelected():
+            state |= QStyle.State_Selected
+        if self.sinkAnchor is not None:
+            self.sinkAnchor.indicator.setStyleState(state)
+            self.sinkAnchor.indicator.setLinkState(self.__state)
+        if self.sourceAnchor is not None:
+            self.sourceAnchor.indicator.setStyleState(state)
+            self.sourceAnchor.indicator.setLinkState(self.__state)
+
     def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value: Any) -> Any:
         if change == QGraphicsItem.ItemSelectedHasChanged:
             self.linkTextItem.setSelectionState(value)
+            self.__updatePen()
+            self.__updateAnchors()
             self.curveItem.setSelectionState(value)
         return super().itemChange(change, value)

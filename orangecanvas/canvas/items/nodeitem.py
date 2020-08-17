@@ -37,10 +37,11 @@ from ...scheme.node import UserMessage
 from ...registry import NAMED_COLORS, WidgetDescription, CategoryDescription
 from ...resources import icon_loader
 from .utils import uniform_linear_layout_trunc
+from ...utils import set_flag
 
 if typing.TYPE_CHECKING:
     from ...registry import WidgetDescription
-    from . import LinkItem
+    # from . import LinkItem
 
 
 def create_palette(light_color, color):
@@ -341,6 +342,8 @@ class LinkAnchorIndicator(QGraphicsEllipseItem):
     """
     def __init__(self, parent=None):
         # type: (Optional[QGraphicsItem]) -> None
+        self.__styleState = QStyle.State(0)
+        self.__linkState = LinkItem.NoState
         super().__init__(parent)
         self.setAcceptedMouseButtons(Qt.NoButton)
         self.setRect(-3.5, -3.5, 7., 7.)
@@ -355,13 +358,25 @@ class LinkAnchorIndicator(QGraphicsEllipseItem):
         """
         The hover state is set by the LinkItem.
         """
-        if self.__hover != state:
-            self.__hover = state
+        state = set_flag(self.__styleState, QStyle.State_MouseOver, state)
+        self.setStyleState(state)
+
+    def setStyleState(self, state: QStyle.State):
+        if self.__styleState != state:
+            self.__styleState = state
+            self.update()
+
+    def setLinkState(self, state: 'LinkItem.State'):
+        if self.__linkState != state:
+            self.__linkState = state
             self.update()
 
     def paint(self, painter, option, widget=None):
         # type: (QPainter, QStyleOptionGraphicsItem, Optional[QWidget]) -> None
-        brush = self.hoverBrush if self.__hover else self.brush()
+        hover = self.__styleState & (QStyle.State_Selected | QStyle.State_MouseOver)
+        brush = self.hoverBrush if hover else self.brush()
+        if self.__linkState & (LinkItem.Pending | LinkItem.Invalidated):
+            brush = QBrush(Qt.red)
 
         painter.setBrush(brush)
         painter.setPen(self.pen())
@@ -453,8 +468,8 @@ class AnchorPoint(QGraphicsObject):
     def setHoverState(self, enabled):
         self.indicator.setHoverState(enabled)
 
-    def setBrush(self, brush):
-        self.indicator.setBrush(brush)
+    def setLinkState(self, state: 'LinkItem.State'):
+        self.indicator.setLinkState(state)
 
 
 class NodeAnchorItem(GraphicsPathObject):
@@ -1539,3 +1554,6 @@ def parse_format_fields(format_str):
                      for _, field, spec, conv in formatter.parse(format_str)
                      if field is not None]
     return format_fields
+
+
+from .linkitem import LinkItem
