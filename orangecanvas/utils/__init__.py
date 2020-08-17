@@ -4,7 +4,8 @@ from functools import reduce
 
 import typing
 from typing import (
-    Iterable, Set, Any, Optional, Union, Tuple, Callable, Mapping, List, Dict
+    Iterable, Set, Any, Optional, Union, Tuple, Callable, Mapping, List, Dict,
+    SupportsInt
 )
 
 from .qtcompat import toPyObject
@@ -25,6 +26,7 @@ __all__ = [
     "group_by_all",
     "mapping_get",
     "findf",
+    "set_flag",
 ]
 
 if typing.TYPE_CHECKING:
@@ -35,6 +37,7 @@ if typing.TYPE_CHECKING:
     K = typing.TypeVar("K")
     V = typing.TypeVar("V")
     KV = Tuple[K, V]
+    F = typing.TypeVar("F", bound=int)
 
 
 def dotted_getattr(obj, name):
@@ -262,3 +265,11 @@ def findf(iterable, predicate, default=None):
         if predicate(item):
             return item
     return default
+
+
+def set_flag(flags, mask, on=True):
+    # type: (F, SupportsInt, bool) -> F
+    if on:
+        return type(flags)(flags | mask)
+    else:
+        return type(flags)(flags & ~int(mask))
