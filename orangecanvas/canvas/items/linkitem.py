@@ -562,8 +562,9 @@ class LinkItem(QGraphicsWidget):
         else:
             text = ""
 
-        self.linkTextItem.setHtml('<div align="center">{0}</div>'
-                                  .format(text))
+        self.linkTextItem.setHtml(
+            '<div align="center" style="font-size: small" >{0}</div>'
+            .format(text))
         path = self.curveItem.curvePath()
 
         # Constrain the text width if it is too long to fit on a single line
