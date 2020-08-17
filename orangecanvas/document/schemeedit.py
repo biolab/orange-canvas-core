@@ -1625,10 +1625,6 @@ class SchemeEditWidget(QWidget):
         else:
             self.__removeSelectedAction.setText(self.tr("Remove"))
 
-        if len(nodes) == 0:
-            self.__openSelectedAction.setText(self.tr("Open"))
-            self.__removeSelectedAction.setText(self.tr("Remove"))
-
         focus = self.focusNode()
         if focus is not None:
             desc = focus.description
