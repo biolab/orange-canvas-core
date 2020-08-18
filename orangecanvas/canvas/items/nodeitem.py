@@ -950,6 +950,9 @@ class NodeItem(QGraphicsWidget):
     #: The item is under the mouse.
     hovered = Signal()
 
+    #: Signal emitted the the item's selection state changes.
+    selectedChanged = Signal(bool)
+
     #: Span of the anchor in degrees
     ANCHOR_SPAN_ANGLE = 90
 
@@ -1473,12 +1476,12 @@ class NodeItem(QGraphicsWidget):
 
     def itemChange(self, change, value):
         # type: (QGraphicsItem.GraphicsItemChange, Any) -> Any
-        if change == QGraphicsItem.ItemSelectedChange:
+        if change == QGraphicsItem.ItemSelectedHasChanged:
             self.shapeItem.setSelected(value)
             self.captionTextItem.setSelectionState(value)
+            self.selectedChanged.emit(value)
         elif change == QGraphicsItem.ItemPositionHasChanged:
             self.positionChanged.emit()
-
         return super().itemChange(change, value)
 
     def __updatePalette(self):

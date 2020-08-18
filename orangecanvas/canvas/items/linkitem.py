@@ -317,6 +317,9 @@ class LinkItem(QGraphicsWidget):
     #: Signal emitted when the item has been activated (double-click)
     activated = Signal()
 
+    #: Signal emitted the the item's selection state changes.
+    selectedChanged = Signal(bool)
+
     #: Z value of the item
     Z_VALUE = 0
 
@@ -390,7 +393,8 @@ class LinkItem(QGraphicsWidget):
 
                 if self.sourceItem is not None:
                     self.sourceItem.removeOutputAnchor(self.sourceAnchor)
-
+                    self.sourceItem.selectedChanged.disconnect(
+                        self.__updateSelectedState)
                 self.sourceItem = self.sourceAnchor = None
 
             self.sourceItem = item
@@ -398,6 +402,8 @@ class LinkItem(QGraphicsWidget):
             if item is not None and anchor is None:
                 # Create a new output anchor for the item if none is provided.
                 anchor = item.newOutputAnchor()
+            if item is not None:
+                item.selectedChanged.connect(self.__updateSelectedState)
 
         if anchor != self.sourceAnchor:
             if self.sourceAnchor is not None:
@@ -437,7 +443,8 @@ class LinkItem(QGraphicsWidget):
 
                 if self.sinkItem is not None:
                     self.sinkItem.removeInputAnchor(self.sinkAnchor)
-
+                    self.sinkItem.selectedChanged.disconnect(
+                        self.__updateSelectedState)
                 self.sinkItem = self.sinkAnchor = None
 
             self.sinkItem = item
@@ -445,6 +452,8 @@ class LinkItem(QGraphicsWidget):
             if item is not None and anchor is None:
                 # Create a new input anchor for the item if none is provided.
                 anchor = item.newInputAnchor()
+            if item is not None:
+                item.selectedChanged.connect(self.__updateSelectedState)
 
         if self.sinkAnchor != anchor:
             if self.sinkAnchor is not None:
@@ -789,7 +798,7 @@ class LinkItem(QGraphicsWidget):
         state = QStyle.State(0)
         if self.hover:
             state |= QStyle.State_MouseOver
-        if self.isSelected():
+        if self.isSelected() or self.__isSelectedImplicit():
             state |= QStyle.State_Selected
         if self.sinkAnchor is not None:
             self.sinkAnchor.indicator.setStyleState(state)
@@ -798,10 +807,20 @@ class LinkItem(QGraphicsWidget):
             self.sourceAnchor.indicator.setStyleState(state)
             self.sourceAnchor.indicator.setLinkState(self.__state)
 
+    def __updateSelectedState(self):
+        selected = self.isSelected() or self.__isSelectedImplicit()
+        self.linkTextItem.setSelectionState(selected)
+        self.__updatePen()
+        self.__updateAnchors()
+        self.curveItem.setSelectionState(selected)
+
+    def __isSelectedImplicit(self):
+        source, sink = self.sourceItem, self.sinkItem
+        return (source is not None and source.isSelected()
+                and sink is not None and sink.isSelected())
+
     def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value: Any) -> Any:
         if change == QGraphicsItem.ItemSelectedHasChanged:
-            self.linkTextItem.setSelectionState(value)
-            self.__updatePen()
-            self.__updateAnchors()
-            self.curveItem.setSelectionState(value)
+            self.__updateSelectedState()
+            self.selectedChanged.emit(value)
         return super().itemChange(change, value)
