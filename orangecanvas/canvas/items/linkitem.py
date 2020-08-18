@@ -127,7 +127,7 @@ class LinkCurveItem(QGraphicsPathItem):
 
         if self.__animationEnabled:
             if self.__blurAnimation.state() == QPropertyAnimation.Running:
-                self.__blurAnimation.pause()
+                self.__blurAnimation.stop()
 
             self.__blurAnimation.setStartValue(self.shadow.blurRadius())
             self.__blurAnimation.setEndValue(radius)
