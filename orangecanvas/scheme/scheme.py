@@ -816,6 +816,8 @@ class Scheme(QObject):
         def __init__(self, name="", default=False, state=[]):
             super().__init__(name=name, default=default, state=state)
 
+    window_group_presets_changed = Signal()
+
     def window_group_presets(self):
         # type: () -> List[Scheme.WindowGroup]
         """
@@ -828,6 +830,7 @@ class Scheme(QObject):
     def set_window_group_presets(self, groups):
         # type: (List[Scheme.WindowGroup]) -> None
         self.setProperty("_presets", groups)
+        self.window_group_presets_changed.emit()
 
 
 from . import readwrite
