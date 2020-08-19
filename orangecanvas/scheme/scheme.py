@@ -21,7 +21,6 @@ from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 from .node import SchemeNode
 from .link import SchemeLink, compatible_channels, _classify_connection
 from .annotations import BaseSchemeAnnotation
-
 from ..utils import check_arg, findf
 
 from .errors import (
@@ -819,7 +818,7 @@ class Scheme(QObject):
     window_group_presets_changed = Signal()
 
     def window_group_presets(self):
-        # type: () -> List[Scheme.WindowGroup]
+        # type: () -> List[WindowGroup]
         """
         Return a collection of preset window groups and their encoded states.
 
@@ -828,7 +827,7 @@ class Scheme(QObject):
         return self.property("_presets") or []
 
     def set_window_group_presets(self, groups):
-        # type: (List[Scheme.WindowGroup]) -> None
+        # type: (List[WindowGroup]) -> None
         self.setProperty("_presets", groups)
         self.window_group_presets_changed.emit()
 
