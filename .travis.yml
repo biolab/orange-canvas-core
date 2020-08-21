@@ -45,4 +45,4 @@ install:
 
 script:
   - pip list --format=freeze
-  - xvfb-run -a -s "$XVFBARGS" python -m unittest discover -v -b .
+  - catchsegv xvfb-run -a -s "$XVFBARGS" python -m unittest discover -v -b .
