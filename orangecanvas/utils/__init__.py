@@ -23,7 +23,8 @@ __all__ = [
     "assocv",
     "assocf",
     "group_by_all",
-    "mapping_get"
+    "mapping_get",
+    "findf",
 ]
 
 if typing.TYPE_CHECKING:
@@ -248,3 +249,16 @@ def mapping_get(
         return type(val)
     except (TypeError, ValueError):
         return default
+
+
+def findf(iterable, predicate, default=None):
+    # type: (Iterable[A], Callable[[A], bool], B) -> Union[A, B]
+    """
+    Find and return the first element in iterable where `predicate(el)` is True.
+
+    Return default if no such element is found.
+    """
+    for item in iterable:
+        if predicate(item):
+            return item
+    return default

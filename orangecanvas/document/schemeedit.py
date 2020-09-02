@@ -55,6 +55,7 @@ from ..canvas.items.annotationitem import Annotation as AnnotationItem
 from . import interactions
 from . import commands
 from . import quickmenu
+from ..utils import findf
 
 Pos = Tuple[float, float]
 RuntimeState = signalmanager.SignalManager.State
@@ -1044,16 +1045,21 @@ class SchemeEditWidget(QWidget):
             raise NoWorkflowError()
         source_node = old_link.source_node
         sink_node = old_link.sink_node
+        source_channel = old_link.source_channel
+        sink_channel = old_link.sink_channel
 
-        proposed_links = (self.__scheme.propose_links(source_node, new_node)[0],
-                          self.__scheme.propose_links(new_node, sink_node)[0])
-
+        proposed_links = (self.__scheme.propose_links(source_node, new_node),
+                          self.__scheme.propose_links(new_node, sink_node))
+        # Preserve existing {source,sink}_channel if possible; use first
+        # proposed if not.
+        first = findf(proposed_links[0], lambda t: t[0] == source_channel,
+                      default=proposed_links[0][0])
+        second = findf(proposed_links[1], lambda t: t[1] == sink_channel,
+                       default=proposed_links[1][0])
         new_links = (
-            SchemeLink(source_node, proposed_links[0][0],
-                       new_node, proposed_links[0][1]),
-            SchemeLink(new_node, proposed_links[1][0],
-                       sink_node, proposed_links[1][1]))
-
+            SchemeLink(source_node, first[0], new_node, first[1]),
+            SchemeLink(new_node, second[0], sink_node, second[1])
+        )
         command = commands.InsertNodeCommand(self.__scheme, new_node, old_link, new_links)
         self.__undoStack.push(command)
 
