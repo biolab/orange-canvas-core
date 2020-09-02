@@ -15,6 +15,7 @@ from ...scheme import Scheme, SchemeNode, SchemeLink, SchemeTextAnnotation, \
 from ...registry.tests import small_testing_registry
 
 from ...gui.test import QAppTestCase, mouseMove
+from ...utils import findf
 
 
 def action_by_name(actions, name):
@@ -373,6 +374,32 @@ class TestSchemeEdit(QAppTestCase):
         wf1 = w1.scheme()
         self.assertEqual(len(wf1.nodes), nnodes)
         self.assertEqual(len(wf1.links), nlinks)
+
+    def test_redo_remove_preserves_order(self):
+        w = self.w
+        workflow = self.setup_test_workflow()
+        w.setRegistry(self.reg)
+        w.setScheme(workflow)
+        undo = w.undoStack()
+        links = workflow.links
+        nodes = workflow.nodes
+        annotations = workflow.annotations
+        assert len(links) > 2
+        w.removeLink(links[1])
+        self.assertSequenceEqual(links[:1] + links[2:], workflow.links)
+        undo.undo()
+        self.assertSequenceEqual(links, workflow.links)
+        # find add node that has multiple in/out links
+        node = findf(workflow.nodes, lambda n: n.title == "add")
+        w.removeNode(node)
+        undo.undo()
+        self.assertSequenceEqual(links, workflow.links)
+        self.assertSequenceEqual(nodes, workflow.nodes)
+
+        w.removeAnnotation(annotations[0])
+        self.assertSequenceEqual(annotations[1:], workflow.annotations)
+        undo.undo()
+        self.assertSequenceEqual(annotations, workflow.annotations)
 
     @classmethod
     def setup_test_workflow(cls, scheme=None):
