@@ -25,7 +25,7 @@ INSTALL_REQUIRES = (
     "setuptools",
     "AnyQt",
     "docutils",
-    "commonmark",
+    "commonmark>=0.8.1",
     "requests",
     "cachecontrol[filecache]",
     "pip>=18.0",
