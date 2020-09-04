@@ -16,7 +16,7 @@ from AnyQt.QtWidgets import (
 )
 from AnyQt.QtGui import (
     QPen, QBrush, QColor, QPainterPath, QTransform, QPalette,
-)
+    QPainterPathStroker, QPainter)
 from AnyQt.QtCore import Qt, QPointF, QRectF, QLineF, QEvent, QPropertyAnimation, Signal, QTimer
 
 from .nodeitem import AnchorPoint, SHADOW_COLOR
@@ -118,9 +118,18 @@ class LinkCurveItem(QGraphicsPathItem):
         if self.__animationEnabled != enabled:
             self.__animationEnabled = enabled
 
+    def paint(self, painter: QPainter, option, widget=None):
+        if self.__hover:
+            spath = stroke_path(self.path(), self.pen())
+            painter.save()
+            painter.setPen(QPen(QColor("#959595"), 2))
+            painter.drawPath(spath)
+            painter.restore()
+        super().paint(painter, option, widget)
+
     def __update(self):
         # type: () -> None
-        radius = 5 if self.__hover else 0
+        radius = 7 if self.__hover else 0
 
         if radius != 0 and not self.shadow.isEnabled():
             self.shadow.setEnabled(True)
@@ -757,7 +766,8 @@ class LinkItem(QGraphicsWidget):
             hover = QPen(QBrush(color.darker(120)), 2.0)
         else:
             normal = QPen(QBrush(QColor("#9CACB4")), 2.0)
-            hover = QPen(QBrush(QColor("#959595")), 2.0)
+            hover = QPen(QBrush(QColor("#FFD39F")), 5.0)
+            hover.setCapStyle(Qt.RoundCap)
 
         if self.__state & LinkItem.Empty:
             pen_style = Qt.DashLine
