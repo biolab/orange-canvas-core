@@ -52,18 +52,21 @@ Workflow Events (``events``)
    :show-inheritance:
 
    .. automethod:: node() -> SchemeNode
+   .. automethod:: pos() -> int
 
 
 .. autoclass:: orangecanvas.scheme.events.LinkEvent
    :show-inheritance:
 
    .. automethod:: link() -> SchemeLink
+   .. automethod:: pos() -> int
 
 
 .. autoclass:: orangecanvas.scheme.events.AnnotationEvent
    :show-inheritance:
 
    .. automethod:: annotation() -> BaseSchemeAnnotation
+   .. automethod:: pos() -> int
 
 
 .. autoclass:: orangecanvas.scheme.events.WorkflowEnvChanged
@@ -72,6 +75,3 @@ Workflow Events (``events``)
    .. automethod:: name() -> str
    .. automethod:: oldValue() -> Any
    .. automethod:: newValue() -> Any
-
-
-
