@@ -17,7 +17,7 @@ from AnyQt.QtWidgets import QWidget, QLabel, QAction
 
 from orangecanvas.resources import icon_loader
 from orangecanvas.scheme import SchemeNode, Scheme, NodeEvent, LinkEvent
-from orangecanvas.scheme.events import WorkflowEvent, WorkflowEnvChanged
+from orangecanvas.scheme.events import WorkflowEvent
 from orangecanvas.scheme.node import UserMessage
 
 log = logging.getLogger(__name__)
@@ -125,7 +125,6 @@ class WidgetManager(QObject):
                 self.__remove_node(node)
             self.__workflow.node_added.disconnect(self.__on_node_added)
             self.__workflow.node_removed.disconnect(self.__on_node_removed)
-            self.__workflow.runtime_env_changed.disconnect(self.__on_env_changed)
             self.__workflow.removeEventFilter(self)
 
         self.__workflow = workflow
@@ -134,8 +133,6 @@ class WidgetManager(QObject):
             self.__on_node_added, Qt.UniqueConnection)
         workflow.node_removed.connect(
             self.__on_node_removed, Qt.UniqueConnection)
-        workflow.runtime_env_changed.connect(
-            self.__on_env_changed, Qt.UniqueConnection)
         workflow.installEventFilter(self)
         for node in workflow.nodes:
             self.__add_node(node)
@@ -562,6 +559,10 @@ class WidgetManager(QObject):
             if event.type() == NodeEvent.NodeActivateRequest:
                 self.__activate_widget_for_node(recv)
             self.__dispatch_events(recv, event)
+        elif event.type() == WorkflowEvent.WorkflowEnvironmentChange \
+                and recv is self.__workflow:
+            for node in self.__item_for_node:
+                self.__dispatch_events(node, event)
         return False
 
     def __dispatch_events(self, node: Node, event: QEvent) -> None:
@@ -602,13 +603,6 @@ class WidgetManager(QObject):
         # Changing window flags hid the widget
         if widget_was_visible:
             widget.show()
-
-    def __on_env_changed(self, key, newvalue, oldvalue):
-        # Notify widgets of a runtime environment change
-        for item in self.__item_for_node.values():
-            if item.widget is not None:
-                ev = WorkflowEnvChanged(key, newvalue, oldvalue)
-                QCoreApplication.sendEvent(item.widget, ev)
 
     def actions_for_context_menu(self, node):
         # type: (SchemeNode) -> List[QAction]

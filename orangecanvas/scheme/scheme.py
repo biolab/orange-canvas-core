@@ -28,7 +28,7 @@ from .errors import (
     SchemeCycleError, IncompatibleChannelTypeError, SinkChannelError,
     DuplicatedLinkError
 )
-from .events import NodeEvent, LinkEvent, AnnotationEvent
+from .events import NodeEvent, LinkEvent, AnnotationEvent, WorkflowEnvChanged
 
 from ..registry import WidgetDescription, InputSignal, OutputSignal
 
@@ -785,6 +785,9 @@ class Scheme(QObject):
         oldvalue = self.__env.get(key, None)
         if value != oldvalue:
             self.__env[key] = value
+            QCoreApplication.sendEvent(
+                self, WorkflowEnvChanged(key, value, oldvalue)
+            )
             self.runtime_env_changed.emit(key, value, oldvalue)
 
     def get_runtime_env(self, key, default=None):
