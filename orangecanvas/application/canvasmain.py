@@ -1231,38 +1231,48 @@ class CanvasMainWindow(QMainWindow):
         -------
         workflow: Optional[Scheme]
         """
-        new_scheme = config.workflow_constructor(parent=self)
-        new_scheme.set_runtime_env(
-            "basedir", os.path.abspath(os.path.dirname(path)))
-        errors = []  # type: List[Exception]
-
         def warn(warning):
             if isinstance(warning, readwrite.PickleDataWarning):
                 raise warning
+
+        def load(fileobj, warning_handler=None,
+                 data_deserializer=readwrite.default_deserializer):
+            new_scheme = config.workflow_constructor()
+            new_scheme.set_runtime_env(
+                "basedir", os.path.abspath(os.path.dirname(path)))
+            errors = []  # type: List[Exception]
+            new_scheme.load_from(
+                fileobj, registry=self.widget_registry,
+                error_handler=errors.append, warning_handler=warning_handler,
+                data_deserializer=data_deserializer
+            )
+            return new_scheme, errors
+
+        basename = os.path.basename(path)
         pos = -1
         try:
             pos = fileobj.tell()
-            new_scheme.load_from(
-                fileobj, registry=self.widget_registry,
-                error_handler=errors.append,
-                warning_handler=warn,
-                allow_pickle_data=False,
+            new_scheme, errors = load(
+                fileobj, warning_handler=warn,
+                data_deserializer=readwrite.default_deserializer
             )
-        except readwrite.PickleDataWarning:
+        except (readwrite.UnsupportedPickleFormatError,
+                readwrite.PickleDataWarning):
             mbox = QMessageBox(
                 self, icon=QMessageBox.Warning,
                 windowTitle=self.tr("Security Warning"),
                 text=self.tr(
-                    "The file contains pickled data that can run "
+                    "The file {basename} contains pickled data that can run "
                     "arbitrary commands on this computer.\n"
                     "Would you like to load the unsafe content anyway?"
-                ),
+                ).format(basename=basename),
                 informativeText=self.tr(
-                    "Only select Load unsafe if you trust the source."
+                    "Only select <b>Load unsafe</b> if you trust the source "
+                    "of the file."
                 ),
                 textFormat=Qt.PlainText,
                 standardButtons=QMessageBox.Yes | QMessageBox.No |
-                                QMessageBox.Abort | QMessageBox.Help
+                                QMessageBox.Abort
             )
             mbox.setDefaultButton(QMessageBox.Abort)
             yes = mbox.button(QMessageBox.Yes)
@@ -1278,24 +1288,19 @@ class CanvasMainWindow(QMainWindow):
                 "unsafe content."
             ))
             res = mbox.exec()
-            if res == QMessageBox.Yes:
-                new_scheme.clear()
-                fileobj.seek(pos, os.SEEK_SET)
-                new_scheme.load_from(
-                    fileobj, registry=self.widget_registry,
-                    error_handler=errors.append, warning_handler=None,
-                    allow_pickle_data=True,
-                )
-            elif res == QMessageBox.No:
-                new_scheme.clear()
-                fileobj.seek(pos, os.SEEK_SET)
-                new_scheme.load_from(
-                    fileobj, registry=self.widget_registry,
-                    error_handler=errors.append, warning_handler=None,
-                    allow_pickle_data=False,
-                )
-            else:
+            if res == QMessageBox.Abort:
                 return None
+            elif res == QMessageBox.Yes:  # load with unsafe data
+                data_deserializer = readwrite.default_deserializer_with_pickle_fallback
+            elif res == QMessageBox.No:  # load but discard unsafe data
+                data_deserializer = readwrite.default_deserializer
+            else:
+                assert False
+            fileobj.seek(pos, os.SEEK_SET)
+            new_scheme, errors = load(
+                fileobj, warning_handler=None,
+                data_deserializer=data_deserializer
+            )
         except Exception:  # pylint: disable=broad-except
             log.exception("")
             message_critical(
@@ -1318,6 +1323,7 @@ class CanvasMainWindow(QMainWindow):
                 details=details,
                 parent=self,
             )
+        new_scheme.setParent(self)
         return new_scheme
 
     def check_requires(self, fileobj: IO) -> bool:
