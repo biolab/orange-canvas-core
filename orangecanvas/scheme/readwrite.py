@@ -1010,6 +1010,14 @@ class UnsupportedFormatError(ValueError):
     pass
 
 
+class UnserializableValueError(ValueError):
+    pass
+
+
+class UnserializableTypeError(TypeError):
+    pass
+
+
 def dumps(obj, format="literal", indent=4):
     """
     Serialize `obj` using `format` ('json' or 'literal') and return its
@@ -1025,7 +1033,12 @@ def dumps(obj, format="literal", indent=4):
     if format == "literal":
         return literal_dumps(obj, indent=indent)
     elif format == "json":
-        return json.dumps(obj, indent=indent)
+        try:
+            return json.dumps(obj, indent=indent)
+        except TypeError as e:
+            raise UnserializableTypeError(*e.args) from e
+        except ValueError as e:
+            raise UnserializableValueError(*e.args) from e
     else:
         raise UnsupportedFormatError("Unsupported format %r" % format)
 
@@ -1055,8 +1068,8 @@ def literal_dumps(obj, indent=None, relaxed_types=True):
     indent : Optional[int]
         If not None then it is the indent for the pretty printer.
     relaxed_types : bool
-        Relaxed type checking. In addition to exact builtin numberic types,
-        the numbers.Integer, numbers.Real are checked and alowed if their
+        Relaxed type checking. In addition to exact builtin numeric types,
+        the numbers.Integer, numbers.Real are checked and allowed if their
         repr matches that of the builtin.
 
         .. warning:: The exact type of the values will be lost.
@@ -1100,16 +1113,16 @@ def literal_dumps(obj, indent=None, relaxed_types=True):
             return all(map(check, obj))
         elif type(obj) in builtins_mapping:
             return all(map(check, chain(obj.keys(), obj.values())))
-        else:
-            raise TypeError("{0} can not be serialized as a python "
-                            "literal".format(type(obj)))
+
+        raise UnserializableTypeError("{0} can not be serialized as a python"
+                                      "literal".format(type(obj)))
 
     def check_relaxed(obj):
         if type(obj) in builtins:
             return True
 
         if id(obj) in memo:
-            raise ValueError("{0} is a recursive structure".format(obj))
+            raise UnserializableValueError("{0} is a recursive structure".format(obj))
 
         memo[id(obj)] = obj
 
@@ -1127,8 +1140,8 @@ def literal_dumps(obj, indent=None, relaxed_types=True):
             if repr(obj) == repr(float(obj)):
                 return True
 
-        raise TypeError("{0} can not be serialized as a python "
-                        "literal".format(type(obj)))
+        raise UnserializableTypeError("{0} can not be serialized as a python "
+                                      "literal".format(type(obj)))
 
     if relaxed_types:
         check_relaxed(obj)
