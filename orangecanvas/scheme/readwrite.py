@@ -2,17 +2,16 @@
 Scheme save/load routines.
 
 """
+import io
 import numbers
-import traceback
 import warnings
 import base64
 import binascii
-import itertools
 import pickle
+from functools import partial
 
 from xml.etree.ElementTree import TreeBuilder, Element, ElementTree, parse
 
-from collections import defaultdict
 from itertools import chain
 
 import json
@@ -28,7 +27,6 @@ from typing import (
 )
 
 from . import SchemeNode, SchemeLink
-from .node import UserMessage
 from .annotations import SchemeTextAnnotation, SchemeArrowAnnotation
 from .errors import IncompatibleChannelTypeError
 
@@ -409,8 +407,61 @@ def resolve_replaced(scheme_desc: _scheme, registry: WidgetRegistry) -> _scheme:
     return scheme_desc._replace(nodes=nodes, links=links)
 
 
-def scheme_load(scheme, stream, registry=None, error_handler=None,
-                warning_handler=None, allow_pickle_data=False):
+def default_error_handler(err: Exception):
+    raise err
+
+
+def default_warning_handler(err: Warning):
+    warnings.warn(err, stacklevel=2)
+
+
+def default_serializer(node: SchemeNode, data_format="literal") -> Optional[Tuple[AnyStr, str]]:
+    if node.properties:
+        return dumps(node.properties, format=data_format), data_format
+    else:
+        return None
+
+
+def default_serializer_with_pickle_fallback(
+        node: SchemeNode, data_format="literal"
+) -> Optional[Tuple[AnyStr, str]]:
+    try:
+        return default_serializer(node, data_format=data_format)
+    except (UnserializableTypeError, UnserializableValueError):
+        data = pickle.dumps(node.properties, protocol=PICKLE_PROTOCOL)
+        data = base64.encodebytes(data).decode("ascii")
+        return data, "pickle"
+
+
+DataSerializerType = Callable[[SchemeNode], Optional[Tuple[AnyStr, str]]]
+
+
+def default_deserializer(payload, format_):
+    return loads(payload, format_)
+
+
+def default_deserializer_with_pickle_fallback(
+        payload, format_, *, unpickler_class=None
+):
+    if format_ == "pickle":
+        if isinstance(payload, str):
+            payload = payload.encode("ascii")
+        if unpickler_class is None:
+            unpickler_class = pickle.Unpickler
+        unpickler = unpickler_class(io.BytesIO(base64.decodebytes(payload)))
+        return unpickler.load()
+    else:
+        return default_deserializer(payload, format_)
+
+
+DataDeserializerType = Callable[[AnyStr, str], Any]
+
+
+def scheme_load(
+        scheme, stream, registry=None,
+        error_handler=None, warning_handler=None,
+        data_deserializer: DataDeserializerType = None
+):
     """
     Populate a Scheme instance with workflow read from an ows data stream.
 
@@ -421,7 +472,7 @@ def scheme_load(scheme, stream, registry=None, error_handler=None,
     registry: WidgetRegistry
     error_handler:  Callable[[Exception], None]
     warning_handler: Callable[[Warning], None]
-    allow_pickle_data: bool
+    data_deserializer: Callable[[AnyStr, str], Any]
     """
     desc = parse_ows_stream(stream)  # type: _scheme
 
@@ -434,6 +485,9 @@ def scheme_load(scheme, stream, registry=None, error_handler=None,
 
     if warning_handler is None:
         warning_handler = warnings.warn
+
+    if data_deserializer is None:
+        data_deserializer = default_deserializer
 
     desc = resolve_replaced(desc, registry)
     nodes_not_found = []
@@ -456,10 +510,19 @@ def scheme_load(scheme, stream, registry=None, error_handler=None,
                 w_desc, title=node_d.title, position=node_d.position)
             data = node_d.data
 
-            if data and data.format != "pickle":
+            if data is not None:
                 try:
-                    properties = loads(data.data, data.format)
-                except Exception:  # pylint: disable=broad-except
+                    properties = data_deserializer(data.data, data.format)
+                except UnsupportedPickleFormatError:
+                    log.error("Could not load pickled properties for %r.", node.title,
+                              exc_info=True)
+                    warning_handler(
+                        PickleDataWarning(
+                            "The file contains pickle data. The settings for '{}' "
+                            "were not restored.".format(node_d.title)
+                        )
+                    )
+                except Exception as err:  # pylint: disable=broad-except
                     log.error("Could not load properties for %r.", node.title,
                               exc_info=True)
                     warning_handler(
@@ -467,44 +530,9 @@ def scheme_load(scheme, stream, registry=None, error_handler=None,
                             "Could not load properties for %r.", node.title
                         )
                     )
-                    # TODO:
-                    #  * Ask for confirmation when saving to the same file
-                    #  * Clear the message once the workflow is saved again
-                    node.set_state_message(
-                        UserMessage(
-                            "Could not restore settings", UserMessage.Error,
-                            message_id="-settings-restore-error",
-                        )
-                    )
+                    node.setProperty("__ows_data_deserialization_error", (type(err), err.args))
                 else:
                     node.properties = properties
-            elif data and data.format == "pickle" and allow_pickle_data:
-                try:
-                    node.properties = pickle.loads(
-                        base64.decodebytes(data.data.encode("ascii"))
-                    )
-                except Exception as err:
-                    log.error("Error", exc_info=True)
-                    error_handler(err)
-            elif data and data.format == "pickle" and not allow_pickle_data:
-                warning_handler(
-                    PickleDataWarning(
-                        "The file contains pickle data. The settings for '{}' "
-                        "were not restored.".format(node_d.title)
-                    )
-                )
-                node.set_state_message(
-                    UserMessage(
-                        "Did not restore pickled settings", UserMessage.Info,
-                        message_id="settings-restore-has-pickle-data",
-                    )
-                )
-                # stash the binary data
-                node.setProperty(
-                    "__pickle_data_ows_2_0",
-                    base64.decodebytes(data.data.encode("ascii"))
-                )
-
             nodes.append(node)
             nodes_by_id[node_d.id] = node
 
@@ -563,20 +591,12 @@ def scheme_load(scheme, stream, registry=None, error_handler=None,
     return scheme
 
 
-def default_error_handler(err: Exception):
-    raise err
-
-
-def default_warning_handler(err: Warning):
-    warnings.warn(err, stacklevel=2)
-
-
 def scheme_to_interm(
-        scheme, data_format="literal", allow_pickle_data=False,
-        warning_handler=None,
-        error_handler=None,
-):
-    # type: (Scheme, str, bool, Callable[[Exception], None], Callable[[Warning], None]) -> _scheme
+        scheme: 'Scheme',
+        data_serializer: DataSerializerType = None,
+        error_handler: Callable[[Exception], None] = None,
+        warning_handler: Callable[[Warning], None] = None,
+) -> _scheme:
     """
     Return a workflow scheme in its intermediate representation for
     serialization.
@@ -588,48 +608,21 @@ def scheme_to_interm(
     window_presets = []
 
     if warning_handler is None:
-        warning_handler = warnings.warn
+        warning_handler = default_warning_handler
 
     if error_handler is None:
         error_handler = default_error_handler
 
-    def serializer(node: SchemeNode) -> Optional[Tuple[AnyStr, str]]:
-        data, format_ = None, data_format
-        if node.properties:
-            try:
-                data = dumps(node.properties, format=format_)
-            except (UnserializableTypeError, UnserializableValueError) as err:
-                if allow_pickle_data:
-                    try:
-                        data = pickle.dumps(node.properties, protocol=PICKLE_PROTOCOL)
-                        format_ = "pickle"
-                    except Exception as err:
-                        log.error("", exc_info=True)
-                        error_handler(err)
-                        data = None
-                else:
-                    log.error("Error serializing properties for node %r",
-                              node.title, exc_info=False)
-                    error_handler(err)
-                    data = None
-        if data is not None:
-            return data, format_
-        else:
-            return None
-
-    custom_serializer = getattr(scheme, "__node_properties_serializer", None)
-
-    if custom_serializer is not None:
-        serializer = custom_serializer
+    if data_serializer is None:
+        data_serializer = default_serializer
 
     # Nodes
     for node_id, node in enumerate(scheme.nodes):  # type: SchemeNode
         data_payload = None
         try:
-            data_payload_ = serializer(node)
+            data_payload_ = data_serializer(node)
         except Exception as err:
             error_handler(err)
-            data_payload = None
         else:
             if data_payload_ is not None:
                 assert len(data_payload_) == 2
@@ -695,10 +688,17 @@ def scheme_to_interm(
     )
 
 
-def scheme_to_etree_2_0(scheme, data_format="literal", allow_pickle_data=False):
-    scheme = scheme_to_interm(
-        scheme, data_format=data_format, allow_pickle_data=allow_pickle_data
+def scheme_to_etree_2_0(
+        scheme: 'Scheme',
+        data_serializer=None,
+        **kwargs
+):
+    return interm_to_etree_2_0(
+        scheme_to_interm(scheme, data_serializer=data_serializer, **kwargs)
     )
+
+
+def interm_to_etree_2_0(scheme: _scheme) -> ElementTree:
     builder = TreeBuilder(element_factory=Element)
     builder.start(
         "scheme", {
@@ -814,144 +814,17 @@ def scheme_to_etree(scheme, data_format="literal", pickle_fallback=False):
     """
     Return an `xml.etree.ElementTree` representation of the `scheme`.
     """
-    builder = TreeBuilder(element_factory=Element)
-    builder.start("scheme", {"version": "2.0",
-                             "title": scheme.title or "",
-                             "description": scheme.description or ""})
-
-    # Nodes
-    node_ids = defaultdict(lambda c=itertools.count(): next(c))
-    builder.start("nodes", {})
-    for node in scheme.nodes:  # type: SchemeNode
-        desc = node.description
-        attrs = {"id": str(node_ids[node]),
-                 "name": desc.name,
-                 "qualified_name": desc.qualified_name,
-                 "project_name": desc.project_name or "",
-                 "version": desc.version or "",
-                 "title": node.title,
-                 }
-        if node.position is not None:
-            attrs["position"] = str(node.position)
-
-        if type(node) is not SchemeNode:
-            attrs["scheme_node_type"] = "%s.%s" % (type(node).__name__,
-                                                   type(node).__module__)
-        builder.start("node", attrs)
-        builder.end("node")
-
-    builder.end("nodes")
-
-    # Links
-    link_ids = defaultdict(lambda c=itertools.count(): next(c))
-    builder.start("links", {})
-    for link in scheme.links:
-        source = link.source_node
-        sink = link.sink_node
-        source_id = node_ids[source]
-        sink_id = node_ids[sink]
-        attrs = {"id": str(link_ids[link]),
-                 "source_node_id": str(source_id),
-                 "sink_node_id": str(sink_id),
-                 "source_channel": link.source_channel.name,
-                 "sink_channel": link.sink_channel.name,
-                 "enabled": "true" if link.enabled else "false",
-                 }
-        builder.start("link", attrs)
-        builder.end("link")
-
-    builder.end("links")
-
-    # Annotations
-    annotation_ids = defaultdict(lambda c=itertools.count(): next(c))
-    builder.start("annotations", {})
-    for annotation in scheme.annotations:
-        annot_id = annotation_ids[annotation]
-        attrs = {"id": str(annot_id)}
-        data = None
-        if isinstance(annotation, SchemeTextAnnotation):
-            tag = "text"
-            attrs.update({"type": annotation.content_type})
-            attrs.update({"rect": repr(annotation.rect)})
-
-            # Save the font attributes
-            font = annotation.font
-            attrs.update({"font-family": font.get("family", None),
-                          "font-size": font.get("size", None)})
-            attrs = [(key, value) for key, value in attrs.items()
-                     if value is not None]
-            attrs = dict((key, str(value)) for key, value in attrs)
-            data = annotation.content
-        elif isinstance(annotation, SchemeArrowAnnotation):
-            tag = "arrow"
-            attrs.update({"start": repr(annotation.start_pos),
-                          "end": repr(annotation.end_pos),
-                          "fill": annotation.color})
-            data = None
-        else:
-            log.warning("Can't save %r", annotation)
-            continue
-        builder.start(tag, attrs)
-        if data is not None:
-            builder.data(data)
-        builder.end(tag)
-
-    builder.end("annotations")
-
-    builder.start("thumbnail", {})
-    builder.end("thumbnail")
-
-    # Node properties/settings
-    builder.start("node_properties", {})
-    for node in scheme.nodes:
-        data = None
-        if node.properties:
-            try:
-                data = dumps(node.properties, format=data_format, indent=2)
-                format = data_format
-            except Exception:
-                log.error("Error serializing properties for node %r",
-                          node.title, exc_info=True)
-                node.set_state_message(
-                    UserMessage(
-                        "Failed to save state state.", UserMessage.Error,
-                        "readwrite-save-error",
-                        data={
-                            "traceback": traceback.format_exc(),
-                        }
-                    )
-                )
-            if data is not None:
-                builder.start("properties",
-                              {"node_id": str(node_ids[node]),
-                               "format": format})
-                builder.data(data)
-                builder.end("properties")
-
-    builder.end("node_properties")
-    builder.start("session_state", {})
-    builder.start("window_groups", {})
-
-    for g in scheme.window_group_presets():
-        builder.start(
-            "group", {"name": g.name, "default": str(g.default).lower()}
-        )
-        for node, data in g.state:
-            if node not in node_ids:
-                continue
-            builder.start("window_state", {"node_id": str(node_ids[node])})
-            builder.data(base64.encodebytes(data).decode("ascii"))
-            builder.end("window_state")
-        builder.end("group")
-    builder.end("window_group")
-    builder.end("session_state")
-    builder.end("scheme")
-    root = builder.close()
-    tree = ElementTree(root)
-    return tree
+    if pickle_fallback:
+        data_serializer = default_serializer_with_pickle_fallback
+    else:
+        data_serializer = default_serializer
+    data_serializer = partial(data_serializer, data_format=data_format)
+    return interm_to_etree_2_0(
+        scheme_to_interm(scheme, data_serializer=data_serializer)
+    )
 
 
-def scheme_to_ows_stream(scheme, stream, pretty=False, pickle_fallback=False):
+def scheme_to_ows_stream(scheme, stream, pretty=False, pickle_fallback=False, data_serializer=None, **kwargs):
     """
     Write scheme to a a stream in Orange Scheme .ows (v 2.0) format.
 
@@ -969,9 +842,16 @@ def scheme_to_ows_stream(scheme, stream, pretty=False, pickle_fallback=False):
         notation.
 
     """
-    tree = scheme_to_etree_2_0(
-        scheme, data_format="literal", allow_pickle_data=pickle_fallback,
-    )
+    if pickle_fallback is not False and data_serializer is not None:
+        raise TypeError("pickle_fallback and data_serializer are mutually "
+                        "exclusive parameters")
+    if data_serializer is None:
+        if pickle_fallback:
+            data_serializer = default_serializer_with_pickle_fallback
+        else:
+            data_serializer = default_serializer
+
+    tree = scheme_to_etree_2_0(scheme, data_serializer=data_serializer, **kwargs)
     if pretty:
         indent(tree.getroot(), 0)
     tree.write(stream, encoding="utf-8", xml_declaration=True)
@@ -1010,6 +890,9 @@ class UnsupportedFormatError(ValueError):
     pass
 
 
+class UnsupportedPickleFormatError(UnsupportedFormatError): ...
+
+
 class UnserializableValueError(ValueError):
     pass
 
@@ -1039,6 +922,8 @@ def dumps(obj, format="literal", indent=4):
             raise UnserializableTypeError(*e.args) from e
         except ValueError as e:
             raise UnserializableValueError(*e.args) from e
+    elif format == "pickle":
+        raise UnsupportedPickleFormatError()
     else:
         raise UnsupportedFormatError("Unsupported format %r" % format)
 
@@ -1048,6 +933,8 @@ def loads(string, format):
         return literal_eval(string)
     elif format == "json":
         return json.loads(string)
+    elif format == "pickle":
+        raise UnsupportedPickleFormatError()
     else:
         raise UnsupportedFormatError("Unsupported format %r" % format)
 
