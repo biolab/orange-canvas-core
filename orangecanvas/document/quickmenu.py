@@ -358,6 +358,18 @@ class SuggestMenuPage(MenuPage):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+    def setSearchQuery(self, text):
+        """
+        Called upon text edited in search query text box.
+        """
+        proxy = self.__proxy()
+        proxy.setSearchQuery(text)
+
+        # re-sorts to make sure items that match by title are on top
+        proxy.invalidate()
+        proxy.sort(0)
+        self.ensureCurrent()
+
     def setModel(self, model):
         # type: (QAbstractItemModel) -> None
         """
@@ -407,15 +419,6 @@ class SuggestMenuPage(MenuPage):
 
         self.ensureCurrent()
 
-    def setFilterWildCard(self, pattern):
-        # type: (str) -> None
-        """
-        Set a wildcard filtering pattern.
-        """
-        filter_proxy = self.__proxy()
-        filter_proxy.setFilterWildCard(pattern)
-        self.ensureCurrent()
-
     def setFilterFunc(self, func):
         # type: (Optional[FilterFunc]) -> None
         """
@@ -446,10 +449,23 @@ class SortFilterProxyModel(QSortFilterProxyModel):
         self.__filterFunc = None  # type: Optional[FilterFunc]
         self.__sortingFunc = None
 
-    def setFilterFunc(self, func):
-        # type: (Optional[FilterFunc]) -> None
+        self.__query = ''
+
+    def setSearchQuery(self, text):
         """
-        Set the filtering function.
+        Set the search query, used for filtering and sorting widgets
+        alongside the filter and sort functions.
+
+        :type text: str
+        """
+        self.__query = text.lstrip().lower()
+
+    def setFilterFunc(self, func):
+        """
+        Set the filtering function, used for filtering out widgets
+        without compatible signals.
+
+        :type func: Optional[FilterFunc]
         """
         if not (func is None or callable(func)):
             raise ValueError("A callable object or None expected.")
@@ -470,15 +486,14 @@ class SortFilterProxyModel(QSortFilterProxyModel):
         if description is None:
             return False
 
-        name = description.name
-        keywords = description.keywords or []
+        name = description.name.lower()
+        keywords = [k.lower() for k in description.keywords]
 
+        query = self.__query
         # match name and keywords
-        accepted = False
-        for keyword in [name] + keywords:
-            if self.filterRegExp().indexIn(keyword) > -1:
-                accepted = True
-                break
+        accepted = (not query or
+                    query in name or
+                    any(k.startswith(query) for k in keywords))
 
         # if matches query, apply filter function (compatibility with paired widget)
         if accepted and self.__filterFunc is not None:
@@ -489,7 +504,11 @@ class SortFilterProxyModel(QSortFilterProxyModel):
             return accepted
 
     def setSortingFunc(self, func):
-        # type: (Callable[[Any, Any], bool]) -> None
+        """
+        Set the sorting function, used for sorting according to statistics.
+
+        :type func: Callable[[Any, Any], bool]
+        """
         self.__sortingFunc = func
         self.invalidate()
         self.sort(0)
@@ -504,16 +523,39 @@ class SortFilterProxyModel(QSortFilterProxyModel):
         model = self.sourceModel()
         left_data = model.data(left)
         right_data = model.data(right)
-
         flat_model = self.sourceModel()
         left_description = flat_model.data(left, role=QtWidgetRegistry.WIDGET_DESC_ROLE)
         right_description = flat_model.data(right, role=QtWidgetRegistry.WIDGET_DESC_ROLE)
 
-        left_matches_title = self.filterRegExp().indexIn(left_description.name) > -1
-        right_matches_title = self.filterRegExp().indexIn(right_description.name) > -1
+        def eval_lessthan(predicate, left, right):
+            left_match = predicate(left)
+            right_match = predicate(right)
+            # if one matches, we know the answer
+            if left_match != right_match:
+                return left_match
+            # if both match, fallback to sorting func
+            elif left_match and right_match:
+                return self.__sortingFunc(left_data, right_data)
+            # else, move on
+            return None
 
-        if left_matches_title != right_matches_title:
-            return left_matches_title
+        query = self.__query
+
+        left_title = left_description.name.lower()
+        right_title = right_description.name.lower()
+
+        sorting_predicates = [
+            lambda t: query == t,  # full title match
+            lambda t: query in t.split(' '),  # full subword match
+            lambda t: t.startswith(query),  # startswith title match
+            lambda t: any(w.startswith(query) for w in t.split(' '))  # startswith subword match
+        ]
+
+        for p in sorting_predicates:
+            match = eval_lessthan(p, left_title, right_title)
+            if match is not None:
+                return match
+
         return self.__sortingFunc(left_data, right_data)
 
 
@@ -1497,9 +1539,7 @@ class QuickMenu(FramelessWindow):
         self.__clearCurrentItems()
 
         self.__search.setText(searchText)
-        patt = QRegExp(r"(^|\W)"+searchText)
-        patt.setCaseSensitivity(Qt.CaseInsensitive)
-        self.__suggestPage.setFilterRegExp(patt)
+        self.__suggestPage.setSearchQuery(searchText)
 
         UsageStatistics.set_last_search_query(searchText)
 
@@ -1617,9 +1657,7 @@ class QuickMenu(FramelessWindow):
 
     def __on_textEdited(self, text):
         # type: (str) -> None
-        patt = QRegExp(r"(^|\W)" + text)
-        patt.setCaseSensitivity(Qt.CaseInsensitive)
-        self.__suggestPage.setFilterRegExp(patt)
+        self.__suggestPage.setSearchQuery(text)
         self.__pages.setCurrentPage(self.__suggestPage)
         self.__selectFirstIndex()
         UsageStatistics.set_last_search_query(text)

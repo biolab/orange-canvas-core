@@ -362,7 +362,7 @@ class WidgetDescription(object):
     def __init__(self, name, id, category=None, version=None,
                  description=None, long_description=None,
                  qualified_name=None, package=None, project_name=None,
-                 inputs=[], outputs=[],
+                 inputs=None, outputs=None,
                  author=None, author_email=None,
                  maintainer=None, maintainer_email=None,
                  help=None, help_ref=None, url=None, keywords=None,
@@ -370,6 +370,14 @@ class WidgetDescription(object):
                  icon=None, background=None,
                  replaces=None, short_name=None,
                  ):
+        if inputs is None:
+            inputs = []
+        if outputs is None:
+            outputs = []
+        if keywords is None:
+            keywords = []
+        if replaces is None:
+            replaces = []
 
         if not qualified_name:
             # TODO: Should also check that the name is real.
@@ -413,7 +421,7 @@ class WidgetDescription(object):
         self.priority = priority
         self.icon = icon
         self.background = background
-        self.replaces = list(replaces) if replaces else []
+        self.replaces = list(replaces)
 
     def __str__(self):
         return ("WidgetDescription(name=%(name)r, id=%(id)r), "
