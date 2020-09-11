@@ -1627,6 +1627,8 @@ class CanvasMainWindow(QMainWindow):
         Should a swp file for this canvas exist,
         ask the user if they wish to restore changes,
         loading on yes, discarding on no.
+
+        Returns True if swp was loaded, False if not.
         """
         document = self.current_document()
         path = document.path()
@@ -1634,16 +1636,16 @@ class CanvasMainWindow(QMainWindow):
         if path:
             swpname = swp_name(self)
             if not os.path.exists(swpname):
-                return
+                return False
         else:
             if not QSettings().value('startup/load-crashed-workflows', True, type=bool):
-                return
+                return False
             swpnames = glob_scratch_swps()
             if not swpnames or \
                     all([s in canvas_scratch_name_memo.values() for s in swpnames]):
-                return
+                return False
 
-        self.ask_load_swp()
+        return self.ask_load_swp()
 
     def ask_load_swp(self):
         """
@@ -1663,8 +1665,10 @@ class CanvasMainWindow(QMainWindow):
 
         if selected == QMessageBox.Yes:
             self.load_swp()
+            return True
         elif selected == QMessageBox.No:
             self.clear_swp()
+            return False
         else:
             assert False
 
