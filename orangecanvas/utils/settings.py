@@ -10,8 +10,8 @@ import logging
 
 import typing
 from typing import List, Dict, Tuple, Union, Any, Type, Optional
-
-from collections import namedtuple, MutableMapping
+from collections import namedtuple
+from collections.abc import MutableMapping
 
 from AnyQt.QtCore import QObject, QEvent, QCoreApplication, QSettings
 from AnyQt.QtCore import pyqtSignal as Signal
