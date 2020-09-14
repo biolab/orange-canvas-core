@@ -44,7 +44,7 @@ class UnknownWidgetDefinition(Exception):
 
 
 class DeserializationWarning(UserWarning):
-    pass
+    node = None  # type: Optional[SchemeNode]
 
 
 class PickleDataWarning(DeserializationWarning):
@@ -513,23 +513,29 @@ def scheme_load(
             if data is not None:
                 try:
                     properties = data_deserializer(data.data, data.format)
-                except UnsupportedPickleFormatError:
-                    log.error("Could not load pickled properties for %r.", node.title,
-                              exc_info=True)
-                    warning_handler(
-                        PickleDataWarning(
-                            "The file contains pickle data. The settings for '{}' "
-                            "were not restored.".format(node_d.title)
+                except UnsupportedFormatError as err:
+                    err.node = node
+                    err.args = err.args + (node,)
+                    error_handler(err)
+                    if isinstance(err, UnsupportedPickleFormatError):
+                        warning = PickleDataWarning(
+                            "The file contains pickle data. The settings "
+                            "for '{}' were not restored.".format(node_d.title)
                         )
-                    )
+                    else:
+                        warning = DeserializationWarning(
+                            "Could not load properties for %r".format(node.title),
+                        )
+                    warning.node = node
+                    warning_handler(warning)
+                    node.setProperty("__ows_data_deserialization_error", (type(err), err.args))
                 except Exception as err:  # pylint: disable=broad-except
-                    log.error("Could not load properties for %r.", node.title,
-                              exc_info=True)
-                    warning_handler(
-                        DeserializationWarning(
-                            "Could not load properties for %r.", node.title
-                        )
+                    error_handler(err)
+                    warning = DeserializationWarning(
+                        "Could not load properties for %r.", node.title
                     )
+                    warning.node = node
+                    warning_handler(node)
                     node.setProperty("__ows_data_deserialization_error", (type(err), err.args))
                 else:
                     node.properties = properties
@@ -887,18 +893,18 @@ def indent(element, level=0, indent="\t"):
 
 
 class UnsupportedFormatError(ValueError):
-    pass
+    node = None  # type: Optional[SchemeNode]
 
 
 class UnsupportedPickleFormatError(UnsupportedFormatError): ...
 
 
 class UnserializableValueError(ValueError):
-    pass
+    node = None  # type: Optional[SchemeNode]
 
 
 class UnserializableTypeError(TypeError):
-    pass
+    node = None  # type: Optional[SchemeNode]
 
 
 def dumps(obj, format="literal", indent=4):
