@@ -2732,7 +2732,7 @@ def render_error_details(errors: Iterable[Exception]) -> str:
                                      IncompatibleChannelTypeError))
     )
     contents = []
-    if missing_node_defs is not None:
+    if missing_node_defs:
         contents.extend([
             "Missing node definitions:",
             *["  \N{BULLET} " + e.args[0] for e in missing_node_defs],
