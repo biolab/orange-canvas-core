@@ -2,6 +2,8 @@
 Test read write
 """
 import io
+from functools import partial
+
 from xml.etree import ElementTree as ET
 
 from ...gui import test
@@ -155,6 +157,87 @@ class TestReadWrite(test.QAppTestCase):
         interm = scheme_to_interm(workflow)
         self.assertEqual(parsed, interm)
 
+    def test_properties_serialize(self):
+        workflow = Scheme()
+        workflow.load_from(
+            io.BytesIO(FOOBAR_v20.encode()),
+            registry=foo_registry(with_replaces=True),
+        )
+        n1, n2 = workflow.nodes
+        self.assertEqual(n1.properties, {"a": 1, "b": 2})
+        self.assertEqual(n2.properties, {"a": 1, "b": 2})
+        f = io.BytesIO()
+        workflow.save_to(
+            f, data_serializer=partial(readwrite.default_serializer,
+                                       data_format="json"))
+        f.seek(0)
+        scheme = readwrite.parse_ows_stream(f)
+        self.assertEqual(scheme.nodes[0].data.format, "json")
+        f.seek(0)
+        rl = []
+        rl.append(rl)
+        n2.properties = {"a": {"b": rl}}
+        with self.assertRaises(readwrite.UnserializableValueError):
+            workflow.save_to(f)
+
+        n2.properties = {"a": {"b": Obj()}}
+
+        with self.assertRaises(readwrite.UnserializableTypeError):
+            workflow.save_to(f)
+
+    def test_properties_serialize_pickle_fallback(self):
+        reg = small_testing_registry()
+        workflow = Scheme()
+        node = SchemeNode(reg.widget("one"))
+        workflow.add_node(node)
+        rl = []
+        rl.append(rl)
+        node.properties = {"a": {"b": Obj()}}
+        f = io.BytesIO()
+        workflow.save_to(f, pickle_fallback=True)
+        contents = f.getvalue()
+        w1 = Scheme()
+
+        with self.assertRaises(readwrite.UnsupportedPickleFormatError):
+            w1.load_from(io.BytesIO(contents), registry=reg)
+
+        w1.clear()
+        w1.load_from(
+            io.BytesIO(contents), registry=reg,
+            data_deserializer=readwrite.default_deserializer_with_pickle_fallback
+        )
+        self.assertEqual(node.properties, w1.nodes[0].properties)
+
+    def test_properties_deserialize_error_handler(self):
+        reg = small_testing_registry()
+        workflow = Scheme()
+        node = SchemeNode(reg.widget("one"))
+        workflow.add_node(node)
+        node.properties = {"a": {"b": Obj()}}
+        f = io.BytesIO()
+        workflow.save_to(f, data_serializer=readwrite.default_serializer_with_pickle_fallback)
+        contents = f.getvalue()
+        workflow = Scheme()
+
+        errors = []
+        warnings = []
+        workflow.load_from(
+            io.BytesIO(contents), registry=reg, error_handler=errors.append,
+            warning_handler=warnings.append,
+        )
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(len(warnings), 1)
+
+        self.assertIsInstance(errors[0], readwrite.UnsupportedPickleFormatError)
+        self.assertIs(errors[0].node, workflow.nodes[0])
+        self.assertIsInstance(warnings[0], readwrite.DeserializationWarning)
+        self.assertIs(warnings[0].node, workflow.nodes[0])
+
+
+class Obj:
+    def __eq__(self, other):
+        return isinstance(other, Obj)
+
 
 def foo_registry(with_replaces=True):
     reg = WidgetRegistry()
@@ -207,5 +290,9 @@ FOOBAR_v20 = """<?xml version="1.0" ?>
         <text id="0" rect="10, 10, 30, 30" type="text/plain">Hello World</text>
         <arrow id="1" start="30, 30" end="60, 60" fill="red" />
     </annotations>
+    <node_properties>
+        <properties format="literal" node_id="0">{'a': 1, 'b': 2}</properties>
+        <properties format="literal" node_id="1">{'a': 1, 'b': 2}</properties>
+    </node_properties>
 </scheme>
 """
