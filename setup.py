@@ -46,7 +46,6 @@ CLASSIFIERS = (
 )
 
 EXTRAS_REQUIRE = {
-    ':python_version=="3.4"': ["typing"],
     'DOCBUILD': ['sphinx', 'sphinx-rtd-theme'],
 }
 
@@ -56,7 +55,7 @@ PROJECT_URLS = {
     "Documentation": "https://orange-canvas-core.readthedocs.io/en/latest/",
 }
 
-PYTHON_REQUIRES = ">=3.4"
+PYTHON_REQUIRES = ">=3.6"
 
 if __name__ == "__main__":
     setup(

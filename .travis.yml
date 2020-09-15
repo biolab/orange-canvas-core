@@ -24,9 +24,6 @@ env:
 matrix:
   fast_finish: false
   include:
-    - python: '3.5'
-      env: TEST_ENV="PyQt5~=5.9.2"
-
     - python: '3.6'
       env: TEST_ENV="PyQt5~=5.12.1"
 
