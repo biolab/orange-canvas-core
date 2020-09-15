@@ -51,6 +51,7 @@ from AnyQt.QtCore import (
 from ..scheme import Scheme, IncompatibleChannelTypeError, SchemeNode
 from ..scheme import readwrite
 from ..scheme.readwrite import UnknownWidgetDefinition
+from ..scheme.node import UserMessage
 from ..gui.dropshadow import DropShadowFrame
 from ..gui.dock import CollapsibleDockWidget
 from ..gui.quickhelp import QuickHelpTipEvent
@@ -1301,6 +1302,15 @@ class CanvasMainWindow(QMainWindow):
                 fileobj, warning_handler=None,
                 data_deserializer=data_deserializer
             )
+            for e in list(errors):
+                if isinstance(e, readwrite.UnsupportedPickleFormatError):
+                    if e.node is not None and e.node in new_scheme.nodes:
+                        e.node.set_state_message(
+                            UserMessage(
+                                "Did not restore settings", UserMessage.Warning,
+                                message_id="-properties-restore-error-data",
+                        ))
+                    errors.remove(e)
         except Exception:  # pylint: disable=broad-except
             log.exception("")
             message_critical(
