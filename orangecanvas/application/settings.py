@@ -12,8 +12,7 @@ from AnyQt.QtWidgets import (
     QWidget, QMainWindow, QComboBox, QCheckBox, QListView, QTabWidget,
     QToolBar, QAction, QStackedWidget, QVBoxLayout, QHBoxLayout,
     QFormLayout, QSizePolicy, QDialogButtonBox, QLineEdit, QLabel,
-    QStyleFactory
-)
+    QStyleFactory, QLayout)
 from AnyQt.QtGui import QStandardItemModel, QStandardItem
 from AnyQt.QtCore import (
     Qt, QEventLoop, QAbstractItemModel, QModelIndex, QSettings,
@@ -184,6 +183,29 @@ def container_widget_helper(orientation=Qt.Vertical, spacing=None, margin=0):
 _State = namedtuple("_State", ["visible", "position"])
 
 
+class FormLayout(QFormLayout):
+    """
+    When adding a row to a QFormLayout, wherein the field is a layout
+    (or a widget with a layout), the label's height is too large to look pretty.
+    This subclass sets the label a fixed height to match the first item in
+    the layout.
+    """
+    def addRow(self, *args):
+        if len(args) != 2:
+            return super().addRow(*args)
+        label, field = args
+        if not isinstance(field, QLayout) and field.layout() is None:
+            return super().addRow(label, field)
+
+        layout = field if isinstance(field, QLayout) else field.layout()
+        widget = layout.itemAt(0).widget()
+        height = widget.sizeHint().height()
+        if isinstance(label, str):
+            label = QLabel(label)
+        label.setFixedHeight(height)
+        return super().addRow(label, field)
+
+
 class UserSettingsDialog(QMainWindow):
     """
     A User Settings/Defaults dialog.
@@ -248,7 +270,7 @@ class UserSettingsDialog(QMainWindow):
         self.addTab(tab, self.tr("General"),
                     toolTip=self.tr("General Options"))
 
-        form = QFormLayout()
+        form = FormLayout()
         tab.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
         nodes = QWidget(self, objectName="nodes")
@@ -368,11 +390,8 @@ class UserSettingsDialog(QMainWindow):
         self.addTab(tab, self.tr("Output"),
                     toolTip="Output Redirection")
 
-        form = QFormLayout()
+        form = FormLayout()
 
-        box = QWidget()
-        layout = QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
         combo = QComboBox()
         combo.addItems([self.tr("Critical"),
                         self.tr("Error"),
@@ -380,9 +399,7 @@ class UserSettingsDialog(QMainWindow):
                         self.tr("Info"),
                         self.tr("Debug")])
         self.bind(combo, "currentIndex", "logging/level")
-        layout.addWidget(combo)
-        box.setLayout(layout)
-        form.addRow(self.tr("Logging"), box)
+        form.addRow(self.tr("Logging"), combo)
 
         box = QWidget()
         layout = QVBoxLayout()
@@ -433,7 +450,7 @@ class UserSettingsDialog(QMainWindow):
         self.addTab(tab, self.tr("Add-ons"),
                     toolTip="Settings related to add-on installation")
 
-        form = QFormLayout()
+        form = FormLayout()
         conda = QWidget(self, objectName="conda-group")
         conda.setLayout(QVBoxLayout())
         conda.layout().setContentsMargins(0, 0, 0, 0)
@@ -457,7 +474,7 @@ class UserSettingsDialog(QMainWindow):
         self.addTab(tab, self.tr("Network"),
                     toolTip="Settings related to networking")
 
-        form = QFormLayout()
+        form = FormLayout()
         line_edit_http_proxy = QLineEdit()
         self.bind(line_edit_http_proxy, "text", "network/http-proxy")
         form.addRow("HTTP proxy:", line_edit_http_proxy)
@@ -564,7 +581,7 @@ class StyleConfigWidget(QWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._current_palette = ""
-        form = QFormLayout()
+        form = FormLayout()
         styles = QStyleFactory.keys()
         styles = sorted(styles, key=cmp_to_key(
             lambda a, b:
