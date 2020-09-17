@@ -25,15 +25,17 @@ from AnyQt.QtCore import pyqtSignal as Signal
 
 from ..registry import (
     WidgetRegistry, WidgetDescription, CategoryDescription,
-    InputSignal, OutputSignal
+    InputSignal, OutputSignal, NAMED_COLORS
 )
 from .. import scheme
-from ..scheme import Scheme, SchemeNode, SchemeLink, BaseSchemeAnnotation
+from ..resources import icon_loader
+from ..scheme import Scheme, SchemeNode, SchemeLink, BaseSchemeAnnotation, Node
 from . import items
 from .items import NodeItem, LinkItem
 from .items.annotationitem import Annotation
 
 from .layout import AnchorLayout
+from ..utils.qinvoke import connect_with_context as qconnect
 
 if typing.TYPE_CHECKING:
     from ..document.interactions import UserInteraction
@@ -45,6 +47,66 @@ __all__ = [
 ]
 
 log = logging.getLogger(__name__)
+
+
+class ItemDelegate(QObject):
+    def createGraphicsWidget(self, node: Node, scene: QGraphicsScene = None) -> NodeItem:
+        desc = node.description
+        item = items.NodeItem()
+        item.setIcon(icon_loader.from_description(desc).get(desc.icon))
+        item.setTitle(node.title)
+        item.setPos(QPointF(*node.position))
+        item.setProcessingState(node.processing_state)
+        item.setProgress(node.progress)
+
+        for message in node.state_messages():
+            item.setStateMessage(message)
+
+        item.setStatusMessage(node.status_message())
+        c = qconnect(
+            node.position_changed, item,
+            lambda pos: item.setPos(QPointF(*pos)),
+        )
+        item.__disconnect = c.disconnect
+        node.title_changed.connect(item.setTitle)
+        node.progress_changed.connect(item.setProgress)
+        node.processing_state_changed.connect(item.setProcessingState)
+        node.state_message_changed.connect(item.setStateMessage)
+        node.status_message_changed.connect(item.setStatusMessage)
+
+        def update_io_channels():
+            item.inputAnchorItem.setSignals(node.input_channels())
+            item.inputAnchorItem.setVisible(bool(node.input_channels()))
+            item.outputAnchorItem.setSignals(node.output_channels())
+            item.outputAnchorItem.setVisible(bool(node.output_channels()))
+
+        node.input_channel_inserted.connect(update_io_channels)
+        node.input_channel_removed.connect(update_io_channels)
+        node.output_channel_inserted.connect(update_io_channels)
+        node.output_channel_removed.connect(update_io_channels)
+        if registry is not None and desc.category:
+            catdesc = registry.category(desc.category)
+            if catdesc and catdesc.background:
+                background = NAMED_COLORS.get(catdesc.background, catdesc.background)
+                color = QColor(background)
+                if color.isValid():
+                    item.setColor(color)
+        return item
+
+    def setGraphicsWidgetData(self, item: NodeItem, node: Node):
+        pass
+
+    def commitData(self, item, node: Node):
+        pass
+
+    def destroyGraphicsWidget(self, item: NodeItem, node: Node):
+        item.__disconnect()
+        node.title_changed.disconnect(item.setTitle)
+        node.progress_changed.disconnect(item.setProgress)
+        node.processing_state_changed.disconnect(item.setProcessingState)
+        node.state_message_changed.disconnect(item.setStateMessage)
+        node.status_message_changed.connect(item.setStatusMessage)
+        item.deleteLater()
 
 
 class CanvasScene(QGraphicsScene):
@@ -331,56 +393,25 @@ class CanvasScene(QGraphicsScene):
             # Already added
             return self.__item_for_node[node]
 
-        item = self.new_node_item(node.description)
-
-        if node.position:
-            pos = QPointF(*node.position)
-            item.setPos(pos)
-
-        item.setTitle(node.title)
-        item.setProcessingState(node.processing_state)
-        item.setProgress(node.progress)
+        delegate = ItemDelegate()
+        item = delegate.createGraphicsWidget(node, self)
         item.inputAnchorItem.setAnchorOpen(self.__anchors_opened)
         item.outputAnchorItem.setAnchorOpen(self.__anchors_opened)
-
-        for message in node.state_messages():
-            item.setStateMessage(message)
-
-        item.setStatusMessage(node.status_message())
-
         self.__item_for_node[node] = item
-
-        node.position_changed.connect(self.__on_node_pos_changed)
-        node.title_changed.connect(item.setTitle)
-        node.progress_changed.connect(item.setProgress)
-        node.processing_state_changed.connect(item.setProcessingState)
-        node.state_message_changed.connect(item.setStateMessage)
-        node.status_message_changed.connect(item.setStatusMessage)
-
         return self.add_node_item(item)
 
     def new_node_item(self, widget_desc, category_desc=None):
-        # type: (WidgetDescription, Optional[CategoryDescription]) -> NodeItem
+        # type: (Union[WidgetDescription, Node], Optional[CategoryDescription]) -> NodeItem
         """
         Construct an new :class:`.NodeItem` from a `WidgetDescription`.
         Optionally also set `CategoryDescription`.
-
         """
-        item = items.NodeItem()
-        item.setWidgetDescription(widget_desc)
-
-        if category_desc is None and self.registry and widget_desc.category:
-            category_desc = self.registry.category(widget_desc.category)
-
-        if category_desc is None and self.registry is not None:
-            try:
-                category_desc = self.registry.category(widget_desc.category)
-            except KeyError:
-                pass
-
-        if category_desc is not None:
-            item.setWidgetCategory(category_desc)
-
+        if isinstance(widget_desc, Node):
+            delegate = ItemDelegate()
+            item = delegate.createGraphicsWidget(widget_desc, self)
+        else:
+            item = items.NodeItem()
+            item.setWidgetDescription(widget_desc)
         item.setAnimationEnabled(self.__node_animation_enabled)
         return item
 
@@ -411,14 +442,9 @@ class CanvasScene(QGraphicsScene):
 
         """
         item = self.__item_for_node.pop(node)
-
-        node.position_changed.disconnect(self.__on_node_pos_changed)
-        node.title_changed.disconnect(item.setTitle)
-        node.progress_changed.disconnect(item.setProgress)
-        node.processing_state_changed.disconnect(item.setProcessingState)
-        node.state_message_changed.disconnect(item.setStateMessage)
-
+        delegate = ItemDelegate()
         self.remove_node_item(item)
+        delegate.destroyGraphicsWidget(item, node)
 
     def node_items(self):
         # type: () -> List[NodeItem]
