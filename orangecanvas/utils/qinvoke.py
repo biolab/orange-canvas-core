@@ -164,5 +164,6 @@ def connect_with_context(
     Like the QObject.connect overload that takes a explicit context QObject,
     which is not exposed by PyQt
     """
-    f = qinvoke(functor, context=context, type=type)
-    return signal.connect(f)
+    func = qinvoke(functor, context=context, type=type)
+    signal.connect(func)
+    return func
