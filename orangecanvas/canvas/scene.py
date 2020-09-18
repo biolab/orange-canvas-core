@@ -494,10 +494,6 @@ class CanvasScene(QGraphicsScene):
         sink_name = channel_name(sink_channel)
 
         fmt = "<b>{0}</b>&nbsp; \u2192 &nbsp;<b>{1}</b>"
-        item.setToolTip(
-            fmt.format(escape(source_name),
-                       escape(sink_name))
-        )
 
         item.setSourceName(source_name)
         item.setSinkName(sink_name)
