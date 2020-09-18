@@ -11,8 +11,8 @@ import typing
 from typing import List, Tuple, Optional, Any
 
 from AnyQt.QtWidgets import (
-    QGraphicsItem, QGraphicsPathItem, QGraphicsWidget, QGraphicsTextItem,
-    QGraphicsDropShadowEffect, QGraphicsSceneHoverEvent,
+    QGraphicsItem, QGraphicsPathItem, QGraphicsWidget,
+    QGraphicsDropShadowEffect, QGraphicsSceneHoverEvent, QStyle
 )
 from AnyQt.QtGui import (
     QPen, QBrush, QColor, QPainterPath, QTransform, QPalette,
@@ -20,6 +20,7 @@ from AnyQt.QtGui import (
 from AnyQt.QtCore import Qt, QPointF, QRectF, QLineF, QEvent, QPropertyAnimation, Signal, QTimer
 
 from .nodeitem import AnchorPoint, SHADOW_COLOR
+from .graphicstextitem import GraphicsTextItem
 from .utils import stroke_path
 
 from ...scheme import SchemeLink
@@ -41,6 +42,7 @@ class LinkCurveItem(QGraphicsPathItem):
         self.__animationEnabled = False
         self.__hover = False
         self.__enabled = True
+        self.__selected = False
         self.__shape = None  # type: Optional[QPainterPath]
         self.__curvepath = QPainterPath()
         self.__curvepath_disabled = None  # type: Optional[QPainterPath]
@@ -73,9 +75,17 @@ class LinkCurveItem(QGraphicsPathItem):
 
     def setHoverState(self, state):
         # type: (bool) -> None
-        self.prepareGeometryChange()
-        self.__hover = state
-        self.__update()
+        if self.__hover != state:
+            self.prepareGeometryChange()
+            self.__hover = state
+            self.__update()
+
+    def setSelectionState(self, state):
+        # type: (bool) -> None
+        if self.__selected != state:
+            self.prepareGeometryChange()
+            self.__selected = state
+            self.__update()
 
     def setLinkEnabled(self, state):
         # type: (bool) -> None
@@ -120,8 +130,7 @@ class LinkCurveItem(QGraphicsPathItem):
 
     def __update(self):
         # type: () -> None
-        radius = 5 if self.__hover else 0
-
+        radius = 5 if self.__hover or self.__selected else 0
         if radius != 0 and not self.shadow.isEnabled():
             self.shadow.setEnabled(True)
 
@@ -308,6 +317,9 @@ class LinkItem(QGraphicsWidget):
     #: Signal emitted when the item has been activated (double-click)
     activated = Signal()
 
+    #: Signal emitted the the item's selection state changes.
+    selectedChanged = Signal(bool)
+
     #: Z value of the item
     Z_VALUE = 0
 
@@ -342,7 +354,7 @@ class LinkItem(QGraphicsWidget):
 
         self.curveItem = LinkCurveItem(self)
 
-        self.linkTextItem = QGraphicsTextItem(self)
+        self.linkTextItem = GraphicsTextItem(self)
         self.linkTextItem.setAcceptedMouseButtons(Qt.NoButton)
         self.linkTextItem.setAcceptHoverEvents(False)
         self.__sourceName = ""
@@ -381,7 +393,8 @@ class LinkItem(QGraphicsWidget):
 
                 if self.sourceItem is not None:
                     self.sourceItem.removeOutputAnchor(self.sourceAnchor)
-
+                    self.sourceItem.selectedChanged.disconnect(
+                        self.__updateSelectedState)
                 self.sourceItem = self.sourceAnchor = None
 
             self.sourceItem = item
@@ -389,6 +402,8 @@ class LinkItem(QGraphicsWidget):
             if item is not None and anchor is None:
                 # Create a new output anchor for the item if none is provided.
                 anchor = item.newOutputAnchor()
+            if item is not None:
+                item.selectedChanged.connect(self.__updateSelectedState)
 
         if anchor != self.sourceAnchor:
             if self.sourceAnchor is not None:
@@ -428,7 +443,8 @@ class LinkItem(QGraphicsWidget):
 
                 if self.sinkItem is not None:
                     self.sinkItem.removeInputAnchor(self.sinkAnchor)
-
+                    self.sinkItem.selectedChanged.disconnect(
+                        self.__updateSelectedState)
                 self.sinkItem = self.sinkAnchor = None
 
             self.sinkItem = item
@@ -436,6 +452,8 @@ class LinkItem(QGraphicsWidget):
             if item is not None and anchor is None:
                 # Create a new input anchor for the item if none is provided.
                 anchor = item.newInputAnchor()
+            if item is not None:
+                item.selectedChanged.connect(self.__updateSelectedState)
 
         if self.sinkAnchor != anchor:
             if self.sinkAnchor is not None:
@@ -553,8 +571,9 @@ class LinkItem(QGraphicsWidget):
         else:
             text = ""
 
-        self.linkTextItem.setHtml('<div align="center">{0}</div>'
-                                  .format(text))
+        self.linkTextItem.setHtml(
+            '<div align="center" style="font-size: small" >{0}</div>'
+            .format(text))
         path = self.curveItem.curvePath()
 
         # Constrain the text width if it is too long to fit on a single line
@@ -728,15 +747,7 @@ class LinkItem(QGraphicsWidget):
         """
         if self.__state != state:
             self.__state = state
-
-            if state & LinkItem.Pending:
-                self.sinkAnchor.setBrush(QBrush(Qt.red))
-            else:
-                self.sinkAnchor.setBrush(QBrush(QColor("#9CACB4")))
-            if state & LinkItem.Invalidated:
-                self.sourceAnchor.setBrush(QBrush(Qt.red))
-            else:
-                self.sourceAnchor.setBrush(QBrush(QColor("#9CACB4")))
+            self.__updateAnchors()
             self.__updatePen()
 
     def runtimeState(self):
@@ -767,7 +778,7 @@ class LinkItem(QGraphicsWidget):
         normal.setStyle(pen_style)
         hover.setStyle(pen_style)
 
-        if self.hover:
+        if self.hover or self.isSelected():
             pen = hover
         else:
             pen = normal
@@ -782,3 +793,34 @@ class LinkItem(QGraphicsWidget):
     def __updateFont(self):
         # type: () -> None
         self.linkTextItem.setFont(self.font())
+
+    def __updateAnchors(self):
+        state = QStyle.State(0)
+        if self.hover:
+            state |= QStyle.State_MouseOver
+        if self.isSelected() or self.__isSelectedImplicit():
+            state |= QStyle.State_Selected
+        if self.sinkAnchor is not None:
+            self.sinkAnchor.indicator.setStyleState(state)
+            self.sinkAnchor.indicator.setLinkState(self.__state)
+        if self.sourceAnchor is not None:
+            self.sourceAnchor.indicator.setStyleState(state)
+            self.sourceAnchor.indicator.setLinkState(self.__state)
+
+    def __updateSelectedState(self):
+        selected = self.isSelected() or self.__isSelectedImplicit()
+        self.linkTextItem.setSelectionState(selected)
+        self.__updatePen()
+        self.__updateAnchors()
+        self.curveItem.setSelectionState(selected)
+
+    def __isSelectedImplicit(self):
+        source, sink = self.sourceItem, self.sinkItem
+        return (source is not None and source.isSelected()
+                and sink is not None and sink.isSelected())
+
+    def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value: Any) -> Any:
+        if change == QGraphicsItem.ItemSelectedHasChanged:
+            self.__updateSelectedState()
+            self.selectedChanged.emit(value)
+        return super().itemChange(change, value)

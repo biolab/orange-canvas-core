@@ -75,7 +75,7 @@ from ..registry.qt import QtWidgetRegistry
 from ..utils.settings import QSettings_readArray, QSettings_writeArray
 from ..utils.qinvoke import qinvoke
 from ..utils.pickle import Pickler, Unpickler, glob_scratch_swps, swp_name, canvas_scratch_name_memo
-from ..utils import unique, group_by_all
+from ..utils import unique, group_by_all, set_flag
 
 from . import welcomedialog
 from . import addons
@@ -2468,11 +2468,8 @@ class CanvasMainWindow(QMainWindow):
 
 
 def updated_flags(flags, mask, state):
-    if state:
-        flags |= mask
-    else:
-        flags &= ~mask
-    return flags
+    return set_flag(flags, mask, state)
+
 
 
 def identity(item):

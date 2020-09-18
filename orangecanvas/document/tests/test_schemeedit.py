@@ -3,12 +3,14 @@ Tests for scheme document.
 """
 from typing import Iterable
 
+from AnyQt.QtGui import QPainterPath
 from AnyQt.QtTest import QSignalSpy, QTest
 
 from AnyQt.QtWidgets import QGraphicsWidget, QAction, QApplication
 
 from AnyQt.QtCore import Qt, QObject, QPoint
 from ..schemeedit import SchemeEditWidget
+from ...canvas import items
 from ...scheme import Scheme, SchemeNode, SchemeLink, SchemeTextAnnotation, \
                       SchemeArrowAnnotation
 
@@ -292,10 +294,31 @@ class TestSchemeEdit(QAppTestCase):
             w.selectedNodes(), w.scheme().nodes)
         self.assertSequenceEqual(
             w.selectedAnnotations(), w.scheme().annotations)
-
+        self.assertSequenceEqual(
+            w.selectedLinks(), w.scheme().links)
         w.removeSelected()
         self.assertEqual(w.scheme().nodes, [])
         self.assertEqual(w.scheme().annotations, [])
+        self.assertEqual(w.scheme().links, [])
+
+    def test_select_remove_link(self):
+        def link_curve(link: SchemeLink) -> QPainterPath:
+            item = scene.item_for_link(link)  # type: items.LinkItem
+            path = item.curveItem.curvePath()
+            return item.mapToScene(path)
+        w = self.w
+        w.resize(300, 300)
+        workflow = self.setup_test_workflow(w.scheme())
+        w.alignToGrid()
+        scene, view = w.scene(), w.view()
+        link = workflow.links[0]
+        path = link_curve(link)
+        p = path.pointAtPercent(0.5)
+        QTest.mouseClick(view.viewport(), Qt.LeftButton, pos=view.mapFromScene(p))
+        self.assertSequenceEqual(w.selectedLinks(), [link])
+        w.removeSelected()
+        self.assertSequenceEqual(w.selectedLinks(), [])
+        self.assertTrue(link not in workflow.links)
 
     def test_open_selected(self):
         w = self.w

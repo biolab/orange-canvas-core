@@ -25,6 +25,7 @@ from AnyQt.QtCore import (
 from AnyQt.QtCore import Signal, Property
 
 from .utils import brush_darker
+from ..utils import set_flag
 
 __all__ = [
     "ToolBox"
@@ -622,15 +623,6 @@ if typing.TYPE_CHECKING:
     A = typing.TypeVar("A")
     B = typing.TypeVar("B")
     C = typing.TypeVar("C")
-    F = typing.TypeVar("F", bound=int)
-
-
-def set_flag(flags, mask, on=True):
-    # type: (F, F, bool) -> F
-    if on:
-        return type(flags)(flags | mask)
-    else:
-        return type(flags)(flags & ~mask)
 
 
 def identity(arg):
