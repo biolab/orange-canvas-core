@@ -1720,11 +1720,6 @@ class CanvasMainWindow(QMainWindow):
                 "Could not load restore data.", title="Error", exc_info=True,
             )
             return
-        else:
-            try:
-                os.remove(filename)
-            except OSError:
-                pass
 
         document.undoCommandAdded.disconnect(self.save_swp)
 
