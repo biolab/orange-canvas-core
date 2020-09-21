@@ -33,96 +33,11 @@ _ToolGridSlot = NamedTuple(
 )
 
 
-def qfont_scaled(font, factor):
-    # type: (QFont, float) -> QFont
-    scaled = QFont(font)
-    if font.pointSizeF() != -1:
-        scaled.setPointSizeF(font.pointSizeF() * factor)
-    elif font.pixelSize() != -1:
-        scaled.setPixelSize(int(font.pixelSize() * factor))
-    return scaled
-
-
 class ToolGridButton(QToolButton):
     def __init__(self, parent=None, **kwargs):
         # type: (Optional[QWidget], Any) -> None
         super().__init__(parent, **kwargs)
-        self.__text = ""
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        if sys.platform != "darwin":
-            font = QApplication.font("QWidget")
-            self.setFont(qfont_scaled(font, 0.85))
-            self.setAttribute(Qt.WA_SetFont, False)
-
-    def actionEvent(self, event):
-        # type: (QActionEvent) -> None
-        super().actionEvent(event)
-        if event.type() == QEvent.ActionChanged or \
-                event.type() == QEvent.ActionAdded:
-            self.__textLayout()
-
-    def resizeEvent(self, event):
-        # type: (QResizeEvent) -> None
-        super().resizeEvent(event)
-        self.__textLayout()
-
-    def __textLayout(self):
-        # type:  () -> None
-        fm = self.fontMetrics()
-        desc = self.defaultAction().data()
-        if isinstance(desc, WidgetDescription) and desc.short_name:
-            self.__text = desc.short_name
-            return
-        text = self.defaultAction().text()
-        words = deque(text.split())
-
-        lines = []  # type: List[str]
-        curr_line = ""
-        curr_line_word_count = 0
-
-        option = QStyleOptionToolButton()
-        option.initFrom(self)
-
-        margin = self.style().pixelMetric(QStyle.PM_ButtonMargin, option, self)
-        width = self.width() - 2 * margin
-
-        while words:
-            w = words.popleft()
-
-            if curr_line_word_count:
-                line_extended = " ".join([curr_line, w])
-            else:
-                line_extended = w
-
-            line_w = fm.boundingRect(line_extended).width()
-
-            if line_w >= width:
-                if curr_line_word_count == 0 or len(lines) == 1:
-                    # A single word that is too long must be elided.
-                    # Also if the text overflows 2 lines
-                    # Warning: hardcoded max lines
-                    curr_line = fm.elidedText(line_extended, Qt.ElideRight,
-                                              width)
-                else:
-                    # Put the word back
-                    words.appendleft(w)
-
-                lines.append(curr_line)
-                curr_line = ""
-                curr_line_word_count = 0
-                if len(lines) == 2:
-                    break
-            else:
-                curr_line = line_extended
-                curr_line_word_count += 1
-
-        if curr_line:
-            lines.append(curr_line)
-
-        text = "\n".join(lines)
-        text = text.replace('&', '&&')  # Need escaped ampersand to show
-
-        self.__text = text
 
     def paintEvent(self, event):
         # type: (QPaintEvent) -> None
@@ -132,32 +47,25 @@ class ToolGridButton(QToolButton):
         p.drawComplexControl(QStyle.CC_ToolButton, opt)
         p.end()
 
-    def initStyleOption(self, option):
-        # type: (QStyleOptionToolButton) -> None
-        super().initStyleOption(option)
-        if self.__text:
-            option.text = self.__text
-
     def sizeHint(self):
         # type: () -> QSize
         opt = QStyleOptionToolButton()
         self.initStyleOption(opt)
         style = self.style()
         csize = opt.iconSize  # type: QSize
-        fm = opt.fontMetrics  # type: QFontMetrics
         margin = style.pixelMetric(QStyle.PM_ButtonMargin)
         # content size is:
-        #   * vertical: icon + margin + 2 * font ascent
+        #   * vertical: icon + margin
         #   * horizontal: icon * 3 / 2
 
-        csize.setHeight(csize.height() + margin + 2 * fm.lineSpacing())
+        csize.setHeight(csize.height() + margin)
         csize.setWidth(csize.width() * 3 // 2)
         size = style.sizeFromContents(
             QStyle.CT_ToolButton, opt, csize, self)
         return size.expandedTo(QApplication.globalStrut())
 
 
-class ToolGrid(QFrame):
+class ToolGrid(QWidget):
     """
     A widget containing a grid of actions/buttons.
 
@@ -184,7 +92,7 @@ class ToolGrid(QFrame):
 
     def __init__(self,
                  parent=None, columns=4, buttonSize=QSize(),
-                 iconSize=QSize(), toolButtonStyle=Qt.ToolButtonTextUnderIcon,
+                 iconSize=QSize(), toolButtonStyle=Qt.ToolButtonIconOnly,
                  **kwargs):
         # type: (Optional[QWidget], int, QSize, QSize, Qt.ToolButtonStyle, Any) -> None
         sizePolicy = kwargs.pop("sizePolicy", None)  # type: Optional[QSizePolicy]

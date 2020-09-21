@@ -268,8 +268,8 @@ class CanvasMainWindow(QMainWindow):
         self.widgets_tool_box.setObjectName("canvas-toolbox")
         self.widgets_tool_box.setTabButtonHeight(30)
         self.widgets_tool_box.setTabIconSize(QSize(26, 26))
-        self.widgets_tool_box.setButtonSize(QSize(64, 84))
-        self.widgets_tool_box.setIconSize(QSize(48, 48))
+        self.widgets_tool_box.setButtonSize(QSize(42, 42))
+        self.widgets_tool_box.setIconSize(QSize(36, 36))
 
         self.widgets_tool_box.triggered.connect(
             self.on_tool_box_widget_activated
@@ -317,8 +317,6 @@ class CanvasMainWindow(QMainWindow):
         self.canvas_arrow_action.setIcon(canvas_icons("Arrow.svg"))
 
         dock_actions = [
-            self.show_properties_action,
-            self.canvas_align_to_grid_action,
             self.canvas_text_action,
             self.canvas_arrow_action,
             self.freeze_action,

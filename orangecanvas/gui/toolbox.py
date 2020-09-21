@@ -544,7 +544,7 @@ class ToolBox(QFrame):
             hint = QSize(max(max_w, hint.width()) + scroll_w + frame_w,
                          hint.height())
 
-        return QSize(200, 200).expandedTo(hint)
+        return hint
 
     def __onTabActionToggled(self, action):
         # type: (QAction) -> None

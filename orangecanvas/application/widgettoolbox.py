@@ -80,6 +80,7 @@ class WidgetToolGrid(ToolGrid):
     def __init__(self, *args, **kwargs):
         # type: (Any, Any) -> None
         super().__init__(*args, **kwargs)
+        self.setContentsMargins(3, 3, 3, 3)
 
         self.__model = None               # type: Optional[QAbstractItemModel]
         self.__rootIndex = QModelIndex()  # type: QModelIndex

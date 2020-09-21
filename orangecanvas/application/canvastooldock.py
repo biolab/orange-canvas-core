@@ -231,6 +231,11 @@ class QuickHelpWidget(QuickHelp):
         hint = super().minimumSizeHint()
         return QSize(hint.width(), 0)
 
+    def sizeHint(self):
+        minSh = self.minimumSizeHint()
+        sh = super().sizeHint()
+        return QSize(minSh.width(), sh.height())
+
 
 class CanvasToolDock(QWidget):
     """Canvas dock widget with widget toolbox, quick help and
