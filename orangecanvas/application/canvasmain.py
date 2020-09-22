@@ -1079,8 +1079,6 @@ class CanvasMainWindow(QMainWindow):
             window.freeze_action.setChecked(True)
         window.load_scheme(filename)
 
-        self.ask_load_swp_if_exists()
-
     def open_example_scheme(self, path):  # type: (str) -> None
         # open an workflow without filename/directory tracking.
         if self.is_transient():
@@ -1183,6 +1181,8 @@ class CanvasMainWindow(QMainWindow):
             if not self.freeze_action.isChecked():
                 # activate the default window group.
                 scheme_doc_widget.activateDefaultWindowGroup()
+
+            self.ask_load_swp_if_exists()
 
     def new_scheme_from(self, filename):
         # type: (str) -> Optional[Scheme]
