@@ -145,6 +145,8 @@ _node = NamedTuple(
         ("project_name", str),
         ("qualified_name", str),
         ("version", str),
+        ("added_inputs", Tuple[dict]),
+        ("added_outputs", Tuple[dict]),
         ("data", Optional['_data'])
     ]
 )
@@ -232,6 +234,14 @@ def parse_ows_etree_v_2_0(tree):
     for node in tree.findall("nodes/node"):
         node_id = node.get("id")
         _px, _py = tuple_eval(node.get("position"))
+        added_inputs = []
+        added_outputs = []
+
+        for ai in node.findall("added_input"):
+            added_inputs.append(dict(ai.attrib))
+        for ao in node.findall("added_output"):
+            added_outputs.append(dict(ao.attrib))
+
         nodes.append(
             _node(  # type: ignore
                 id=node_id,
@@ -241,6 +251,8 @@ def parse_ows_etree_v_2_0(tree):
                 project_name=node.get("project_name"),
                 qualified_name=node.get("qualified_name"),
                 version=node.get("version", ""),
+                added_inputs=tuple(added_inputs),
+                added_outputs=tuple(added_outputs),
                 data=properties.get(node_id, None)
             )
         )
@@ -444,6 +456,14 @@ def scheme_load(scheme, stream, registry=None, error_handler=None):
         else:
             node = SchemeNode(
                 w_desc, title=node_d.title, position=node_d.position)
+            for ai in node_d.added_inputs:
+                node.add_input_channel(
+                    InputSignal(ai["name"], ai["type"], "")
+                )
+            for ao in node_d.added_outputs:
+                node.add_output_channel(
+                    OutputSignal(ao["name"], ao["type"])
+                )
             data = node_d.data
 
             if data:
@@ -584,7 +604,24 @@ def scheme_to_etree(scheme, data_format="literal", pickle_fallback=False):
         if type(node) is not SchemeNode:
             attrs["scheme_node_type"] = "%s.%s" % (type(node).__name__,
                                                    type(node).__module__)
+        input_defs = output_defs = []
+        if node.input_channels() != desc.inputs:
+            input_defs = node.input_channels()[len(desc.inputs):]
+        if node.output_channels() != desc.outputs:
+            output_defs = node.output_channels()[len(desc.outputs):]
         builder.start("node", attrs)
+        for input_def in input_defs:
+            builder.start("added_input", {
+                "name": input_def.name,
+                "type": input_def.type,
+            })
+            builder.end("added_input")
+        for output_def in output_defs:
+            builder.start("added_output", {
+                "name": output_def.name,
+                "type": output_def.type,
+            })
+            builder.end("added_output")
         builder.end("node")
 
     builder.end("nodes")

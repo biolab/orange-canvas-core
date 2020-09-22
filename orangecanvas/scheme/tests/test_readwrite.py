@@ -5,7 +5,8 @@ import io
 from xml.etree import ElementTree as ET
 
 from ...gui import test
-from ...registry import WidgetRegistry, WidgetDescription, CategoryDescription
+from ...registry import WidgetRegistry, WidgetDescription, CategoryDescription, \
+    InputSignal, OutputSignal
 from ...registry import tests as registry_tests
 
 from .. import Scheme, SchemeNode, SchemeLink, \
@@ -148,6 +149,26 @@ class TestReadWrite(test.QAppTestCase):
                             set(["package.foo", "frob.bar"]))
         projects = [node.project_name for node in parsed.nodes]
         self.assertSetEqual(set(projects), set(["Foo", "Bar"]))
+
+    def test_dynamic_io_channels(self):
+        reg = foo_registry()
+        scheme = Scheme()
+        node = SchemeNode(reg.widget("frob.bar"))
+        scheme.add_node(node)
+        node.add_input_channel(InputSignal("a", "int", ""))
+        node.add_input_channel(InputSignal("b", "str", ""))
+
+        node.add_output_channel(OutputSignal("a", "int",))
+        node.add_output_channel(OutputSignal("b", "str"))
+
+        stream = io.BytesIO()
+        readwrite.scheme_to_ows_stream(scheme, stream, )
+        stream.seek(0)
+        scheme_1 = Scheme()
+        readwrite.scheme_load(scheme_1, stream, reg)
+        node_1 = scheme_1.nodes[0]
+        self.assertEqual(node_1.input_channels()[-1].name, "b")
+        self.assertEqual(node_1.output_channels()[-1].name, "b")
 
 
 def foo_registry():
