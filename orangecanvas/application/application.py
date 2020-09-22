@@ -101,6 +101,10 @@ class CanvasApplication(QApplication):
         super().__init__(argv_)
         argv[:] = argv_
         self.setAttribute(Qt.AA_DontShowIconsInMenus, True)
+        sh = self.styleHints()
+        if hasattr(sh, 'setShowShortcutsInContextMenus'):
+            # PyQt5.13 and up
+            sh.setShowShortcutsInContextMenus(True)
         self.configureStyle()
 
     def event(self, event):
