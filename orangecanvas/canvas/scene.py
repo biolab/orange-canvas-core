@@ -120,6 +120,7 @@ class CanvasScene(QGraphicsScene):
 
         self.__channel_names_visible = True
         self.__node_animation_enabled = True
+        self.__animations_temporarily_disabled = False
 
         self.user_interaction_handler = None  # type: Optional[UserInteraction]
 
@@ -871,7 +872,13 @@ class CanvasScene(QGraphicsScene):
 
         self.user_interaction_handler = handler
         if handler:
+            if self.__node_animation_enabled:
+                self.__animations_temporarily_disabled = True
+                self.set_node_animation_enabled(False)
             handler.start()
+        elif self.__animations_temporarily_disabled:
+            self.__animations_temporarily_disabled = False
+            self.set_node_animation_enabled(True)
 
     def __str__(self):
         return "%s(objectName=%r, ...)" % \
