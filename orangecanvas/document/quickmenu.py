@@ -493,6 +493,7 @@ class SortFilterProxyModel(QSortFilterProxyModel):
         # match name and keywords
         accepted = (not query or
                     query in name or
+                    query in name.replace(' ', '') or
                     any(k.startswith(query) for k in keywords))
 
         # if matches query, apply filter function (compatibility with paired widget)
@@ -546,8 +547,10 @@ class SortFilterProxyModel(QSortFilterProxyModel):
 
         sorting_predicates = [
             lambda t: query == t,  # full title match
+            lambda t: query == t.replace(' ', ''),  # full title match no spaces
             lambda t: query in t.split(' '),  # full subword match
             lambda t: t.startswith(query),  # startswith title match
+            lambda t: t.replace(' ', '').startswith(query),  # startswith title match no spaces
             lambda t: any(w.startswith(query) for w in t.split(' '))  # startswith subword match
         ]
 
