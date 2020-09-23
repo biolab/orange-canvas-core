@@ -550,9 +550,6 @@ class SchemeEditWidget(QWidget):
         scene.setFont(self.font())
         scene.setPalette(self.palette())
         scene.installEventFilter(self)
-
-        if self.__registry is not None:
-            scene.set_registry(self.__registry)
         scene.focusItemChanged.connect(self.__onFocusItemChanged)
         scene.selectionChanged.connect(self.__onSelectionChanged)
         scene.link_item_activated.connect(self.__onLinkActivate)
@@ -939,7 +936,6 @@ class SchemeEditWidget(QWidget):
         # included in the node/widget description.
         self.__registry = registry
         if self.__scene:
-            self.__scene.set_registry(registry)
             self.__quickMenu = None
 
     def registry(self):

@@ -5,6 +5,7 @@ Canvas Graphics Scene
 
 """
 import typing
+import warnings
 from typing import Dict, List, Optional, Any, Type, Tuple, Union
 
 import logging
@@ -84,13 +85,11 @@ class ItemDelegate(QObject):
         node.input_channel_removed.connect(update_io_channels)
         node.output_channel_inserted.connect(update_io_channels)
         node.output_channel_removed.connect(update_io_channels)
-        if registry is not None and desc.category:
-            catdesc = registry.category(desc.category)
-            if catdesc and catdesc.background:
-                background = NAMED_COLORS.get(catdesc.background, catdesc.background)
-                color = QColor(background)
-                if color.isValid():
-                    item.setColor(color)
+        if desc.background:
+            background = NAMED_COLORS.get(desc.background, desc.background)
+            color = QColor(background)
+            if color.isValid():
+                item.setColor(color)
         return item
 
     def setGraphicsWidgetData(self, item: NodeItem, node: Node):
@@ -157,7 +156,7 @@ class CanvasScene(QGraphicsScene):
         super().__init__(*args, **kwargs)
 
         self.scheme = None    # type: Optional[Scheme]
-        self.registry = None  # type: Optional[WidgetRegistry]
+        self.__registry = None  # type: Optional[WidgetRegistry]
 
         # All node items
         self.__node_items = []  # type: List[NodeItem]
@@ -291,9 +290,17 @@ class CanvasScene(QGraphicsScene):
         """
         Set the widget registry.
         """
-        # TODO: Remove/Deprecate. Is used only to get the category/background
-        # color. That should be part of the SchemeNode/WidgetDescription.
-        self.registry = registry
+        warnings.warn(
+            "`set_registry` is deprecated", DeprecationWarning, stacklevel=2
+        )
+        self.__registry = registry
+
+    @property
+    def registry(self):
+        warnings.warn(
+            '`registry` is deprecated', DeprecationWarning, stacklevel=2
+        )
+        return self.__registry
 
     def set_anchor_layout(self, layout):
         """
