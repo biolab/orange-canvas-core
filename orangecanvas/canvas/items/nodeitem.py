@@ -1221,7 +1221,10 @@ class NodeItem(QGraphicsWidget):
         self.shapeItem = NodeBodyItem(self)
         self.shapeItem.setShapeRect(shape_rect)
         self.shapeItem.setAnimationEnabled(self.__animationEnabled)
-
+        self.iconItem = GraphicsIconItem(self.shapeItem, iconSize=QSize(36, 36))
+        # assuming light-ish color background
+        self.iconItem.setPalette(styles.breeze_light())
+        self.iconItem.setPos(-18, -18)
         # Rect for widget's 'ears'.
         anchor_rect = QRectF(-31, -31, 62, 62)
         self.inputAnchorItem = SinkAnchorItem(self)
@@ -1338,12 +1341,10 @@ class NodeItem(QGraphicsWidget):
         """
         Set the node item's icon (:class:`QIcon`).
         """
-        self.icon_item = GraphicsIconItem(
-            self.shapeItem, icon=icon, iconSize=QSize(36, 36)
-        )
-        # assuming light-ish color background
-        self.icon_item.setPalette(styles.breeze_light())
-        self.icon_item.setPos(-18, -18)
+        self.iconItem.setIcon(icon)
+
+    def icon(self) -> QIcon:
+        return self.iconItem.icon()
 
     def setColor(self, color, selectedColor=None):
         # type: (QColor, Optional[QColor]) -> None
