@@ -50,6 +50,28 @@ __all__ = [
 log = logging.getLogger(__name__)
 
 
+def Node_toolTipHelper(node: Node) -> str:
+    """
+    A helper function for constructing a standard tooltip for the `node`.
+    """
+    title = f"<b>{escape(node.title)}</b>"
+    if node.input_channels():
+        inputs = [f"<li>{escape(inp.name)}</li>" for inp in node.input_channels()]
+        inputs = f'Inputs:<ul>{"".join(inputs)}</ul>'
+    else:
+        inputs = "No inputs"
+
+    if node.output_channels():
+        outputs = [f"<li>{escape(out.name)}</li>" for out in node.output_channels()]
+        outputs = f'Outputs:<ul>{"".join(outputs)}</ul>'
+    else:
+        outputs = "No outputs"
+
+    tooltip = "<hr/>".join([title, inputs, outputs])
+    style = "ul { margin-top: 1px; margin-bottom: 1px; }"
+    return f'<span><style type="text/css">\n{style}\n</style>{tooltip}</span>'
+
+
 class ItemDelegate(QObject):
     def createGraphicsWidget(self, node: Node, scene: QGraphicsScene = None) -> NodeItem:
         desc = node.description
@@ -80,11 +102,14 @@ class ItemDelegate(QObject):
             item.inputAnchorItem.setVisible(bool(node.input_channels()))
             item.outputAnchorItem.setSignals(node.output_channels())
             item.outputAnchorItem.setVisible(bool(node.output_channels()))
+            item.setToolTip(Node_toolTipHelper(node, ))
 
         node.input_channel_inserted.connect(update_io_channels)
         node.input_channel_removed.connect(update_io_channels)
         node.output_channel_inserted.connect(update_io_channels)
         node.output_channel_removed.connect(update_io_channels)
+        update_io_channels()
+
         if desc.background:
             background = NAMED_COLORS.get(desc.background, desc.background)
             color = QColor(background)
