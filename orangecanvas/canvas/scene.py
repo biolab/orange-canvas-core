@@ -417,8 +417,7 @@ class CanvasScene(QGraphicsScene):
             delegate = ItemDelegate()
             item = delegate.createGraphicsWidget(widget_desc, self)
         else:
-            item = items.NodeItem()
-            item.setWidgetDescription(widget_desc)
+            item = items.NodeItem.from_node_meta(widget_desc)
         item.setAnimationEnabled(self.__node_animation_enabled)
         return item
 
