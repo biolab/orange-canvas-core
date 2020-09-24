@@ -2576,10 +2576,17 @@ def uniquify(item, names, pattern="{item}-{_}", start=0):
 
 def copy_node(node):
     # type: (SchemeNode) -> SchemeNode
-    return SchemeNode(
-        node.description, node.title, position=node.position,
+    desc = node.description
+    newnode = SchemeNode(
+        desc, node.title, position=node.position,
         properties=copy.deepcopy(node.properties)
     )
+
+    for ic in node.input_channels()[len(desc.inputs):]:
+        newnode.add_input_channel(ic)
+    for oc in node.output_channels()[len(desc.outputs):]:
+        newnode.add_output_channel(oc)
+    return newnode
 
 
 def copy_link(link, source=None, sink=None):
