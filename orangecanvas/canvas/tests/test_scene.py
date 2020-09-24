@@ -30,10 +30,9 @@ class TestScene(QAppTestCase):
         """Test basic scene functionality.
         """
         one_desc, negate_desc, cons_desc = self.widget_desc()
-
-        one_item = items.NodeItem(one_desc)
-        negate_item = items.NodeItem(negate_desc)
-        cons_item = items.NodeItem(cons_desc)
+        one_item = items.NodeItem.from_node_meta(one_desc)
+        negate_item = items.NodeItem.from_node_meta(negate_desc)
+        cons_item = items.NodeItem.from_node_meta(cons_desc)
 
         one_item = self.scene.add_node_item(one_item)
         negate_item = self.scene.add_node_item(negate_item)

@@ -16,27 +16,20 @@ class TestLinkItem(TestItems):
         super().setUp()
 
         reg = small_testing_registry()
-
-        const_desc = reg.category("Constants")
-
         one_desc = reg.widget("one")
 
         self.one_item = one_item = NodeItem()
-        one_item.setWidgetDescription(one_desc)
-        one_item.setWidgetCategory(const_desc)
+        one_item.initFrom(one_desc)
 
         negate_desc = reg.widget("negate")
 
         self.negate_item = negate_item = NodeItem()
-        negate_item.setWidgetDescription(negate_desc)
-        negate_item.setWidgetCategory(const_desc)
-        operator_desc = reg.category("Operators")
+        negate_item.initFrom(negate_desc)
 
         add_desc = reg.widget("add")
 
         self.nb_item = nb_item = NodeItem()
-        nb_item.setWidgetDescription(add_desc)
-        nb_item.setWidgetCategory(operator_desc)
+        nb_item.initFrom(add_desc)
 
     def test_linkitem(self):
         one_item = self.one_item
