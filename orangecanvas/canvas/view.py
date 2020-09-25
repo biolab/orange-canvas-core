@@ -88,10 +88,24 @@ class CanvasView(QGraphicsView):
             self.__stopAutoScroll()
         return super().mouseReleaseEvent(event)
 
+    def __should_scroll_horizontally(self, event: QWheelEvent):
+        if event.source() != Qt.MouseEventNotSynthesized:
+            return False
+        if (event.modifiers() & Qt.ShiftModifier and sys.platform == 'darwin' or
+            event.modifiers() & Qt.AltModifier and sys.platform != 'darwin'):
+            return True
+        if event.angleDelta().x() == 0:
+            vBar = self.verticalScrollBar()
+            yDelta = event.angleDelta().y()
+            direction = yDelta >= 0
+            edgeVBarValue = vBar.minimum() if direction else vBar.maximum()
+            return vBar.value() == edgeVBarValue
+        return False
+
     def wheelEvent(self, event: QWheelEvent):
+        # Zoom
         if event.modifiers() & Qt.ControlModifier \
                 and event.buttons() == Qt.NoButton:
-            # Zoom
             delta = event.angleDelta().y()
             # use mouse position as anchor while zooming
             anchor = self.transformationAnchor()
@@ -99,12 +113,8 @@ class CanvasView(QGraphicsView):
             self.__setZoomLevel(self.__zoomLevel + 10 * delta / 120)
             self.setTransformationAnchor(anchor)
             event.accept()
-        elif event.source() == Qt.MouseEventNotSynthesized \
-                   and (event.angleDelta().x() == 0 \
-                   and not self.verticalScrollBar().isVisible()) \
-                   or (sys.platform == 'darwin' and event.modifiers() & Qt.ShiftModifier
-                       or sys.platform != 'darwin' and event.modifiers() & Qt.AltModifier):
-            # Scroll horizontally
+        # Scroll horizontally
+        elif self.__should_scroll_horizontally(event):
             x, y = event.angleDelta().x(), event.angleDelta().y()
             sign_value = x if x != 0 else y
             sign = 1 if sign_value >= 0 else -1
