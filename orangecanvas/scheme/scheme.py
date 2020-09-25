@@ -9,7 +9,6 @@ The :class:`Scheme` class defines a DAG (Directed Acyclic Graph) workflow.
 import types
 import logging
 from contextlib import ExitStack
-from itertools import product
 from operator import itemgetter
 from collections import deque
 
@@ -20,18 +19,16 @@ from AnyQt.QtCore import QObject, QCoreApplication
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
 from .node import SchemeNode
-from .link import SchemeLink, compatible_channels, resolved_valid_types, \
-    _classify_connection
+from .link import SchemeLink, compatible_channels, _classify_connection
 from .annotations import BaseSchemeAnnotation
 
-from ..utils import check_arg, type_lookup_
+from ..utils import check_arg, findf
 
 from .errors import (
     SchemeCycleError, IncompatibleChannelTypeError, SinkChannelError,
     DuplicatedLinkError
 )
-from . import events
-
+from .events import NodeEvent, LinkEvent, AnnotationEvent, WorkflowEnvChanged
 
 from ..registry import WidgetDescription, InputSignal, OutputSignal
 
@@ -39,6 +36,10 @@ if typing.TYPE_CHECKING:
     T = typing.TypeVar("T")
 
 log = logging.getLogger(__name__)
+
+Node = SchemeNode
+Link = SchemeLink
+Annotation = BaseSchemeAnnotation
 
 
 class Scheme(QObject):
@@ -75,17 +76,26 @@ class Scheme(QObject):
     # Signal emitted when a `node` is added to the scheme.
     node_added = Signal(SchemeNode)
 
+    # Signal emitted when a `node` is inserted to the scheme.
+    node_inserted = Signal(int, Node)
+
     # Signal emitted when a `node` is removed from the scheme.
     node_removed = Signal(SchemeNode)
 
     # Signal emitted when a `link` is added to the scheme.
     link_added = Signal(SchemeLink)
 
+    # Signal emitted when a `link` is added to the scheme.
+    link_inserted = Signal(int, Link)
+
     # Signal emitted when a `link` is removed from the scheme.
     link_removed = Signal(SchemeLink)
 
     # Signal emitted when a `annotation` is added to the scheme.
     annotation_added = Signal(BaseSchemeAnnotation)
+
+    # Signal emitted when a `annotation` is added to the scheme.
+    annotation_inserted = Signal(int, BaseSchemeAnnotation)
 
     # Signal emitted when a `annotation` is removed from the scheme.
     annotation_removed = Signal(BaseSchemeAnnotation)
@@ -191,16 +201,23 @@ class Scheme(QObject):
             Node instance to add to the scheme.
 
         """
+        self.insert_node(len(self.__nodes), node)
+
+    def insert_node(self, index: int, node: Node):
+        """
+        Insert `node` into self.nodes at the specified position `index`
+        """
         assert isinstance(node, SchemeNode)
         check_arg(node not in self.__nodes,
                   "Node already in scheme.")
-        self.__nodes.append(node)
+        self.__nodes.insert(index, node)
 
-        ev = events.NodeEvent(events.NodeEvent.NodeAdded, node)
+        ev = NodeEvent(NodeEvent.NodeAdded, node, index)
         QCoreApplication.sendEvent(self, ev)
 
         log.info("Added node %r to scheme %r." % (node.title, self.title))
         self.node_added.emit(node)
+        self.node_inserted.emit(index, node)
 
     def new_node(self, description, title=None, position=None,
                  properties=None):
@@ -256,8 +273,9 @@ class Scheme(QObject):
                   "Node is not in the scheme.")
 
         self.__remove_node_links(node)
-        self.__nodes.remove(node)
-        ev = events.NodeEvent(events.NodeEvent.NodeRemoved, node)
+        index = self.__nodes.index(node)
+        self.__nodes.pop(index)
+        ev = NodeEvent(NodeEvent.NodeRemoved, node, index)
         QCoreApplication.sendEvent(self, ev)
         log.info("Removed node %r from scheme %r." % (node.title, self.title))
         self.node_removed.emit(node)
@@ -278,6 +296,43 @@ class Scheme(QObject):
         for link in links_out + links_in:
             self.remove_link(link)
 
+    def insert_link(self, index: int, link: Link):
+        """
+        Insert `link` into `self.links` at the specified position `index`.
+        """
+        assert isinstance(link, SchemeLink)
+        self.check_connect(link)
+        self.__links.insert(index, link)
+        source_index, _ = findf(
+            enumerate(self.find_links(source_node=link.source_node)),
+            lambda t: t[1] == link,
+            default=(-1, None)
+        )
+        sink_index, _ = findf(
+            enumerate(self.find_links(sink_node=link.sink_node)),
+            lambda t: t[1] == link,
+            default=(-1, None)
+        )
+        assert sink_index != -1 and source_index != -1
+        QCoreApplication.sendEvent(
+            link.source_node,
+            LinkEvent(LinkEvent.OutputLinkAdded, link, source_index)
+        )
+        QCoreApplication.sendEvent(
+            link.sink_node,
+            LinkEvent(LinkEvent.InputLinkAdded, link, sink_index)
+        )
+        QCoreApplication.sendEvent(
+            self, LinkEvent(LinkEvent.LinkAdded, link, index)
+        )
+        log.info("Added link %r (%r) -> %r (%r) to scheme %r." % \
+                 (link.source_node.title, link.source_channel.name,
+                  link.sink_node.title, link.sink_channel.name,
+                  self.title)
+                 )
+        self.link_inserted.emit(index, link)
+        self.link_added.emit(link)
+
     def add_link(self, link):
         # type: (SchemeLink) -> None
         """
@@ -289,21 +344,7 @@ class Scheme(QObject):
             An initialized link instance to add to the scheme.
 
         """
-        assert isinstance(link, SchemeLink)
-
-        self.check_connect(link)
-        self.__links.append(link)
-
-        ev = events.LinkEvent(events.LinkEvent.LinkAdded, link)
-        QCoreApplication.sendEvent(self, ev)
-
-        log.info("Added link %r (%r) -> %r (%r) to scheme %r." % \
-                 (link.source_node.title, link.source_channel.name,
-                  link.sink_node.title, link.sink_channel.name,
-                  self.title)
-                 )
-
-        self.link_added.emit(link)
+        self.insert_link(len(self.__links), link)
 
     def new_link(self, source_node, source_channel,
                  sink_node, sink_channel):
@@ -348,10 +389,30 @@ class Scheme(QObject):
         """
         check_arg(link in self.__links,
                   "Link is not in the scheme.")
-
-        self.__links.remove(link)
-        ev = events.LinkEvent(events.LinkEvent.LinkRemoved, link)
-        QCoreApplication.sendEvent(self, ev)
+        source_index, _ = findf(
+            enumerate(self.find_links(source_node=link.source_node)),
+            lambda t: t[1] == link,
+            default=(-1, None)
+        )
+        sink_index, _ = findf(
+            enumerate(self.find_links(sink_node=link.sink_node)),
+            lambda t: t[1] == link,
+            default=(-1, None)
+        )
+        assert sink_index != -1 and source_index != -1
+        index = self.__links.index(link)
+        self.__links.pop(index)
+        QCoreApplication.sendEvent(
+            link.sink_node,
+            LinkEvent(LinkEvent.InputLinkRemoved, link, sink_index)
+        )
+        QCoreApplication.sendEvent(
+            link.source_node,
+            LinkEvent(LinkEvent.OutputLinkRemoved, link, source_index)
+        )
+        QCoreApplication.sendEvent(
+            self, LinkEvent(LinkEvent.LinkRemoved, link, index)
+        )
         log.info("Removed link %r (%r) -> %r (%r) from scheme %r." % \
                  (link.source_node.title, link.source_channel.name,
                   link.sink_node.title, link.sink_channel.name,
@@ -620,32 +681,39 @@ class Scheme(QObject):
 
         return sorted(proposed_links, key=itemgetter(-1), reverse=True)
 
+    def insert_annotation(self, index: int, annotation: Annotation) -> None:
+        """
+        Insert `annotation` into `self.annotations` at the specified
+        position `index`.
+        """
+        assert isinstance(annotation, BaseSchemeAnnotation)
+        if annotation in self.__annotations:
+            raise ValueError("Cannot add the same annotation multiple times")
+        self.__annotations.insert(index, annotation)
+        ev = AnnotationEvent(AnnotationEvent.AnnotationAdded,
+                             annotation, index)
+        QCoreApplication.sendEvent(self, ev)
+        self.annotation_inserted.emit(index, annotation)
+        self.annotation_added.emit(annotation)
+
     def add_annotation(self, annotation):
         # type: (BaseSchemeAnnotation) -> None
         """
         Add an annotation (:class:`BaseSchemeAnnotation` subclass) instance
         to the scheme.
         """
-        assert isinstance(annotation, BaseSchemeAnnotation)
-        if annotation in self.__annotations:
-            raise ValueError("Cannot add the same annotation multiple times")
-        self.__annotations.append(annotation)
-        ev = events.AnnotationEvent(events.AnnotationEvent.AnnotationAdded,
-                                    annotation)
-        QCoreApplication.sendEvent(self, ev)
-        self.annotation_added.emit(annotation)
+        self.insert_annotation(len(self.__annotations), annotation)
 
     def remove_annotation(self, annotation):
         # type: (BaseSchemeAnnotation) -> None
         """
         Remove the `annotation` instance from the scheme.
         """
-        self.__annotations.remove(annotation)
-
-        ev = events.AnnotationEvent(events.AnnotationEvent.AnnotationRemoved,
-                                    annotation)
+        index = self.__annotations.index(annotation)
+        self.__annotations.pop(index)
+        ev = AnnotationEvent(AnnotationEvent.AnnotationRemoved,
+                             annotation, index)
         QCoreApplication.sendEvent(self, ev)
-
         self.annotation_removed.emit(annotation)
 
     def clear(self):
@@ -717,6 +785,9 @@ class Scheme(QObject):
         oldvalue = self.__env.get(key, None)
         if value != oldvalue:
             self.__env[key] = value
+            QCoreApplication.sendEvent(
+                self, WorkflowEnvChanged(key, value, oldvalue)
+            )
             self.runtime_env_changed.emit(key, value, oldvalue)
 
     def get_runtime_env(self, key, default=None):

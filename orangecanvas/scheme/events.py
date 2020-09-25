@@ -106,11 +106,13 @@ class NodeEvent(WorkflowEvent):
     ----------
     etype: QEvent.Type
     node: SchemeNode
+    pos: int
     """
-    def __init__(self, etype, node):
-        # type: (QEvent.Type, SchemeNode) -> None
+    def __init__(self, etype, node, pos=-1):
+        # type: (QEvent.Type, SchemeNode, int) -> None
         super().__init__(etype)
         self.__node = node
+        self.__pos = pos
 
     def node(self):
         # type: () -> SchemeNode
@@ -121,6 +123,15 @@ class NodeEvent(WorkflowEvent):
             The node instance.
         """
         return self.__node
+
+    def pos(self) -> int:
+        """
+        For NodeAdded/NodeRemoved events this is the position into which the
+        node is inserted or removed from (is -1 if not applicable))
+
+        .. versionadded:: 0.1.16
+        """
+        return self.__pos
 
 
 class LinkEvent(WorkflowEvent):
@@ -143,11 +154,14 @@ class LinkEvent(WorkflowEvent):
     etype: QEvent.Type
     link: SchemeLink
         The link subject to change
+    pos: int
+        The link position index.
     """
-    def __init__(self, etype, link):
-        # type: (QEvent.Type, SchemeLink) -> None
+    def __init__(self, etype, link, pos=-1):
+        # type: (QEvent.Type, SchemeLink, int) -> None
         super().__init__(etype)
         self.__link = link
+        self.__pos = pos
 
     def link(self):
         # type: () -> SchemeLink
@@ -158,6 +172,23 @@ class LinkEvent(WorkflowEvent):
             The link instance.
         """
         return self.__link
+
+    def pos(self) -> int:
+        """
+        The index position into which the link was inserted.
+
+        For LinkAdded/LinkRemoved this is the index in the `Scheme.links`
+        sequence from which the link was removed or was inserted into.
+
+        For InputLinkAdded/InputLinkRemoved it is the sequential position in
+        the input links to the sink node.
+
+        For OutputLinkAdded/OutputLinkRemoved it is the sequential position in
+        the output links from the source node.
+
+        .. versionadded:: 0.1.16
+        """
+        return self.__pos
 
 
 class AnnotationEvent(WorkflowEvent):
@@ -174,11 +205,13 @@ class AnnotationEvent(WorkflowEvent):
     etype: QEvent.Type
     annotation: BaseSchemeAnnotation
         The annotation that is a subject of change.
+    pos: int
     """
-    def __init__(self, etype, annotation):
-        # type: (QEvent.Type, BaseSchemeAnnotation) -> None
+    def __init__(self, etype, annotation, pos=-1):
+        # type: (QEvent.Type, BaseSchemeAnnotation, int) -> None
         super().__init__(etype)
         self.__annotation = annotation
+        self.__pos = pos
 
     def annotation(self):
         # type: () -> BaseSchemeAnnotation
@@ -189,6 +222,14 @@ class AnnotationEvent(WorkflowEvent):
             The annotation instance.
         """
         return self.__annotation
+
+    def pos(self) -> int:
+        """
+        The index position of the annotation in the `Scheme.annotations`
+
+        .. versionadded:: 0.1.16
+        """
+        return self.__pos
 
 
 class WorkflowEnvChanged(WorkflowEvent):

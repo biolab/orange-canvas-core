@@ -1,7 +1,7 @@
-from PyQt5.QtCore import QEvent
-
 import unittest
+from collections import Counter
 
+from AnyQt.QtCore import QEvent
 from AnyQt.QtWidgets import QWidget, QApplication, QAction
 from AnyQt.QtTest import QSignalSpy
 
@@ -171,25 +171,34 @@ class TestWidgetManager(unittest.TestCase):
         l1, l2 = links[:2]
         w1 = wm.widget_for_node(n1)
 
-        self.assertIn(NodeEvent.OutputLinkAdded, w1._evt)
+        self.assertInWithCount(NodeEvent.OutputLinkAdded, w1._evt, 1)
         w1._evt.clear()
         workflow.remove_link(l1)
 
-        self.assertIn(NodeEvent.OutputLinkRemoved, w1._evt)
+        self.assertInWithCount(NodeEvent.OutputLinkRemoved, w1._evt, 1)
         w3 = wm.widget_for_node(n3)
         w3._evt.clear()
         workflow.add_link(l1)
-        self.assertIn(NodeEvent.OutputLinkAdded, w1._evt)
-        self.assertIn(NodeEvent.InputLinkAdded, w3._evt)
+        self.assertInWithCount(NodeEvent.OutputLinkAdded, w1._evt, 1)
+        self.assertInWithCount(NodeEvent.InputLinkAdded, w3._evt, 1)
 
         w1._evt.clear()
         workflow.set_runtime_env("tt", "aaa")
-        self.assertIn(NodeEvent.WorkflowEnvironmentChange, w1._evt)
+        self.assertInWithCount(NodeEvent.WorkflowEnvironmentChange, w1._evt, 1)
 
         w3._evt.clear()
         l1.set_runtime_state(SchemeLink.Pending)
-        self.assertIn(LinkEvent.InputLinkStateChange, w3._evt)
-        self.assertIn(LinkEvent.OutputLinkStateChange, w1._evt)
+        self.assertInWithCount(LinkEvent.InputLinkStateChange, w3._evt, 1)
+        self.assertInWithCount(LinkEvent.OutputLinkStateChange, w1._evt, 1)
+
+    def assertInWithCount(self, member, container, expected):
+        counter = Counter(container)
+        count = counter[member]
+        if count != expected:
+            msg = "Count of %s in %s is %i; expected %i" % (
+                member, container, count, expected
+            )
+            self.fail(msg)
 
     def test_actions(self):
         workflow = self.scheme
