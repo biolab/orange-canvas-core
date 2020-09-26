@@ -9,13 +9,13 @@ import ctypes
 from contextlib import contextmanager
 
 from AnyQt.QtWidgets import (
-    QWidget, QMessageBox, QStyleOption, QStyle, QTextEdit
+    QWidget, QMessageBox, QStyleOption, QStyle, QTextEdit, QScrollBar
 )
 from AnyQt.QtGui import (
     QGradient, QLinearGradient, QRadialGradient, QBrush, QPainter,
     QPaintEvent, QColor, QPixmap, QPixmapCache, QTextOption
 )
-from AnyQt.QtCore import Qt, QPointF, QPoint, QRect, QRectF
+from AnyQt.QtCore import Qt, QPointF, QPoint, QRect, QRectF, Signal, QEvent
 
 import sip
 
@@ -73,6 +73,16 @@ class StyledWidget(QWidget):
     """
     """
     paintEvent = StyledWidget_paintEvent  # type: ignore
+
+
+class ScrollBar(QScrollBar):
+    #: Emitted when the scroll bar receives a StyleChange event
+    styleChange = Signal()
+
+    def changeEvent(self, event: QEvent) -> None:
+        if event.type() == QEvent.StyleChange:
+            self.styleChange.emit()
+        super().changeEvent(event)
 
 
 def is_transparency_supported():  # type: () -> bool
