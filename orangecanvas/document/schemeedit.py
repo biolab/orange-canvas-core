@@ -1280,51 +1280,61 @@ class SchemeEditWidget(QWidget):
 
         super().changeEvent(event)
 
+    def __lookup_registry(self, qname: str) -> Optional[WidgetDescription]:
+        if self.__registry is not None:
+            try:
+                return self.__registry.widget(qname)
+            except KeyError:
+                pass
+        return None
+
+    def __desc_from_mime_data(self, data: QMimeData) -> Optional[WidgetDescription]:
+        MIME_TYPES = [
+            "application/vnd.orange-canvas.registry.qualified-name",
+            # A back compatible misspelling
+            "application/vnv.orange-canvas.registry.qualified-name",
+        ]
+        for typ in MIME_TYPES:
+            if data.hasFormat(typ):
+                qname_bytes = bytes(data.data(typ).data())
+                try:
+                    qname = qname_bytes.decode("utf-8")
+                except UnicodeDecodeError:
+                    return None
+                return self.__lookup_registry(qname)
+        return None
+
     def eventFilter(self, obj, event):
         # type: (QObject, QEvent) -> bool
         # Filter the scene's drag/drop events.
-        MIME_TYPE = "application/vnv.orange-canvas.registry.qualified-name"
         if obj is self.scene():
             etype = event.type()
             if etype == QEvent.GraphicsSceneDragEnter or \
                     etype == QEvent.GraphicsSceneDragMove:
                 assert isinstance(event, QGraphicsSceneDragDropEvent)
-                mime_data = event.mimeData()
                 drop_target = None
-                if mime_data.hasFormat(MIME_TYPE):
-                    qname = bytes(mime_data.data(MIME_TYPE)).decode("ascii")
-                    try:
-                        desc = self.__registry.widget(qname)
-                    except KeyError:
-                        pass
-                    else:
-                        item = self.__scene.item_at(event.scenePos(), items.LinkItem)
-                        link = self.scene().link_for_item(item) if item else None
-                        if link is not None and can_insert_node(desc, link):
-                            drop_target = item
-                            drop_target.setHoverState(True)
+                desc = self.__desc_from_mime_data(event.mimeData())
+                if desc is not None:
+                    item = self.__scene.item_at(event.scenePos(), items.LinkItem)
+                    link = self.scene().link_for_item(item) if item else None
+                    if link is not None and can_insert_node(desc, link):
+                        drop_target = item
+                        drop_target.setHoverState(True)
                     event.acceptProposedAction()
-                else:
-                    event.ignore()
-
                 if self.__dropTarget is not None and \
                         self.__dropTarget is not drop_target:
                     self.__dropTarget.setHoverState(False)
                 self.__dropTarget = drop_target
-                return True
+                if desc is not None:
+                    return True
             elif etype == QEvent.GraphicsSceneDragLeave:
                 if self.__dropTarget is not None:
                     self.__dropTarget.setHoverState(False)
                     self.__dropTarget = None
             elif etype == QEvent.GraphicsSceneDrop:
                 assert isinstance(event, QGraphicsSceneDragDropEvent)
-                data = event.mimeData()
-                qname = data.data(MIME_TYPE)
-                try:
-                    desc = self.__registry.widget(bytes(qname).decode("utf-8"))
-                except KeyError:
-                    log.error("Unknown qualified name '%s'", qname)
-                else:
+                desc = self.__desc_from_mime_data(event.mimeData())
+                if desc is not None:
                     statistics = self.usageStatistics()
                     pos = event.scenePos()
                     item = self.__scene.item_at(event.scenePos(), items.LinkItem)
@@ -1336,7 +1346,7 @@ class SchemeEditWidget(QWidget):
                     else:
                         statistics.begin_action(UsageStatistics.ToolboxDrag)
                         self.createNewNode(desc, position=(pos.x(), pos.y()))
-                return True
+                    return True
 
             if etype == QEvent.GraphicsSceneDragEnter:
                 return self.sceneDragEnterEvent(event)
