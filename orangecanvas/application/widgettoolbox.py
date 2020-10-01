@@ -222,7 +222,7 @@ class WidgetToolGrid(ToolGrid):
         icon = action.icon()
         drag_data = QMimeData()
         drag_data.setData(
-            "application/vnv.orange-canvas.registry.qualified-name",
+            "application/vnd.orange-canvas.registry.qualified-name",
             desc.qualified_name.encode("utf-8")
         )
         drag = QDrag(button)
