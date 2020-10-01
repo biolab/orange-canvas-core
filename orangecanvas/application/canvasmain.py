@@ -231,7 +231,7 @@ class CanvasMainWindow(QMainWindow):
         dropfilter = UrlDropEventFilter(self)
         dropfilter.urlDropped.connect(self.open_scheme_file)
         self.scheme_widget.setAcceptDrops(True)
-        self.scheme_widget.installEventFilter(dropfilter)
+        self.scheme_widget.view().viewport().installEventFilter(dropfilter)
 
         w.layout().addWidget(self.scheme_widget)
 
