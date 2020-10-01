@@ -916,6 +916,9 @@ class SchemeEditWidget(QWidget):
             self.__scene.set_registry(registry)
             self.__quickMenu = None
 
+    def registry(self):
+        return self.__registry
+
     def quickMenu(self):
         # type: () -> quickmenu.QuickMenu
         """
@@ -1335,6 +1338,14 @@ class SchemeEditWidget(QWidget):
                         self.createNewNode(desc, position=(pos.x(), pos.y()))
                 return True
 
+            if etype == QEvent.GraphicsSceneDragEnter:
+                return self.sceneDragEnterEvent(event)
+            elif etype == QEvent.GraphicsSceneDragMove:
+                return self.sceneDragMoveEvent(event)
+            elif etype == QEvent.GraphicsSceneDragLeave:
+                return self.sceneDragLeaveEvent(event)
+            elif etype == QEvent.GraphicsSceneDrop:
+                return self.sceneDropEvent(event)
             elif etype == QEvent.GraphicsSceneMousePress:
                 self.__pasteOrigin = event.scenePos()
                 return self.sceneMousePressEvent(event)
@@ -1622,6 +1633,27 @@ class SchemeEditWidget(QWidget):
             return True
 
         return False
+
+    def sceneDragEnterEvent(self, event: QGraphicsSceneDragDropEvent) -> bool:
+        delegate = self._userInteractionHandler()
+        if delegate is not None:
+            return False
+
+        handler = interactions.DropAction(self)
+        self._setUserInteractionHandler(handler)
+        return False
+
+    def sceneDragMoveEvent(self, event: QGraphicsSceneDragDropEvent) -> bool:
+        return False
+
+    def sceneDragLeaveEvent(self, event: QGraphicsSceneDragDropEvent) -> bool:
+        return False
+
+    def sceneDropEvent(self, event: QGraphicsSceneDragDropEvent) -> bool:
+        return False
+
+    def _userInteractionHandler(self):
+        return self.__scene.user_interaction_handler
 
     def _setUserInteractionHandler(self, handler):
         # type: (Optional[interactions.UserInteraction]) -> None

@@ -871,6 +871,30 @@ class CanvasScene(QGraphicsScene):
             return
         super().contextMenuEvent(event)
 
+    def dragEnterEvent(self, event):
+        if self.user_interaction_handler and \
+                self.user_interaction_handler.dragEnterEvent(event):
+            return
+        super().dragEnterEvent(event)
+
+    def dragMoveEvent(self, event):
+        if self.user_interaction_handler and \
+                self.user_interaction_handler.dragMoveEvent(event):
+            return
+        super().dragMoveEvent(event)
+
+    def dragLeaveEvent(self, event):
+        if self.user_interaction_handler and \
+                self.user_interaction_handler.dragLeaveEvent(event):
+            return
+        super().dragLeaveEvent(event)
+
+    def dropEvent(self, event):
+        if self.user_interaction_handler and \
+                self.user_interaction_handler.dropEvent(event):
+            return
+        super().dropEvent(event)
+
     def set_user_interaction_handler(self, handler):
         # type: (UserInteraction) -> None
         if self.user_interaction_handler and \

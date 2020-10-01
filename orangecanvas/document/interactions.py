@@ -15,15 +15,16 @@ All interactions are subclasses of :class:`UserInteraction`.
 import typing
 from typing import Optional, Any, Tuple, List, Set, Iterable
 
+import abc
 import logging
 from functools import reduce
 
-
+import pkg_resources
 
 from AnyQt.QtWidgets import (
     QApplication, QGraphicsRectItem, QUndoCommand, QGraphicsSceneMouseEvent,
     QGraphicsSceneContextMenuEvent, QWidget, QGraphicsItem,
-)
+    QGraphicsSceneDragDropEvent)
 from AnyQt.QtGui import QPen, QBrush, QColor, QFontMetrics, QKeyEvent, QFont
 from AnyQt.QtCore import (
     Qt, QObject, QCoreApplication, QSizeF, QPointF, QRect, QRectF, QLineF,
@@ -49,6 +50,8 @@ if typing.TYPE_CHECKING:
     A = typing.TypeVar("A")
     #: Output/Input pair of a link
     OIPair = Tuple[OutputSignal, InputSignal]
+
+EntryPoint = pkg_resources.EntryPoint
 
 log = logging.getLogger(__name__)
 
@@ -232,6 +235,42 @@ class UserInteraction(QObject):
         # type: (QGraphicsSceneContextMenuEvent) -> bool
         """
         Handle a `QGraphicsScene.contextMenuEvent`
+        """
+        return False
+
+    def dragEnterEvent(self, event):
+        # type: (QGraphicsSceneDragDropEvent) -> bool
+        """
+        Handle a `QGraphicsScene.dragEnterEvent`
+
+        .. versionadded:: 0.1.20
+        """
+        return False
+
+    def dragMoveEvent(self, event):
+        # type: (QGraphicsSceneDragDropEvent) -> bool
+        """
+        Handle a `QGraphicsScene.dragMoveEvent`
+
+        .. versionadded:: 0.1.20
+        """
+        return False
+
+    def dragLeaveEvent(self, event):
+        # type: (QGraphicsSceneDragDropEvent) -> bool
+        """
+        Handle a `QGraphicsScene.dragLeaveEvent`
+
+        .. versionadded:: 0.1.20
+        """
+        return False
+
+    def dropEvent(self, event):
+        # type: (QGraphicsSceneDragDropEvent) -> bool
+        """
+        Handle a `QGraphicsScene.dropEvent`
+
+        .. versionadded:: 0.1.20
         """
         return False
 
@@ -1754,3 +1793,129 @@ class ResizeArrowAnnotation(UserInteraction):
         self.annotation = None
 
         super().end()
+
+
+class DropHandler(abc.ABC):
+    """
+    An abstract drop handler.
+
+    .. versionadded:: 0.1.20
+    """
+    @abc.abstractmethod
+    def accepts(self, document: 'SchemeEditWidget', event: 'QGraphicsSceneDragDropEvent') -> bool:
+        """
+        Returns True if a `document` can accept a drop of the data from `event`.
+        """
+        return False
+
+    @abc.abstractmethod
+    def doDrop(self, document: 'SchemeEditWidget', event: 'QGraphicsSceneDragDropEvent') -> bool:
+        """
+        Complete the drop of data from `event` onto the `document`.
+        """
+        return False
+
+
+class PluginDropHandler(DropHandler):
+    ENTRY_POINT = "orangecanvas.document.interactions.DropHandler"
+
+    def entryPoints(self) -> Iterable[Tuple['EntryPoint', 'DropHandler']]:
+        ws = pkg_resources.WorkingSet()
+        ep_iter = ws.iter_entry_points(self.ENTRY_POINT)
+        for ep in ep_iter:
+            try:
+                val = ep.load()
+                if not issubclass(val, DropHandler):
+                    raise TypeError(type(val).__name__)
+            except (pkg_resources.ResolutionError, ImportError,
+                    AttributeError, TypeError):
+                log.exception("Could not load %s from %s", ep, ep.dist)
+            except Exception:  # noqa
+                log.exception("Unexpected Error; %s will be skipped", ep)
+            else:
+                try:
+                    handler = val()
+                except Exception:  # noqa
+                    log.exception("Error in default constructor of %s", val)
+                else:
+                    yield ep, handler
+
+    def accepts(self, document, event):
+        # type: (SchemeEditWidget, QGraphicsSceneDragDropEvent) -> bool
+        mimedata = event.mimeData()
+        formats = mimedata.formats()
+        accepts = False
+        for ep, handler, ep in self.entryPoints():
+            if handler.accepts(document, event):
+                accepts = True
+        return accepts
+
+    def doDrop(
+            self, document: 'SchemeEditWidget', event: 'QGraphicsSceneDragDropEvent'
+    ) -> None:
+        for handler, ep in self.entryPoints():
+            if handler.doDrop(document, event):
+                return
+
+
+class DropAction(UserInteraction):
+    """
+    A drop action on the workflow.
+    """
+    def __init__(self, document, *args, **kwargs):
+        super().__init__(document, *args, **kwargs)
+        self.__designatedAction: Optional[DropHandler] = None
+
+    def dropHandlers(self) -> Iterable[DropHandler]:
+        """Return an iterable over drop handlers."""
+        return iter([PluginDropHandler()])
+
+    def canHandleDrop(self, event: 'QGraphicsSceneDragDropEvent') -> bool:
+        """
+        Can this interactions handle the drop `event`.
+
+        The default implementation checks each `dropHandler` if it
+        :func:`~DropHandler.accepts` the event. The first such handler that
+        accepts is selected to be the designated handler and will receive
+        the drop (:func:`~DropHandler.doDrop`).
+        """
+        for ep in self.dropHandlers():
+            if ep.accepts(self.document, event):
+                self.__designatedAction = ep
+                return True
+        else:
+            return False
+
+    def dragEnterEvent(self, event):
+        if self.canHandleDrop(event):
+            event.acceptProposedAction()
+            return True
+        else:
+            return False
+
+    def dragMoveEvent(self, event):
+        if self.canHandleDrop(event):
+            event.acceptProposedAction()
+            return True
+        else:
+            return False
+
+    def dragLeaveEvent(self, even):
+        self.__designatedAction = None
+        self.end()
+        return False
+
+    def dropEvent(self, event):
+        if self.__designatedAction is not None:
+            try:
+                res = self.__designatedAction.doDrop(self.document, event)
+            except Exception:  # noqa
+                log.exception("")
+                res = False
+            if res:
+                event.acceptProposedAction()
+            self.end()
+            return True
+        else:
+            self.end()
+            return False
