@@ -13,7 +13,7 @@ All interactions are subclasses of :class:`UserInteraction`.
 
 """
 import typing
-from typing import Optional, Any, Tuple, List, Set, Iterable
+from typing import Optional, Any, Tuple, List, Set, Iterable, Sequence
 
 import abc
 import logging
@@ -24,7 +24,7 @@ import pkg_resources
 from AnyQt.QtWidgets import (
     QApplication, QGraphicsRectItem, QUndoCommand, QGraphicsSceneMouseEvent,
     QGraphicsSceneContextMenuEvent, QWidget, QGraphicsItem,
-    QGraphicsSceneDragDropEvent)
+    QGraphicsSceneDragDropEvent, QMenu)
 from AnyQt.QtGui import QPen, QBrush, QColor, QFontMetrics, QKeyEvent, QFont
 from AnyQt.QtCore import (
     Qt, QObject, QCoreApplication, QSizeF, QPointF, QRect, QRectF, QLineF,
@@ -1840,22 +1840,47 @@ class PluginDropHandler(DropHandler):
                 else:
                     yield ep, handler
 
-    def accepts(self, document, event):
-        # type: (SchemeEditWidget, QGraphicsSceneDragDropEvent) -> bool
-        mimedata = event.mimeData()
-        formats = mimedata.formats()
-        accepts = False
-        for ep, handler, ep in self.entryPoints():
+    __accepts: Sequence[Tuple[EntryPoint, DropHandler]] = ()
+
+    def accepts(self, document: 'SchemeEditWidget', event: 'QGraphicsSceneDragDropEvent') -> bool:
+        """
+        Reimplemented.
+
+        Accept the event if any plugin handlers accept the event.
+        """
+        accepts = []
+        self.__accepts = ()
+        for ep, handler in self.entryPoints():
             if handler.accepts(document, event):
-                accepts = True
-        return accepts
+                accepts.append((ep, handler))
+        self.__accepts = tuple(accepts)
+        return bool(accepts)
 
     def doDrop(
             self, document: 'SchemeEditWidget', event: 'QGraphicsSceneDragDropEvent'
-    ) -> None:
-        for handler, ep in self.entryPoints():
-            if handler.doDrop(document, event):
-                return
+    ) -> bool:
+        """
+        Reimplemented.
+
+        Dispatch the drop to the plugin handler that accepted the event.
+        In case there are multiple handlers that accepted the event, a menu
+        is used to select the handler.
+        """
+        handler: Optional[DropHandler] = None
+        if len(self.__accepts) == 1:
+            ep, handler = self.__accepts[0]
+        elif len(self.__accepts) > 1:
+            menu = QMenu(event.widget())
+            for ep_, handler_ in self.__accepts:
+                ac = menu.addAction(ep_.name, )
+                ac.setToolTip(f"{ep_.name} ({ep_.module_name})")
+                ac.setData((ep_, handler_))
+            action = menu.exec(event.screenPos())
+            if action is not None:
+                ep, handler = action.data()
+        if handler is None:
+            return False
+        return handler.doDrop(document, event)
 
 
 class DropAction(UserInteraction):
