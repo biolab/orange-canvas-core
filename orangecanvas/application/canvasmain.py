@@ -32,7 +32,7 @@ from AnyQt.QtGui import (
 )
 from AnyQt.QtCore import (
     Qt, QObject, QEvent, QSize, QUrl, QFile, QByteArray, QFileInfo,
-    QSettings, QStandardPaths, QAbstractItemModel, QT_VERSION)
+    QSettings, QStandardPaths, QAbstractItemModel, QMimeData, QT_VERSION)
 
 try:
     from AnyQt.QtWebEngineWidgets import QWebEngineView
@@ -2547,27 +2547,29 @@ def category_filter_function(state):
 class UrlDropEventFilter(QObject):
     urlDropped = Signal(QUrl)
 
+    def acceptsDrop(self, mime: QMimeData) -> bool:
+        if mime.hasUrls() and len(mime.urls()) == 1:
+            url = mime.urls()[0]
+            if url.scheme() == "file":
+                filename = url.toLocalFile()
+                _, ext = os.path.splitext(filename)
+                if ext == ".ows":
+                    return True
+        return False
+
     def eventFilter(self, obj, event):
         etype = event.type()
         if etype == QEvent.DragEnter or etype == QEvent.DragMove:
-            mime = event.mimeData()
-            if mime.hasUrls() and len(mime.urls()) == 1:
-                url = mime.urls()[0]
-                if url.scheme() == "file":
-                    filename = url.toLocalFile()
-                    _, ext = os.path.splitext(filename)
-                    if ext == ".ows":
-                        event.acceptProposedAction()
-                        return True
-
-        elif etype == QEvent.Drop:
-            mime = event.mimeData()
-            urls = mime.urls()
-            if urls:
-                url = urls[0]
-                self.urlDropped.emit(url)
+            if self.acceptsDrop(event.mimeData()):
+                event.acceptProposedAction()
                 return True
-
+        elif etype == QEvent.Drop:
+            if self.acceptsDrop(event.mimeData()):
+                urls = event.mimeData().urls()
+                if urls:
+                    url = urls[0]
+                    self.urlDropped.emit(url)
+                    return True
         return super().eventFilter(obj, event)
 
 
