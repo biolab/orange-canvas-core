@@ -6,8 +6,10 @@ import unittest
 from unittest import mock
 from typing import Iterable
 
-from AnyQt.QtCore import Qt, QPoint
-from AnyQt.QtGui import QPainterPath
+from AnyQt.QtCore import Qt, QPoint, QMimeData
+from AnyQt.QtGui import (
+    QPainterPath, QDragEnterEvent, QDragMoveEvent, QDropEvent
+)
 from AnyQt.QtWidgets import QGraphicsWidget, QAction, QApplication
 from AnyQt.QtTest import QSignalSpy, QTest
 
@@ -498,6 +500,38 @@ class TestSchemeEdit(QAppTestCase):
             a.trigger()
             m.assert_called_once_with([])
         workflow.clear()
+
+    def test_drop_event(self):
+        w = self.w
+        w.resize(100, 100)
+        w.setRegistry(self.reg)
+        workflow = w.scheme()
+        desc = self.reg.widget("one")
+        view = w.view()
+        mime = QMimeData()
+        mime.setData(
+            "application/vnd.orange-canvas.registry.qualified-name",
+            desc.qualified_name.encode("utf-8")
+        )
+        ev = QDragEnterEvent(
+            QPoint(10, 10), Qt.CopyAction, mime, Qt.LeftButton, Qt.NoModifier)
+        ev.setAccepted(False)
+        QApplication.sendEvent(view.viewport(), ev)
+        self.assertTrue(ev.isAccepted())
+
+        ev = QDragMoveEvent(
+            QPoint(11, 11), Qt.CopyAction, mime, Qt.LeftButton, Qt.NoModifier)
+        ev.setAccepted(False)
+        QApplication.sendEvent(view.viewport(), ev)
+        self.assertTrue(ev.isAccepted())
+
+        ev = QDropEvent(
+            QPoint(11, 11), Qt.CopyAction, mime, Qt.LeftButton, Qt.NoModifier)
+        ev.setAccepted(False)
+        QApplication.sendEvent(view.viewport(), ev)
+
+        self.assertEqual(len(workflow.nodes), 1)
+        self.assertEqual(workflow.nodes[0].description, desc)
 
     @classmethod
     def setup_test_workflow(cls, scheme=None):
