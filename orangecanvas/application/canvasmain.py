@@ -1724,6 +1724,13 @@ class CanvasMainWindow(QMainWindow):
             message_critical(
                 "Could not load restore data.", title="Error", exc_info=True,
             )
+
+            # delete corrupted swp file
+            try:
+                os.remove(filename)
+            except OSError:
+                pass
+
             return
 
         register_loaded_swp(self, filename)
