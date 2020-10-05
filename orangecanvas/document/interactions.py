@@ -13,7 +13,7 @@ All interactions are subclasses of :class:`UserInteraction`.
 
 """
 import typing
-from typing import Optional, Any, Tuple, List, Set, Iterable, Sequence
+from typing import Optional, Any, Tuple, List, Set, Iterable, Sequence, Dict
 
 import abc
 import logging
@@ -28,7 +28,7 @@ from AnyQt.QtWidgets import (
 from AnyQt.QtGui import QPen, QBrush, QColor, QFontMetrics, QKeyEvent, QFont
 from AnyQt.QtCore import (
     Qt, QObject, QCoreApplication, QSizeF, QPointF, QRect, QRectF, QLineF,
-    QPoint,
+    QPoint, QMimeData,
 )
 from AnyQt.QtCore import pyqtSignal as Signal
 
@@ -1814,6 +1814,67 @@ class DropHandler(abc.ABC):
         Complete the drop of data from `event` onto the `document`.
         """
         return False
+
+
+class NodeFromMimeDataDropHandler(DropHandler):
+    """
+    Create a new node from dropped mime data.
+
+    Subclasses must override `canDropMimeData`, `parametersFromMimeData`,
+    and `qualifiedName`.
+
+    .. versionadded:: 0.1.20
+    """
+    @abc.abstractmethod
+    def qualifiedName(self) -> str:
+        """
+        The qualified name for the node created by this handler. The handler
+        will not be invoked if this name does not appear in the registry
+        associated with the workflow.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def canDropMimeData(self, document: 'SchemeEditWidget', data: 'QMimeData') -> bool:
+        """
+        Can the handler create a node from the drop mime data.
+
+        Reimplement this in a subclass to check if the `data` has appropriate
+        format.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def parametersFromMimeData(self, document: 'SchemeEditWidget', data: 'QMimeData') -> 'Dict[str, Any]':
+        """
+        Return the node parameters based from the drop mime data.
+        """
+        raise NotImplementedError
+
+    def accepts(self, document: 'SchemeEditWidget', event: 'QGraphicsSceneDragDropEvent') -> bool:
+        """Reimplemented."""
+        reg = document.registry()
+        if not reg.has_widget(self.qualifiedName()):
+            return False
+        return self.canDropMimeData(document, event.mimeData())
+
+    def nodeFromMimeData(self, document: 'SchemeEditWidget', data: 'QMimeData') -> 'Node':
+        reg = document.registry()
+        wd = reg.widget(self.qualifiedName())
+        node = document.newNodeHelper(wd)
+        parameters = self.parametersFromMimeData(document, data)
+        node.properties = parameters
+        return node
+
+    def doDrop(self, document: 'SchemeEditWidget', event: 'QGraphicsSceneDragDropEvent') -> bool:
+        """Reimplemented."""
+        reg = document.registry()
+        if not reg.has_widget(self.qualifiedName()):
+            return False
+        node = self.nodeFromMimeData(document, event.mimeData())
+        node.position = (event.scenePos().x(), event.scenePos().y())
+        document.addNode(node)
+        return True
 
 
 class PluginDropHandler(DropHandler):
