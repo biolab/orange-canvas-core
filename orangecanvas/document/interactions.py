@@ -22,9 +22,10 @@ from functools import reduce
 import pkg_resources
 
 from AnyQt.QtWidgets import (
-    QApplication, QGraphicsRectItem, QUndoCommand, QGraphicsSceneMouseEvent,
+    QApplication, QGraphicsRectItem, QGraphicsSceneMouseEvent,
     QGraphicsSceneContextMenuEvent, QWidget, QGraphicsItem,
-    QGraphicsSceneDragDropEvent, QMenu)
+    QGraphicsSceneDragDropEvent, QMenu, QAction
+)
 from AnyQt.QtGui import QPen, QBrush, QColor, QFontMetrics, QKeyEvent, QFont
 from AnyQt.QtCore import (
     Qt, QObject, QCoreApplication, QSizeF, QPointF, QRect, QRectF, QLineF,
@@ -35,7 +36,7 @@ from AnyQt.QtCore import pyqtSignal as Signal
 from orangecanvas.document.commands import UndoCommand
 from .usagestatistics import UsageStatistics
 from ..registry.description import WidgetDescription, OutputSignal, InputSignal
-from ..registry.qt import QtWidgetRegistry
+from ..registry.qt import QtWidgetRegistry, tooltip_helper, whats_this_helper
 from .. import scheme
 from ..scheme import (
     SchemeNode as Node, SchemeLink as Link, Scheme, WorkflowEvent,
@@ -1819,7 +1820,28 @@ class DropHandler(abc.ABC):
         return False
 
 
-class NodeFromMimeDataDropHandler(DropHandler):
+class DropHandlerAction(abc.ABC):
+    @abc.abstractmethod
+    def actionFromDropEvent(
+            self, document: 'SchemeEditWidget', event: 'QGraphicsSceneDragDropEvent'
+    ) -> QAction:
+        """
+        Create and return an QAction representing a drop action.
+
+        This action is used to disambiguate between possible drop actions.
+
+        The action can have sub menus, however all actions in submenus **must**
+        have the `DropHandler` instance set as their `QAction.data()`.
+
+        The actions **must not** execute the actual drop from their triggered
+        slot connections. The drop will be dispatched to the `action.data()`
+        handler's `doDrop()` after that action is triggered and the menu is
+        closed.
+        """
+        raise NotImplementedError
+
+
+class NodeFromMimeDataDropHandler(DropHandler, DropHandlerAction):
     """
     Create a new node from dropped mime data.
 
@@ -1887,6 +1909,24 @@ class NodeFromMimeDataDropHandler(DropHandler):
         """
         return False
 
+    def actionFromDropEvent(
+            self, document: 'SchemeEditWidget', event: 'QGraphicsSceneDragDropEvent'
+    ) -> QAction:
+        """Reimplemented."""
+        reg = document.registry()
+        ac = QAction(None)
+        ac.setData(self)
+        if reg is not None:
+            desc = reg.widget(self.qualifiedName())
+            ac.setText(desc.name)
+            ac.setToolTip(tooltip_helper(desc))
+            ac.setWhatsThis(whats_this_helper(desc))
+        else:
+            ac.setText(f"{self.qualifiedName()}")
+            ac.setEnabled(False)
+            ac.setVisible(False)
+        return ac
+
 
 class PluginDropHandler(DropHandler):
     ENTRY_POINT = "orangecanvas.document.interactions.DropHandler"
@@ -1944,15 +1984,28 @@ class PluginDropHandler(DropHandler):
         elif len(self.__accepts) > 1:
             menu = QMenu(event.widget())
             for ep_, handler_ in self.__accepts:
-                ac = menu.addAction(ep_.name, )
-                ac.setToolTip(f"{ep_.name} ({ep_.module_name})")
-                ac.setData((ep_, handler_))
+                ac = action_for_handler(handler_, document, event)
+                if ac is None:
+                    ac = menu.addAction(ep_.name, )
+                else:
+                    menu.addAction(ac)
+                    ac.setParent(menu)
+                if not ac.toolTip():
+                    ac.setToolTip(f"{ep_.name} ({ep_.module_name})")
+                ac.setData(handler_)
             action = menu.exec(event.screenPos())
             if action is not None:
-                ep, handler = action.data()
+                handler = action.data()
         if handler is None:
             return False
         return handler.doDrop(document, event)
+
+
+def action_for_handler(handler: DropHandler, document, event) -> Optional[QAction]:
+    if isinstance(handler, DropHandlerAction):
+        return handler.actionFromDropEvent(document, event)
+    else:
+        return None
 
 
 class DropAction(UserInteraction):
