@@ -70,6 +70,7 @@ from .settings import UserSettingsDialog, category_state
 from ..document.schemeedit import SchemeEditWidget
 from ..document.quickmenu import QuickMenu
 from ..document.commands import UndoCommand
+from ..document import interactions
 from ..gui.itemmodels import FilterProxyModel
 from ..registry import WidgetRegistry, WidgetDescription, CategoryDescription
 from ..registry.qt import QtWidgetRegistry
@@ -223,6 +224,7 @@ class CanvasMainWindow(QMainWindow):
         w.layout().setContentsMargins(20, 0, 10, 0)
 
         self.scheme_widget = SchemeEditWidget()
+        self.scheme_widget.setDropHandlers([interactions.PluginDropHandler(),])
         self.set_scheme(config.workflow_constructor(parent=self))
 
         # Save crash recovery swap file on changes to workflow
