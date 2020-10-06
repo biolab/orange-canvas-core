@@ -37,7 +37,10 @@ from .usagestatistics import UsageStatistics
 from ..registry.description import WidgetDescription, OutputSignal, InputSignal
 from ..registry.qt import QtWidgetRegistry
 from .. import scheme
-from ..scheme import SchemeNode as Node, SchemeLink as Link, Scheme, compatible_channels
+from ..scheme import (
+    SchemeNode as Node, SchemeLink as Link, Scheme, WorkflowEvent,
+    compatible_channels
+)
 from ..canvas import items
 from ..canvas.items import controlpoints
 from ..gui.quickhelp import QuickHelpTipEvent
@@ -1874,7 +1877,15 @@ class NodeFromMimeDataDropHandler(DropHandler):
         node = self.nodeFromMimeData(document, event.mimeData())
         node.position = (event.scenePos().x(), event.scenePos().y())
         document.addNode(node)
+        if self.shouldActivateNode():
+            QApplication.postEvent(node, WorkflowEvent(WorkflowEvent.NodeActivateRequest))
         return True
+
+    def shouldActivateNode(self) -> bool:
+        """
+        Should the new dropped node activate (open GUI controller) immediately
+        """
+        return False
 
 
 class PluginDropHandler(DropHandler):
