@@ -59,7 +59,7 @@ from ..canvas.items.annotationitem import Annotation as AnnotationItem
 from . import interactions
 from . import commands
 from . import quickmenu
-from ..utils import findf
+from ..utils import findf, UNUSED
 from ..utils.qinvoke import connect_with_context
 
 Pos = Tuple[float, float]
@@ -1654,6 +1654,7 @@ class SchemeEditWidget(QWidget):
         return False
 
     def sceneDragEnterEvent(self, event: QGraphicsSceneDragDropEvent) -> bool:
+        UNUSED(event)
         delegate = self._userInteractionHandler()
         if delegate is not None:
             return False
@@ -1663,12 +1664,15 @@ class SchemeEditWidget(QWidget):
         return False
 
     def sceneDragMoveEvent(self, event: QGraphicsSceneDragDropEvent) -> bool:
+        UNUSED(event)
         return False
 
     def sceneDragLeaveEvent(self, event: QGraphicsSceneDragDropEvent) -> bool:
+        UNUSED(event)
         return False
 
     def sceneDropEvent(self, event: QGraphicsSceneDragDropEvent) -> bool:
+        UNUSED(event)
         return False
 
     def _userInteractionHandler(self):
