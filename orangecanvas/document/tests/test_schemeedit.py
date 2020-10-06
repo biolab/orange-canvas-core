@@ -6,15 +6,20 @@ import unittest
 from unittest import mock
 from typing import Iterable
 
+import pkg_resources
+
 from AnyQt.QtCore import Qt, QPoint, QMimeData
 from AnyQt.QtGui import (
-    QPainterPath, QDragEnterEvent, QDragMoveEvent, QDropEvent
+    QPainterPath, QDragEnterEvent, QDragMoveEvent, QDropEvent, QDragLeaveEvent
 )
-from AnyQt.QtWidgets import QGraphicsWidget, QAction, QApplication
+from AnyQt.QtWidgets import QGraphicsWidget, QAction, QApplication, QMenu
 from AnyQt.QtTest import QSignalSpy, QTest
 
 from .. import commands
 from ..schemeedit import SchemeEditWidget, SaveWindowGroup
+from ..interactions import (
+    DropHandler, PluginDropHandler, NodeFromMimeDataDropHandler
+)
 from ...canvas import items
 from ...scheme import Scheme, SchemeNode, SchemeLink, SchemeTextAnnotation, \
                       SchemeArrowAnnotation
@@ -47,6 +52,8 @@ class TestSchemeEdit(QAppTestCase):
         super().setUp()
         self.w = SchemeEditWidget()
         self.w.setScheme(Scheme())
+        self.w.setRegistry(self.reg)
+        self.w.resize(300, 300)
 
     def tearDown(self):
         del self.w
@@ -170,8 +177,6 @@ class TestSchemeEdit(QAppTestCase):
         w.setModified(True)
         self.assertTrue(w.isModified())
 
-        w.resize(600, 400)
-
     def test_modified(self):
         node = SchemeNode(
             self.reg.widget("one"), title="title1", position=(100, 100))
@@ -238,7 +243,6 @@ class TestSchemeEdit(QAppTestCase):
         workflow = w.scheme()
         workflow.clear()
         view = w.view()
-        w.resize(300, 300)
         actions = w.toolbarActions()
         action_by_name(actions, "new-arrow-action").trigger()
         QTest.mousePress(view.viewport(), Qt.LeftButton, pos=QPoint(50, 50))
@@ -251,7 +255,6 @@ class TestSchemeEdit(QAppTestCase):
         w = self.w
         workflow = w.scheme()
         view = w.view()
-        w.resize(300, 300)
         actions = w.toolbarActions()
         action = action_by_name(actions, "new-arrow-action")
         action.trigger()
@@ -272,7 +275,6 @@ class TestSchemeEdit(QAppTestCase):
         workflow = w.scheme()
         workflow.clear()
         view = w.view()
-        w.resize(300, 300)
         actions = w.toolbarActions()
         action_by_name(actions, "new-text-action").trigger()
         QTest.mousePress(view.viewport(), Qt.LeftButton, pos=QPoint(50, 50))
@@ -288,7 +290,6 @@ class TestSchemeEdit(QAppTestCase):
         w = self.w
         workflow = w.scheme()
         view = w.view()
-        w.resize(300, 300)
         actions = w.toolbarActions()
         action = action_by_name(actions, "new-text-action")
         action.trigger()
@@ -345,7 +346,6 @@ class TestSchemeEdit(QAppTestCase):
             path = item.curveItem.curvePath()
             return item.mapToScene(path)
         w = self.w
-        w.resize(300, 300)
         workflow = self.setup_test_workflow(w.scheme())
         w.alignToGrid()
         scene, view = w.scene(), w.view()
@@ -503,7 +503,6 @@ class TestSchemeEdit(QAppTestCase):
 
     def test_drop_event(self):
         w = self.w
-        w.resize(100, 100)
         w.setRegistry(self.reg)
         workflow = w.scheme()
         desc = self.reg.widget("one")
@@ -532,6 +531,125 @@ class TestSchemeEdit(QAppTestCase):
 
         self.assertEqual(len(workflow.nodes), 1)
         self.assertEqual(workflow.nodes[0].description, desc)
+
+    def test_drag_drop(self):
+        w = self.w
+        w.setRegistry(self.reg)
+        handler = TestDropHandler()
+        w.setDropHandlers([handler])
+        view = w.view()
+        mime = QMimeData()
+        mime.setData(handler.format_, b'abc')
+        ev = QDragEnterEvent(
+            QPoint(10, 10), Qt.CopyAction, mime, Qt.LeftButton, Qt.NoModifier)
+        QApplication.sendEvent(view.viewport(), ev)
+        self.assertTrue(ev.isAccepted())
+        self.assertEqual(handler.accepts_calls, 1)
+
+        ev = QDragMoveEvent(
+            QPoint(11, 11), Qt.CopyAction, mime, Qt.LeftButton, Qt.NoModifier)
+        QApplication.sendEvent(view.viewport(), ev)
+        self.assertTrue(ev.isAccepted())
+        self.assertEqual(handler.accepts_calls, 2)
+
+        ev = QDropEvent(
+            QPoint(11, 11), Qt.CopyAction, mime, Qt.LeftButton, Qt.NoModifier)
+        QApplication.sendEvent(view.viewport(), ev)
+        self.assertEqual(handler.doDrop_calls, 1)
+        self.assertIsNone(w._userInteractionHandler())
+
+        handler.accepts_calls = 0
+        handler.doDrop_calls = 0
+        mime = QMimeData()
+        mime.setData("application/prs.do-not-accept-this", b'abc')
+        ev = QDragEnterEvent(
+            QPoint(10, 10), Qt.CopyAction, mime, Qt.LeftButton, Qt.NoModifier)
+        QApplication.sendEvent(view.viewport(), ev)
+        self.assertEqual(handler.accepts_calls, 1)
+
+        ev = QDropEvent(
+            QPoint(11, 11), Qt.CopyAction, mime, Qt.LeftButton, Qt.NoModifier)
+        QApplication.sendEvent(view.viewport(), ev)
+        self.assertEqual(handler.doDrop_calls, 0)
+        self.assertIsNone(w._userInteractionHandler())
+
+        ev = QDragEnterEvent(
+            QPoint(10, 10), Qt.CopyAction, mime, Qt.LeftButton, Qt.NoModifier)
+        QApplication.sendEvent(view.viewport(), ev)
+        ev = QDragLeaveEvent()
+        QApplication.sendEvent(view.viewport(), ev)
+        self.assertIsNone(w._userInteractionHandler())
+
+    @mock.patch(
+        "pkg_resources.WorkingSet.iter_entry_points",
+        lambda _, g: [
+            pkg_resources.EntryPoint(
+                "AA", f"{__name__}", ("TestDropHandler", ),
+                dist=pkg_resources.Distribution(project_name="foo")
+            ),
+            pkg_resources.EntryPoint(
+                "BB", f"{__name__}", ("TestNodeFromMimeData",),
+                dist=pkg_resources.Distribution(project_name="foo"))
+        ]
+    )
+    def test_plugin_drag_drop(self):
+        handler = PluginDropHandler()
+        w = self.w
+        w.setRegistry(self.reg)
+        w.setDropHandlers([handler])
+        workflow = w.scheme()
+        view = w.view()
+        # Test empty handler
+        mime = QMimeData()
+        mime.setData(TestDropHandler.format_, b'abc')
+        ev = QDragEnterEvent(
+            QPoint(10, 10), Qt.CopyAction, mime, Qt.LeftButton, Qt.NoModifier)
+        QApplication.sendEvent(view.viewport(), ev)
+
+        ev = QDropEvent(
+            QPoint(10, 10), Qt.CopyAction, mime, Qt.LeftButton, Qt.NoModifier)
+        QApplication.sendEvent(view.viewport(), ev)
+        self.assertIsNone(w._userInteractionHandler())
+
+        # test create node handler
+        mime = QMimeData()
+        mime.setData(TestNodeFromMimeData.format_, b'abc')
+
+        ev = QDragEnterEvent(
+            QPoint(10, 10), Qt.CopyAction, mime, Qt.LeftButton, Qt.NoModifier)
+        QApplication.sendEvent(view.viewport(), ev)
+
+        ev = QDropEvent(
+            QPoint(10, 10), Qt.CopyAction, mime, Qt.LeftButton, Qt.NoModifier)
+        QApplication.sendEvent(view.viewport(), ev)
+        self.assertIsNone(w._userInteractionHandler())
+        self.assertEqual(len(workflow.nodes), 1)
+        self.assertEqual(workflow.nodes[0].description.name, "one")
+        self.assertEqual(workflow.nodes[0].properties, {"a": "from drop"})
+
+        workflow.clear()
+
+        # Test both simultaneously (menu for selection)
+        mime = QMimeData()
+        mime.setData(TestDropHandler.format_, b'abc')
+        mime.setData(TestNodeFromMimeData.format_, b'abc')
+
+        ev = QDragEnterEvent(
+            QPoint(10, 10), Qt.CopyAction, mime, Qt.LeftButton, Qt.NoModifier)
+        QApplication.sendEvent(view.viewport(), ev)
+        ev = QDropEvent(
+            QPoint(10, 10), Qt.CopyAction, mime, Qt.LeftButton, Qt.NoModifier)
+
+        def exec(self, *args):
+            return action_by_name(self.actions(), "-pick-me")
+
+        # intercept QMenu.exec, force select the TestNodeFromMimeData handler
+        with mock.patch.object(QMenu, "exec", exec):
+            QApplication.sendEvent(view.viewport(), ev)
+
+        self.assertEqual(len(workflow.nodes), 1)
+        self.assertEqual(workflow.nodes[0].description.name, "one")
+        self.assertEqual(workflow.nodes[0].properties, {"a": "from drop"})
 
     @classmethod
     def setup_test_workflow(cls, scheme=None):
@@ -562,3 +680,37 @@ class TestSchemeEdit(QAppTestCase):
         scheme.add_annotation(SchemeArrowAnnotation((0, 0), (10, 10)))
         scheme.add_annotation(SchemeTextAnnotation((0, 100, 200, 200), "$$"))
         return scheme
+
+
+class TestDropHandler(DropHandler):
+    format_ = "application/prs.test"
+    accepts_calls = 0
+    doDrop_calls = 0
+
+    def accepts(self, document, event) -> bool:
+        self.accepts_calls += 1
+        return event.mimeData().hasFormat(self.format_)
+
+    def doDrop(self, document, event) -> bool:
+        self.doDrop_calls += 1
+        return event.mimeData().hasFormat(self.format_)
+
+
+class TestNodeFromMimeData(NodeFromMimeDataDropHandler):
+    format_ = "application/prs.one"
+
+    def qualifiedName(self) -> str:
+        return "one"
+
+    def canDropMimeData(self, document, data: 'QMimeData') -> bool:
+        return data.hasFormat(self.format_)
+
+    def parametersFromMimeData(self, document, data: 'QMimeData') -> 'Dict[str, Any]':
+        return {"a": "from drop"}
+
+    def actionFromDropEvent(
+            self, document: 'SchemeEditWidget', event: 'QGraphicsSceneDragDropEvent'
+    ) -> QAction:
+        a = super().actionFromDropEvent(document, event)
+        a.setObjectName("-pick-me")
+        return a
