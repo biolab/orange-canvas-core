@@ -1929,11 +1929,24 @@ class NodeFromMimeDataDropHandler(DropHandler, DropHandlerAction):
 
 
 class PluginDropHandler(DropHandler):
+    """
+    Delegate drop event processing to plugin drop handlers.
+
+    .. versionadded:: 0.1.20
+    """
+    #: The default entry point group
     ENTRY_POINT = "orangecanvas.document.interactions.DropHandler"
 
+    def __init__(self, group=ENTRY_POINT, **kwargs):
+        super().__init__(**kwargs)
+        self.__group = group
+
     def entryPoints(self) -> Iterable[Tuple['EntryPoint', 'DropHandler']]:
+        """
+        Return an iterator over entry points and instantiated drop handlers.
+        """
         ws = pkg_resources.WorkingSet()
-        ep_iter = ws.iter_entry_points(self.ENTRY_POINT)
+        ep_iter = ws.iter_entry_points(self.__group)
         for ep in ep_iter:
             try:
                 val = ep.load()
@@ -2012,13 +2025,17 @@ class DropAction(UserInteraction):
     """
     A drop action on the workflow.
     """
-    def __init__(self, document, *args, **kwargs):
+    def __init__(
+            self, document, *args, dropHandlers: Sequence[DropHandler] = (),
+            **kwargs
+    ) -> None:
         super().__init__(document, *args, **kwargs)
         self.__designatedAction: Optional[DropHandler] = None
+        self.__dropHandlers = dropHandlers
 
     def dropHandlers(self) -> Iterable[DropHandler]:
         """Return an iterable over drop handlers."""
-        return iter([PluginDropHandler()])
+        return iter(self.__dropHandlers)
 
     def canHandleDrop(self, event: 'QGraphicsSceneDragDropEvent') -> bool:
         """
