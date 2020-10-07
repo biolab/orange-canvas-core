@@ -645,6 +645,20 @@ class LinkItem(QGraphicsWidget):
             self.curveItem.setHoverState(state)
             self.__updatePen()
             self.__updateChannelNameVisibility()
+            self.__updateZValue()
+
+    def __updateZValue(self):
+        text_ss = self.linkTextItem.styleState()
+        if self.hover:
+            text_ss |= QStyle.State_HasFocus
+            z = 9999
+            self.linkTextItem.setParentItem(None)
+        else:
+            text_ss &= ~QStyle.State_HasFocus
+            z = self.Z_VALUE
+            self.linkTextItem.setParentItem(self)
+        self.linkTextItem.setZValue(z)
+        self.linkTextItem.setStyleState(text_ss)
 
     def mouseDoubleClickEvent(self, event):
         # type: (QGraphicsSceneMouseEvent) -> None
