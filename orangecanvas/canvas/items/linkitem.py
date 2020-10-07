@@ -614,7 +614,12 @@ class LinkItem(QGraphicsWidget):
 
             transform = QTransform()
             transform.translate(center.x(), center.y())
-            transform.rotate(-angle)
+
+            # Rotate text to be on top of link
+            if 90 <= angle < 270:
+                transform.rotate(180 - angle)
+            else:
+                transform.rotate(-angle)
 
             # Center and move above the curve path.
             transform.translate(-brect.width() / 2, -brect.height())
