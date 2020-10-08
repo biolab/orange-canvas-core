@@ -80,6 +80,10 @@ def swp_name(canvas):
     return swpname
 
 
+def register_loaded_swp(canvas, swpname):
+    canvas_scratch_name_memo[canvas] = swpname
+
+
 def glob_scratch_swps():
     swpname = scratch_swp_base_name()
     return glob.glob(swpname + ".*")
