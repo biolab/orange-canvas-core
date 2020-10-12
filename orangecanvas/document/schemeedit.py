@@ -644,17 +644,27 @@ class SchemeEditWidget(QWidget):
         Returns node properties differences since last clean state,
         excluding unclean nodes.
         """
+
         currentProperties = node_properties(self.__scheme)
+        # ignore diff for newly created nodes
+        cleanNodes = self.cleanNodes()
         currentCleanNodeProperties = {k: v
                                       for k, v in currentProperties.items()
-                                      if k in self.cleanNodes()}
+                                      if k in cleanNodes}
+
+        cleanProperties = self.__cleanProperties
+        # ignore diff for deleted nodes
+        currentNodes = self.__scheme.nodes
+        cleanCurrentNodeProperties = {k: v
+                                      for k, v in cleanProperties.items()
+                                      if k in currentNodes}
 
         # ignore contexts
         ignore = set((node, "context_settings")
                      for node in currentCleanNodeProperties.keys())
 
         return list(dictdiffer.diff(
-            self.__cleanProperties,
+            cleanCurrentNodeProperties,
             currentCleanNodeProperties,
             ignore=ignore
         ))
