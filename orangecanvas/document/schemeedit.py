@@ -676,7 +676,10 @@ class SchemeEditWidget(QWidget):
         ))
 
     def restoreProperties(self, dict_diff):
-        dictdiffer.patch(dict_diff, node_properties(self.__scheme), in_place=True)
+        ref_properties = {
+            node: node.properties for node in self.__scheme.nodes
+        }
+        dictdiffer.patch(dict_diff, ref_properties, in_place=True)
 
     def cleanNodes(self):
         return list(self.__cleanProperties.keys())
