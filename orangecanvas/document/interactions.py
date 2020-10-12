@@ -1928,6 +1928,35 @@ class NodeFromMimeDataDropHandler(DropHandler, DropHandlerAction):
         return ac
 
 
+def load_entry_point(
+        ep: EntryPoint, log: logging.Logger = None,
+) -> Tuple['EntryPoint', Any]:
+    if log is None:
+        log = logging.getLogger(__name__)
+    try:
+        value = ep.load()
+    except (pkg_resources.ResolutionError, ImportError, AttributeError):
+        log.exception("Could not load %s from %s", ep, ep.dist)
+    except Exception:  # noqa
+        log.exception("Unexpected Error; %s will be skipped", ep)
+    else:
+        return ep, value
+
+
+def iter_load_entry_points(
+        iter: Iterable[EntryPoint], log: logging.Logger = None,
+):
+    if log is None:
+        log = logging.getLogger(__name__)
+    for ep in iter:
+        try:
+            ep, value = load_entry_point(ep, log)
+        except Exception:
+            pass
+        else:
+            yield ep, value
+
+
 class PluginDropHandler(DropHandler):
     """
     Delegate drop event processing to plugin drop handlers.
@@ -1941,35 +1970,44 @@ class PluginDropHandler(DropHandler):
         super().__init__(**kwargs)
         self.__group = group
 
+    def iterEntryPoints(self) -> Iterable['EntryPoint']:
+        """
+        Return an iterator over all entry points.
+        """
+        ws = pkg_resources.WorkingSet()
+        ep_iter = ws.iter_entry_points(self.__group)
+        return ep_iter
+
     __entryPoints = None
 
     def entryPoints(self) -> Iterable[Tuple['EntryPoint', 'DropHandler']]:
         """
         Return an iterator over entry points and instantiated drop handlers.
         """
-        if self.__entryPoints:
-            return (yield from self.__entryPoints)
         eps = []
-        ws = pkg_resources.WorkingSet()
-        ep_iter = ws.iter_entry_points(self.__group)
-        for ep in ep_iter:
+        if self.__entryPoints:
+            ep_iter = self.__entryPoints
+            store_eps = lambda ep, value: None
+        else:
+            ep_iter = self.iterEntryPoints()
+            ep_iter = iter_load_entry_points(ep_iter, log)
+            store_eps = lambda ep, value: eps.append((ep, value))
+
+        for ep, value in ep_iter:
+            if not issubclass(value, DropHandler):
+                log.error(
+                    f"{ep} yielded {type(value)}, expected a "
+                    f"{DropHandler} subtype"
+                )
+                continue
             try:
-                val = ep.load()
-                if not issubclass(val, DropHandler):
-                    raise TypeError(type(val).__name__)
-            except (pkg_resources.ResolutionError, ImportError,
-                    AttributeError, TypeError):
-                log.exception("Could not load %s from %s", ep, ep.dist)
+                handler = value()
             except Exception:  # noqa
-                log.exception("Unexpected Error; %s will be skipped", ep)
+                log.exception("Error in default constructor of %s", value)
             else:
-                try:
-                    handler = val()
-                except Exception:  # noqa
-                    log.exception("Error in default constructor of %s", val)
-                else:
-                    yield ep, handler
-                    eps.append((ep, handler))
+                yield ep, handler
+                store_eps(ep, value)
+
         self.__entryPoints = tuple(eps)
 
     __accepts: Sequence[Tuple[EntryPoint, DropHandler]] = ()
