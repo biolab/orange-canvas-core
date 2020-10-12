@@ -5,7 +5,7 @@ import pickle
 from PyQt5.QtCore import QSettings
 
 from orangecanvas import config
-from ..scheme import Scheme, SchemeNode, SchemeLink
+from ..scheme import Scheme, SchemeNode, SchemeLink, BaseSchemeAnnotation
 
 
 class Pickler(pickle.Pickler):
@@ -20,6 +20,8 @@ class Pickler(pickle.Pickler):
             return "SchemeNode_" + str(self.document.cleanNodes().index(obj))
         elif isinstance(obj, SchemeLink) and obj in self.document.cleanLinks():
             return "SchemeLink_" + str(self.document.cleanLinks().index(obj))
+        elif isinstance(obj, BaseSchemeAnnotation) and obj in self.document.cleanAnnotations():
+            return "BaseSchemeAnnotation_" + str(self.document.cleanAnnotations().index(obj))
         else:
             return None
 
@@ -38,6 +40,9 @@ class Unpickler(pickle.Unpickler):
         elif pid.startswith('SchemeLink_'):
             link_index = int(pid.split('_')[1])
             return self.scheme.links[link_index]
+        elif pid.startswith('BaseSchemeAnnotation_'):
+            annotation_index = int(pid.split('_')[1])
+            return self.scheme.annotations[annotation_index]
         else:
             raise pickle.UnpicklingError("Unsupported persistent object")
 

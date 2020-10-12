@@ -182,6 +182,9 @@ class SchemeEditWidget(QWidget):
         # list of links when set to a clean state
         self.__cleanLinks = []
 
+        # list of annotations when set to a clean state
+        self.__cleanAnnotations = []
+
         self.__editFinishedMapper = QSignalMapper(self)
         self.__editFinishedMapper.mapped[QObject].connect(
             self.__onEditingFinished
@@ -609,14 +612,17 @@ class SchemeEditWidget(QWidget):
         if not modified:
             if self.__scheme:
                 self.__cleanProperties = node_properties(self.__scheme)
-                self.__cleanLinks = list(self.__scheme.links)
+                self.__cleanLinks = self.__scheme.links
+                self.__cleanAnnotations = self.__scheme.annotations
             else:
                 self.__cleanProperties = {}
                 self.__cleanLinks = []
+                self.__cleanAnnotations = []
             self.__undoStack.setClean()
         else:
             self.__cleanProperties = {}
             self.__cleanLinks = []
+            self.__cleanAnnotations = []
 
     modified = Property(bool, fget=isModified, fset=setModified)
 
@@ -677,6 +683,9 @@ class SchemeEditWidget(QWidget):
 
     def cleanLinks(self):
         return self.__cleanLinks
+
+    def cleanAnnotations(self):
+        return self.__cleanAnnotations
 
     def setQuickMenuTriggers(self, triggers):
         # type: (int) -> None
@@ -799,7 +808,8 @@ class SchemeEditWidget(QWidget):
                     self.__reset_window_group_menu
                 )
                 self.__cleanProperties = node_properties(scheme)
-                self.__cleanLinks = list(scheme.links)
+                self.__cleanLinks = scheme.links
+                self.__cleanAnnotations = scheme.annotations
                 sm = scheme.findChild(signalmanager.SignalManager)
                 if sm:
                     sm.stateChanged.connect(self.__signalManagerStateChanged)
@@ -813,6 +823,7 @@ class SchemeEditWidget(QWidget):
             else:
                 self.__cleanProperties = {}
                 self.__cleanLinks = []
+                self.__cleanAnnotations = []
 
             self.__teardownScene(self.__scene)
             self.__scene.deleteLater()
