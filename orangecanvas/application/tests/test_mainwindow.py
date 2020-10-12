@@ -6,6 +6,7 @@ from AnyQt.QtWidgets import QToolButton, QDialog, QMessageBox
 
 from .. import addons
 from ..outputview import TextStream
+from ...scheme import SchemeTextAnnotation, SchemeLink
 from ...utils.shtools import temp_named_file
 from ...utils.pickle import swp_name
 from ...gui.test import QAppTestCase
@@ -210,6 +211,62 @@ class TestMainWindowLoad(TestMainWindowBase):
 
         with patch.object(CanvasMainWindow, 'ask_load_swp', self.fail):
             w.new_workflow_window()
+
+    def test_swp_functionality(self):
+        w = self.w
+        w2 = MainWindow()
+        w2.set_widget_registry(self.registry)
+
+        def test(predicate):
+            _, tf = tempfile.mkstemp()
+            w.save_swp_to(tf)
+            w2.load_swp_from(tf)
+            predicate()
+            w.scheme_widget.setModified(False)
+
+        # test widget add
+        desc = self.registry.widget('zero')
+        node = w.current_document().createNewNode(desc)
+        node.properties['dummy'] = 0
+
+        test(lambda:
+             self.assertEqual(w2.scheme_widget.scheme().nodes[0].properties['dummy'], 0))
+        w2_node = w2.scheme_widget.scheme().nodes[0]
+
+        # test widget change properties
+        node.properties['dummy'] = 1
+        test(lambda:
+             self.assertEqual(w2_node.properties['dummy'], 1))
+
+        desc = self.registry.widget('add')
+        node2 = w.current_document().createNewNode(desc)
+        link = SchemeLink(node, node.output_channels()[0], node2, node2.input_channels()[0])
+        # test link add
+        w.current_document().addLink(link)
+        test(lambda:
+             self.assertTrue(w2.scheme_widget.scheme().links))
+
+        # test link remove
+        w.current_document().removeLink(link)
+        test(lambda:
+             self.assertFalse(w2.scheme_widget.scheme().links))
+
+        # test widget remove
+        w.scheme_widget.removeNode(node)
+        w.scheme_widget.removeNode(node2)
+        test(lambda:
+             self.assertFalse(w2.scheme_widget.scheme().nodes))
+
+        # test annotation add
+        a = SchemeTextAnnotation((200, 300, 50, 20), "text")
+        w.current_document().addAnnotation(a)
+        test(lambda:
+             self.assertTrue(w2.scheme_widget.scheme().annotations))
+
+        # test annotation remove
+        w.current_document().removeAnnotation(a)
+        test(lambda:
+             self.assertFalse(w2.scheme_widget.scheme().annotations))
 
     def test_open_ows_req(self):
         w = self.w
