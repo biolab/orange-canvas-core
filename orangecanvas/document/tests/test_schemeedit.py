@@ -6,8 +6,6 @@ import unittest
 from unittest import mock
 from typing import Iterable
 
-import pkg_resources
-
 from AnyQt.QtCore import Qt, QPoint, QMimeData
 from AnyQt.QtGui import QPainterPath
 from AnyQt.QtWidgets import QGraphicsWidget, QAction, QApplication, QMenu
@@ -16,7 +14,7 @@ from AnyQt.QtTest import QSignalSpy, QTest
 from .. import commands
 from ..schemeedit import SchemeEditWidget, SaveWindowGroup
 from ..interactions import (
-    DropHandler, PluginDropHandler, NodeFromMimeDataDropHandler
+    DropHandler, PluginDropHandler, NodeFromMimeDataDropHandler, EntryPoint
 )
 from ...canvas import items
 from ...scheme import Scheme, SchemeNode, SchemeLink, SchemeTextAnnotation, \
@@ -550,16 +548,16 @@ class TestSchemeEdit(QAppTestCase):
 
         self.assertIsNone(w._userInteractionHandler())
 
-    @mock.patch(
-        "pkg_resources.WorkingSet.iter_entry_points",
-        lambda _, g: [
-            pkg_resources.EntryPoint(
-                "AA", f"{__name__}", ("TestDropHandler", ),
-                dist=pkg_resources.Distribution(project_name="foo")
+    @mock.patch.object(
+        PluginDropHandler, "iterEntryPoints",
+        # "pkg_resources.WorkingSet.iter_entry_points",
+        lambda _: [
+            EntryPoint(
+                "AA", f"{__name__}:TestDropHandler", "aa"
             ),
-            pkg_resources.EntryPoint(
-                "BB", f"{__name__}", ("TestNodeFromMimeData",),
-                dist=pkg_resources.Distribution(project_name="foo"))
+            EntryPoint(
+                "BB", f"{__name__}:TestNodeFromMimeData", "aa"
+            )
         ]
     )
     def test_plugin_drag_drop(self):

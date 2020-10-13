@@ -19,8 +19,6 @@ import abc
 import logging
 from functools import reduce
 
-import pkg_resources
-
 from AnyQt.QtWidgets import (
     QApplication, QGraphicsRectItem, QGraphicsSceneMouseEvent,
     QGraphicsSceneContextMenuEvent, QWidget, QGraphicsItem,
@@ -55,7 +53,11 @@ if typing.TYPE_CHECKING:
     #: Output/Input pair of a link
     OIPair = Tuple[OutputSignal, InputSignal]
 
-EntryPoint = pkg_resources.EntryPoint
+try:
+    from importlib.metadata import EntryPoint, entry_points
+except ImportError:
+    from importlib_metadata import EntryPoint, entry_points
+
 
 log = logging.getLogger(__name__)
 
@@ -1935,8 +1937,8 @@ def load_entry_point(
         log = logging.getLogger(__name__)
     try:
         value = ep.load()
-    except (pkg_resources.ResolutionError, ImportError, AttributeError):
-        log.exception("Could not load %s from %s", ep, ep.dist)
+    except (ImportError, AttributeError):
+        log.exception("Could not load %s", ep)
     except Exception:  # noqa
         log.exception("Unexpected Error; %s will be skipped", ep)
     else:
@@ -1974,9 +1976,7 @@ class PluginDropHandler(DropHandler):
         """
         Return an iterator over all entry points.
         """
-        ws = pkg_resources.WorkingSet()
-        ep_iter = ws.iter_entry_points(self.__group)
-        return ep_iter
+        return entry_points().get(self.__group, [])
 
     __entryPoints = None
 

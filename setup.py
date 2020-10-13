@@ -31,6 +31,7 @@ INSTALL_REQUIRES = (
     "pip>=18.0",
     "dictdiffer",
     "qasync",
+    "importlib_metadata; python_version<'3.8'",
 )
 
 
