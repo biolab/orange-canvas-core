@@ -604,6 +604,40 @@ class TestSchemeEdit(QAppTestCase):
         self.assertEqual(workflow.nodes[0].description.name, "one")
         self.assertEqual(workflow.nodes[0].properties, {"a": "from drop"})
 
+    def test_activate_drop_node(self):
+        class NodeFromMimeData(TestNodeFromMimeData):
+            def shouldActivateNode(self) -> bool:
+                self.shouldActivateNode_called += 1
+                return True
+            shouldActivateNode_called = 0
+
+            def activateNode(self, document: 'SchemeEditWidget', node: 'Node',
+                             widget: 'QWidget') -> None:
+                self.activateNode_called += 1
+                super().activateNode(document, node, widget)
+                widget.didActivate = True
+            activateNode_called = 0
+
+        w = self.w
+        viewport = w.view().viewport()
+        workflow = Scheme()
+        wm = workflow.widget_manager = TestingWidgetManager()
+        wm.set_creation_policy(TestingWidgetManager.Immediate)
+        wm.set_workflow(workflow)
+        w.setScheme(workflow)
+        handler = NodeFromMimeData()
+        w.setDropHandlers([handler])
+        mime = QMimeData()
+        mime.setData(TestNodeFromMimeData.format_, b'abc')
+        spy = QSignalSpy(wm.widget_for_node_added)
+        dragDrop(viewport, mime, QPoint(10, 10))
+        self.assertEqual(len(spy), 1)
+        self.assertGreaterEqual(handler.shouldActivateNode_called, 1)
+        self.assertGreaterEqual(handler.activateNode_called, 1)
+        _, widget = spy[0]
+        self.assertTrue(widget.didActivate)
+        workflow.clear()
+
     @classmethod
     def setup_test_workflow(cls, scheme=None):
         # type: (Scheme) -> Scheme

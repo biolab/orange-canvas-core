@@ -1900,16 +1900,49 @@ class NodeFromMimeDataDropHandler(DropHandler, DropHandlerAction):
             return False
         node = self.nodeFromMimeData(document, event.mimeData())
         node.position = (event.scenePos().x(), event.scenePos().y())
+        activate = self.shouldActivateNode()
+        wd = document.widgetManager()
+        if activate and wd is not None:
+            def activate(node_, widget):
+                if node_ is node:
+                    try:
+                        self.activateNode(document, node, widget)
+                    finally:
+                        # self-disconnect the slot
+                        wd.widget_for_node_added.disconnect(activate)
+            wd.widget_for_node_added.connect(activate)
         document.addNode(node)
-        if self.shouldActivateNode():
+        if activate:
             QApplication.postEvent(node, WorkflowEvent(WorkflowEvent.NodeActivateRequest))
         return True
 
     def shouldActivateNode(self) -> bool:
         """
-        Should the new dropped node activate (open GUI controller) immediately
+        Should the new dropped node activate (open GUI controller) immediately.
+
+        If this method returns `True` then the `activateNode` method will be
+        called after the node has been added and the GUI controller created.
+
+        The default implementation returns False.
         """
         return False
+
+    def activateNode(self, document: 'SchemeEditWidget', node: 'Node', widget: 'QWidget') -> None:
+        """
+        Activate (open) the `node`'s GUI controller `widget` after a
+        completed drop.
+
+        Reimplement this if the node requires further configuration via the
+        GUI.
+
+        The default implementation delegates to the :class:`WidgetManager`
+        associated with the document.
+        """
+        wd = document.widgetManager()
+        if wd is not None:
+            wd.activate_widget_for_node(node, widget)
+        else:
+            widget.show()
 
     def actionFromDropEvent(
             self, document: 'SchemeEditWidget', event: 'QGraphicsSceneDragDropEvent'
