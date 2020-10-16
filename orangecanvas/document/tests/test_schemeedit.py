@@ -2,22 +2,21 @@
 Tests for scheme document.
 """
 from typing import Iterable
+from unittest import mock
 
+from AnyQt.QtCore import Qt, QPoint
 from AnyQt.QtGui import QPainterPath
+from AnyQt.QtWidgets import QGraphicsWidget, QAction, QApplication
 from AnyQt.QtTest import QSignalSpy, QTest
 
-from AnyQt.QtWidgets import QGraphicsWidget, QAction, QApplication
-
-from AnyQt.QtCore import Qt, QObject, QPoint
-from ..schemeedit import SchemeEditWidget
+from ..schemeedit import SchemeEditWidget, SaveWindowGroup
 from ...canvas import items
 from ...scheme import Scheme, SchemeNode, SchemeLink, SchemeTextAnnotation, \
                       SchemeArrowAnnotation
-
 from ...registry.tests import small_testing_registry
-
 from ...gui.test import QAppTestCase, mouseMove
 from ...utils import findf
+from ...scheme.tests.test_widgetmanager import TestingWidgetManager
 
 
 def action_by_name(actions, name):
@@ -40,11 +39,13 @@ class TestSchemeEdit(QAppTestCase):
         del cls.reg
 
     def setUp(self):
+        super().setUp()
         self.w = SchemeEditWidget()
         self.w.setScheme(Scheme())
 
     def tearDown(self):
         del self.w
+        super().tearDown()
 
     def test_schemeedit(self):
         reg = self.reg
@@ -423,6 +424,46 @@ class TestSchemeEdit(QAppTestCase):
         self.assertSequenceEqual(annotations[1:], workflow.annotations)
         undo.undo()
         self.assertSequenceEqual(annotations, workflow.annotations)
+
+    def test_window_groups(self):
+        w = self.w
+        workflow = self.setup_test_workflow()
+        workflow.set_window_group_presets([
+            Scheme.WindowGroup("G1", False, [(workflow.nodes[0], b'\xff\x00')]),
+            Scheme.WindowGroup("G2", True, [(workflow.nodes[0], b'\xff\x00')]),
+        ])
+        manager = TestingWidgetManager()
+        workflow.widget_manager = manager
+        with mock.patch.object(manager, "activate_window_group") as m:
+            w.setScheme(workflow)
+            w.activateDefaultWindowGroup()
+            m.assert_called_once_with(workflow.window_group_presets()[1])
+
+        a = w.findChild(QAction, "window-groups-save-action")
+        with mock.patch.object(
+                workflow, "set_window_group_presets",
+                wraps=workflow.set_window_group_presets
+        ) as m:
+            a.trigger()
+            dlg = w.findChild(SaveWindowGroup)
+            dlg.accept()
+            m.assert_called_once()
+
+        with mock.patch.object(
+                workflow, "set_window_group_presets",
+                wraps=workflow.set_window_group_presets
+        ) as m:
+            w.undoStack().undo()
+            m.assert_called_once()
+
+        with mock.patch.object(
+                workflow, "set_window_group_presets",
+                wraps=workflow.set_window_group_presets
+        ) as m:
+            a = w.findChild(QAction, "window-groups-clear-action")
+            a.trigger()
+            m.assert_called_once_with([])
+        workflow.clear()
 
     @classmethod
     def setup_test_workflow(cls, scheme=None):

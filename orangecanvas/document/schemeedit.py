@@ -453,11 +453,13 @@ class SchemeEditWidget(QWidget):
         )
         self.__saveWindowGroupAction = QAction(
             self.tr("Save Window Group..."), self,
+            objectName="window-groups-save-action",
             toolTip="Create and save a new window group."
         )
         self.__saveWindowGroupAction.triggered.connect(self.__saveWindowGroup)
         self.__clearWindowGroupsAction = QAction(
             self.tr("Delete All Groups"), self,
+            objectName="window-groups-clear-action",
             toolTip="Delete all saved widget presets"
         )
         self.__clearWindowGroupsAction.triggered.connect(
@@ -759,6 +761,9 @@ class SchemeEditWidget(QWidget):
         if self.__scheme is not scheme:
             if self.__scheme:
                 self.__scheme.title_changed.disconnect(self.titleChanged)
+                self.__scheme.window_group_presets_changed.disconnect(
+                    self.__reset_window_group_menu
+                )
                 self.__scheme.removeEventFilter(self)
                 sm = self.__scheme.findChild(signalmanager.SignalManager)
                 if sm:
@@ -780,6 +785,9 @@ class SchemeEditWidget(QWidget):
             if self.__scheme:
                 self.__scheme.title_changed.connect(self.titleChanged)
                 self.titleChanged.emit(scheme.title)
+                self.__scheme.window_group_presets_changed.connect(
+                    self.__reset_window_group_menu
+                )
                 self.__cleanProperties = node_properties(scheme)
                 self.__cleanLinks = list(scheme.links)
                 sm = scheme.findChild(signalmanager.SignalManager)
@@ -813,27 +821,7 @@ class SchemeEditWidget(QWidget):
                 nodes = self.__scheme.nodes
                 if nodes:
                     self.ensureVisible(nodes[0])
-
-        group = self.__windowGroupsActionGroup
-        menu = self.__windowGroupsAction.menu()
-        actions = group.actions()
-        for a in actions:
-            group.removeAction(a)
-            menu.removeAction(a)
-            a.deleteLater()
-
-        if scheme:
-            presets = scheme.window_group_presets()
-            sep = menu.findChild(QAction, "groups-separator")
-            for g in presets:
-                a = QAction(g.name, menu)
-                a.setShortcut(
-                    QKeySequence("Meta+P, Ctrl+{}"
-                                 .format(len(group.actions()) + 1))
-                )
-                a.setData(g)
-                group.addAction(a)
-                menu.insertAction(sep, a)
+        self.__reset_window_group_menu()
 
     def ensureVisible(self, node):
         # type: (SchemeNode) -> None
@@ -2128,6 +2116,34 @@ class SchemeEditWidget(QWidget):
             role = QPalette.Window
         self.__view.viewport().setBackgroundRole(role)
 
+    def __reset_window_group_menu(self):
+        group = self.__windowGroupsActionGroup
+        menu = self.__windowGroupsAction.menu()
+        # remove old actions
+        actions = group.actions()
+        for a in actions:
+            group.removeAction(a)
+            menu.removeAction(a)
+            a.deleteLater()
+
+        sep = menu.findChild(QAction, "groups-separator")
+
+        workflow = self.__scheme
+        if workflow is None:
+            return
+
+        presets = workflow.window_group_presets()
+
+        for g in presets:
+            a = QAction(g.name, menu)
+            a.setShortcut(
+                QKeySequence("Meta+P, Ctrl+{}"
+                             .format(len(group.actions()) + 1))
+            )
+            a.setData(g)
+            group.addAction(a)
+            menu.insertAction(sep, a)
+
     def __saveWindowGroup(self):
         # type: () -> None
         """Run a 'Save Window Group' dialog"""
@@ -2146,13 +2162,9 @@ class SchemeEditWidget(QWidget):
         if default:
             dlg.setDefaultIndex(default[0])
 
-        menu = self.__windowGroupsAction.menu()  # type: QMenu
-        group = self.__windowGroupsActionGroup
-
         def store_group():
             text = dlg.selectedText()
             default = dlg.isDefaultChecked()
-            actions = group.actions()  # type: List[QAction]
             try:
                 idx = items.index(text)
             except ValueError:
@@ -2162,44 +2174,21 @@ class SchemeEditWidget(QWidget):
             if idx == -1:
                 # new group slot
                 newpresets.append(newpreset)
-                action = QAction(text, menu)
-                action.setShortcut(
-                    QKeySequence("Meta+P, Ctrl+{}".format(len(newpresets)))
-                )
-                oldpreset = None
             else:
                 newpresets[idx] = newpreset
-
-                action = actions[idx]
-                # store old state for undo
-                oldpreset = presets[idx]
 
             if newpreset.default:
                 idx_ = idx if idx >= 0 else len(newpresets) - 1
                 for g in newpresets[:idx_] + newpresets[idx_ + 1:]:
                     g.default = False
-            sep = menu.findChild(QAction, "groups-separator")
-            assert isinstance(sep, QAction) and sep.isSeparator()
 
-            def redo():
-                action.setData(newpreset)
-                workflow.set_window_group_presets(newpresets)
-                if idx == -1:
-                    group.addAction(action)
-                    menu.insertAction(sep, action)
-
-            def undo():
-                action.setData(oldpreset)
-                workflow.set_window_group_presets(presets)
-                if idx == -1:
-                    group.removeAction(action)
-                    menu.removeAction(action)
             if idx == -1:
                 text = "Store Window Group"
             else:
                 text = "Update Window Group"
+
             self.__undoStack.push(
-                commands.SimpleUndoCommand(redo, undo, text)
+                commands.SetWindowGroupPresets(workflow, newpresets, text=text)
             )
         dlg.accepted.connect(store_group)
         dlg.show()
@@ -2217,26 +2206,9 @@ class SchemeEditWidget(QWidget):
         workflow = self.__scheme
         if workflow is None:
             return
-        presets = workflow.window_group_presets()
-        menu = self.__windowGroupsAction.menu()  # type: QMenu
-        group = self.__windowGroupsActionGroup
-        actions = group.actions()
-
-        def redo():
-            workflow.set_window_group_presets([])
-            for action in reversed(actions):
-                group.removeAction(action)
-                menu.removeAction(action)
-
-        def undo():
-            workflow.set_window_group_presets(presets)
-            sep = menu.findChild(QAction, "groups-separator")
-            for action in actions:
-                group.addAction(action)
-                menu.insertAction(sep, action)
-
         self.__undoStack.push(
-            commands.SimpleUndoCommand(redo, undo, "Delete All Window Groups")
+            commands.SetWindowGroupPresets(
+                workflow, [], text="Delete All Window Groups")
         )
 
     def __raiseToFont(self):

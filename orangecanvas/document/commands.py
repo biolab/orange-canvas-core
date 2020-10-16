@@ -3,7 +3,7 @@ Undo/Redo Commands
 
 """
 import typing
-from typing import Callable, Optional, Tuple, Any
+from typing import Callable, Optional, Tuple, List, Any
 
 from AnyQt.QtWidgets import QUndoCommand
 
@@ -333,6 +333,30 @@ class SetAttrCommand(UndoCommand):
 
     def undo(self):
         setattr(self.obj, self.attrname, self.oldvalue)
+
+
+class SetWindowGroupPresets(UndoCommand):
+    def __init__(
+            self,
+            scheme: 'Scheme',
+            presets: List['Scheme.WindowGroup'],
+            parent: Optional[UndoCommand] = None,
+            **kwargs
+    ) -> None:
+        text = kwargs.pop("text", "Set Window Presets")
+        super().__init__(text, parent, **kwargs)
+        self.scheme = scheme
+        self.presets = presets
+        self.__undo_presets = None
+
+    def redo(self):
+        presets = self.scheme.window_group_presets()
+        self.scheme.set_window_group_presets(self.presets)
+        self.__undo_presets = presets
+
+    def undo(self):
+        self.scheme.set_window_group_presets(self.__undo_presets)
+        self.__undo_presets = None
 
 
 class SimpleUndoCommand(UndoCommand):
