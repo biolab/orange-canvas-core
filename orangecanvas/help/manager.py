@@ -307,7 +307,13 @@ def get_help_provider_for_distribution(dist):
     """
     if dist.project_name in _providers_cache:
         return _providers_cache[dist.project_name]
-    entry_points = dist.get_entry_map().get("orange.canvas.help", {})
+
+    eps = dist.get_entry_map()
+    entry_points = eps.get("orange.canvas.help", {})
+    if not entry_points:
+        # alternative name
+        entry_points = eps.get("orangecanvas.help", {})
+
     provider = None
     for name, entry_point in entry_points.items():
         create = _providers.get(name, None)
