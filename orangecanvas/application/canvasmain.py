@@ -1488,7 +1488,6 @@ class CanvasMainWindow(QMainWindow):
         if filename:
             settings.setValue("last-scheme-dir", os.path.dirname(filename))
             if self.save_scheme_to(curr_scheme, filename):
-                self.clear_swp()
                 document.setPath(filename)
                 document.setModified(False)
                 self.add_recent_scheme(curr_scheme.title, document.path())
@@ -1527,6 +1526,7 @@ class CanvasMainWindow(QMainWindow):
         try:
             with open(filename, "wb") as f:
                 f.write(buffer.getvalue())
+            self.clear_swp()
             return True
         except FileNotFoundError as ex:
             log.error("%s saving '%s'", type(ex).__name__, filename,
