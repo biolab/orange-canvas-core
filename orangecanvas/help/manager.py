@@ -129,15 +129,6 @@ def qurl_query_items(url: QUrl) -> List[Tuple[str, str]]:
     return urllib.parse.parse_qsl(querystr)
 
 
-def get_help_provider_for_description(desc):
-    # type: (WidgetDescription) -> Optional[provider.HelpProvider]
-    if desc.project_name:
-        dist = pkg_resources.get_distribution(desc.project_name)
-        return get_help_provider_for_distribution(dist)
-    else:
-        return None
-
-
 def _replacements_for_dist(dist):
     # type: (Distribution) -> Dict[str, str]
     replacements = {"PROJECT_NAME": dist.project_name,
