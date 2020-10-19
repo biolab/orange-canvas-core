@@ -1490,6 +1490,14 @@ class QuickMenu(FramelessWindow):
         """
         if pos is None:
             pos = QPoint()
+        else:
+            # to avoid accidental category hovers, offset the quickmenu
+            # these were calculated by hand, the actual values can't be grabbed
+            # before showing the menu for the first time (and they're defined in qss)
+            x_offset = 33
+            if self.__pages.navigator.categoriesEnabled():
+                x_offset += 33
+            pos.setX(pos.x() - x_offset)
 
         self.__clearCurrentItems()
 
@@ -1537,9 +1545,8 @@ class QuickMenu(FramelessWindow):
 
         # TODO: right to left locale
         if right_margin < 0:
-            # Falls over the right screen edge, move the menu to the
-            # other side of pos.
-            geom.translate(-size.width(), 0)
+            # Falls over the right screen edge, move it left.
+            geom.translate(right_margin, 0)
 
         self.setGeometry(geom)
 
@@ -1656,6 +1663,9 @@ class ItemViewKeyNavigator(QObject):
 
     def setCategoriesEnabled(self, enabled):
         self.__categoriesEnabled = enabled
+
+    def categoriesEnabled(self):
+        return self.__categoriesEnabled
 
     def setView(self, view):
         # type: (Optional[QAbstractItemView]) -> None
