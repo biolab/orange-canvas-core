@@ -829,7 +829,10 @@ class TabBarWidget(QWidget):
         tab = _Tab(text, icon, toolTip, button, None, None)
         self.layout().insertWidget(index, button)
 
+        if self.count() > 0:
+            self.button(-1).setProperty('lastCategoryButton', False)
         self.__tabs.insert(index, tab)
+        button.setProperty('lastCategoryButton', True)
         self.__updateTab(index)
 
         if self.currentIndex() == -1:
@@ -1175,12 +1178,18 @@ TabButton {{
     qproperty-shadowColor_: {2};
     background: {0};
     border: none;
-    border-right: 2px solid {0};
+    border-right: 3px solid {0};
+    border-bottom: 1px solid #9CACB4;
+    border-top: 1px solid {0}
 }}
 
 TabButton:checked {{
     background: {1};
-    border-right: hidden;
+    border: none;
+}}
+
+TabButton[lastCategoryButton='true']:checked {{
+    border-bottom: 1px solid #9CACB4;
 }}
 """
 

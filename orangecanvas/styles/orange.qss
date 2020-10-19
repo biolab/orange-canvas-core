@@ -373,8 +373,8 @@ QuickMenu QTreeView::item:selected:last {
 }
 
 QuickMenu TabBarWidget QToolButton {
-	height: 25px;
-	width: 25px;
+	height: 27px;
+	width: 27px;
 	qproperty-iconSize: 20px;
 	qproperty-showMenuIndicator_: false;
 	qproperty-shadowLength_: 3;
