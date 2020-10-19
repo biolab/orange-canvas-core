@@ -46,10 +46,9 @@ import sip
 
 from orangecanvas.utils import unique, name_lookup, markup, qualified_name
 from orangecanvas.utils.shtools import python_process, create_process
-
+from ..utils.pkgmeta import get_dist_meta, parse_meta
 from ..utils.qinvoke import qinvoke
 from ..gui.utils import message_warning, message_critical as message_error
-from ..help.manager import get_dist_meta, parse_meta
 
 from .. import config
 from ..config import Config
