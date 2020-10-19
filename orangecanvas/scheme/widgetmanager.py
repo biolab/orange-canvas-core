@@ -96,7 +96,7 @@ class WidgetManager(QObject):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.__workflow = None  # type: Optional[Scheme]
-        self.__creation_policy = WidgetManager.Normal
+        self.__creation_policy = WidgetManager.OnDemand
         self.__float_widgets_on_top = False
 
         self.__item_for_node = {}  # type: Dict[SchemeNode, Item]

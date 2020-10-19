@@ -220,7 +220,7 @@ class CanvasMainWindow(QMainWindow):
         w.layout().setContentsMargins(20, 0, 10, 0)
 
         self.scheme_widget = SchemeEditWidget()
-        self.scheme_widget.setScheme(config.workflow_constructor(parent=self))
+        self.set_scheme(config.workflow_constructor(parent=self))
 
         # Save crash recovery swap file on changes to workflow
         self.scheme_widget.undoCommandAdded.connect(self.save_swp)
@@ -1092,7 +1092,7 @@ class CanvasMainWindow(QMainWindow):
 
         new_scheme = window.new_scheme_from(path)
         if new_scheme is not None:
-            window.set_new_scheme(new_scheme)
+            window.set_scheme(new_scheme)
 
     def _open_workflow_dialog(self):
         # type: () -> QFileDialog
@@ -1173,7 +1173,7 @@ class CanvasMainWindow(QMainWindow):
             mb.open()
 
         if new_scheme is not None:
-            self.set_new_scheme(new_scheme)
+            self.set_scheme(new_scheme)
 
             scheme_doc_widget = self.current_document()
             scheme_doc_widget.setPath(filename)
@@ -1356,19 +1356,20 @@ class CanvasMainWindow(QMainWindow):
             path = recent[0]["path"]
             self.open_scheme_file(path)
 
-    def set_new_scheme(self, new_scheme):
+    def set_scheme(self, new_scheme, freeze_creation=False):
         # type: (Scheme) -> None
         """
         Set new_scheme as the current shown scheme in this window.
 
         The old scheme will be deleted.
         """
-        self.__is_transient = False
-        freeze = self.freeze_action.isChecked()
         scheme_doc = self.current_document()
         old_scheme = scheme_doc.scheme()
+        if old_scheme:
+            self.__is_transient = False
+        freeze_signals = self.freeze_action.isChecked()
         manager = getattr(new_scheme, "signal_manager", None)
-        if freeze and manager is not None:
+        if freeze_signals and manager is not None:
             manager.pause()
         wm = getattr(new_scheme, "widget_manager", None)
         if wm is not None:
@@ -1376,7 +1377,7 @@ class CanvasMainWindow(QMainWindow):
                 self.float_widgets_on_top_action.isChecked()
             )
             wm.set_creation_policy(
-                wm.OnDemand if freeze else wm.Normal
+                wm.OnDemand if freeze_creation else wm.Normal
             )
 
         scheme_doc.setScheme(new_scheme)
