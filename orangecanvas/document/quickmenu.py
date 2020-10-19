@@ -990,7 +990,8 @@ class TabBarWidget(QWidget):
 
     def eventFilter(self, receiver, event):
         if event.type() == QEvent.MouseMove and \
-                isinstance(receiver, TabButton):
+                isinstance(receiver, TabButton) and \
+                self.__changeOnHover:
             pos = receiver.mapTo(self, event.pos())
             if not receiver.isChecked():
                 index = [tab.button for tab in self.__tabs].index(receiver)
@@ -1131,6 +1132,9 @@ class PagedMenu(QWidget):
         Return the current page.
         """
         return self.__stack.currentWidget()
+
+    def setChangeOnHover(self, enabled):
+        self.__tab.setChangeOnHover(enabled)
 
     def indexOf(self, page):
         # type: (QWidget) -> int
@@ -1491,6 +1495,7 @@ class QuickMenu(FramelessWindow):
 
         self.__search.setText(searchText)
         self.__suggestPage.setSearchQuery(searchText)
+        self.__pages.setChangeOnHover(not bool(searchText.strip()))
 
         UsageStatistics.set_last_search_query(searchText)
 
@@ -1610,6 +1615,7 @@ class QuickMenu(FramelessWindow):
         # type: (str) -> None
         self.__suggestPage.setSearchQuery(text)
         self.__pages.setCurrentPage(self.__suggestPage)
+        self.__pages.setChangeOnHover(not bool(text.strip()))
         self.__selectFirstIndex()
         UsageStatistics.set_last_search_query(text)
 
