@@ -95,7 +95,6 @@ class HelpManager(QObject):
 
     def search(self, query):
         # type: (Union[QUrl, Dict[str, str], Sequence[Tuple[str, str]]]) -> QUrl
-
         if isinstance(query, QUrl):
             query = qurl_query_items(query)
 
@@ -109,6 +108,23 @@ class HelpManager(QObject):
 
         if provider is not None:
             return provider.search(desc)
+        else:
+            raise KeyError(desc_id)
+
+    async def search_async(self, query, timeout=2):
+        if isinstance(query, QUrl):
+            query = qurl_query_items(query)
+
+        query = dict(query)
+        desc_id = query["id"]
+        desc = self.description_by_id(desc_id)
+
+        provider = None
+        if desc.project_name:
+            provider = self.get_provider(desc.project_name)
+
+        if provider is not None:
+            return await provider.search_async(desc, timeout=timeout)
         else:
             raise KeyError(desc_id)
 

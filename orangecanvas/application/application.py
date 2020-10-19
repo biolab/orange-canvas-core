@@ -12,6 +12,8 @@ from AnyQt.QtCore import (
     Qt, QUrl, QEvent, QSettings, QLibraryInfo, pyqtSignal as Signal
 )
 
+from orangecanvas.utils.asyncutils import get_event_loop
+
 
 def fix_qt_plugins_path():
     """
@@ -99,6 +101,9 @@ class CanvasApplication(QApplication):
         if self.__args.style:
             argv_ = argv_ + ["-style", self.__args.style]
         super().__init__(argv_)
+        # Make sure there is an asyncio event loop that runs on the
+        # Qt event loop.
+        _ = get_event_loop()
         argv[:] = argv_
         self.setAttribute(Qt.AA_DontShowIconsInMenus, True)
         if hasattr(self, "styleHints"):

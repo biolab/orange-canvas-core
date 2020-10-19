@@ -8,13 +8,14 @@ import logging
 import operator
 import io
 import traceback
+from concurrent import futures
 
 from xml.sax.saxutils import escape
 from functools import partial, reduce
 from types import SimpleNamespace
 from typing import (
     Optional, List, Union, Any, cast, Dict, Callable, IO, Sequence, Iterable,
-    Tuple, TypeVar,
+    Tuple, TypeVar, Awaitable,
 )
 
 import pkg_resources
@@ -77,6 +78,8 @@ from ..utils.qinvoke import qinvoke
 from ..utils.pickle import Pickler, Unpickler, glob_scratch_swps, swp_name, \
     canvas_scratch_name_memo, register_loaded_swp
 from ..utils import unique, group_by_all, set_flag
+from ..utils.asyncutils import get_event_loop
+from ..utils.qobjref import qobjref
 
 from . import welcomedialog
 from . import addons
@@ -2296,18 +2299,37 @@ class CanvasMainWindow(QMainWindow):
             self.dock_help.showPermanentHelp(event.html())
         event.accept()
 
+    def __handle_help_query_response(self, res: Optional[QUrl]):
+        if res is None:
+            mb = QMessageBox(
+                text=self.tr("There is no documentation for this widget."),
+                windowTitle=self.tr("No help found"),
+                icon=QMessageBox.Information,
+                parent=self,
+                objectName="no-help-found-message-box"
+            )
+            mb.setAttribute(Qt.WA_DeleteOnClose)
+            mb.setWindowModality(Qt.ApplicationModal)
+            mb.show()
+        else:
+            self.show_help(res)
+
     def whatsThisClickedEvent(self, event: QWhatsThisClickedEvent) -> None:
         url = QUrl(event.href())
         if url.scheme() == "help" and url.authority() == "search":
-            try:
-                url = self.help.search(url)
-            except KeyError:
-                log.info("No help topic found for %r", url)
-                message_information(
-                    self.tr("There is no documentation for this widget."),
-                    parent=self)
-            else:
-                self.show_help(url)
+            loop = get_event_loop()
+            qself = qobjref(self)
+
+            async def run(query_coro: Awaitable[QUrl], query: QUrl):
+                try:
+                    url = await query_coro
+                except (KeyError, futures.TimeoutError):
+                    log.info("No help topic found for %r", query)
+                    url = None
+                self_ = qself()
+                if self_ is not None:
+                    self_.__handle_help_query_response(url)
+            loop.create_task(run(self.help.search_async(url), url))
         elif url.scheme() == "action" and url.path():
             action = self.findChild(QAction, url.path())
             if action is not None:

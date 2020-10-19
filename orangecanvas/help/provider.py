@@ -1,18 +1,19 @@
 """
 
 """
-import typing
-from typing import Dict, Optional, List, Tuple, IO, Callable
+from typing import TYPE_CHECKING, Dict, Optional, List, Tuple, IO, Callable
 
 import os
 import logging
 import io
 import codecs
-
+import asyncio
 from urllib.parse import urljoin
 from html import parser
 from xml.etree.ElementTree import TreeBuilder, Element
 from weakref import ref
+from concurrent.futures import Future
+
 from AnyQt.QtCore import QObject, QUrl, QSettings, pyqtSlot
 from AnyQt.QtNetwork import (
     QNetworkAccessManager, QNetworkDiskCache, QNetworkRequest, QNetworkReply
@@ -23,7 +24,7 @@ from .intersphinx import read_inventory_v1, read_inventory_v2
 from ..utils import assocf
 from .. import config
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from ..registry import WidgetDescription
 
 
@@ -59,6 +60,9 @@ class HelpProvider(QObject):
         # type: (WidgetDescription) -> QUrl
         raise NotImplementedError
 
+    async def search_async(self, description, timeout=2) -> 'QUrl':
+        return self.search(description)
+
 
 class BaseInventoryProvider(HelpProvider):
     def __init__(self, inventory, parent=None):
@@ -69,9 +73,11 @@ class BaseInventoryProvider(HelpProvider):
             self.inventory.setScheme("file")
 
         self._error = None
+        self._reply_f = Future()  # type: Future[None]
         self._fetch_inventory(self.inventory)
 
     def _fetch_inventory(self, url: QUrl) -> None:
+        self._reply_f.set_running_or_notify_cancel()
         if not url.isLocalFile():
             # fetch and cache the inventory file.
             self._manager = manager = self._networkAccessManagerInstance()
@@ -93,6 +99,7 @@ class BaseInventoryProvider(HelpProvider):
         else:
             with open(url.toLocalFile(), "rb") as f:
                 self._load_inventory(f)
+                self._reply_f.set_result(None)
 
     @pyqtSlot()
     def _on_finished(self):
@@ -117,11 +124,17 @@ class BaseInventoryProvider(HelpProvider):
             contents = bytes(reply.readAll())
             self._load_inventory(io.BytesIO(contents))
         self._reply = None
+        self._reply_f.set_result(None)
         reply.deleteLater()
 
     def _load_inventory(self, stream):
         # type: (IO[bytes]) -> None
         raise NotImplementedError()
+
+    async def search_async(self, description, timeout=2) -> 'QUrl':
+        reply_f = asyncio.wrap_future(self._reply_f)
+        await asyncio.wait_for(reply_f, timeout)
+        return self.search(description)
 
 
 class IntersphinxHelpProvider(BaseInventoryProvider):
