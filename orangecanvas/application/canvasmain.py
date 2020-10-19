@@ -1173,7 +1173,7 @@ class CanvasMainWindow(QMainWindow):
             mb.open()
 
         if new_scheme is not None:
-            self.set_scheme(new_scheme)
+            self.set_scheme(new_scheme, freeze_creation=True)
 
             scheme_doc_widget = self.current_document()
             scheme_doc_widget.setPath(filename)
@@ -1184,6 +1184,10 @@ class CanvasMainWindow(QMainWindow):
                 scheme_doc_widget.activateDefaultWindowGroup()
 
             self.ask_load_swp_if_exists()
+
+            wm = getattr(new_scheme, "widget_manager", None)
+            if wm is not None:
+                wm.set_creation_policy(wm.Normal)
 
     def new_scheme_from(self, filename):
         # type: (str) -> Optional[Scheme]
