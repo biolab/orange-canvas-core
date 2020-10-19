@@ -2287,38 +2287,45 @@ class CanvasMainWindow(QMainWindow):
 
         super().showEvent(event)
 
+    def quickHelpEvent(self, event: QuickHelpTipEvent) -> None:
+        if event.priority() == QuickHelpTipEvent.Normal:
+            self.dock_help.showHelp(event.html())
+        elif event.priority() == QuickHelpTipEvent.Temporary:
+            self.dock_help.showHelp(event.html(), event.timeout())
+        elif event.priority() == QuickHelpTipEvent.Permanent:
+            self.dock_help.showPermanentHelp(event.html())
+        event.accept()
+
+    def whatsThisClickedEvent(self, event: QWhatsThisClickedEvent) -> None:
+        url = QUrl(event.href())
+        if url.scheme() == "help" and url.authority() == "search":
+            try:
+                url = self.help.search(url)
+            except KeyError:
+                log.info("No help topic found for %r", url)
+                message_information(
+                    self.tr("There is no documentation for this widget."),
+                    parent=self)
+            else:
+                self.show_help(url)
+        elif url.scheme() == "action" and url.path():
+            action = self.findChild(QAction, url.path())
+            if action is not None:
+                action.trigger()
+            else:
+                log.warning("No target action found for %r", url.toString())
+
     def event(self, event):
         # type: (QEvent) -> bool
         if event.type() == QEvent.StatusTip and \
                 isinstance(event, QuickHelpTipEvent):
-            if event.priority() == QuickHelpTipEvent.Normal:
-                self.dock_help.showHelp(event.html())
-            elif event.priority() == QuickHelpTipEvent.Temporary:
-                self.dock_help.showHelp(event.html(), event.timeout())
-            elif event.priority() == QuickHelpTipEvent.Permanent:
-                self.dock_help.showPermanentHelp(event.html())
-            return True
-
+            self.quickHelpEvent(event)
+            if event.isAccepted():
+                return True
         elif event.type() == QEvent.WhatsThisClicked:
             event = cast(QWhatsThisClickedEvent, event)
-            url = QUrl(event.href())
-            if url.scheme() == "help" and url.authority() == "search":
-                try:
-                    url = self.help.search(url)
-                    self.show_help(url)
-                except KeyError:
-                    log.info("No help topic found for %r", url)
-                    message_information(
-                        self.tr("There is no documentation for this widget."),
-                        parent=self)
-            elif url.scheme() == "action" and url.path():
-                action = self.findChild(QAction, url.path())
-                if action is not None:
-                    action.trigger()
-                else:
-                    log.warning("No target action found for %r", url.toString())
+            self.whatsThisClickedEvent(event)
             return True
-
         return super().event(event)
 
     def show_help(self, url):
