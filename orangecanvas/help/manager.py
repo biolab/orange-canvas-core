@@ -6,10 +6,11 @@ import string
 import itertools
 import logging
 import urllib.parse
+import warnings
 from sysconfig import get_path
 
 import typing
-from typing import Dict, Optional, List, Union, Callable
+from typing import Dict, Optional, List, Tuple, Union, Callable, Sequence
 
 import pkg_resources
 
@@ -27,10 +28,9 @@ log = logging.getLogger(__name__)
 
 
 class HelpManager(QObject):
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self, parent=None, **kwargs):
+        super().__init__(parent, **kwargs)
         self._registry = None  # type: Optional[WidgetRegistry]
-        self._initialized = False
         self._providers = {}  # type: Dict[str, provider.HelpProvider]
 
     def set_registry(self, registry):
@@ -40,8 +40,6 @@ class HelpManager(QObject):
         """
         if self._registry is not registry:
             self._registry = registry
-            self._initialized = False
-            self.initialize()
 
     def registry(self):
         # type: () -> Optional[WidgetRegistry]
@@ -50,18 +48,19 @@ class HelpManager(QObject):
         """
         return self._registry
 
-    def initialize(self):
-        # type: () -> None
-        if self._initialized or self._registry is None:
-            return
+    def initialize(self) -> None:
+        warnings.warn(
+            "`HelpManager.initialize` is deprecated and does nothing.",
+            DeprecationWarning, stacklevel=2
+        )
+        return
 
-        reg = self._registry
-        all_projects = set(desc.project_name for desc in reg.widgets()
-                           if desc.project_name is not None)
-
-        providers = []
-        for project in set(all_projects) - set(self._providers.keys()):
-            provider = None
+    def get_provider(self, project: str) -> Optional[provider.HelpProvider]:
+        """
+        Return a `HelpProvider` for the `project` name.
+        """
+        provider = self._providers.get(project, None)
+        if provider is None:
             try:
                 dist = pkg_resources.get_distribution(project)
             except pkg_resources.ResolutionError:
@@ -69,21 +68,18 @@ class HelpManager(QObject):
             else:
                 try:
                     provider = get_help_provider_for_distribution(dist)
-                except Exception:
+                except Exception:  # noqa
                     log.exception("Error while initializing help "
                                   "provider for %r", project)
 
-            if provider:
-                providers.append((project, provider))
-
-        self._providers.update(dict(providers))
-        self._initialized = True
+        if provider:
+            self._providers[project] = provider
+        return provider
 
     def get_help(self, url):
         # type: (QUrl) -> QUrl
         """
         """
-        self.initialize()
         if url.scheme() == "help" and url.authority() == "search":
             return self.search(qurl_query_items(url))
         else:
@@ -98,8 +94,7 @@ class HelpManager(QObject):
             raise RuntimeError("No registry set. Cannot resolve")
 
     def search(self, query):
-        # type: (Union[QUrl, Dict[str, str]]) -> QUrl
-        self.initialize()
+        # type: (Union[QUrl, Dict[str, str], Sequence[Tuple[str, str]]]) -> QUrl
 
         if isinstance(query, QUrl):
             query = qurl_query_items(query)
@@ -110,10 +105,9 @@ class HelpManager(QObject):
 
         provider = None
         if desc.project_name:
-            provider = self._providers.get(desc.project_name)
+            provider = self.get_provider(desc.project_name)
 
-        # TODO: Ensure initialization of the provider
-        if provider:
+        if provider is not None:
             return provider.search(desc)
         else:
             raise KeyError(desc_id)
@@ -128,7 +122,7 @@ def get_by_id(registry, descriptor_id):
     raise KeyError(descriptor_id)
 
 
-def qurl_query_items(url):
+def qurl_query_items(url: QUrl) -> List[Tuple[str, str]]:
     if not url.hasQuery():
         return []
     querystr = url.query()
