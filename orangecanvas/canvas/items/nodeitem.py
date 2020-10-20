@@ -613,8 +613,8 @@ class NodeAnchorItem(GraphicsPathObject):
         """
         return len(self.__points)
 
-    def addAnchor(self, anchor, position=0.5):
-        # type: (AnchorPoint, float) -> int
+    def addAnchor(self, anchor):
+        # type: (AnchorPoint) -> int
         """
         Add a new :class:`AnchorPoint` to this item and return it's index.
 
@@ -622,10 +622,10 @@ class NodeAnchorItem(GraphicsPathObject):
         point inserted.
 
         """
-        return self.insertAnchor(self.count(), anchor, position)
+        return self.insertAnchor(self.count(), anchor)
 
-    def insertAnchor(self, index, anchor, position=0.5):
-        # type: (int, AnchorPoint, float) -> int
+    def insertAnchor(self, index, anchor):
+        # type: (int, AnchorPoint) -> int
         """
         Insert a new :class:`AnchorPoint` at `index`.
 
@@ -638,12 +638,14 @@ class NodeAnchorItem(GraphicsPathObject):
             raise ValueError("%s already added." % anchor)
 
         self.__points.insert(index, anchor)
-        self.__pointPositions.insert(index, position)
+        self.__pointPositions.insert(index, 0)  # set in __updatePositions
 
         anchor.setParentItem(self)
-        anchor.setPos(self.__anchorPath.pointAtPercent(position))
         anchor.destroyed.connect(self.__onAnchorDestroyed)
 
+        positions = self.anchorPositions()
+        positions = uniform_linear_layout_trunc(positions)
+        self.setAnchorPositions(positions)
         self.__updatePositions()
 
         self.setAnchored(bool(self.__points))
@@ -668,6 +670,10 @@ class NodeAnchorItem(GraphicsPathObject):
         anchor.hide()
         anchor.setParentItem(None)
         anchor.deleteLater()
+
+        positions = self.anchorPositions()
+        positions = uniform_linear_layout_trunc(positions)
+        self.setAnchorPositions(positions)
 
     def takeAnchor(self, anchor):
         # type: (AnchorPoint) -> AnchorPoint
@@ -1258,12 +1264,8 @@ class NodeItem(QGraphicsWidget):
         if not (self.widget_description and self.widget_description.inputs):
             raise ValueError("Widget has no inputs.")
 
-        anchor = AnchorPoint()
-        self.inputAnchorItem.addAnchor(anchor, position=1.0)
-
-        positions = self.inputAnchorItem.anchorPositions()
-        positions = uniform_linear_layout_trunc(positions)
-        self.inputAnchorItem.setAnchorPositions(positions)
+        anchor = AnchorPoint(self)
+        self.inputAnchorItem.addAnchor(anchor)
 
         return anchor
 
@@ -1274,10 +1276,6 @@ class NodeItem(QGraphicsWidget):
         """
         self.inputAnchorItem.removeAnchor(anchor)
 
-        positions = self.inputAnchorItem.anchorPositions()
-        positions = uniform_linear_layout_trunc(positions)
-        self.inputAnchorItem.setAnchorPositions(positions)
-
     def newOutputAnchor(self):
         # type: () -> AnchorPoint
         """
@@ -1287,11 +1285,7 @@ class NodeItem(QGraphicsWidget):
             raise ValueError("Widget has no outputs.")
 
         anchor = AnchorPoint(self)
-        self.outputAnchorItem.addAnchor(anchor, position=1.0)
-
-        positions = self.outputAnchorItem.anchorPositions()
-        positions = uniform_linear_layout_trunc(positions)
-        self.outputAnchorItem.setAnchorPositions(positions)
+        self.outputAnchorItem.addAnchor(anchor)
 
         return anchor
 
@@ -1301,10 +1295,6 @@ class NodeItem(QGraphicsWidget):
         Remove output anchor.
         """
         self.outputAnchorItem.removeAnchor(anchor)
-
-        positions = self.outputAnchorItem.anchorPositions()
-        positions = uniform_linear_layout_trunc(positions)
-        self.outputAnchorItem.setAnchorPositions(positions)
 
     def inputAnchors(self):
         # type: () -> List[AnchorPoint]
