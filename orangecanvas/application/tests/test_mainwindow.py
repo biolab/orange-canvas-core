@@ -2,11 +2,13 @@ import os
 import tempfile
 from unittest.mock import patch
 
-from AnyQt.QtWidgets import QToolButton, QDialog, QMessageBox
+from AnyQt.QtGui import QWhatsThisClickedEvent
+from AnyQt.QtWidgets import QToolButton, QDialog, QMessageBox, QApplication
 
 from .. import addons
 from ..outputview import TextStream
 from ...scheme import SchemeTextAnnotation, SchemeLink
+from ...gui.quickhelp import QuickHelpTipEvent, QuickHelp
 from ...utils.shtools import temp_named_file
 from ...utils.pickle import swp_name
 from ...gui.test import QAppTestCase
@@ -123,6 +125,19 @@ class TestMainWindow(TestMainWindowBase):
         new = w.create_new_window()
         self.assertEqual(len(new.recent_schemes), 1)
         w.clear_recent_schemes()
+
+    def test_quick_help_events(self):
+        w = self.w
+        help: QuickHelp = w.dock_help
+        html = "<h3>HELLO</h3>"
+        ev = QuickHelpTipEvent("", html, priority=QuickHelpTipEvent.Normal)
+        QApplication.sendEvent(w, ev)
+        self.assertEqual(help.currentText(), "<h3>HELLO</h3>")
+
+    def test_help_requests(self):
+        w = self.w
+        ev = QWhatsThisClickedEvent('help://search?id=one')
+        QApplication.sendEvent(w, ev)
 
 
 class TestMainWindowLoad(TestMainWindowBase):
