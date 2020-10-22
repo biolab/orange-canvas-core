@@ -555,7 +555,7 @@ class WidgetManager(QObject):
 
     def eventFilter(self, recv, event):
         # type: (QObject, QEvent) -> bool
-        if isinstance(recv, SchemeNode) and recv in self.__item_for_node:
+        if isinstance(recv, SchemeNode):
             if event.type() == NodeEvent.NodeActivateRequest:
                 self.__activate_widget_for_node(recv)
             self.__dispatch_events(recv, event)
