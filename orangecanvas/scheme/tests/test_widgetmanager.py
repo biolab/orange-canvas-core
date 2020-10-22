@@ -5,7 +5,9 @@ from AnyQt.QtCore import QEvent
 from AnyQt.QtWidgets import QWidget, QApplication, QAction
 from AnyQt.QtTest import QSignalSpy
 
-from orangecanvas.scheme import Scheme, NodeEvent, SchemeLink, LinkEvent
+from orangecanvas.scheme import (
+    Scheme, NodeEvent, SchemeLink, LinkEvent, WorkflowEvent
+)
 from orangecanvas.scheme.widgetmanager import WidgetManager
 from orangecanvas.registry import tests as registry_tests
 from orangecanvas.scheme.tests import EventSpy
@@ -199,6 +201,26 @@ class TestWidgetManager(unittest.TestCase):
                 member, container, count, expected
             )
             self.fail(msg)
+
+    def test_activation_on_delayed_creation_policy(self):
+        workflow = self.scheme
+        nodes = workflow.nodes
+        wm = TestingWidgetManager()
+        wm.set_creation_policy(WidgetManager.Normal)
+        wm.set_workflow(workflow)
+        n1, n2 = nodes[0], nodes[1]
+        spy = QSignalSpy(wm.widget_for_node_added)
+        QApplication.sendEvent(
+            n1, WorkflowEvent(WorkflowEvent.NodeActivateRequest))
+        self.assertEqual(len(spy), 1)
+        self.assertIs(spy[0][0], n1)
+
+        wm.set_creation_policy(WidgetManager.OnDemand)
+        spy = QSignalSpy(wm.widget_for_node_added)
+        QApplication.sendEvent(
+            n2, WorkflowEvent(WorkflowEvent.NodeActivateRequest))
+        self.assertEqual(len(spy), 1)
+        self.assertIs(spy[0][0], n2)
 
     def test_actions(self):
         workflow = self.scheme
