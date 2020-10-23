@@ -36,10 +36,13 @@ class GraphicsTextItem(QGraphicsTextItem):
             self.__updateDefaultTextColor()
             self.update()
 
+    def styleState(self):
+        return self.__styleState
+
     def paint(self, painter, option, widget=None):
         # type: (QPainter, QStyleOptionGraphicsItem, Optional[QWidget]) -> None
         state = option.state | self.__styleState
-        if state & QStyle.State_Selected:
+        if state & (QStyle.State_Selected | QStyle.State_HasFocus):
             path = self.__textBackgroundPath()
             palette = self.palette()
             if state & QStyle.State_Enabled:
@@ -51,9 +54,15 @@ class GraphicsTextItem(QGraphicsTextItem):
                 if not window.isActiveWindow():
                     cg = QPalette.Inactive
 
+            color = palette.color(
+                cg,
+                QPalette.Highlight if state & QStyle.State_Selected
+                else QPalette.Light
+            )
+
             painter.save()
             painter.setPen(QPen(Qt.NoPen))
-            painter.setBrush(palette.color(cg, QPalette.Highlight))
+            painter.setBrush(color)
             painter.drawPath(path)
             painter.restore()
 

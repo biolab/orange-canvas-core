@@ -344,6 +344,7 @@ class LinkItem(QGraphicsWidget):
         super().__init__(parent, **kwargs)
         self.setAcceptedMouseButtons(Qt.RightButton | Qt.LeftButton)
         self.setAcceptHoverEvents(True)
+        self.__animationEnabled = False
 
         self.setZValue(self.Z_VALUE)
 
@@ -363,7 +364,11 @@ class LinkItem(QGraphicsWidget):
         self.__dynamic = False
         self.__dynamicEnabled = False
         self.__state = LinkItem.NoState
+        self.__channelNamesVisible = True
         self.hover = False
+
+        self.channelNameAnim = QPropertyAnimation(self.linkTextItem, b'opacity', self)
+        self.channelNameAnim.setDuration(50)
 
         self.prepareGeometryChange()
         self.__updatePen()
@@ -475,7 +480,9 @@ class LinkItem(QGraphicsWidget):
         """
         Set the visibility of the channel name text.
         """
-        self.linkTextItem.setVisible(visible)
+        if self.__channelNamesVisible != visible:
+            self.__channelNamesVisible = visible
+        self.__initChannelNameOpacity()
 
     def setSourceName(self, name):
         # type: (str) -> None
@@ -514,6 +521,8 @@ class LinkItem(QGraphicsWidget):
         """
         Set the link item animation enabled state.
         """
+        if self.__animationEnabled != enabled:
+            self.__animationEnabled = enabled
         self.curveItem.setAnimationEnabled(enabled)
 
     def _sinkPosChanged(self, *arg):
@@ -605,7 +614,12 @@ class LinkItem(QGraphicsWidget):
 
             transform = QTransform()
             transform.translate(center.x(), center.y())
-            transform.rotate(-angle)
+
+            # Rotate text to be on top of link
+            if 90 <= angle < 270:
+                transform.rotate(180 - angle)
+            else:
+                transform.rotate(-angle)
 
             # Center and move above the curve path.
             transform.translate(-brect.width() / 2, -brect.height())
@@ -630,6 +644,21 @@ class LinkItem(QGraphicsWidget):
                 self.sourceAnchor.setHoverState(state)
             self.curveItem.setHoverState(state)
             self.__updatePen()
+            self.__updateChannelNameVisibility()
+            self.__updateZValue()
+
+    def __updateZValue(self):
+        text_ss = self.linkTextItem.styleState()
+        if self.hover:
+            text_ss |= QStyle.State_HasFocus
+            z = 9999
+            self.linkTextItem.setParentItem(None)
+        else:
+            text_ss &= ~QStyle.State_HasFocus
+            z = self.Z_VALUE
+            self.linkTextItem.setParentItem(self)
+        self.linkTextItem.setZValue(z)
+        self.linkTextItem.setStyleState(text_ss)
 
     def mouseDoubleClickEvent(self, event):
         # type: (QGraphicsSceneMouseEvent) -> None
@@ -651,6 +680,26 @@ class LinkItem(QGraphicsWidget):
         # scene event filter when not needed
         self.curveItem.removeSceneEventFilter(self)
         return super().hoverLeaveEvent(event)
+
+    def __initChannelNameOpacity(self):
+        if self.__channelNamesVisible:
+            self.linkTextItem.setOpacity(1)
+        else:
+            self.linkTextItem.setOpacity(0)
+
+    def __updateChannelNameVisibility(self):
+        if self.__channelNamesVisible:
+            return
+        enabled = self.hover or self.isSelected() or self.__isSelectedImplicit()
+        targetOpacity = 1 if enabled else 0
+        if not self.__animationEnabled:
+            self.linkTextItem.setOpacity(targetOpacity)
+        else:
+            if self.channelNameAnim.state() == QPropertyAnimation.Running:
+                self.channelNameAnim.stop()
+            self.channelNameAnim.setStartValue(self.linkTextItem.opacity())
+            self.channelNameAnim.setEndValue(targetOpacity)
+            self.channelNameAnim.start()
 
     def changeEvent(self, event):
         # type: (QEvent) -> None
@@ -812,6 +861,7 @@ class LinkItem(QGraphicsWidget):
         self.linkTextItem.setSelectionState(selected)
         self.__updatePen()
         self.__updateAnchors()
+        self.__updateChannelNameVisibility()
         self.curveItem.setSelectionState(selected)
 
     def __isSelectedImplicit(self):
