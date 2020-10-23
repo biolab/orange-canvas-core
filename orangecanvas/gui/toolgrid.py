@@ -74,50 +74,37 @@ class ToolGridButton(QToolButton):
             self.__text = desc.short_name
             return
         text = self.defaultAction().text()
-        words = deque(text.split())
-
-        lines = []  # type: List[str]
-        curr_line = ""
-        curr_line_word_count = 0
+        words = text.split()
 
         option = QStyleOptionToolButton()
         option.initFrom(self)
 
         margin = self.style().pixelMetric(QStyle.PM_ButtonMargin, option, self)
-        width = self.width() - 2 * margin
+        min_width = self.width() - 2 * margin
 
-        while words:
-            w = words.popleft()
+        lines = []
 
-            if curr_line_word_count:
-                line_extended = " ".join([curr_line, w])
-            else:
-                line_extended = w
+        if fm.boundingRect(" ".join(words)).width() <= min_width or len(words) <= 1:
+            lines = [" ".join(words)]
+        else:
+            best_w, best_l = sys.maxsize, ['', '']
+            for i in range(1, len(words)):
+                l1 = " ".join(words[:i])
+                l2 = " ".join(words[i:])
+                width = max(
+                    fm.boundingRect(l1).width(),
+                    fm.boundingRect(l2).width()
+                )
+                if width < best_w:
+                    best_w = width
+                    best_l = [l1, l2]
+            lines = best_l
 
-            line_w = fm.boundingRect(line_extended).width()
-
-            if line_w >= width:
-                if curr_line_word_count == 0 or len(lines) == 1:
-                    # A single word that is too long must be elided.
-                    # Also if the text overflows 2 lines
-                    # Warning: hardcoded max lines
-                    curr_line = fm.elidedText(line_extended, Qt.ElideRight,
-                                              width)
-                else:
-                    # Put the word back
-                    words.appendleft(w)
-
-                lines.append(curr_line)
-                curr_line = ""
-                curr_line_word_count = 0
-                if len(lines) == 2:
-                    break
-            else:
-                curr_line = line_extended
-                curr_line_word_count += 1
-
-        if curr_line:
-            lines.append(curr_line)
+        # elide the end of each line if too long
+        lines = [
+            fm.elidedText(l, Qt.ElideRight, self.width())
+            for l in lines
+        ]
 
         text = "\n".join(lines)
         text = text.replace('&', '&&')  # Need escaped ampersand to show
