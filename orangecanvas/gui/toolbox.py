@@ -24,8 +24,8 @@ from AnyQt.QtCore import (
 )
 from AnyQt.QtCore import Signal, Property
 
-from .utils import brush_darker
 from ..utils import set_flag
+from .utils import brush_darker, ScrollBar
 
 __all__ = [
     "ToolBox"
@@ -304,6 +304,9 @@ class ToolBox(QFrame):
             horizontalScrollBarPolicy=Qt.ScrollBarAlwaysOff,
             widgetResizable=True,
         )
+        sb = ScrollBar()
+        sb.styleChange.connect(self.updateGeometry)
+        self.__scrollArea.setVerticalScrollBar(sb)
         self.__scrollArea.setFrameStyle(QScrollArea.NoFrame)
 
         # A widget with all of the contents.
