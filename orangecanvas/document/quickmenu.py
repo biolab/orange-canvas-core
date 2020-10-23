@@ -779,11 +779,6 @@ class TabBarWidget(QWidget):
         )
         self.setMouseTracking(True)
 
-        self.__sloppyButton = None  # type: Optional[QAbstractButton]
-        self.__sloppyRegion = QRegion()
-        self.__sloppyTimer = QTimer(self, singleShot=True)
-        self.__sloppyTimer.timeout.connect(self.__onSloppyTimeout)
-
         self.currentChanged.connect(self.__updateShadows)
 
     def setChangeOnHover(self, changeOnHover):
@@ -834,7 +829,10 @@ class TabBarWidget(QWidget):
         tab = _Tab(text, icon, toolTip, button, None, None)
         self.layout().insertWidget(index, button)
 
+        if self.count() > 0:
+            self.button(-1).setProperty('lastCategoryButton', False)
         self.__tabs.insert(index, tab)
+        button.setProperty('lastCategoryButton', True)
         self.__updateTab(index)
 
         if self.currentIndex() == -1:
@@ -858,11 +856,6 @@ class TabBarWidget(QWidget):
             self.__group.removeButton(tab.button)
 
             tab.button.removeEventFilter(self)
-
-            if tab.button is self.__sloppyButton:
-                self.__sloppyButton = None
-                self.__sloppyRegion = QRegion()
-
             tab.button.deleteLater()
             tab.button.setParent(None)
 
@@ -913,9 +906,6 @@ class TabBarWidget(QWidget):
         """
         if self.__currentIndex != index:
             self.__currentIndex = index
-
-            self.__sloppyRegion = QRegion()
-            self.__sloppyButton = None
 
             if index != -1:
                 self.__tabs[index].button.setChecked(True)
@@ -998,62 +988,15 @@ class TabBarWidget(QWidget):
                 self.setCurrentIndex(i)
                 break
 
-    def __calcSloppyRegion(self, current):
-        # type: (QPoint) -> QRegion
-        """
-        Given a current mouse cursor position return a region of the widget
-        where hover/move events should change the current tab only on a
-        timeout.
-        """
-        p1 = current + QPoint(0, 2)
-        p2 = current + QPoint(0, -2)
-        p3 = self.pos() + QPoint(self.width()+10, 0)
-        p4 = self.pos() + QPoint(self.width()+10, self.height())
-        return QRegion(QPolygon([p1, p2, p3, p4]))
-
-    def __setSloppyButton(self, button):
-        # type: (QAbstractButton) -> None
-        """
-        Set the current sloppy button (a tab button inside sloppy region)
-        and reset the sloppy timeout.
-        """
-        if not button.isChecked():
-            self.__sloppyButton = button
-            delay = self.style().styleHint(QStyle.SH_Menu_SubMenuPopupDelay, None)
-            # The delay timeout is the same as used by Qt in the QMenu.
-            self.__sloppyTimer.start(delay)
-        else:
-            self.__sloppyTimer.stop()
-
-    def __onSloppyTimeout(self):
-        # type: () -> None
-        if self.__sloppyButton is not None:
-            button = self.__sloppyButton
-            self.__sloppyButton = None
-            if not button.isChecked():
-                index = [tab.button for tab in self.__tabs].index(button)
-                self.setCurrentIndex(index)
-
     def eventFilter(self, receiver, event):
         if event.type() == QEvent.MouseMove and \
-                isinstance(receiver, TabButton):
+                isinstance(receiver, TabButton) and \
+                self.__changeOnHover:
             pos = receiver.mapTo(self, event.pos())
-            if self.__sloppyRegion.contains(pos):
-                self.__setSloppyButton(receiver)
-            else:
-                if not receiver.isChecked():
-                    index = [tab.button for tab in self.__tabs].index(receiver)
-                    self.setCurrentIndex(index)
-                #also update sloppy region if mouse is moved on the same icon
-                self.__sloppyRegion = self.__calcSloppyRegion(pos)
-
+            if not receiver.isChecked():
+                index = [tab.button for tab in self.__tabs].index(receiver)
+                self.setCurrentIndex(index)
         return super().eventFilter(receiver, event)
-
-    def leaveEvent(self, event):
-        self.__sloppyButton = None
-        self.__sloppyRegion = QRegion()
-
-        return super().leaveEvent(event)
 
 
 class PagedMenu(QWidget):
@@ -1190,6 +1133,9 @@ class PagedMenu(QWidget):
         """
         return self.__stack.currentWidget()
 
+    def setChangeOnHover(self, enabled):
+        self.__tab.setChangeOnHover(enabled)
+
     def indexOf(self, page):
         # type: (QWidget) -> int
         """
@@ -1236,12 +1182,18 @@ TabButton {{
     qproperty-shadowColor_: {2};
     background: {0};
     border: none;
-    border-right: 2px solid {0};
+    border-right: 3px solid {0};
+    border-bottom: 1px solid #9CACB4;
+    border-top: 1px solid {0}
 }}
 
 TabButton:checked {{
     background: {1};
-    border-right: hidden;
+    border: none;
+}}
+
+TabButton[lastCategoryButton='true']:checked {{
+    border-bottom: 1px solid #9CACB4;
 }}
 """
 
@@ -1538,11 +1490,20 @@ class QuickMenu(FramelessWindow):
         """
         if pos is None:
             pos = QPoint()
+        else:
+            # to avoid accidental category hovers, offset the quickmenu
+            # these were calculated by hand, the actual values can't be grabbed
+            # before showing the menu for the first time (and they're defined in qss)
+            x_offset = 33
+            if self.__pages.navigator.categoriesEnabled():
+                x_offset += 33
+            pos.setX(pos.x() - x_offset)
 
         self.__clearCurrentItems()
 
         self.__search.setText(searchText)
         self.__suggestPage.setSearchQuery(searchText)
+        self.__pages.setChangeOnHover(not bool(searchText.strip()))
 
         UsageStatistics.set_last_search_query(searchText)
 
@@ -1584,9 +1545,8 @@ class QuickMenu(FramelessWindow):
 
         # TODO: right to left locale
         if right_margin < 0:
-            # Falls over the right screen edge, move the menu to the
-            # other side of pos.
-            geom.translate(-size.width(), 0)
+            # Falls over the right screen edge, move it left.
+            geom.translate(right_margin, 0)
 
         self.setGeometry(geom)
 
@@ -1662,6 +1622,7 @@ class QuickMenu(FramelessWindow):
         # type: (str) -> None
         self.__suggestPage.setSearchQuery(text)
         self.__pages.setCurrentPage(self.__suggestPage)
+        self.__pages.setChangeOnHover(not bool(text.strip()))
         self.__selectFirstIndex()
         UsageStatistics.set_last_search_query(text)
 
@@ -1702,6 +1663,9 @@ class ItemViewKeyNavigator(QObject):
 
     def setCategoriesEnabled(self, enabled):
         self.__categoriesEnabled = enabled
+
+    def categoriesEnabled(self):
+        return self.__categoriesEnabled
 
     def setView(self, view):
         # type: (Optional[QAbstractItemView]) -> None
