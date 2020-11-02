@@ -8,8 +8,8 @@ Scheme Editor (:mod:`schemeedit`)
 .. autoclass:: SchemeEditWidget
    :members:
    :exclude-members:
-      undoAvaliable,
-      redoAvaliable,
+      undoAvailable,
+      redoAvailable,
       modificationChanged,
       undoCommandAdded,
       selectionChanged,
@@ -19,16 +19,16 @@ Scheme Editor (:mod:`schemeedit`)
    :member-order: bysource
    :show-inheritance:
 
-   .. automethod:: undoAvailable(bool)
+   .. autoattribute:: undoAvailable(bool)
 
-   .. automethod:: redoAvailable(bool)
+   .. autoattribute:: redoAvailable(bool)
 
-   .. automethod:: modificationChanged(bool)
+   .. autoattribute:: modificationChanged(bool)
 
-   .. automethod:: undoCommandAdded()
+   .. autoattribute:: undoCommandAdded()
 
-   .. automethod:: selectionChanged()
+   .. autoattribute:: selectionChanged()
 
-   .. automethod:: titleChanged()
+   .. autoattribute:: titleChanged()
 
-   .. automethod:: pathChanged()
+   .. autoattribute:: pathChanged()

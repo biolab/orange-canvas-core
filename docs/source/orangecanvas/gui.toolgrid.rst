@@ -7,6 +7,9 @@ Tool Grid Widget (``toolgrid``)
 .. autoclass:: orangecanvas.gui.toolgrid.ToolGrid
    :members:
    :member-order: bysource
+   :exclude-members:
+      actionTriggered,
+      actionHovered
    :show-inheritance:
 
    .. autoattribute:: actionTriggered(QAction)
@@ -16,4 +19,3 @@ Tool Grid Widget (``toolgrid``)
    .. autoattribute:: actionHovered(QAction)
 
       Signal emitted when an action is hovered.
-
