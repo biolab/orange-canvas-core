@@ -1293,7 +1293,7 @@ def list_available_versions(config, session=None):
         distributions.append(response.json())
 
     packages = []
-    for addon in defaults + distributions:
+    for addon in distributions + defaults:
         try:
             packages.append(installable_from_json_response(addon))
         except (TypeError, KeyError):
