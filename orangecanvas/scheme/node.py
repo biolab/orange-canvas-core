@@ -10,9 +10,11 @@ from typing import Optional, Dict, Any, List, Tuple, Iterable, Union
 
 from AnyQt.QtCore import QObject, QCoreApplication
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
+from AnyQt.QtGui import QIcon
 
 from ..registry import WidgetDescription, InputSignal, OutputSignal
 from .events import NodeEvent, NodeInputChannelEvent, NodeOutputChannelEvent
+from ..resources import icon_loader
 
 
 class UserMessage(object):
@@ -237,6 +239,10 @@ class SchemeNode(QObject):
 
     title: str
     title = Property(str, _title, set_title)  # type: ignore
+
+    def icon(self) -> QIcon:
+        desc = self.description
+        return icon_loader.from_description(desc).get(desc.icon)
 
     #: Position of the node in the scheme has changed
     position_changed = Signal(tuple)
