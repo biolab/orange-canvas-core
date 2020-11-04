@@ -29,8 +29,6 @@ from AnyQt.QtCore import (
 
 from ..scheme import compatible_channels
 from ..registry import InputSignal, OutputSignal
-
-from ..resources import icon_loader
 from ..utils import type_str
 
 if typing.TYPE_CHECKING:
@@ -635,10 +633,7 @@ class EditLinksNode(QGraphicsWidget):
             channels = node.input_channels()
         self.channels = channels
 
-        loader = icon_loader.from_description(node.description)
-        icon = loader.get(node.description.icon)
-
-        self.setIcon(icon)
+        self.setIcon(node.icon())
 
         label_template = ('<div align="{align}">'
                           '<span class="channelname">{name}</span>'

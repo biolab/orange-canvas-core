@@ -1306,18 +1306,18 @@ class NodeItem(QGraphicsWidget):
 
     def initFrom(self, node: typing.Union['Node', WidgetDescription]):
         if isinstance(node, Node):
-            desc = node.description
             title = node.title
             ics, ocs = node.input_channels(), node.output_channels()
+            icon = node.icon()
             color = background_color_from_desc(node)
         elif isinstance(node, WidgetDescription):
             desc = node
             title = desc.name
             ics, ocs = desc.inputs, desc.outputs
+            icon = icon_loader.from_description(desc).get(desc.icon)
             color = background_color_from_desc(desc)
         else:
             raise TypeError
-        icon = icon_loader.from_description(desc).get(desc.icon)
         self.setIcon(icon)
         self.setTitle(title)
         if color.isValid():

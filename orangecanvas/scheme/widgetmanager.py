@@ -16,7 +16,6 @@ from AnyQt.QtCore import Slot, Signal
 from AnyQt.QtGui import QKeySequence
 from AnyQt.QtWidgets import QWidget, QLabel, QAction
 
-from orangecanvas.resources import icon_loader
 from orangecanvas.scheme import SchemeNode, Scheme, NodeEvent, LinkEvent, Link
 from orangecanvas.scheme.events import WorkflowEvent
 from orangecanvas.scheme.node import UserMessage
@@ -262,10 +261,7 @@ class WidgetManager(QObject):
         self.__set_float_on_top_flag(w)
 
         if w.windowIcon().isNull():
-            desc = node.description
-            w.setWindowIcon(
-                icon_loader.from_description(desc).get(desc.icon)
-            )
+            w.setWindowIcon(node.icon())
         if not w.windowTitle():
             w.setWindowTitle(node.title)
 

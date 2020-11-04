@@ -29,7 +29,6 @@ from ..registry import (
     InputSignal, OutputSignal, NAMED_COLORS
 )
 from .. import scheme
-from ..resources import icon_loader
 from ..scheme import Scheme, SchemeNode, SchemeLink, BaseSchemeAnnotation, Node
 from . import items
 from .items import NodeItem, LinkItem
@@ -76,7 +75,7 @@ class ItemDelegate(QObject):
     def createGraphicsWidget(self, node: Node, scene: QGraphicsScene = None) -> NodeItem:
         desc = node.description
         item = items.NodeItem()
-        item.setIcon(icon_loader.from_description(desc).get(desc.icon))
+        item.setIcon(node.icon())
         item.setTitle(node.title)
         item.setPos(QPointF(*node.position))
         item.setProcessingState(node.processing_state)
