@@ -21,6 +21,7 @@ import pkg_resources
 from AnyQt.QtGui import QFont, QColor, QPalette
 from AnyQt.QtCore import Qt, QDir, QSettings, QT_VERSION
 
+from .utils.after_exit import run_after_exit
 from .styles import breeze_dark
 from .application.application import CanvasApplication
 from .application.canvasmain import CanvasMainWindow
@@ -435,6 +436,11 @@ def main(argv=None):
     gc.collect()
 
     del app
+
+    if status == 96:
+        log.info('Restarting via exit code 96.')
+        run_after_exit([sys.executable, sys.argv[0]])
+
     return status
 
 
