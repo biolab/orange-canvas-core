@@ -612,7 +612,8 @@ class Scheme(QObject):
 
         return result
 
-    def propose_links(self, source_node, sink_node):
+    def propose_links(self, source_node, sink_node,
+                            source_signal=None, sink_signal=None):
         # type: (SchemeNode, SchemeNode) -> List[Tuple[OutputSignal, InputSignal, int]]
         """
         Return a list of ordered (:class:`OutputSignal`,
@@ -632,8 +633,10 @@ class Scheme(QObject):
             # Loops are not enabled.
             return []
 
-        outputs = source_node.output_channels()
-        inputs = sink_node.input_channels()
+        outputs = [source_signal] if source_signal \
+             else source_node.output_channels()
+        inputs = [sink_signal] if sink_signal \
+            else sink_node.input_channels()
 
         # Get existing links to sink channels that are Single.
         links = self.find_links(None, None, sink_node)
