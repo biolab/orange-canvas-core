@@ -267,8 +267,6 @@ class NewLinkAction(UserInteraction):
 
     def __init__(self, document, *args, **kwargs):
         super().__init__(document, *args, **kwargs)
-        self.source_item = None  # type: Optional[items.NodeItem]
-        self.sink_item = None    # type: Optional[items.NodeItem]
         self.from_item = None    # type: Optional[items.NodeItem]
         self.direction = 0   # type: int
         self.force_link_dialog = False
@@ -369,10 +367,8 @@ class NewLinkAction(UserInteraction):
             self.from_item = anchor_item.parentNodeItem()
             if isinstance(anchor_item, items.SourceAnchorItem):
                 self.direction = NewLinkAction.FROM_SOURCE
-                self.source_item = self.from_item
             else:
                 self.direction = NewLinkAction.FROM_SINK
-                self.sink_item = self.from_item
 
             event.accept()
 
@@ -406,9 +402,9 @@ class NewLinkAction(UserInteraction):
 
             # Set the `fixed` end of the temp link (where the drag started).
             if self.direction == self.FROM_SOURCE:
-                self.tmp_link_item.setSourceItem(self.source_item)
+                self.tmp_link_item.setSourceItem(self.from_item)
             else:
-                self.tmp_link_item.setSinkItem(self.sink_item)
+                self.tmp_link_item.setSinkItem(self.from_item)
 
             self.set_link_target_anchor(self.cursor_anchor_point)
             self.scene.addItem(self.tmp_link_item)
@@ -428,7 +424,7 @@ class NewLinkAction(UserInteraction):
             self.current_target_item = None
 
         if item is not None and item is not self.from_item:
-            # The mouse is over an node item (different from the starting node)
+            # The mouse is over a node item (different from the starting node)
             if self.current_target_item is item:
                 # Avoid reseting the points
                 pass
@@ -482,11 +478,11 @@ class NewLinkAction(UserInteraction):
 
             if node is not None:
                 if self.direction == self.FROM_SOURCE:
-                    source_node = self.scene.node_for_item(self.source_item)
+                    source_node = self.scene.node_for_item(self.from_item)
                     sink_node = node
                 else:
                     source_node = node
-                    sink_node = self.scene.node_for_item(self.sink_item)
+                    sink_node = self.scene.node_for_item(self.from_item)
                 self.suggestions.set_direction(self.direction)
                 self.connect_nodes(source_node, sink_node)
 
