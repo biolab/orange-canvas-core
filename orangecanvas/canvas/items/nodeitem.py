@@ -502,6 +502,7 @@ class NodeAnchorItem(GraphicsPathObject):
         self.__anchorPath = QPainterPath()
         self.__points = []  # type: List[AnchorPoint]
         self.__pointPositions = []  # type: List[float]
+        self.__signals = []  # type: List[Union[InputSignal, OutputSignal]]
 
         self.__fullStroke = QPainterPath()
         self.__dottedStroke = QPainterPath()
@@ -525,6 +526,9 @@ class NodeAnchorItem(GraphicsPathObject):
                                                   self)
         self.__blurAnimation.setDuration(50)
         self.__blurAnimation.finished.connect(self.__on_finished)
+
+    def setSignals(self, signals):
+        self.__signals = signals
 
     def parentNodeItem(self):
         # type: () -> Optional['NodeItem']
@@ -770,6 +774,18 @@ class NodeAnchorItem(GraphicsPathObject):
         """
         if self.__animationEnabled != enabled:
             self.__animationEnabled = enabled
+
+    def signalAtPos(self, scenePos, signalsToFind=None):
+        if signalsToFind is None:
+            signalsToFind = self.__signals
+        pos = self.mapFromScene(scenePos)
+
+        def signalLengthToPos(s):
+            perc = self.__getChannelPercent(s)
+            p = self.__anchorPath.pointAtPercent(perc)
+            return (p - pos).manhattanLength()
+
+        return min(signalsToFind, key=signalLengthToPos)
 
     def __updateHoverState(self):
         self.__updateShadowState()
@@ -1085,8 +1101,10 @@ class NodeItem(QGraphicsWidget):
             self.setTitle(desc.name)
 
         if desc.inputs:
+            self.inputAnchorItem.setSignals(desc.inputs)
             self.inputAnchorItem.show()
         if desc.outputs:
+            self.outputAnchorItem.setSignals(desc.outputs)
             self.outputAnchorItem.show()
 
         tooltip = NodeItem_toolTipHelper(self)
