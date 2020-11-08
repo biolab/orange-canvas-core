@@ -484,8 +484,8 @@ class CanvasScene(QGraphicsScene):
         Construct and return a new :class:`.LinkItem`
         """
         item = items.LinkItem()
-        item.setSourceItem(source_item)
-        item.setSinkItem(sink_item)
+        item.setSourceItem(source_item, source_channel)
+        item.setSinkItem(sink_item, sink_channel)
 
         def channel_name(channel):
             # type: (Union[OutputSignal, InputSignal, str]) -> str

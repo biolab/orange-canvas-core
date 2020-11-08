@@ -268,7 +268,8 @@ class NewLinkAction(UserInteraction):
     def __init__(self, document, *args, **kwargs):
         super().__init__(document, *args, **kwargs)
         self.from_item = None    # type: Optional[items.NodeItem]
-        self.direction = 0   # type: int
+        self.from_signal = None  # type: Optional[Union[InputSignal, OutputSignal]]
+        self.direction = 0       # type: int
 
         # An `NodeItem` currently under the mouse as a possible
         # link drop target.
@@ -297,16 +298,18 @@ class NewLinkAction(UserInteraction):
             self.current_target_item.removeOutputAnchor(self.tmp_anchor_point)
         self.tmp_anchor_point = None
 
-    def create_tmp_anchor(self, item):
-        # type: (items.NodeItem) -> None
+    def create_tmp_anchor(self, item, scenePos):
+        # type: (items.NodeItem, QPointF) -> None
         """
         Create a new tmp anchor at the `item` (:class:`NodeItem`).
         """
         assert self.tmp_anchor_point is None
         if self.direction == self.FROM_SOURCE:
-            self.tmp_anchor_point = item.newInputAnchor()
+            signal = item.inputAnchorItem.signalAtPos(scenePos)
+            self.tmp_anchor_point = item.newInputAnchor(signal)
         else:
-            self.tmp_anchor_point = item.newOutputAnchor()
+            signal = item.outputAnchorItem.signalAtPos(scenePos)
+            self.tmp_anchor_point = item.newOutputAnchor(signal)
 
     def can_connect(self, target_item):
         # type: (items.NodeItem) -> bool
@@ -331,9 +334,9 @@ class NewLinkAction(UserInteraction):
         """
         assert self.tmp_link_item is not None
         if self.direction == self.FROM_SOURCE:
-            self.tmp_link_item.setSinkItem(None, anchor)
+            self.tmp_link_item.setSinkItem(None, anchor=anchor)
         else:
-            self.tmp_link_item.setSourceItem(None, anchor)
+            self.tmp_link_item.setSourceItem(None, anchor=anchor)
 
     def target_node_item_at(self, pos):
         # type: (QPointF) -> Optional[items.NodeItem]
@@ -400,10 +403,13 @@ class NewLinkAction(UserInteraction):
             self.cursor_anchor_point.setPos(event.scenePos())
 
             # Set the `fixed` end of the temp link (where the drag started).
+            scenePos = event.scenePos()
             if self.direction == self.FROM_SOURCE:
-                self.tmp_link_item.setSourceItem(self.from_item)
+                signal = self.from_item.outputAnchorItem.signalAtPos(scenePos)
+                self.tmp_link_item.setSourceItem(self.from_item, signal)
             else:
-                self.tmp_link_item.setSinkItem(self.from_item)
+                signal = self.from_item.inputAnchorItem.signalAtPos(scenePos)
+                self.tmp_link_item.setSinkItem(self.from_item, signal)
 
             self.set_link_target_anchor(self.cursor_anchor_point)
             self.scene.addItem(self.tmp_link_item)
@@ -430,7 +436,8 @@ class NewLinkAction(UserInteraction):
             elif self.can_connect(item):
                 # Grab a new anchor
                 log.info("%r is the new target.", item)
-                self.create_tmp_anchor(item)
+                scenePos = event.scenePos()
+                self.create_tmp_anchor(item, scenePos)
                 self.set_link_target_anchor(
                     assert_not_none(self.tmp_anchor_point)
                 )

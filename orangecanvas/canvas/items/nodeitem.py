@@ -427,6 +427,9 @@ class AnchorPoint(QGraphicsObject):
     #: Signal emitted when the item's `anchorDirection` changes.
     anchorDirectionChanged = Signal(QPointF)
 
+    #: Signal emitted when anchor's Input/Output channel changes.
+    signalChanged = Signal(QGraphicsObject)
+
     def __init__(self, parent=None, signal=None, **kwargs):
         # type: (Optional[QGraphicsItem], Any) -> None
         super().__init__(parent, **kwargs)
@@ -440,6 +443,11 @@ class AnchorPoint(QGraphicsObject):
 
         self.anim = QPropertyAnimation(self, b'pos', self)
         self.anim.setDuration(50)
+
+    def setSignal(self, signal):
+        if self.signal != signal:
+            self.signal = signal
+            self.signalChanged.emit(self)
 
     def anchorScenePos(self):
         # type: () -> QPointF
@@ -781,6 +789,12 @@ class NodeAnchorItem(GraphicsPathObject):
         """
         return self.insertAnchor(self.count(), anchor)
 
+    def __updateAnchorSignalPosition(self, anchor):
+        cperc = self.__getChannelPercent(anchor.signal)
+        i = self.__points.index(anchor)
+        self.__channelPointPositions[i] = cperc
+        self.__updatePositions()
+
     def insertAnchor(self, index, anchor):
         # type: (int, AnchorPoint) -> int
         """
@@ -802,6 +816,7 @@ class NodeAnchorItem(GraphicsPathObject):
 
         anchor.setParentItem(self)
         anchor.destroyed.connect(self.__onAnchorDestroyed)
+        anchor.signalChanged.connect(self.__updateAnchorSignalPosition)
 
         positions = self.anchorPositions()
         positions = uniform_linear_layout_trunc(positions)
