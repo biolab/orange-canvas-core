@@ -23,8 +23,8 @@ from AnyQt.QtWidgets import (
 )
 from AnyQt.QtGui import (
     QPen, QBrush, QColor, QPalette, QIcon, QPainter, QPainterPath,
-    QPainterPathStroker, QConicalGradient
-)
+    QPainterPathStroker, QConicalGradient,
+    QTransform)
 from AnyQt.QtCore import (
     Qt, QEvent, QPointF, QRectF, QRect, QSize, QTime, QTimer,
     QPropertyAnimation, QEasingCurve, QObject, QVariantAnimation,
@@ -586,6 +586,9 @@ def matchDashPattern(l1, l2, spaceLen=2):
     return (l2, l1) if reverse else (l1, l2)
 
 
+ANCHOR_TEXT_MARGIN = 4
+
+
 class NodeAnchorItem(GraphicsPathObject):
     """
     The left/right widget input/output anchors.
@@ -605,7 +608,7 @@ class NodeAnchorItem(GraphicsPathObject):
         self.__animationEnabled = False
         self.__hover = False
         self.__anchorOpen = False
-        self.__keepAnchorOpen = False
+        self.__keepSignalsOpen = []
 
         # Does this item have any anchored links.
         self.anchored = False
@@ -620,6 +623,8 @@ class NodeAnchorItem(GraphicsPathObject):
         self.__uniformPointPositions = []  # type: List[float]
         self.__channelPointPositions = []  # type: List[float]
         self.__signals = []  # type: List[Union[InputSignal, OutputSignal]]
+        self.__signalLabels = []  # type: List[GraphicsTextItem]
+        self.__signalLabelAnims = []  # type: List[QPropertyAnimation]
 
         self.__fullStroke = QPainterPath()
         self.__dottedStroke = QPainterPath()
@@ -661,12 +666,48 @@ class NodeAnchorItem(GraphicsPathObject):
 
     def setSignals(self, signals):
         self.__signals = signals
-        self.setAnchorPath(self.__anchorPath)
+        self.setAnchorPath(self.__anchorPath)  # (re)instantiate anchor paths
 
-    def setKeepAnchorOpen(self, enabled):
-        if self.__keepAnchorOpen != enabled:
-            self.__keepAnchorOpen = enabled
-            self.__updatePositions()
+        # TODO this is ugly
+        alignLeft = isinstance(self, SourceAnchorItem)
+
+        for s in signals:
+            lbl = GraphicsTextItem(self)
+            lbl.setAcceptedMouseButtons(Qt.NoButton)
+            lbl.setAcceptHoverEvents(False)
+
+            text = s.name
+            lbl.setHtml('<div align="' + ('left' if alignLeft else 'right') +
+                        '" style="font-size: small; background-color: white;" >{0}</div>'
+                        .format(text))
+
+            cperc = self.__getChannelPercent(s)
+            sigPos = self.__anchorPath.pointAtPercent(cperc)
+            lblrect = lbl.boundingRect()
+
+            transform = QTransform()
+            transform.translate(sigPos.x(), sigPos.y())
+            transform.translate(0, -lblrect.height() / 2)
+            if not alignLeft:
+                transform.translate(-lblrect.width() - ANCHOR_TEXT_MARGIN, 0)
+            else:
+                transform.translate(ANCHOR_TEXT_MARGIN, 0)
+
+            lbl.setTransform(transform)
+            lbl.setOpacity(0)
+            self.__signalLabels.append(lbl)
+
+            lblAnim = QPropertyAnimation(lbl, b'opacity', self)
+            lblAnim.setDuration(50)
+            self.animGroup.addAnimation(lblAnim)
+            self.__signalLabelAnims.append(lblAnim)
+
+    def setKeepAnchorOpen(self, signal):
+        if signal is None:
+            self.__keepSignalsOpen = []
+        else:
+            self.__keepSignalsOpen = [signal]
+        self.__updateLabels(self.__keepSignalsOpen)
 
     def parentNodeItem(self):
         # type: () -> Optional['NodeItem']
@@ -827,7 +868,8 @@ class NodeAnchorItem(GraphicsPathObject):
         positions = self.anchorPositions()
         positions = uniform_linear_layout_trunc(positions)
 
-        if self.__anchorOpen and self.__hover:
+        if anchor.signal in self.__keepSignalsOpen or \
+                self.__anchorOpen and self.__hover:
             perc = cperc
         else:
             perc = positions[index]
@@ -1008,7 +1050,11 @@ class NodeAnchorItem(GraphicsPathObject):
         self.__anchorOpen = anchorOpen
         self.__updatePositions()
 
-    def __initializeAnimation(self, targetPoss, endDash):
+    def __updateLabels(self, showSignals):
+        for signal, label in zip(self.__signals, self.__signalLabels):
+            label.setOpacity(1 if signal in showSignals else 0)
+
+    def __initializeAnimation(self, targetPoss, endDash, showSignals):
         anchorOpen = self.__anchorOpen
         # TODO if animation currently running, set start value/time accordingly
         for a, t in zip(self.__points, targetPoss):
@@ -1016,6 +1062,10 @@ class NodeAnchorItem(GraphicsPathObject):
             a.anim.setStartValue(currPos)
             pos = self.__anchorPath.pointAtPercent(t)
             a.anim.setEndValue(pos)
+
+        for sig, lbl, lblAnim in zip(self.__signals, self.__signalLabels, self.__signalLabelAnims):
+            lblAnim.setStartValue(lbl.opacity())
+            lblAnim.setEndValue(1 if sig in showSignals else 0)
 
         startDash = np.array(self.__pathStroker.dashPattern())
         self.__interpDash = interp1d([0, 1], np.vstack([startDash, endDash]), axis=0)
@@ -1026,28 +1076,32 @@ class NodeAnchorItem(GraphicsPathObject):
         # type: () -> None
         """Update anchor points positions.
         """
-        if self.__keepAnchorOpen or self.__anchorOpen and self.__hover:
+        if self.__keepSignalsOpen or self.__anchorOpen and self.__hover:
             dashPattern = self.__channelDash
             stroke = self.__channelStroke
             targetPoss = self.__channelPointPositions
+            showSignals = self.__keepSignalsOpen or self.__signals
         elif self.anchored:
             dashPattern = self.__anchoredDash
             stroke = self.__fullStroke
             targetPoss = self.__uniformPointPositions
+            showSignals = []
         else:
             dashPattern = self.__unanchoredDash
             stroke = self.__dottedStroke
             targetPoss = self.__uniformPointPositions
+            showSignals = []
 
         if self.animGroup.state() == QPropertyAnimation.Running:
             self.animGroup.stop()
         if self.__animationEnabled:
-            self.__initializeAnimation(targetPoss, dashPattern)
+            self.__initializeAnimation(targetPoss, dashPattern, showSignals)
             self.animGroup.start()
         else:
             for point, t in zip(self.__points, targetPoss):
                 pos = self.__anchorPath.pointAtPercent(t)
                 point.setPos(pos)
+            self.__updateLabels(showSignals)
             self.__pathStroker.setDashPattern(dashPattern)
             self.setPath(stroke)
             self.__shadow.setPath(stroke)

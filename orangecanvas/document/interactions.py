@@ -438,10 +438,11 @@ class NewLinkAction(UserInteraction):
                 anchor = self.from_item.outputAnchorItem
             else:
                 anchor = self.from_item.inputAnchorItem
+            anchor.setHovered(False)
 
             if anchor.anchorOpen():
                 signal = anchor.signalAtPos(scenePos)
-                anchor.setKeepAnchorOpen(True)
+                anchor.setKeepAnchorOpen(signal)
             else:
                 signal = None
             self.from_signal = signal
@@ -785,6 +786,7 @@ class NewLinkAction(UserInteraction):
     def end(self):
         # type: () -> None
         self.cleanup()
+        self.reset_open_anchor()
         # Remove the help tip set in mousePressEvent
         self.macro = None
         helpevent = QuickHelpTipEvent("", "")
@@ -794,6 +796,7 @@ class NewLinkAction(UserInteraction):
     def cancel(self, reason=UserInteraction.OtherReason):
         # type: (int) -> None
         self.cleanup()
+        self.reset_open_anchor()
         super().cancel(reason)
 
     def cleanup(self):
@@ -801,11 +804,6 @@ class NewLinkAction(UserInteraction):
         """
         Cleanup all temporary items in the scene that are left.
         """
-        if self.from_item:
-            if self.direction == self.FROM_SOURCE:
-                self.from_item.outputAnchorItem.setKeepAnchorOpen(False)
-            else:
-                self.from_item.inputAnchorItem.setKeepAnchorOpen(False)
         if self.tmp_link_item:
             self.tmp_link_item.setSinkItem(None)
             self.tmp_link_item.setSourceItem(None)
@@ -822,6 +820,17 @@ class NewLinkAction(UserInteraction):
         if self.cursor_anchor_point and self.cursor_anchor_point.scene():
             self.scene.removeItem(self.cursor_anchor_point)
             self.cursor_anchor_point = None
+
+    def reset_open_anchor(self):
+        """
+        This isn't part of cleanup, because it should retain its value
+        until the link is created.
+        """
+        if self.direction == self.FROM_SOURCE:
+            anchor = self.from_item.outputAnchorItem
+        else:
+            anchor = self.from_item.inputAnchorItem
+        anchor.setKeepAnchorOpen(None)
 
 
 def edit_links(
