@@ -269,7 +269,6 @@ class NewLinkAction(UserInteraction):
         super().__init__(document, *args, **kwargs)
         self.from_item = None    # type: Optional[items.NodeItem]
         self.direction = 0   # type: int
-        self.force_link_dialog = False
 
         # An `NodeItem` currently under the mouse as a possible
         # link drop target.
@@ -452,7 +451,6 @@ class NewLinkAction(UserInteraction):
     def mouseReleaseEvent(self, event):
         # type: (QGraphicsSceneMouseEvent) -> bool
         if self.tmp_link_item is not None:
-            self.force_link_dialog = bool(event.modifiers() & Qt.ShiftModifier)
             item = self.target_node_item_at(event.scenePos())
             node = None  # type: Optional[Node]
             stack = self.document.undoStack()
@@ -581,7 +579,7 @@ class NewLinkAction(UserInteraction):
             # to SchemeLinks later
             links_to_add = []     # type: List[Link]
             links_to_remove = []  # type: List[Link]
-            show_link_dialog = self.force_link_dialog
+            show_link_dialog = False
 
             # Ambiguous new link request.
             if len(possible) >= 2:
@@ -659,8 +657,6 @@ class NewLinkAction(UserInteraction):
             log.error("An error occurred during the creation of a new link.",
                       exc_info=True)
             self.cancel()
-        finally:
-            self.force_link_dialog = False
 
     def edit_links(
             self,
