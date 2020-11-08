@@ -465,6 +465,10 @@ class NewLinkAction(UserInteraction):
             # an empty scene spot.
             log.info("%r is no longer the target.", self.current_target_item)
             self.remove_tmp_anchor()
+            if self.direction == self.FROM_SOURCE:
+                self.current_target_item.inputAnchorItem.setHovered(False)
+            else:
+                self.current_target_item.outputAnchorItem.setHovered(False)
             self.current_target_item = None
 
         if item is not None and item is not self.from_item:
@@ -477,6 +481,10 @@ class NewLinkAction(UserInteraction):
             elif self.can_connect(item):
                 # Mouse is over a new item
                 log.info("%r is the new target.", item)
+                if self.direction == self.FROM_SOURCE:
+                    item.inputAnchorItem.setHovered(True)
+                else:
+                    item.outputAnchorItem.setHovered(True)
                 scenePos = event.scenePos()
                 self.create_tmp_anchor(item, scenePos)
                 self.set_link_target_anchor(

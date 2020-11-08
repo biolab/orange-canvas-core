@@ -927,18 +927,21 @@ class NodeAnchorItem(GraphicsPathObject):
         else:
             return GraphicsPathObject.boundingRect(self)
 
-    def hoverEnterEvent(self, event):
-        self.__hover = True
-        brush = self.connectedHoverBrush if self.anchored else self.normalHoverBrush
+    def setHovered(self, enabled):
+        self.__hover = enabled
+        if enabled:
+            brush = self.connectedHoverBrush if self.anchored else self.normalHoverBrush
+        else:
+            brush = self.connectedBrush if self.anchored else self.normalBrush
         self.setBrush(brush)
         self.__updateHoverState()
+
+    def hoverEnterEvent(self, event):
+        self.setHovered(True)
         return super().hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event):
-        self.__hover = False
-        brush = self.connectedBrush if self.anchored else self.normalBrush
-        self.setBrush(brush)
-        self.__updateHoverState()
+        self.setHovered(False)
         return super().hoverLeaveEvent(event)
 
     def setAnimationEnabled(self, enabled):
@@ -963,6 +966,7 @@ class NodeAnchorItem(GraphicsPathObject):
 
     def __updateHoverState(self):
         self.__updateShadowState()
+        self.__updatePositions()
 
         for indicator in self.anchorPoints():
             indicator.setHoverState(self.__hover)
