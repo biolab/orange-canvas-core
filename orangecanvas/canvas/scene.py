@@ -18,7 +18,7 @@ from AnyQt.QtWidgets import QGraphicsScene, QGraphicsItem
 from AnyQt.QtGui import QPainter, QColor, QFont
 from AnyQt.QtCore import (
     Qt, QPointF, QRectF, QSizeF, QLineF, QBuffer, QObject, QSignalMapper,
-    QT_VERSION
+    QParallelAnimationGroup, QT_VERSION
 )
 from AnyQt.QtSvg import QSvgGenerator
 from AnyQt.QtCore import pyqtSignal as Signal
@@ -140,6 +140,8 @@ class CanvasScene(QGraphicsScene):
         self.link_activated_mapper.mapped[QObject].connect(
             lambda node: self.link_item_activated.emit(node)
         )
+
+        self.__anchors_opened = False
 
     def clear_scene(self):  # type: () -> None
         """
@@ -385,6 +387,8 @@ class CanvasScene(QGraphicsScene):
         """
         Remove `item` (:class:`.NodeItem`) from the scene.
         """
+        desc = item.widget_description
+
         self.activated_mapper.removeMappings(item)
         self.hovered_mapper.removeMappings(item)
         self.position_change_mapper.removeMappings(item)
@@ -755,6 +759,15 @@ class CanvasScene(QGraphicsScene):
         neighbors.extend(map(attrgetter("sinkItem"),
                              self.node_output_links(node_item)))
         return neighbors
+
+    def set_widget_anchors_open(self, enabled):
+        if self.__anchors_opened == enabled:
+            return
+        self.__anchors_opened = enabled
+
+        for item in self.node_items():
+            item.inputAnchorItem.setAnchorOpen(enabled)
+            item.outputAnchorItem.setAnchorOpen(enabled)
 
     def _on_position_change(self, item):
         # type: (NodeItem) -> None

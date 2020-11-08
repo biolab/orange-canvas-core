@@ -1482,6 +1482,8 @@ class SchemeEditWidget(QWidget):
 
     def sceneKeyPressEvent(self, event):
         # type: (QKeyEvent) -> bool
+        self.__updateOpenWidgetAnchors(event)
+
         scene = self.__scene
         if scene.user_interaction_handler:
             return False
@@ -1532,7 +1534,17 @@ class SchemeEditWidget(QWidget):
 
     def sceneKeyReleaseEvent(self, event):
         # type: (QKeyEvent) -> bool
+        self.__updateOpenWidgetAnchors(event)
         return False
+
+    def __updateOpenWidgetAnchors(self, event=None):
+        scene = self.__scene
+        # Open widget anchors on shift. New link action should work during this
+        if event:
+            open = event.modifiers() == Qt.ShiftModifier
+        else:
+            open = QApplication.keyboardModifiers() == Qt.ShiftModifier
+        scene.set_widget_anchors_open(open)
 
     def sceneContextMenuEvent(self, event):
         # type: (QGraphicsSceneContextMenuEvent) -> bool
@@ -1610,6 +1622,7 @@ class SchemeEditWidget(QWidget):
         # type: () -> None
         self.sender().ended.disconnect(self.__onInteractionEnded)
         set_enabled_all(self.__disruptiveActions, True)
+        self.__updateOpenWidgetAnchors()
 
     def __onSelectionChanged(self):
         # type: () -> None
