@@ -579,13 +579,16 @@ class NewLinkAction(UserInteraction):
         pos = event.screenPos()
         menu = self.document.quickMenu()
         node = self.scene.node_for_item(self.from_item)
+        from_signal = self.from_signal
         from_desc = node.description
 
-        def is_compatible(source, sink):
+        def is_compatible(source_signal, source, sink, sink_signal):
             # type: (WidgetDescription, WidgetDescription) -> bool
             return any(scheme.compatible_channels(output, input)
-                       for output in source.outputs
-                       for input in sink.inputs)
+                       for output
+                       in ([source_signal] if source_signal else source.outputs)
+                       for input
+                       in ([sink_signal] if sink_signal else sink.inputs))
 
         from_sink = self.direction == self.FROM_SINK
         if from_sink:
@@ -604,7 +607,7 @@ class NewLinkAction(UserInteraction):
         def filter(index):
             desc = index.data(QtWidgetRegistry.WIDGET_DESC_ROLE)
             if isinstance(desc, WidgetDescription):
-                return is_compatible(from_desc, desc)
+                return is_compatible(from_signal, from_desc, desc, None)
             else:
                 return False
 

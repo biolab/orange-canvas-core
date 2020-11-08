@@ -50,19 +50,19 @@ class TestLinkItem(TestItems):
         self.assertSequenceEqual(one_item.outputAnchors(), [anchor1])
         self.assertSequenceEqual(negate_item.inputAnchors(), [anchor2])
 
-        link.setSourceItem(one_item, anchor1)
-        link.setSinkItem(negate_item, anchor2)
+        link.setSourceItem(one_item, anchor=anchor1)
+        link.setSinkItem(negate_item, anchor=anchor2)
 
         # Setting an item and an anchor not in the item's anchors raises
         # an error.
         with self.assertRaises(ValueError):
-            link.setSourceItem(one_item, AnchorPoint())
+            link.setSourceItem(one_item, anchor=AnchorPoint())
 
         self.assertSequenceEqual(one_item.outputAnchors(), [anchor1])
 
         anchor2 = one_item.newOutputAnchor()
 
-        link.setSourceItem(one_item, anchor2)
+        link.setSourceItem(one_item, anchor=anchor2)
         self.assertSequenceEqual(one_item.outputAnchors(), [anchor1, anchor2])
         self.assertIs(link.sourceAnchor, anchor2)
 
@@ -99,8 +99,8 @@ class TestLinkItem(TestItems):
         self.scene.addItem(anchor1)
         self.scene.addItem(anchor2)
 
-        link.setSourceItem(None, anchor1)
-        link.setSinkItem(None, anchor2)
+        link.setSourceItem(None, anchor=anchor1)
+        link.setSinkItem(None, anchor=anchor2)
 
         anchor2.setPos(100, 100)
 
