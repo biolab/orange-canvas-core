@@ -605,6 +605,7 @@ class NodeAnchorItem(GraphicsPathObject):
         self.__animationEnabled = False
         self.__hover = False
         self.__anchorOpen = False
+        self.__keepAnchorOpen = False
 
         # Does this item have any anchored links.
         self.anchored = False
@@ -661,6 +662,11 @@ class NodeAnchorItem(GraphicsPathObject):
     def setSignals(self, signals):
         self.__signals = signals
         self.setAnchorPath(self.__anchorPath)
+
+    def setKeepAnchorOpen(self, enabled):
+        if self.__keepAnchorOpen != enabled:
+            self.__keepAnchorOpen = enabled
+            self.__updatePositions()
 
     def parentNodeItem(self):
         # type: () -> Optional['NodeItem']
@@ -1020,7 +1026,7 @@ class NodeAnchorItem(GraphicsPathObject):
         # type: () -> None
         """Update anchor points positions.
         """
-        if self.__anchorOpen and self.__hover:
+        if self.__keepAnchorOpen or self.__anchorOpen and self.__hover:
             dashPattern = self.__channelDash
             stroke = self.__channelStroke
             targetPoss = self.__channelPointPositions
@@ -1035,7 +1041,7 @@ class NodeAnchorItem(GraphicsPathObject):
 
         if self.animGroup.state() == QPropertyAnimation.Running:
             self.animGroup.stop()
-        if self.__animationEnabled and animate:
+        if self.__animationEnabled:
             self.__initializeAnimation(targetPoss, dashPattern)
             self.animGroup.start()
         else:

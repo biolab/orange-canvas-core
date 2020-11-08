@@ -441,6 +441,7 @@ class NewLinkAction(UserInteraction):
 
             if anchor.anchorOpen():
                 signal = anchor.signalAtPos(scenePos)
+                anchor.setKeepAnchorOpen(True)
             else:
                 signal = None
             self.from_signal = signal
@@ -800,6 +801,11 @@ class NewLinkAction(UserInteraction):
         """
         Cleanup all temporary items in the scene that are left.
         """
+        if self.from_item:
+            if self.direction == self.FROM_SOURCE:
+                self.from_item.outputAnchorItem.setKeepAnchorOpen(False)
+            else:
+                self.from_item.inputAnchorItem.setKeepAnchorOpen(False)
         if self.tmp_link_item:
             self.tmp_link_item.setSinkItem(None)
             self.tmp_link_item.setSourceItem(None)
