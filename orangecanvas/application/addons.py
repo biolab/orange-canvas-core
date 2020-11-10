@@ -67,6 +67,15 @@ def normalize_name(name):
     return re.sub(r"[-_.]+", "-", name).lower()
 
 
+def prettify_name(name):
+    dash_split = name.split('-')
+    # Orange3-ImageAnalytics => ImageAnalytics
+    if len(dash_split) > 1 and dash_split[0].lower() in ['orange', 'orange3']:
+        name = '-'.join(dash_split[1:])
+    # ImageAnalytics => Image Analytics  # while keeping acronyms
+    return re.sub(r"(?<!^)([A-Z][a-z]|(?<=[a-z])[A-Z])", r" \1", name)
+
+
 class Installable(
     NamedTuple(
         "Installable", (
@@ -333,7 +342,7 @@ class PluginsModel(QStandardItemModel):
         if isinstance(item, Installed):
             installed = True
             ins, dist = item.installable, item.local
-            name = dist.project_name
+            name = prettify_name(dist.project_name)
             summary = get_dist_meta(dist).get("Summary", "")
             version = dist.version
             item_is_core = item.required
@@ -341,7 +350,7 @@ class PluginsModel(QStandardItemModel):
             installed = False
             ins = item.installable
             dist = None
-            name = ins.name
+            name = prettify_name(ins.name)
             summary = ins.summary
             version = ins.version
             item_is_core = False
