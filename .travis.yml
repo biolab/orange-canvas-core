@@ -25,10 +25,10 @@ matrix:
   fast_finish: false
   include:
     - python: '3.6'
-      env: TEST_ENV="PyQt5~=5.12.1"
+      env: TEST_ENV="PyQt5~=5.9.2"
 
     - python: '3.7'
-      env: TEST_ENV="PyQt5~=5.13.0"
+      env: TEST_ENV="PyQt5~=5.12.0"
 
     - python: '3.8'
       env: TEST_ENV="PyQt5~=5.14.0"
