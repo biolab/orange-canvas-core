@@ -1,11 +1,16 @@
 import base64
 import codecs
-import io
 
 import unittest
+
+from AnyQt.QtCore import QUrl
+
 from orangecanvas.gui.test import QCoreAppTestCase
 
 from orangecanvas.help.provider import sniff_html_charset, HtmlIndexProvider
+from orangecanvas.registry import WidgetDescription
+from orangecanvas.utils.asyncutils import get_event_loop
+from orangecanvas.utils.shtools import temp_named_file
 
 
 class TestUtils(unittest.TestCase):
@@ -52,6 +57,16 @@ def data_url(mimetype, payload):
 
 
 class TestHtmlIndexProvider(QCoreAppTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.loop = get_event_loop()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.loop.close()
+        super().tearDownClass()
+
     def test(self):
         contents = (
             b'<html>\n'
@@ -65,7 +80,11 @@ class TestHtmlIndexProvider(QCoreAppTestCase):
             b'  </div>\n'
             b'</html>'
         )
-        url = data_url("text/html", contents)
-        p = HtmlIndexProvider(url)
-        p._load_inventory(io.BytesIO(contents))
-        self.assertEqual(p.items, {"aa": "a.html"})
+        with temp_named_file(contents.decode("ascii"),) as fname:
+            url = QUrl.fromLocalFile(fname)
+            p = HtmlIndexProvider(url)
+            loop = get_event_loop()
+            desc = WidgetDescription(name="aa", id="aa", qualified_name="aa")
+            res = loop.run_until_complete(p.search_async(desc))
+            self.assertEqual(res, url.resolved(QUrl("a.html")))
+            self.assertEqual(p.items, {"aa": "a.html"})
