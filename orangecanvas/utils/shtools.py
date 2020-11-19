@@ -109,6 +109,7 @@ def temp_named_file(
         suffix: Optional[str] = None,
         prefix: Optional[str] = None,
         dir: Optional[str] = None,
+        delete=True,
 ) -> Generator[str, None, None]:
     """
     Create a named temporary file initialized with `contents` and yield
@@ -126,11 +127,13 @@ def temp_named_file(
         Filename prefix
     dir: Optional[str]
         Directory where the file will be created. If None then $TEMP is used.
+    delete: bool
+        If true the file will be deleted on context exit.
 
     Returns
     -------
     context: ContextManager
-        A context manager that deletes the file on exit.
+        A context manager that deletes the file on exit (if delete is True).
 
     See Also
     --------
@@ -143,4 +146,5 @@ def temp_named_file(
     try:
         yield name
     finally:
-        os.remove(name)
+        if delete:
+            os.remove(name)
