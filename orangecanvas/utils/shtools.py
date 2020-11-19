@@ -56,6 +56,25 @@ def python_process(
     )
 
 
+def __nt_kwargs_defaults(kwargs):
+    # do not open a new console window for command on windows.
+    if hasattr(subprocess, "CREATE_NO_WINDOW"):
+        CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW  # Python >= 3.7
+    else:
+        CREATE_NO_WINDOW = 0x08000000
+    kwargs.setdefault("creationflags", CREATE_NO_WINDOW)
+
+
+def python_run(args, *args_, **kwargs):
+    executable = sys.executable
+    if os.name == "nt" and os.path.basename(executable) == "pythonw.exe":
+        # Don't run the script with a 'gui' (detached) process.
+        dirname = os.path.dirname(executable)
+        executable = os.path.join(dirname, "python.exe")
+        __nt_kwargs_defaults(kwargs)
+    return subprocess.run([executable] + args, *args_, **kwargs)
+
+
 def create_process(
         args: List[str],
         executable: Optional[str] = None,
@@ -67,17 +86,12 @@ def create_process(
     """
     Create and return a `subprocess.Popen` instance.
 
-    This is a thin wrapper around the `subprocess.Popen`. It only thing it
+    This is a thin wrapper around the `subprocess.Popen`. The only thing it
     does is it ensures that a console window does not open by default on
     Windows.
     """
     if os.name == "nt":
-        # do not open a new console window for command on windows.
-        if hasattr(subprocess, "CREATE_NO_WINDOW"):
-            CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW  # Python 3.7
-        else:
-            CREATE_NO_WINDOW = 0x08000000
-        kwargs.setdefault("creationflags", CREATE_NO_WINDOW)
+        __nt_kwargs_defaults(kwargs)
 
     return subprocess.Popen(
         args,
