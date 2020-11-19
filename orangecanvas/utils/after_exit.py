@@ -3,8 +3,9 @@ import logging
 import os
 import sys
 import subprocess
+import threading
 
-from typing import Sequence, Optional
+from typing import Sequence, Optional, List
 
 import orangecanvas.utils.shtools as sh
 
@@ -22,7 +23,9 @@ def run_after_exit(
     if log is not None:
         command.append("--log=" + log)
     command = ["-m", __name__, *command]
-    r, w = os.pipe()
+    with __write_fds_lock:
+        r, w = os.pipe()
+        __write_fds.append(w)
     p = sh.python_process(
         command,
         stdin=r, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -35,6 +38,26 @@ def run_after_exit(
 
 
 run_after_exit.processes = []
+__write_fds: List[int] = []
+__write_fds_lock = threading.Lock()
+
+
+def __close_write_fd_after_fork():
+    while __write_fds:
+        w = __write_fds.pop()
+        try:
+            os.close(w)
+        except OSError:
+            pass
+    __write_fds_lock.release()
+
+
+if hasattr(os, "register_at_fork"):
+    os.register_at_fork(
+        before=__write_fds_lock.acquire,
+        after_in_child=__close_write_fd_after_fork,
+        after_in_parent=__write_fds_lock.release,
+    )
 
 
 def main(argv):
