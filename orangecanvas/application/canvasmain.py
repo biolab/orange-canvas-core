@@ -456,6 +456,35 @@ class CanvasMainWindow(QMainWindow):
             triggered=self.welcome_dialog,
         )
 
+        self.copy_action = QAction(
+            self.tr("Copy"), self,
+            objectName="action-copy"
+        )
+        self.copy_action.setShortcut(
+            QKeySequence(QKeySequence.Copy)
+        )
+        self.cut_action = QAction(
+            self.tr("Cut"), self,
+            objectName="action-cut"
+        )
+        self.cut_action.setShortcut(
+            QKeySequence(QKeySequence.Cut)
+        )
+        self.paste_action = QAction(
+            self.tr("Paste"), self,
+            objectName="action-paste"
+        )
+        self.paste_action.setShortcut(
+            QKeySequence(QKeySequence.Paste)
+        )
+        self.select_all_action = QAction(
+            self.tr("Select All"), self,
+            objectName="action-select-all"
+        )
+        self.select_all_action.setShortcut(
+            QKeySequence(QKeySequence.SelectAll)
+        )
+
         def open_url_for(name):
             url = config.default.APPLICATION_URLS.get(name)
             if url is not None:
@@ -626,9 +655,15 @@ class CanvasMainWindow(QMainWindow):
             self.set_float_widgets_on_top_enabled)
 
     def setup_menu(self):
-        # QTBUG - 51480
+        # Construct a global menu bar (see QTBUG-51480)
+        # Add actions for native dialogs like the file dialog (QTBUG-17291)
         if sys.platform == "darwin" and QT_VERSION >= 0x50000:
             self.__menu_glob = QMenuBar(None)
+            menu = self.__menu_glob.addMenu("Edit")
+            menu.addAction(self.copy_action)
+            menu.addAction(self.cut_action)
+            menu.addAction(self.paste_action)
+            menu.addAction(self.select_all_action)
 
         menu_bar = QMenuBar(self)
 
