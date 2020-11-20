@@ -1,13 +1,9 @@
 Orange Canvas Core
 ==================
 
-.. image:: https://travis-ci.org/biolab/orange-canvas-core.svg?branch=master
-   :target: https://travis-ci.org/biolab/orange-canvas-core
-   :alt: Travis CI Build Status
-
-.. image:: https://ci.appveyor.com/api/projects/status/6kurw9dg0e3t285t?svg=true
-   :target: https://ci.appveyor.com/project/biolab/orange-canvas-core
-   :alt: Appveyor CI Build Status
+.. image:: https://github.com/biolab/orange-canvas-core/workflows/Run%20tests/badge.svg
+   :target: https://github.com/biolab/orange-canvas-core/actions?query=workflow%3A%22Run+tests%22
+   :alt: Github Actions CI Build Status
 
 .. image:: https://readthedocs.org/projects/orange-canvas-core/badge/?version=latest
    :target: https://orange-canvas-core.readthedocs.io/en/latest/?badge=latest

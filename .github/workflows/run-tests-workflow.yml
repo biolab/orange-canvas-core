@@ -1,0 +1,119 @@
+name : Run tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    env:
+      PYTHONFAULTHANDLER: 1
+      PIP_NO_PIP_VERSION_CHECK: 1
+      PIP_WHEEL_DIR: .wheels
+      PIP_FIND_LINKS: .wheels
+      PIP_PREFER_BINARY: 1
+
+    strategy:
+      fail-fast: False
+      matrix:
+        include:
+          # Linux
+          - os: ubuntu-16.04
+            python-version: 3.6
+            test-env: "PyQt5~=5.9.2"
+
+          - os: ubuntu-18.04
+            python-version: 3.7
+            test-env: "PyQt5~=5.12.0"
+
+          - os: ubuntu-20.04
+            python-version: 3.8
+            test-env: "PyQt5~=5.14.0"
+
+          - os: ubuntu-20.04
+            python-version: 3.9
+            test-env: "PyQt5~=5.15.0"
+
+          # macOS
+          - os: macos-10.15
+            python-version: 3.6
+            test-env: "PyQt5~=5.9.2"
+
+          - os: macos-10.15
+            python-version: 3.7
+            test-env: "PyQt5~=5.12.0"
+
+          - os: macos-10.15
+            python-version: 3.8
+            test-env: "PyQt5~=5.14.0"
+
+          - os: macos-10.15
+            python-version: 3.9
+            test-env: "PyQt5~=5.15.0"
+
+          # Windows
+          - os: windows-2019
+            python-version: 3.6
+            test-env: "PyQt5~=5.9.2"
+
+          - os: windows-2019
+            python-version: 3.7
+            test-env: "PyQt5~=5.12.0"
+
+          - os: windows-2019
+            python-version: 3.8
+            test-env: "PyQt5~=5.14.0"
+
+          - os: windows-2019
+            python-version: 3.9
+            test-env: "PyQt5~=5.15.0"
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install System Deps
+        if: ${{ startsWith(runner.os, 'Linux') }}
+        # https://www.riverbankcomputing.com/pipermail/pyqt/2020-June/042949.html
+        run: sudo apt-get install -y libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0
+
+      - name: Setup Wheel Cache
+        uses: actions/cache@v2
+        with:
+          path: .wheels
+          key: ${{ runner.os }}-py-${{ matrix.python-version }}-pip-${{ hashFiles('setup.*', '.github/workflows/run-tests-workflow.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-py-${{ matrix.python }}-pip
+
+      - name: Install Test Deps
+        env:
+          TEST_ENV: ${{ matrix.test-env }}
+          TEST_DEPS: pytest pytest-cov codecov wheel
+        run: python -m pip install $TEST_DEPS $TEST_ENV
+        shell: bash
+
+      - name: Install
+        run: python -m pip install -e .
+
+      - name: List Test Env
+        run: pip list --format=freeze
+
+      - name: Run Tests
+        if: ${{ !startsWith(runner.os, 'Linux') }}
+        run: pytest --cov=orangecanvas
+
+      - name: Run Tests with Xvfb
+        if: ${{ startsWith(runner.os, 'Linux') }}
+        env:
+          XVFBARGS: "-screen 0 1280x1024x24"
+        run: catchsegv xvfb-run -a -s "$XVFBARGS" pytest --cov=orangecanvas
+
+      - name: Update Wheel Cache
+        if: ${{ success() }}
+        run: python -m pip wheel $(pip list --format=freeze --exclude-editable)
+        shell: bash
+
+      - name: Upload Coverage
+        run: codecov
