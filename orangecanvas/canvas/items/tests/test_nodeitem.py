@@ -159,9 +159,9 @@ class TestNodeItem(TestItems):
 
         self.assertSequenceEqual(anchoritem.anchorPoints(), [anchor, anchor1])
 
-        self.assertSequenceEqual(anchoritem.anchorPositions(), [0.5, 0.5])
-        anchoritem.setAnchorPositions([0.5, 0.0])
+        self.assertSequenceEqual(anchoritem.anchorPositions(), [2/3, 1/3])
 
+        anchoritem.setAnchorPositions([0.5, 0.0])
         self.assertSequenceEqual(anchoritem.anchorPositions(), [0.5, 0.0])
 
         def advance():
