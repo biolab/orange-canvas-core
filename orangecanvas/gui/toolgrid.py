@@ -102,7 +102,7 @@ class ToolGridButton(QToolButton):
 
         # elide the end of each line if too long
         lines = [
-            fm.elidedText(l, Qt.ElideRight, self.width())
+            fm.elidedText(l, Qt.ElideRight, self.width() - margin)
             for l in lines
         ]
 
