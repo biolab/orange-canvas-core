@@ -1,0 +1,52 @@
+name : Run Docs Build
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    env:
+      PIP_NO_PIP_VERSION_CHECK: 1
+      PIP_WHEEL_DIR: .wheels
+      PIP_FIND_LINKS: .wheels
+      PIP_PREFER_BINARY: 1
+
+    strategy:
+      fail-fast: False
+      matrix:
+        include:
+          - os: ubuntu-16.04
+            python: 3.6
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Setup Wheel Cache
+        uses: actions/cache@v2
+        with:
+          path: .wheels
+          key: ${{ runner.os }}-py-${{ matrix.python }}-pip-${{ hashFiles('setup.*', '.github/workflows/run-docs-build.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-py-${{ matrix.python }}-pip
+
+      - name: Install Doc Deps
+        run: python -m pip install -r docs/requirements-rtd.txt
+
+      - name: Install
+        run: python -m pip install -e .
+
+      - name: List Build Env
+        run: pip list --format=freeze
+
+      - name: Build Docs
+        run: (cd docs; make SPHINXOPTS="-W --keep-going" html)
+
+      - name: Update Wheel Cache
+        if: ${{ success() }}
+        run: python -m pip wheel $(pip list --format=freeze --exclude-editable)
+        shell: bash
