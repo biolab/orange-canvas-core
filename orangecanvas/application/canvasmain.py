@@ -272,7 +272,7 @@ class CanvasMainWindow(QMainWindow):
         self.widgets_tool_box.setObjectName("canvas-toolbox")
         self.widgets_tool_box.setTabButtonHeight(30)
         self.widgets_tool_box.setTabIconSize(QSize(26, 26))
-        self.widgets_tool_box.setButtonSize(QSize(64, 84))
+        self.widgets_tool_box.setButtonSize(QSize(68, 84))
         self.widgets_tool_box.setIconSize(QSize(48, 48))
 
         self.widgets_tool_box.triggered.connect(
