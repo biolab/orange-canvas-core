@@ -23,9 +23,10 @@ from typing import (
     Sequence, Union, DefaultDict, Type
 )
 
-from AnyQt.QtCore import QObject, QTimer, QSettings
+from AnyQt.QtCore import QObject, QTimer, QSettings, QEvent
 from AnyQt.QtCore import pyqtSignal, pyqtSlot as Slot
 
+from . import LinkEvent
 from ..utils import unique, mapping_get, group_by_all
 from ..registry import OutputSignal
 from .scheme import Scheme, SchemeNode, SchemeLink
@@ -46,6 +47,7 @@ class Signal(
             ("link", SchemeLink),
             ("value", Any),
             ("id", Any),
+            ("index", int),
         ))
 ):
     """
@@ -58,13 +60,20 @@ class Signal(
     value : Any
         The signal value
     id : Any
-        A signal id used to (optionally) differentiate multiple signals
-        (`Multiple` is in `link.sink_channel.flags`)
+        .. deprecated:: 0.1.19
+
+    index: int
+        Position of the link in sink_node's input links at the time the signal
+        is enqueued or -1 if not applicable.
 
     See also
     --------
     InputSignal.flags, OutputSignal.flags
     """
+    def __new__(cls, link: SchemeLink, value: Any, id: Any = None,
+                index: int = -1):
+        return super().__new__(cls, link, value, id, index)
+
     New: 'Type[New]'
     Update: 'Type[Update]'
     Close: 'Type[Close]'
@@ -216,6 +225,7 @@ class SignalManager(QObject):
         if self.__workflow is not None:
             for node in self.__workflow.nodes:
                 node.state_changed.disconnect(self._update)
+                node.removeEventFilter(self)
             for link in self.__workflow.links:
                 link.enabled_changed.disconnect(self.__on_link_enabled_changed)
 
@@ -237,6 +247,7 @@ class SignalManager(QObject):
             for node in workflow.nodes:
                 self.__node_outputs[node] = defaultdict(_OutputState)
                 node.state_changed.connect(self._update)
+                node.installEventFilter(self)
 
             for link in workflow.links:
                 link.enabled_changed.connect(self.__on_link_enabled_changed)
@@ -348,12 +359,14 @@ class SignalManager(QObject):
 
         del self.__node_outputs[node]
         node.state_changed.disconnect(self._update)
+        node.removeEventFilter(self)
 
     def __on_node_added(self, node):
         # type: (SchemeNode) -> None
         self.__node_outputs[node] = defaultdict(_OutputState)
         # schedule update pass on state change
         node.state_changed.connect(self._update)
+        node.installEventFilter(self)
 
     def __on_link_added(self, link):
         # type: (SchemeLink) -> None
@@ -366,8 +379,11 @@ class SignalManager(QObject):
         )
         if link.enabled:
             log.info("Scheduling signal data update for '%s'.", link)
+            links_in = self.__workflow.find_links(sink_node=link.sink_node)
+            index = links_in.index(link)
             self._schedule(
-                [Signal.New(*s) for s in self.signals_on_link(link)]
+                [Signal.New(*s)._replace(index=index)
+                 for s in self.signals_on_link(link)]
             )
             self._update()
 
@@ -375,10 +391,18 @@ class SignalManager(QObject):
 
     def __on_link_removed(self, link):
         # type: (SchemeLink) -> None
-        # purge all values in sink's queue
-        log.info("Scheduling signal data purge (%s).", link)
-        self.purge_link(link)
         link.enabled_changed.disconnect(self.__on_link_enabled_changed)
+
+    def eventFilter(self, recv: QObject, event: QEvent) -> bool:
+        etype = event.type()
+        if etype == LinkEvent.InputLinkRemoved:
+            event = typing.cast(LinkEvent, event)
+            link = event.link()
+            log.info("Scheduling close signal (%s).", link)
+            signals: List[Signal] = [Signal.Close(link, None, id, event.pos())
+                                     for id in self.link_contents(link)]
+            self._schedule(signals)
+        return super().eventFilter(recv, event)
 
     def __on_link_enabled_changed(self, enabled):
         if enabled:
@@ -393,12 +417,10 @@ class SignalManager(QObject):
         present on the `link`.
         """
         items = self.link_contents(link)
-        signals = []
-
-        for key, value in items.items():
-            signals.append(Signal(link, value, key))
-
-        return signals
+        links_in = self.__workflow.find_links(sink_node=link.sink_node)
+        index = links_in.index(link)
+        return [Signal(link, value, key, index=index)
+                for key, value in items.items()]
 
     def link_contents(self, link):
         # type: (SchemeLink) -> Dict[Any, Any]
@@ -467,6 +489,12 @@ class SignalManager(QObject):
                 "different ids is no longer supported."
             )
 
+        sigtype: Type[Signal]
+        if id in state.outputs:
+            sigtype = Signal.Update
+        else:
+            sigtype = Signal.New
+
         state.outputs[id] = value
         assert len(state.outputs) == 1
         # clear invalidated flag
@@ -481,7 +509,9 @@ class SignalManager(QObject):
         )
         signals = []
         for link in links:
-            signals.append(Signal.Update(link, value, id))
+            links_in = scheme.find_links(sink_node=link.sink_node)
+            index = links_in.index(link)
+            signals.append(sigtype(link, value, id, index=index))
             link.set_runtime_state_flag(SchemeLink.Invalidated, False)
 
         self._schedule(signals)
@@ -522,12 +552,14 @@ class SignalManager(QObject):
         # type: (SchemeLink) -> None
         """
         Purge the link (send None for all ids currently present)
-        """
-        contents = self.link_contents(link)
-        ids = contents.keys()
-        signals = [Signal.Close(link, None, id) for id in ids]
 
-        self._schedule(signals)
+        .. deprecated:: 0.1.19
+        """
+        warnings.warn(
+            "`purge_link` is deprecated.", DeprecationWarning, stacklevel=2
+        )
+        self._schedule([Signal(link, None, id)
+                        for id in self.link_contents(link)])
 
     def _schedule(self, signals):
         # type: (List[Signal]) -> None
