@@ -1114,25 +1114,41 @@ class AddonManagerDialog(QDialog):
 
     def __on_installer_finished(self):
         self.__on_installer_finished_common()
+        name = QApplication.applicationName() or 'Orange'
 
         def message_restart(parent):
             icon = QMessageBox.Information
             buttons = QMessageBox.Ok | QMessageBox.Cancel
             title = 'Information'
-            name = QApplication.applicationName() or 'Orange'
             text = ('{} needs to be restarted for the changes to take effect.'
                     .format(name))
             msg_box = QMessageBox(icon, title, text, buttons, parent)
             msg_box.setDefaultButton(QMessageBox.Ok)
-            msg_box.setInformativeText('Press OK to close {} now.'
+            msg_box.setInformativeText('Press OK to restart {} now.'
                                        .format(name))
             msg_box.button(QMessageBox.Cancel).setText('Close later')
             return msg_box.exec_()
 
         if QMessageBox.Ok == message_restart(self):
             self.accept()
-            QTimer.singleShot(0, QApplication.closeAllWindows)
-            QTimer.singleShot(0, QApplication.quit)
+
+            def restart():
+                quit_temp_val = QApplication.quitOnLastWindowClosed()
+                QApplication.setQuitOnLastWindowClosed(False)
+                QApplication.closeAllWindows()
+                windows = QApplication.topLevelWindows()
+                if any(w.isVisible() for w in windows):  # if a window close was cancelled
+                    QApplication.setQuitOnLastWindowClosed(quit_temp_val)
+                    QMessageBox(
+                        text="Restart Cancelled",
+                        informativeText="Changes will be applied on {}'s next restart"
+                                        .format(name),
+                        icon=QMessageBox.Information
+                    ).exec()
+                else:
+                    QApplication.exit(96)
+
+            QTimer.singleShot(0, restart)
         else:
             self.reject()
 
@@ -1293,7 +1309,7 @@ def list_available_versions(config, session=None):
         distributions.append(response.json())
 
     packages = []
-    for addon in defaults + distributions:
+    for addon in distributions + defaults:
         try:
             packages.append(installable_from_json_response(addon))
         except (TypeError, KeyError):

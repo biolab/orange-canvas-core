@@ -2,9 +2,12 @@
 Orange Canvas Application
 
 """
+import atexit
+import sys
 import os
 import argparse
-from typing import Optional
+import logging
+from typing import Optional, List, Sequence
 
 import AnyQt
 from AnyQt.QtWidgets import QApplication
@@ -12,6 +15,7 @@ from AnyQt.QtCore import (
     Qt, QUrl, QEvent, QSettings, QLibraryInfo, pyqtSignal as Signal
 )
 
+from orangecanvas.utils.after_exit import run_after_exit
 from orangecanvas.utils.asyncutils import get_event_loop
 
 
@@ -157,3 +161,45 @@ class CanvasApplication(QApplication):
         if theme and theme in styles.colorthemes:
             palette = styles.colorthemes[theme]()
             QApplication.setPalette(palette)
+
+
+__restart_command: Optional[List[str]] = None
+
+
+def set_restart_command(cmd: Optional[Sequence[str]]):
+    """
+    Set or unset the restart command.
+
+    This command will be run after this process exits.
+
+    Pass cmd=None to unset the current command.
+    """
+    global __restart_command
+    log = logging.getLogger(__name__)
+    atexit.unregister(__restart)
+    if cmd is None:
+        __restart_command = None
+        log.info("Disabling application restart")
+    else:
+        __restart_command = list(cmd)
+        atexit.register(__restart)
+        log.info("Enabling application restart with: %r", cmd)
+
+
+def restart_command() -> Optional[List[str]]:
+    """Return the current set restart command."""
+    return __restart_command
+
+
+def restart_cancel() -> None:
+    set_restart_command(None)
+
+
+def default_restart_command():
+    """Return the default restart command."""
+    return [sys.executable, sys.argv[0]]
+
+
+def __restart():
+    if __restart_command:
+        run_after_exit(__restart_command)

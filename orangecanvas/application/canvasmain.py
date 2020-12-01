@@ -2061,7 +2061,7 @@ class CanvasMainWindow(QMainWindow):
                         .format(name=name),
                         parent=self).exec_()
         dlg = addons.AddonManagerDialog(
-            self, windowTitle=self.tr("Add-ons"), modal=True
+            self, windowTitle=self.tr("Installer"), modal=True
         )
         dlg.setStyle(QApplication.style())
         dlg.setAttribute(Qt.WA_DeleteOnClose)
