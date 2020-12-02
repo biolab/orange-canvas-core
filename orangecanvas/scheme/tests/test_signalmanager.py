@@ -6,7 +6,7 @@ from AnyQt.QtTest import QSignalSpy
 from orangecanvas.scheme import Scheme, SchemeNode, SchemeLink
 from orangecanvas.scheme import signalmanager
 from orangecanvas.scheme.signalmanager import (
-    SignalManager, Signal,  compress_signals
+    SignalManager, Signal, compress_signals, compress_single
 )
 from orangecanvas.registry import tests as registry_tests
 
@@ -216,6 +216,100 @@ class TestSignalManager(unittest.TestCase):
         self.assertSequenceEqual(
             compress_signals(signals_in),
             signals_in[1:],
+        )
+
+    def test_compress_signals_single(self):
+        New, Update, Close = Signal.New, Signal.Update, Signal.Close
+        workflow = self.scheme
+        link = workflow.links[0]
+        self.assertSequenceEqual(
+            compress_single([]), []
+        )
+        signals = [Update(link, None, 1)]
+        self.assertSequenceEqual(
+            compress_single(signals), signals
+        )
+        signals = [Update(link, None, 1), Update(link, 1, 1)]
+        self.assertSequenceEqual(
+            compress_single(signals), signals
+        )
+        signals = [Update(link, 1, 1), Update(link, None, 1)]
+        self.assertSequenceEqual(
+            compress_single(signals), [signals[-1]]
+        )
+        signals = [
+            Update(link, None, 1),
+            Update(link, 1, 1),
+            Update(link, None, 1),
+        ]
+        self.assertSequenceEqual(
+            compress_single(signals),
+            [signals[-1]]
+        )
+        signals = [
+            Update(link, None, 1),
+            Update(link, 1, 1),
+            Update(link, 2, 1),
+        ]
+        self.assertSequenceEqual(
+            compress_single(signals),
+            [signals[0], signals[-1]]
+        )
+        signals = [New(link, None, 1), Close(link, None, 1)]
+        self.assertSequenceEqual(
+            compress_single(signals), signals,
+        )
+        signals = [
+            New(link, 1, 1),
+            Update(link, 2, 1),
+            Close(link, None, 1)
+        ]
+        self.assertSequenceEqual(
+            compress_single(signals), [signals[0], signals[-1]]
+        )
+        signals = [
+            New(link, 1, 1),
+            Update(link, 1, 1),
+            Close(link, None, 1),
+            New(link, 1, 1)
+        ]
+        self.assertSequenceEqual(
+            compress_single(signals),
+            [signals[0], *signals[2:]]
+        )
+        signals = [
+            Update(link, 1, 1),
+            Update(link, 2, 1),
+            Close(link, None, 1)
+        ]
+        self.assertSequenceEqual(
+            compress_single(signals), [signals[-1]]
+        )
+        signals = [
+            Update(link, 1, 1),
+            Update(link, None, 1),
+            Update(link, 2, 1),
+            Close(link, None, 1)
+        ]
+        self.assertSequenceEqual(
+            compress_single(signals), [signals[-1]],
+        )
+        signals = [
+            Update(link, 1, 1),
+            Update(link, 2, 1),
+            Close(link, None, 1),
+        ]
+        self.assertSequenceEqual(
+            compress_single(signals), [signals[-1]]
+        )
+        signals = [
+            Update(link, 1, 1),
+            Update(link, 2, 1),
+            Close(link, None, 1),
+            New(link, None, 1),
+        ]
+        self.assertSequenceEqual(
+            compress_single(signals), signals[-2:]
         )
 
 

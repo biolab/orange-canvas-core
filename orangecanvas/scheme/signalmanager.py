@@ -1043,41 +1043,87 @@ def can_enable_dynamic(link, value):
     return isinstance(value, link.sink_types())
 
 
-def compress_signals(signals):
-    # type: (List[Signal]) -> List[Signal]
+def compress_signals(signals: List[Signal]) -> List[Signal]:
     """
     Compress a list of signals by dropping 'stale' signals.
 
-    Only the latest signal value on a link is preserved except when one of
-    the signals on the link had `None` value in which case the None signal
-    is preserved (by historical convention this meant a reset of the input
-    for pending nodes).
-
-    So for instance if a link had: `1, 2, None, 3` scheduled then the
-    list would be compressed to `None, 3`
+    * Multiple consecutive updates are dropped - preserving only the latest,
+      except when one of the updates had `None` value in which case the
+      `None` update signal is preserved (by historical convention this meant
+      a reset of the input for pending nodes). So for instance if a link had:
+      `1, 2, None, 3` scheduled updates then the list would be compressed
+      to `None, 3`.
+    * Updates preceding a Close signal are dropped - only Close is preserved.
 
     See Also
     --------
     SignalManager.compress_signals
     """
-    groups = group_by_all(reversed(signals),
-                          key=lambda sig: (sig.link, sig.id))
-    signals = []
+    # group by key in reverse order (to preserve order of last update)
+    groups = group_by_all(reversed(signals), key=lambda sig: (sig.link, sig.id))
+    out: List[Signal] = []
+    for _, signals_rev in groups:
+        signals = compress_single(list(reversed(signals_rev)))
+        out.extend(reversed(signals))
+    return list(reversed(out))
 
-    def has_none(signals):
-        # type: (List[Signal]) -> bool
-        return any(sig.value is None for sig in signals)
 
-    for (link, id), signals_grouped in groups:
-        if has_none(signals_grouped[:1]):
-            signals.append(signals_grouped[0])
-        elif len(signals_grouped) > 1 and has_none(signals_grouped[1:]):
-            signals.append(signals_grouped[0])
-            signals.append(Signal(link, None, id))
+def compress_single(signals: List[Signal]) -> List[Signal]:
+    def is_none_update(signal: 'Optional[Signal]') -> bool:
+        return is_update(signal) and signal is not None and signal.value is None
+
+    def is_update(signal: 'Optional[Signal]') -> bool:
+        return isinstance(signal, Update) or type(signal) is Signal
+
+    def is_close(signal: 'Optional[Signal]') -> bool:
+        return isinstance(signal, Close)
+
+    out: List[Signal] = []
+    # 1.) Merge all consecutive updates
+    for i, sig in enumerate(signals):
+        prev = out[-1] if out else None
+        prev_prev = out[-2] if len(out) > 1 else None
+        if is_none_update(prev_prev) and is_update(prev) and is_none_update(sig):
+            # ..., None, X, None --> ..., None
+            out[-2:] = [sig]
+        elif is_none_update(prev_prev) and is_update(prev) and is_update(sig):
+            # ..., None, X, Y -> ..., None, Y
+            out[-1] = sig
+        elif is_none_update(prev) and is_none_update(sig):
+            # ..., None, None -> ..., None
+            out[-1] = sig
+        elif is_none_update(prev) and is_update(sig):
+            # ..., None, X -> ..., None, X
+            out.append(sig)
+        elif is_update(prev) and is_update(sig):
+            # ..., X, Y -> ..., Y
+            out[-1] = sig
         else:
-            signals.append(signals_grouped[0])
+            # ..., X -> ..., X
+            out.append(sig)
+    signals = out
 
-    return list(reversed(signals))
+    # Sanity check. There cannot be more then 2 consecutive updates in the
+    # compressed signals queue.
+    for i in range(len(signals) - 3):
+        assert not all(map(is_update, signals[i: i + 3]))
+
+    out: List[Signal] = []
+    # 2.) Drop all Update preceding a Close
+    for i, sig in enumerate(signals):
+        prev = out[-1] if out else None
+        prev_prev = out[-2] if len(out) > 1 else None
+        if is_update(prev_prev) and is_update(prev) and is_close(sig):
+            # ..., Y, X, Close --> ..., Close
+            assert is_none_update(prev_prev)
+            out[-2:] = [sig]
+        elif is_update(prev) and is_close(sig):
+            # ..., X, Close -> ..., Close
+            out[-1] = sig
+        else:
+            # ..., X -> ..., X
+            out.append(sig)
+    return out
 
 
 def expand_node(workflow, node):
