@@ -417,10 +417,10 @@ class SignalManager(QObject):
                        if sig.link is link]
             return {sig.id: sig.value for sig in pending}
 
-    def send(self, node, channel, value, id):
-        # type: (SchemeNode, OutputSignal, Any, Any) -> None
+    def send(self, node, channel, value, *args, **kwargs):
+        # type: (SchemeNode, OutputSignal, Any, Any, Any) -> None
         """
-        Send the `value` with `id` on an output `channel` from node.
+        Send the `value` on the output `channel` from `node`.
 
         Schedule the signal delivery to all dependent nodes
 
@@ -434,9 +434,25 @@ class SignalManager(QObject):
             The value to send,
         id : Any
             Signal id.
+
+            .. deprecated:: 0.1.19
+
         """
         if self.__workflow is None:
             raise RuntimeError("'send' called with no workflow!.")
+
+        # parse deprecated id parameter from *args, **kwargs.
+        def _id_(id):
+            return id
+        try:
+            id = _id_(*args, **kwargs)
+        except TypeError:
+            id = None
+        else:
+            warnings.warn(
+                "`id` parameter is deprecated and will be removed in v0.2",
+                FutureWarning, stacklevel=2
+            )
 
         log.debug("%r sending %r (id: %r) on channel %r",
                   node.title, type(value), id, channel.name)
@@ -444,8 +460,15 @@ class SignalManager(QObject):
         scheme = self.__workflow
 
         state = self.__node_outputs[node][channel]
-        state.outputs[id] = value
 
+        if state.outputs and id not in state.outputs:
+            raise RuntimeError(
+                "Sending multiple values on the same output channel via "
+                "different ids is no longer supported."
+            )
+
+        state.outputs[id] = value
+        assert len(state.outputs) == 1
         # clear invalidated flag
         if state.flags & _OutputState.Invalidated:
             log.debug("%r clear invalidated flag on channel %r",

@@ -21,7 +21,7 @@ class TestingSignalManager(SignalManager):
             node.setProperty("-input-" + name, sig.value)
 
         for out in node.description.outputs:
-            self.send(node, out, "hello", None)
+            self.send(node, out, "hello")
 
 
 class TestSignalManager(unittest.TestCase):
@@ -63,8 +63,8 @@ class TestSignalManager(unittest.TestCase):
         sm.resume()
         n0, n1, n3 = workflow.nodes
 
-        sm.send(n0, n0.description.outputs[0], 'hello', None)
-        sm.send(n1, n1.description.outputs[0], 'hello', None)
+        sm.send(n0, n0.description.outputs[0], 'hello')
+        sm.send(n1, n1.description.outputs[0], 'hello')
         spy = QSignalSpy(sm.processingFinished[SchemeNode])
         self.assertTrue(spy.wait())
         self.assertSequenceEqual(list(spy), [[n3]])
@@ -91,7 +91,7 @@ class TestSignalManager(unittest.TestCase):
         l0, l1 = workflow.links[:2]
 
         self.assertFalse(l0.runtime_state() & SchemeLink.Invalidated)
-        sm.send(n0, n0.description.outputs[0], 'hello', None)
+        sm.send(n0, n0.description.outputs[0], 'hello')
         self.assertFalse(l0.runtime_state() & SchemeLink.Invalidated)
         self.assertIn(n2, sm.node_update_front())
 
@@ -101,7 +101,7 @@ class TestSignalManager(unittest.TestCase):
         self.assertTrue(sm.has_invalidated_inputs(n2))
         self.assertNotIn(n2, sm.node_update_front())
 
-        sm.send(n0, n0.description.outputs[0], 'hello', None)
+        sm.send(n0, n0.description.outputs[0], 'hello')
         self.assertFalse(l0.runtime_state() & SchemeLink.Invalidated)
         self.assertFalse(sm.has_invalidated_outputs(n0))
         self.assertFalse(sm.has_invalidated_inputs(n2))
@@ -140,7 +140,7 @@ class TestSignalManager(unittest.TestCase):
 
         self.assertFalse(n3.test_state_flags(SchemeNode.Pending))
         self.assertFalse(l0.runtime_state() & SchemeLink.Pending)
-        sm.send(n0, n0.description.outputs[0], 'hello', None)
+        sm.send(n0, n0.description.outputs[0], 'hello')
         self.assertTrue(n3.test_state_flags(SchemeNode.Pending))
         self.assertTrue(l0.runtime_state() & SchemeLink.Pending)
 
@@ -158,8 +158,8 @@ class TestSignalManager(unittest.TestCase):
 
         n0, n1, n3 = workflow.nodes[:3]
         l0, l1 = workflow.links[:2]
-        sm.send(n0, n0.output_channel("value"), 'hello', None)
-        sm.send(n1, n1.output_channel("value"), 'hello', None)
+        sm.send(n0, n0.output_channel("value"), 'hello')
+        sm.send(n1, n1.output_channel("value"), 'hello')
         self.assertIn(n3, sm.node_update_front())
         n3.set_state_flags(SchemeNode.NotReady, True)
         spy = QSignalSpy(sm.processingStarted[SchemeNode])
