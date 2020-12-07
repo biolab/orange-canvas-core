@@ -227,7 +227,7 @@ class SignalManager(QObject):
                 node.state_changed.disconnect(self._update)
                 node.removeEventFilter(self)
             for link in self.__workflow.links:
-                link.enabled_changed.disconnect(self.__on_link_enabled_changed)
+                self.__on_link_removed(link)
 
             self.__workflow.node_added.disconnect(self.__on_node_added)
             self.__workflow.node_removed.disconnect(self.__on_node_removed)
@@ -250,7 +250,7 @@ class SignalManager(QObject):
                 node.installEventFilter(self)
 
             for link in workflow.links:
-                link.enabled_changed.connect(self.__on_link_enabled_changed)
+                self.__on_link_added(link)
             workflow.installEventFilter(self)
 
     def has_pending(self):  # type: () -> bool
@@ -377,16 +377,16 @@ class SignalManager(QObject):
             SchemeLink.Invalidated,
             bool(state.flags & _OutputState.Invalidated)
         )
-        if link.enabled:
-            log.info("Scheduling signal data update for '%s'.", link)
-            links_in = self.__workflow.find_links(sink_node=link.sink_node)
-            index = links_in.index(link)
-            self._schedule(
-                [Signal.New(*s)._replace(index=index)
-                 for s in self.signals_on_link(link)]
-            )
-            self._update()
-
+        signals: List[Signal] = [Signal.New(*s)
+                                 for s in self.signals_on_link(link)]
+        if not link.is_enabled():
+            # Send New signals even if disabled. This is changed behaviour
+            # from <0.1.19 where signals were only sent when link was enabled.
+            # Because we need to maintain input consistency we cannot use the
+            # current signal value so replace it with None.
+            signals = [s._replace(value=None) for s in signals]
+        log.info("Scheduling signal data update for '%s'.", link)
+        self._schedule(signals)
         link.enabled_changed.connect(self.__on_link_enabled_changed)
 
     def __on_link_removed(self, link):
@@ -408,7 +408,7 @@ class SignalManager(QObject):
         if enabled:
             link = self.sender()
             log.info("Link %s enabled. Scheduling signal data update.", link)
-            self._schedule(self.signals_on_link(link))
+            self._update_link(link)
 
     def signals_on_link(self, link):
         # type: (SchemeLink) -> List[Signal]
@@ -591,8 +591,7 @@ class SignalManager(QObject):
         """
         Schedule update of a single link.
         """
-        signals = self.signals_on_link(link)
-        self._schedule(signals)
+        self._schedule([Signal.Update(*s) for s in self.signals_on_link(link)])
 
     def process_queued(self, max_nodes=None):
         # type: (Any) -> None

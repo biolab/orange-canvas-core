@@ -71,6 +71,33 @@ class TestSignalManager(QCoreAppTestCase):
         self.assertEqual(n3.property("-input-left"), None)
         self.assertEqual(n3.property("-input-right"), 'hello')
 
+    def test_add_link_disabled(self):
+        workflow = self.scheme
+        sm = TestingSignalManager()
+        sm.set_workflow(workflow)
+        sm.start()
+        n0, n1, n2 = workflow.nodes
+        l0, l1 = workflow.links
+        workflow.remove_link(l0)
+        sm.send(n0, n0.description.outputs[0], 1)
+        sm.send(n1, n1.description.outputs[0], 2)
+        sm.process_queued()
+
+        self.assertFalse(sm.has_pending())
+        l0.set_enabled(False)
+        workflow.insert_link(0, l0)
+        self.assertSequenceEqual(
+            sm.pending_input_signals(n2), [Signal.New(l0, None, None, 0)]
+        )
+        l0.set_enabled(True)
+        self.assertSequenceEqual(
+            sm.pending_input_signals(n2),
+            [
+                Signal.New(l0, None, None, 0),
+                Signal.Update(l0, 1, None, 0),
+            ]
+        )
+
     def test_invalidated_flags(self):
         workflow = self.scheme
         sm = TestingSignalManager()
