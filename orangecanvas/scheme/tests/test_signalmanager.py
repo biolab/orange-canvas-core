@@ -1,6 +1,5 @@
 import unittest
 
-from AnyQt.QtWidgets import QApplication
 from AnyQt.QtTest import QSignalSpy
 
 from orangecanvas.scheme import Scheme, SchemeNode, SchemeLink
@@ -9,6 +8,7 @@ from orangecanvas.scheme.signalmanager import (
     SignalManager, Signal, compress_signals, compress_single
 )
 from orangecanvas.registry import tests as registry_tests
+from orangecanvas.gui.test import QCoreAppTestCase
 
 
 class TestingSignalManager(SignalManager):
@@ -24,19 +24,9 @@ class TestingSignalManager(SignalManager):
             self.send(node, out, "hello")
 
 
-class TestSignalManager(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        app = QApplication.instance()
-        if app is None:
-            app = QApplication([])
-        cls.app = app
-
-    @classmethod
-    def tearDownClass(cls):
-        del cls.app
-
+class TestSignalManager(QCoreAppTestCase):
     def setUp(self):
+        super().setUp()
         reg = registry_tests.small_testing_registry()
         scheme = Scheme()
         zero = scheme.new_node(reg.widget("zero"))
