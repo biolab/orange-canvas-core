@@ -51,21 +51,26 @@ class WidgetManager(QObject):
     The widgets created with :func:`create_widget_for_node` will automatically
     receive dispatched events:
 
-        * :data:`WorkflowEvent.InputLinkAdded` - when a new input link is
+        * :attr:`.WorkflowEvent.InputLinkAdded` - when a new input link is
           added to the workflow.
-        * :data:`LinkEvent.InputLinkRemoved` - when a input link is removed.
-        * :data:`LinkEvent.OutputLinkAdded` - when a new output link is
+        * :attr:`.WorkflowEvent.InputLinkRemoved` - when a input link is
+          removed.
+        * :attr:`.WorkflowEvent.OutputLinkAdded` - when a new output link is
           added to the workflow.
-        * :data:`LinkEvent.InputLinkRemoved` - when a output link is removed.
-        * :data:`LinkEvent.InputLinkStateChanged` - when the input link's
+        * :attr:`.WorkflowEvent.OutputLinkRemoved` - when a output link is
+          removed.
+        * :attr:`.WorkflowEvent.InputLinkStateChange` - when the input link's
           runtime state changes.
-        * :data:`LinkEvent.OutputLinkStateChanged` - when the output link's
+        * :attr:`.WorkflowEvent.OutputLinkStateChange` - when the output link's
           runtime state changes.
-        * :data:`WorkflowEnvEvent.WorkflowEnvironmentChanged` - when the
+        * :attr:`.WorkflowEvent.NodeStateChange` - when the node's runtime
+          state changes.
+        * :attr:`.WorkflowEvent.WorkflowEnvironmentChange` - when the
           workflow environment changes.
 
     .. seealso:: :func:`.Scheme.add_link()`, :func:`Scheme.remove_link`,
-                 :func:`.Scheme.runtime_env`
+                 :func:`.Scheme.runtime_env`, :class:`NodeEvent`,
+                 :class:`LinkEvent`
     """
     #: A new QWidget was created and added by the manager.
     widget_for_node_added = Signal(SchemeNode, QWidget)
