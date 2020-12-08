@@ -1116,10 +1116,14 @@ def compress_signals(signals: List[Signal]) -> List[Signal]:
     # group by key in reverse order (to preserve order of last update)
     groups = group_by_all(reversed(signals), key=lambda sig: (sig.link, sig.id))
     out: List[Signal] = []
+    id_to_index = {id(s): i for i, s in enumerate(signals)}
     for _, signals_rev in groups:
         signals = compress_single(list(reversed(signals_rev)))
         out.extend(reversed(signals))
-    return list(reversed(out))
+    out = list(reversed(out))
+    assert all(id(s) in id_to_index for s in out), 'Must preserve signal id'
+    # maintain relative order of (surviving) signals
+    return sorted(out, key=lambda s: id_to_index[id(s)])
 
 
 def compress_single(signals: List[Signal]) -> List[Signal]:

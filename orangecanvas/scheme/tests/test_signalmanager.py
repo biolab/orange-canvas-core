@@ -329,6 +329,44 @@ class TestSignalManager(QCoreAppTestCase):
             compress_single(signals), signals[-2:]
         )
 
+    def test_compress_signals_typed(self):
+        l1, l2 = self.scheme.links[0], self.scheme.links[1]
+        New, Update, Close = Signal.New, Signal.Update, Signal.Close
+        signals = [
+            New(l1, 1, index=0),
+            Update(l1, 2, index=0),
+            New(l2, "a", index=0),
+            Update(l2, 2, index=0),
+            Close(l1, None, index=1),
+            New(l1, None, index=1),
+            Update(l2, "b", index=0)
+        ]
+        # must preserve relative order of New/Close
+        self.assertSequenceEqual(
+            compress_signals(signals),
+            [
+                New(l1, 1, index=0),
+                New(l2, "a", index=0),
+                Close(l1, None, index=1),
+                New(l1, None, index=1),
+                Update(l2, "b", index=0)
+            ],
+        )
+        signals = [
+            Update(l1, 2, index=0),
+            New(l2, "a", index=0),
+            Update(l2, 2, index=0),
+            Close(l1, None, index=1),
+        ]
+        self.assertSequenceEqual(
+            compress_signals(signals),
+            [
+                New(l2, "a", index=0),
+                Update(l2, 2, index=0),
+                Close(l1, None, index=1),
+            ],
+        )
+
 
 class TestSCC(unittest.TestCase):
     def test_scc(self):
