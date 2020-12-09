@@ -28,7 +28,7 @@ from AnyQt.QtCore import pyqtSignal, pyqtSlot as Slot
 
 from . import LinkEvent
 from ..utils import unique, mapping_get, group_by_all
-from ..registry import OutputSignal
+from ..registry import OutputSignal, InputSignal
 from .scheme import Scheme, SchemeNode, SchemeLink
 
 
@@ -73,6 +73,11 @@ class Signal(
     def __new__(cls, link: SchemeLink, value: Any, id: Any = None,
                 index: int = -1):
         return super().__new__(cls, link, value, id, index)
+
+    @property
+    def channel(self) -> InputSignal:
+        """Alias for `self.link.sink_channel`"""
+        return self.link.sink_channel
 
     New: 'Type[New]'
     Update: 'Type[Update]'
