@@ -9,17 +9,16 @@ widgets in a scheme workflow.
 """
 import os
 import logging
-import itertools
 import warnings
 import enum
 
-from collections import defaultdict, deque
+from collections import defaultdict
 from operator import attrgetter
 from functools import partial, reduce
 
 import typing
 from typing import (
-    Any, Optional, List, NamedTuple, Iterable, Callable, Set, Dict,
+    Any, Optional, List, NamedTuple, Set, Dict,
     Sequence, Union, DefaultDict, Type
 )
 
@@ -30,13 +29,11 @@ from . import LinkEvent
 from ..utils import unique, mapping_get, group_by_all
 from ..registry import OutputSignal, InputSignal
 from .scheme import Scheme, SchemeNode, SchemeLink
-
+from ..utils.graph import traverse_bf, strongly_connected_components
 
 if typing.TYPE_CHECKING:
-    T = typing.TypeVar("T")
     V = typing.TypeVar("V")
     K = typing.TypeVar("K")
-    H = typing.TypeVar("H", bound=typing.Hashable)
 
 log = logging.getLogger(__name__)
 
@@ -1210,87 +1207,3 @@ def dependent_nodes(scheme, node):
     assert nodes[0] is node
     # Remove the first item (`node`).
     return nodes[1:]
-
-
-def traverse_bf(start, expand):
-    # type: (T, Callable[[T], Iterable[T]]) -> Iterable[T]
-    """
-    Breadth first traversal of a DAG starting from `start`.
-
-    Parameters
-    ----------
-    start : T
-        A starting node
-    expand : (T) -> Iterable[T]
-        A function returning children of a node.
-    """
-    queue = deque([start])
-    visited = set()  # type: Set[T]
-    while queue:
-        item = queue.popleft()
-        if item not in visited:
-            yield item
-            visited.add(item)
-            queue.extend(expand(item))
-
-
-def strongly_connected_components(nodes, expand):
-    # type: (Iterable[H], Callable[[H], Iterable[H]]) -> List[List[H]]
-    """
-    Return a list of strongly connected components.
-
-    Implementation of Tarjan's SCC algorithm.
-    """
-    # SCC found
-    components = []  # type: List[List[H]]
-    # node stack in BFS
-    stack = []       # type: List[H]
-    # == set(stack) : a set of all nodes in stack (for faster lookup)
-    stackset = set()
-
-    # node -> int increasing node numbering as encountered in DFS traversal
-    index = {}
-    # node -> int the lowest node index reachable from a node
-    lowlink = {}
-
-    indexgen = itertools.count()
-
-    def push_node(v):
-        # type: (H) -> None
-        """Push node onto the stack."""
-        stack.append(v)
-        stackset.add(v)
-        index[v] = lowlink[v] = next(indexgen)
-
-    def pop_scc(v):
-        # type: (H) -> List[H]
-        """Pop from the stack a SCC rooted at node v."""
-        i = stack.index(v)
-        scc = stack[i:]
-        del stack[i:]
-        stackset.difference_update(scc)
-        return scc
-
-    def isvisited(node):  # type: (H) -> bool
-        return node in index
-
-    def strong_connect(v):
-        # type: (H) -> None
-        push_node(v)
-
-        for w in expand(v):
-            if not isvisited(w):
-                strong_connect(w)
-                lowlink[v] = min(lowlink[v], lowlink[w])
-            elif w in stackset:
-                lowlink[v] = min(lowlink[v], index[w])
-
-        if index[v] == lowlink[v]:
-            scc = pop_scc(v)
-            components.append(scc)
-
-    for node in nodes:
-        if not isvisited(node):
-            strong_connect(node)
-
-    return components
