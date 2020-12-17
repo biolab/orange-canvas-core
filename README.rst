@@ -27,3 +27,8 @@ Or use the::
     pip install ./
 
 to install from the sources.
+
+Documentation
+-------------
+
+Some incomplete documentation is available at https://orange-canvas-core.readthedocs.io

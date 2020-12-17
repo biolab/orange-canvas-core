@@ -36,7 +36,7 @@ Workflow Events (``events``)
       :annotation: = QEvent.Type(...)
    .. autoattribute:: NodeActivateRequest
       :annotation: = QEvent.Type(...)
-   .. autoattribute:: WorkflowResourceChange
+   .. autoattribute:: WorkflowEnvironmentChange
       :annotation: = QEvent.Type(...)
    .. autoattribute:: AnnotationAdded
       :annotation: = QEvent.Type(...)

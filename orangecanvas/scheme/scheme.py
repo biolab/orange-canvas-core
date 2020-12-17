@@ -56,18 +56,6 @@ class Scheme(QObject):
         A longer description of the scheme.
     env: Mapping[str, Any]
         Extra workflow environment definition (application defined).
-
-    Attributes
-    ----------
-    nodes : list of :class:`.SchemeNode`
-        A list of all the nodes in the scheme.
-
-    links : list of :class:`.SchemeLink`
-        A list of all links in the scheme.
-
-    annotations : list of :class:`BaseSchemeAnnotation`
-        A list of all the annotations in the scheme.
-
     """
     # Flags indicating if loops are allowed in the workflow.
     NoLoops, AllowLoops, AllowSelfLoops = 0, 1, 2

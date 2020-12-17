@@ -74,8 +74,8 @@ class WorkflowEvent(QEvent):
     RuntimeStateChange = QEvent.Type(QEvent.registerEventType())
 
     #: Workflow resource changed (e.g. work directory, env variable)
-    WorkflowResourceChange = QEvent.Type(QEvent.registerEventType())
-    WorkflowEnvironmentChange = WorkflowResourceChange
+    WorkflowEnvironmentChange = QEvent.Type(QEvent.registerEventType())
+    WorkflowResourceChange = WorkflowEnvironmentChange
     #: Workflow is about to close.
     WorkflowAboutToClose = QEvent.Type(QEvent.registerEventType())
     WorkflowClose = QEvent.Type(QEvent.registerEventType())

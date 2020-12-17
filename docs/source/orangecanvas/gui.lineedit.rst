@@ -7,13 +7,14 @@ Line Edit Widget (``lineedit``)
 .. autoclass:: orangecanvas.gui.lineedit.LineEdit
    :members:
    :member-order: bysource
+   :exclude-members: triggered, LeftPosition, RightPosition
    :show-inheritance:
 
-   .. attribute:: LeftPosition
+   .. autoattribute:: LeftPosition
 
       Left position flag
 
-   .. attribute:: RightPosition
+   .. autoattribute:: RightPosition
 
       Right position flag
 
