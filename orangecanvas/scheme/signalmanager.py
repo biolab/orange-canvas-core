@@ -336,6 +336,7 @@ class SignalManager(QObject):
 
         Should only be called by `SignalManager` implementations.
         """
+        state = SignalManager.RuntimeState(state)
         if self.__runtime_state != state:
             self.__runtime_state = state
             self.runtimeStateChanged.emit(self.__runtime_state)
@@ -418,6 +419,8 @@ class SignalManager(QObject):
         Return :class:`Signal` instances representing the current values
         present on the `link`.
         """
+        if self.__workflow is None:
+            return []
         items = self.link_contents(link)
         links_in = self.__workflow.find_links(sink_node=link.sink_node)
         index = links_in.index(link)
