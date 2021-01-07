@@ -7,7 +7,6 @@ Node Item
 import math
 import typing
 import string
-import numpy as np
 
 from operator import attrgetter
 from itertools import groupby
@@ -31,7 +30,6 @@ from AnyQt.QtCore import (
     QParallelAnimationGroup)
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 from PyQt5.QtCore import pyqtProperty
-from scipy.interpolate import interp1d
 
 from .graphicspathobject import GraphicsPathObject
 from .graphicstextitem import GraphicsTextItem
@@ -43,6 +41,7 @@ from ...registry import NAMED_COLORS, WidgetDescription, CategoryDescription, \
 from ...resources import icon_loader
 from .utils import uniform_linear_layout_trunc
 from ...utils import set_flag
+from ...utils.mathutils import interp1d
 
 if typing.TYPE_CHECKING:
     from ...registry import WidgetDescription
@@ -739,9 +738,9 @@ class NodeAnchorItem(GraphicsPathObject):
         fullAnchor = drawDashPattern(1)
         dash6, channelAnchor = matchDashPattern(dash6, channelAnchor)
         channelAnchor, fullAnchor = matchDashPattern(channelAnchor, fullAnchor)
-        self.__unanchoredDash = np.array(dash6)
-        self.__channelDash = np.array(channelAnchor)
-        self.__anchoredDash = np.array(fullAnchor)
+        self.__unanchoredDash = dash6
+        self.__channelDash = channelAnchor
+        self.__anchoredDash = fullAnchor
 
         # The full stroke
         stroke_path.setDashPattern(fullAnchor)
@@ -1067,8 +1066,8 @@ class NodeAnchorItem(GraphicsPathObject):
             lblAnim.setStartValue(lbl.opacity())
             lblAnim.setEndValue(1 if sig in showSignals else 0)
 
-        startDash = np.array(self.__pathStroker.dashPattern())
-        self.__interpDash = interp1d([0, 1], np.vstack([startDash, endDash]), axis=0)
+        startDash = self.__pathStroker.dashPattern()
+        self.__interpDash = interp1d(startDash, endDash)
         self.__anchorPathAnim.setStartValue(0)
         self.__anchorPathAnim.setEndValue(1)
 
