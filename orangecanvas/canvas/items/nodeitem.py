@@ -607,6 +607,7 @@ class NodeAnchorItem(GraphicsPathObject):
         self.__animationEnabled = False
         self.__hover = False
         self.__anchorOpen = False
+        self.__compatibleSignals = None
         self.__keepSignalsOpen = []
 
         # Does this item have any anchored links.
@@ -621,6 +622,7 @@ class NodeAnchorItem(GraphicsPathObject):
         self.__points = []  # type: List[AnchorPoint]
         self.__uniformPointPositions = []  # type: List[float]
         self.__channelPointPositions = []  # type: List[float]
+        self.__incompatible = False  # type: bool
         self.__signals = []  # type: List[Union[InputSignal, OutputSignal]]
         self.__signalLabels = []  # type: List[GraphicsTextItem]
         self.__signalLabelAnims = []  # type: List[QPropertyAnimation]
@@ -701,11 +703,18 @@ class NodeAnchorItem(GraphicsPathObject):
             self.animGroup.addAnimation(lblAnim)
             self.__signalLabelAnims.append(lblAnim)
 
+    def setIncompatible(self, enabled):
+        if self.__incompatible != enabled:
+            self.__incompatible = enabled
+            self.__updatePositions()
+
     def setKeepAnchorOpen(self, signal):
         if signal is None:
             self.__keepSignalsOpen = []
-        else:
+        elif not isinstance(signal, list):
             self.__keepSignalsOpen = [signal]
+        else:
+            self.__keepSignalsOpen = signal
         self.__updateLabels(self.__keepSignalsOpen)
 
     def parentNodeItem(self):
@@ -1049,9 +1058,20 @@ class NodeAnchorItem(GraphicsPathObject):
         self.__anchorOpen = anchorOpen
         self.__updatePositions()
 
+    def setCompatibleSignals(self, compatibleSignals):
+        self.__compatibleSignals = compatibleSignals
+        self.__updatePositions()
+
     def __updateLabels(self, showSignals):
         for signal, label in zip(self.__signals, self.__signalLabels):
-            label.setOpacity(1 if signal in showSignals else 0)
+            if signal not in showSignals:
+                opacity = 0
+            elif self.__compatibleSignals is not None \
+                    and signal not in self.__compatibleSignals:
+                opacity = 0.65
+            else:
+                opacity = 1
+            label.setOpacity(opacity)
 
     def __initializeAnimation(self, targetPoss, endDash, showSignals):
         anchorOpen = self.__anchorOpen
@@ -1084,12 +1104,12 @@ class NodeAnchorItem(GraphicsPathObject):
             dashPattern = self.__anchoredDash
             stroke = self.__fullStroke
             targetPoss = self.__uniformPointPositions
-            showSignals = []
+            showSignals = self.__signals if self.__incompatible else []
         else:
             dashPattern = self.__unanchoredDash
             stroke = self.__dottedStroke
             targetPoss = self.__uniformPointPositions
-            showSignals = []
+            showSignals = self.__signals if self.__incompatible else []
 
         if self.animGroup.state() == QPropertyAnimation.Running:
             self.animGroup.stop()

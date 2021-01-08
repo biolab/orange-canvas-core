@@ -270,6 +270,7 @@ class NewLinkAction(UserInteraction):
         self.from_item = None    # type: Optional[items.NodeItem]
         self.from_signal = None  # type: Optional[Union[InputSignal, OutputSignal]]
         self.direction = 0       # type: int
+        self.showing_incompatible_widget = False  # type: bool
 
         # An `NodeItem` currently under the mouse as a possible
         # link drop target.
@@ -439,6 +440,7 @@ class NewLinkAction(UserInteraction):
             else:
                 anchor = self.from_item.inputAnchorItem
             anchor.setHovered(False)
+            anchor.setCompatibleSignals(None)
 
             if anchor.anchorOpen():
                 signal = anchor.signalAtPos(scenePos)
@@ -466,11 +468,17 @@ class NewLinkAction(UserInteraction):
             # (was replaced by another item or the the cursor was moved over
             # an empty scene spot.
             log.info("%r is no longer the target.", self.current_target_item)
-            self.remove_tmp_anchor()
             if self.direction == self.FROM_SOURCE:
-                self.current_target_item.inputAnchorItem.setHovered(False)
+                anchor = self.current_target_item.inputAnchorItem
             else:
-                self.current_target_item.outputAnchorItem.setHovered(False)
+                anchor = self.current_target_item.outputAnchorItem
+            if not self.showing_incompatible_widget:
+                self.remove_tmp_anchor()
+                self.showing_incompatible_widget = True
+            else:
+                anchor.setIncompatible(False)
+            anchor.setHovered(False)
+            anchor.setCompatibleSignals(None)
             self.current_target_item = None
 
         if item is not None and item is not self.from_item:
@@ -479,13 +487,20 @@ class NewLinkAction(UserInteraction):
                 # Mouse is over the same item
                 scenePos = event.scenePos()
                 # Move to new potential anchor
-                self.update_tmp_anchor(item, scenePos)
+                if not self.showing_incompatible_widget:
+                    self.update_tmp_anchor(item, scenePos)
+                else:
+                    self.set_link_target_anchor(self.cursor_anchor_point)
             elif self.can_connect(item):
                 # Mouse is over a new item
                 log.info("%r is the new target.", item)
                 if self.direction == self.FROM_SOURCE:
+                    item.inputAnchorItem.setCompatibleSignals(
+                        self.__target_compatible_signals)
                     item.inputAnchorItem.setHovered(True)
                 else:
+                    item.outputAnchorItem.setCompatibleSignals(
+                        self.__target_compatible_signals)
                     item.outputAnchorItem.setHovered(True)
                 scenePos = event.scenePos()
                 self.create_tmp_anchor(item, scenePos)
@@ -493,13 +508,21 @@ class NewLinkAction(UserInteraction):
                     assert_not_none(self.tmp_anchor_point)
                 )
                 self.current_target_item = item
+                self.showing_incompatible_widget = False
             else:
                 log.info("%r does not have compatible channels", item)
-                self.__target_compatible_signals = None
+                self.__target_compatible_signals = []
+                if self.direction == self.FROM_SOURCE:
+                    anchor = item.inputAnchorItem
+                else:
+                    anchor = item.outputAnchorItem
+                anchor.setCompatibleSignals(
+                    self.__target_compatible_signals)
+                anchor.setHovered(True)
+                anchor.setIncompatible(True)
+                self.showing_incompatible_widget = True
                 self.set_link_target_anchor(self.cursor_anchor_point)
-                # TODO: How to indicate that the connection is not possible?
-                #       The node's anchor could be drawn with a 'disabled'
-                #       palette
+                self.current_target_item = item
         else:
             self.set_link_target_anchor(self.cursor_anchor_point)
 
@@ -533,7 +556,7 @@ class NewLinkAction(UserInteraction):
                     commands.AddNodeCommand(self.scheme, node,
                                             parent=self.macro)
 
-            if node is not None:
+            if node is not None and not self.showing_incompatible_widget:
                 if self.direction == self.FROM_SOURCE:
                     source_node = self.scene.node_for_item(self.from_item)
                     source_signal = self.from_signal
@@ -817,7 +840,15 @@ class NewLinkAction(UserInteraction):
             self.tmp_link_item = None
 
         if self.current_target_item:
-            self.remove_tmp_anchor()
+            if not self.showing_incompatible_widget:
+                self.remove_tmp_anchor()
+            else:
+                if self.direction == self.FROM_SOURCE:
+                    anchor = self.current_target_item.inputAnchorItem
+                else:
+                    anchor = self.current_target_item.outputAnchorItem
+                anchor.setIncompatible(False)
+
             self.current_target_item = None
 
         if self.cursor_anchor_point and self.cursor_anchor_point.scene():
