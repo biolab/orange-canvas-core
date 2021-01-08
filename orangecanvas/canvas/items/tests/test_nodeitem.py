@@ -5,6 +5,7 @@ from AnyQt.QtGui import QPainterPath
 from .. import NodeItem, AnchorPoint, NodeAnchorItem
 
 from . import TestItems
+from ....registry import InputSignal
 from ....registry.tests import small_testing_registry
 
 
@@ -132,6 +133,7 @@ class TestNodeItem(TestItems):
 
     def test_anchoritem(self):
         anchoritem = NodeAnchorItem(None)
+        anchoritem.setAnimationEnabled(False)
         self.scene.addItem(anchoritem)
 
         path = QPainterPath()
@@ -159,9 +161,9 @@ class TestNodeItem(TestItems):
 
         self.assertSequenceEqual(anchoritem.anchorPoints(), [anchor, anchor1])
 
-        self.assertSequenceEqual(anchoritem.anchorPositions(), [0.5, 0.5])
-        anchoritem.setAnchorPositions([0.5, 0.0])
+        self.assertSequenceEqual(anchoritem.anchorPositions(), [2/3, 1/3])
 
+        anchoritem.setAnchorPositions([0.5, 0.0])
         self.assertSequenceEqual(anchoritem.anchorPositions(), [0.5, 0.0])
 
         def advance():
@@ -175,3 +177,31 @@ class TestNodeItem(TestItems):
 
         self.qWait()
         timer.stop()
+
+        anchoritem.setAnchorOpen(True)
+        anchoritem.setHovered(True)
+        self.assertEqual(*[
+            p.scenePos() for p in anchoritem.anchorPoints()
+        ])
+        anchoritem.setAnchorOpen(False)
+        self.assertNotEqual(*[
+            p.scenePos() for p in anchoritem.anchorPoints()
+        ])
+        anchoritem.setAnchorOpen(False)
+        anchoritem.setHovered(True)
+        self.assertNotEqual(*[
+            p.scenePos() for p in anchoritem.anchorPoints()
+        ])
+
+        anchoritem = NodeAnchorItem(None)
+
+        anchoritem.setSignals([
+            InputSignal("first", "object", "set_first"),
+            InputSignal("second", "object", "set_second")
+        ])
+        self.assertListEqual(anchoritem._NodeAnchorItem__pathStroker.dashPattern(),
+                             list(anchoritem._NodeAnchorItem__unanchoredDash))
+        anchoritem.setAnchorOpen(True)
+        anchoritem.setHovered(True)
+        self.assertListEqual(anchoritem._NodeAnchorItem__pathStroker.dashPattern(),
+                             list(anchoritem._NodeAnchorItem__channelDash))

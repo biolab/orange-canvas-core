@@ -375,8 +375,8 @@ class LinkItem(QGraphicsWidget):
         self.__updatePalette()
         self.__updateFont()
 
-    def setSourceItem(self, item, anchor=None):
-        # type: (Optional[NodeItem], Optional[AnchorPoint]) -> None
+    def setSourceItem(self, item, signal=None, anchor=None):
+        # type: (Optional[NodeItem], Optional[InputSignal], Optional[AnchorPoint]) -> None
         """
         Set the source `item` (:class:`.NodeItem`). Use `anchor`
         (:class:`.AnchorPoint`) as the curve start point (if ``None`` a new
@@ -406,7 +406,7 @@ class LinkItem(QGraphicsWidget):
 
             if item is not None and anchor is None:
                 # Create a new output anchor for the item if none is provided.
-                anchor = item.newOutputAnchor()
+                anchor = item.newOutputAnchor(signal)
             if item is not None:
                 item.selectedChanged.connect(self.__updateSelectedState)
 
@@ -425,8 +425,8 @@ class LinkItem(QGraphicsWidget):
 
         self.__updateCurve()
 
-    def setSinkItem(self, item, anchor=None):
-        # type: (Optional[NodeItem], Optional[AnchorPoint]) -> None
+    def setSinkItem(self, item, signal=None, anchor=None):
+        # type: (Optional[NodeItem], Optional[InputSignal], Optional[AnchorPoint]) -> None
         """
         Set the sink `item` (:class:`.NodeItem`). Use `anchor`
         (:class:`.AnchorPoint`) as the curve end point (if ``None`` a new
@@ -456,7 +456,7 @@ class LinkItem(QGraphicsWidget):
 
             if item is not None and anchor is None:
                 # Create a new input anchor for the item if none is provided.
-                anchor = item.newInputAnchor()
+                anchor = item.newInputAnchor(signal)
             if item is not None:
                 item.selectedChanged.connect(self.__updateSelectedState)
 

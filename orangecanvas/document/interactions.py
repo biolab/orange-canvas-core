@@ -36,7 +36,7 @@ from .usagestatistics import UsageStatistics
 from ..registry.description import WidgetDescription, OutputSignal, InputSignal
 from ..registry.qt import QtWidgetRegistry
 from .. import scheme
-from ..scheme import SchemeNode as Node, SchemeLink as Link, Scheme
+from ..scheme import SchemeNode as Node, SchemeLink as Link, Scheme, compatible_channels
 from ..canvas import items
 from ..canvas.items import controlpoints
 from ..gui.quickhelp import QuickHelpTipEvent
@@ -267,11 +267,10 @@ class NewLinkAction(UserInteraction):
 
     def __init__(self, document, *args, **kwargs):
         super().__init__(document, *args, **kwargs)
-        self.source_item = None  # type: Optional[items.NodeItem]
-        self.sink_item = None    # type: Optional[items.NodeItem]
         self.from_item = None    # type: Optional[items.NodeItem]
-        self.direction = 0   # type: int
-        self.force_link_dialog = False
+        self.from_signal = None  # type: Optional[Union[InputSignal, OutputSignal]]
+        self.direction = 0       # type: int
+        self.showing_incompatible_widget = False  # type: bool
 
         # An `NodeItem` currently under the mouse as a possible
         # link drop target.
@@ -284,6 +283,9 @@ class NewLinkAction(UserInteraction):
         self.cursor_anchor_point = None  # type: Optional[items.AnchorPoint]
         # An UndoCommand
         self.macro = None  # type: Optional[UndoCommand]
+
+        # Cache viable signals of currently hovered node
+        self.__target_compatible_signals = None
 
         self.cancelOnEsc = True
 
@@ -300,22 +302,44 @@ class NewLinkAction(UserInteraction):
             self.current_target_item.removeOutputAnchor(self.tmp_anchor_point)
         self.tmp_anchor_point = None
 
-    def create_tmp_anchor(self, item):
-        # type: (items.NodeItem) -> None
+    def update_tmp_anchor(self, item, scenePos):
+        # type: (items.NodeItem, QPointF) -> None
+        """
+        If hovering over a new compatible channel, move it.
+        """
+        assert self.tmp_anchor_point is not None
+        if self.direction == self.FROM_SOURCE:
+            signal = item.inputAnchorItem.signalAtPos(scenePos,
+                                                      self.__target_compatible_signals)
+        else:
+            signal = item.outputAnchorItem.signalAtPos(scenePos,
+                                                       self.__target_compatible_signals)
+        self.tmp_anchor_point.setSignal(signal)
+
+    def create_tmp_anchor(self, item, scenePos, viableLinks=None):
+        # type: (items.NodeItem, QPointF) -> None
         """
         Create a new tmp anchor at the `item` (:class:`NodeItem`).
         """
         assert self.tmp_anchor_point is None
         if self.direction == self.FROM_SOURCE:
-            self.tmp_anchor_point = item.newInputAnchor()
+            anchor = item.inputAnchorItem
+            signal = anchor.signalAtPos(scenePos,
+                                        self.__target_compatible_signals)
+            self.tmp_anchor_point = item.newInputAnchor(signal)
         else:
-            self.tmp_anchor_point = item.newOutputAnchor()
+            anchor = item.outputAnchorItem
+            signal = anchor.signalAtPos(scenePos,
+                                        self.__target_compatible_signals)
+            self.tmp_anchor_point = item.newOutputAnchor(signal)
 
     def can_connect(self, target_item):
         # type: (items.NodeItem) -> bool
         """
         Is the connection between `self.from_item` (item where the drag
         started) and `target_item` possible.
+
+        If possible, initialize the variables regarding the node.
         """
         if self.from_item is None:
             return False
@@ -323,9 +347,15 @@ class NewLinkAction(UserInteraction):
         node2 = self.scene.node_for_item(target_item)
 
         if self.direction == self.FROM_SOURCE:
-            return bool(self.scheme.propose_links(node1, node2))
+            links = self.scheme.propose_links(node1, node2,
+                                              source_signal=self.from_signal)
+            self.__target_compatible_signals = [l[1] for l in links]
         else:
-            return bool(self.scheme.propose_links(node2, node1))
+            links = self.scheme.propose_links(node2, node1,
+                                              sink_signal=self.from_signal)
+            self.__target_compatible_signals = [l[0] for l in links]
+
+        return bool(links)
 
     def set_link_target_anchor(self, anchor):
         # type: (items.AnchorPoint) -> None
@@ -334,9 +364,9 @@ class NewLinkAction(UserInteraction):
         """
         assert self.tmp_link_item is not None
         if self.direction == self.FROM_SOURCE:
-            self.tmp_link_item.setSinkItem(None, anchor)
+            self.tmp_link_item.setSinkItem(None, anchor=anchor)
         else:
-            self.tmp_link_item.setSourceItem(None, anchor)
+            self.tmp_link_item.setSourceItem(None, anchor=anchor)
 
     def target_node_item_at(self, pos):
         # type: (QPointF) -> Optional[items.NodeItem]
@@ -369,10 +399,8 @@ class NewLinkAction(UserInteraction):
             self.from_item = anchor_item.parentNodeItem()
             if isinstance(anchor_item, items.SourceAnchorItem):
                 self.direction = NewLinkAction.FROM_SOURCE
-                self.source_item = self.from_item
             else:
                 self.direction = NewLinkAction.FROM_SINK
-                self.sink_item = self.from_item
 
             event.accept()
 
@@ -405,10 +433,26 @@ class NewLinkAction(UserInteraction):
             self.cursor_anchor_point.setPos(event.scenePos())
 
             # Set the `fixed` end of the temp link (where the drag started).
+            scenePos = event.scenePos()
+
             if self.direction == self.FROM_SOURCE:
-                self.tmp_link_item.setSourceItem(self.source_item)
+                anchor = self.from_item.outputAnchorItem
             else:
-                self.tmp_link_item.setSinkItem(self.sink_item)
+                anchor = self.from_item.inputAnchorItem
+            anchor.setHovered(False)
+            anchor.setCompatibleSignals(None)
+
+            if anchor.anchorOpen():
+                signal = anchor.signalAtPos(scenePos)
+                anchor.setKeepAnchorOpen(signal)
+            else:
+                signal = None
+            self.from_signal = signal
+
+            if self.direction == self.FROM_SOURCE:
+                self.tmp_link_item.setSourceItem(self.from_item, signal)
+            else:
+                self.tmp_link_item.setSinkItem(self.from_item, signal)
 
             self.set_link_target_anchor(self.cursor_anchor_point)
             self.scene.addItem(self.tmp_link_item)
@@ -424,28 +468,61 @@ class NewLinkAction(UserInteraction):
             # (was replaced by another item or the the cursor was moved over
             # an empty scene spot.
             log.info("%r is no longer the target.", self.current_target_item)
-            self.remove_tmp_anchor()
+            if self.direction == self.FROM_SOURCE:
+                anchor = self.current_target_item.inputAnchorItem
+            else:
+                anchor = self.current_target_item.outputAnchorItem
+            if not self.showing_incompatible_widget:
+                self.remove_tmp_anchor()
+                self.showing_incompatible_widget = True
+            else:
+                anchor.setIncompatible(False)
+            anchor.setHovered(False)
+            anchor.setCompatibleSignals(None)
             self.current_target_item = None
 
         if item is not None and item is not self.from_item:
-            # The mouse is over an node item (different from the starting node)
+            # The mouse is over a node item (different from the starting node)
             if self.current_target_item is item:
-                # Avoid reseting the points
-                pass
+                # Mouse is over the same item
+                scenePos = event.scenePos()
+                # Move to new potential anchor
+                if not self.showing_incompatible_widget:
+                    self.update_tmp_anchor(item, scenePos)
+                else:
+                    self.set_link_target_anchor(self.cursor_anchor_point)
             elif self.can_connect(item):
-                # Grab a new anchor
+                # Mouse is over a new item
                 log.info("%r is the new target.", item)
-                self.create_tmp_anchor(item)
+                if self.direction == self.FROM_SOURCE:
+                    item.inputAnchorItem.setCompatibleSignals(
+                        self.__target_compatible_signals)
+                    item.inputAnchorItem.setHovered(True)
+                else:
+                    item.outputAnchorItem.setCompatibleSignals(
+                        self.__target_compatible_signals)
+                    item.outputAnchorItem.setHovered(True)
+                scenePos = event.scenePos()
+                self.create_tmp_anchor(item, scenePos)
                 self.set_link_target_anchor(
                     assert_not_none(self.tmp_anchor_point)
                 )
                 self.current_target_item = item
+                self.showing_incompatible_widget = False
             else:
                 log.info("%r does not have compatible channels", item)
+                self.__target_compatible_signals = []
+                if self.direction == self.FROM_SOURCE:
+                    anchor = item.inputAnchorItem
+                else:
+                    anchor = item.outputAnchorItem
+                anchor.setCompatibleSignals(
+                    self.__target_compatible_signals)
+                anchor.setHovered(True)
+                anchor.setIncompatible(True)
+                self.showing_incompatible_widget = True
                 self.set_link_target_anchor(self.cursor_anchor_point)
-                # TODO: How to indicate that the connection is not possible?
-                #       The node's anchor could be drawn with a 'disabled'
-                #       palette
+                self.current_target_item = item
         else:
             self.set_link_target_anchor(self.cursor_anchor_point)
 
@@ -456,7 +533,6 @@ class NewLinkAction(UserInteraction):
     def mouseReleaseEvent(self, event):
         # type: (QGraphicsSceneMouseEvent) -> bool
         if self.tmp_link_item is not None:
-            self.force_link_dialog = bool(event.modifiers() & Qt.ShiftModifier)
             item = self.target_node_item_at(event.scenePos())
             node = None  # type: Optional[Node]
             stack = self.document.undoStack()
@@ -480,15 +556,32 @@ class NewLinkAction(UserInteraction):
                     commands.AddNodeCommand(self.scheme, node,
                                             parent=self.macro)
 
-            if node is not None:
+            if node is not None and not self.showing_incompatible_widget:
                 if self.direction == self.FROM_SOURCE:
-                    source_node = self.scene.node_for_item(self.source_item)
+                    source_node = self.scene.node_for_item(self.from_item)
+                    source_signal = self.from_signal
                     sink_node = node
+                    if item is not None and item.inputAnchorItem.anchorOpen():
+                        sink_signal = item.inputAnchorItem.signalAtPos(
+                            event.scenePos(),
+                            self.__target_compatible_signals
+                        )
+                    else:
+                        sink_signal = None
                 else:
                     source_node = node
-                    sink_node = self.scene.node_for_item(self.sink_item)
+                    if item is not None and item.outputAnchorItem.anchorOpen():
+                        source_signal = item.outputAnchorItem.signalAtPos(
+                            event.scenePos(),
+                            self.__target_compatible_signals
+                        )
+                    else:
+                        source_signal = None
+                    sink_node = self.scene.node_for_item(self.from_item)
+                    sink_signal = self.from_signal
                 self.suggestions.set_direction(self.direction)
-                self.connect_nodes(source_node, sink_node)
+                self.connect_nodes(source_node, sink_node,
+                                   source_signal, sink_signal)
 
                 if not self.isCanceled() or not self.isFinished() and \
                         self.macro is not None:
@@ -509,13 +602,16 @@ class NewLinkAction(UserInteraction):
         pos = event.screenPos()
         menu = self.document.quickMenu()
         node = self.scene.node_for_item(self.from_item)
+        from_signal = self.from_signal
         from_desc = node.description
 
-        def is_compatible(source, sink):
+        def is_compatible(source_signal, source, sink, sink_signal):
             # type: (WidgetDescription, WidgetDescription) -> bool
             return any(scheme.compatible_channels(output, input)
-                       for output in source.outputs
-                       for input in sink.inputs)
+                       for output
+                       in ([source_signal] if source_signal else source.outputs)
+                       for input
+                       in ([sink_signal] if sink_signal else sink.inputs))
 
         from_sink = self.direction == self.FROM_SINK
         if from_sink:
@@ -534,7 +630,7 @@ class NewLinkAction(UserInteraction):
         def filter(index):
             desc = index.data(QtWidgetRegistry.WIDGET_DESC_ROLE)
             if isinstance(desc, WidgetDescription):
-                return is_compatible(from_desc, desc)
+                return is_compatible(from_signal, from_desc, desc, None)
             else:
                 return False
 
@@ -562,7 +658,8 @@ class NewLinkAction(UserInteraction):
         else:
             return None
 
-    def connect_nodes(self, source_node, sink_node):
+    def connect_nodes(self, source_node, sink_node,
+                            source_signal=None, sink_signal=None):
         # type: (Node, Node) -> None
         """
         Connect `source_node` to `sink_node`. If there are more then one
@@ -571,7 +668,8 @@ class NewLinkAction(UserInteraction):
 
         """
         try:
-            possible = self.scheme.propose_links(source_node, sink_node)
+            possible = self.scheme.propose_links(source_node, sink_node,
+                                                 source_signal, sink_signal)
 
             log.debug("proposed (weighted) links: %r",
                       [(s1.name, s2.name, w) for s1, s2, w in possible])
@@ -585,7 +683,7 @@ class NewLinkAction(UserInteraction):
             # to SchemeLinks later
             links_to_add = []     # type: List[Link]
             links_to_remove = []  # type: List[Link]
-            show_link_dialog = self.force_link_dialog
+            show_link_dialog = False
 
             # Ambiguous new link request.
             if len(possible) >= 2:
@@ -663,8 +761,6 @@ class NewLinkAction(UserInteraction):
             log.error("An error occurred during the creation of a new link.",
                       exc_info=True)
             self.cancel()
-        finally:
-            self.force_link_dialog = False
 
     def edit_links(
             self,
@@ -716,6 +812,7 @@ class NewLinkAction(UserInteraction):
     def end(self):
         # type: () -> None
         self.cleanup()
+        self.reset_open_anchor()
         # Remove the help tip set in mousePressEvent
         self.macro = None
         helpevent = QuickHelpTipEvent("", "")
@@ -725,6 +822,7 @@ class NewLinkAction(UserInteraction):
     def cancel(self, reason=UserInteraction.OtherReason):
         # type: (int) -> None
         self.cleanup()
+        self.reset_open_anchor()
         super().cancel(reason)
 
     def cleanup(self):
@@ -742,12 +840,31 @@ class NewLinkAction(UserInteraction):
             self.tmp_link_item = None
 
         if self.current_target_item:
-            self.remove_tmp_anchor()
+            if not self.showing_incompatible_widget:
+                self.remove_tmp_anchor()
+            else:
+                if self.direction == self.FROM_SOURCE:
+                    anchor = self.current_target_item.inputAnchorItem
+                else:
+                    anchor = self.current_target_item.outputAnchorItem
+                anchor.setIncompatible(False)
+
             self.current_target_item = None
 
         if self.cursor_anchor_point and self.cursor_anchor_point.scene():
             self.scene.removeItem(self.cursor_anchor_point)
             self.cursor_anchor_point = None
+
+    def reset_open_anchor(self):
+        """
+        This isn't part of cleanup, because it should retain its value
+        until the link is created.
+        """
+        if self.direction == self.FROM_SOURCE:
+            anchor = self.from_item.outputAnchorItem
+        else:
+            anchor = self.from_item.inputAnchorItem
+        anchor.setKeepAnchorOpen(None)
 
 
 def edit_links(
