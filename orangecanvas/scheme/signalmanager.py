@@ -9,33 +9,31 @@ widgets in a scheme workflow.
 """
 import os
 import logging
-import itertools
 import warnings
 import enum
 
-from collections import defaultdict, deque
+from collections import defaultdict
 from operator import attrgetter
 from functools import partial, reduce
 
 import typing
 from typing import (
-    Any, Optional, List, NamedTuple, Iterable, Callable, Set, Dict,
-    Sequence, Union, DefaultDict
+    Any, Optional, List, NamedTuple, Set, Dict,
+    Sequence, Union, DefaultDict, Type
 )
 
-from AnyQt.QtCore import QObject, QTimer, QSettings
+from AnyQt.QtCore import QObject, QTimer, QSettings, QEvent
 from AnyQt.QtCore import pyqtSignal, pyqtSlot as Slot
 
+from . import LinkEvent
 from ..utils import unique, mapping_get, group_by_all
-from ..registry import OutputSignal
+from ..registry import OutputSignal, InputSignal
 from .scheme import Scheme, SchemeNode, SchemeLink
-
+from ..utils.graph import traverse_bf, strongly_connected_components
 
 if typing.TYPE_CHECKING:
-    T = typing.TypeVar("T")
     V = typing.TypeVar("V")
     K = typing.TypeVar("K")
-    H = typing.TypeVar("H", bound=typing.Hashable)
 
 log = logging.getLogger(__name__)
 
@@ -46,6 +44,7 @@ class Signal(
             ("link", SchemeLink),
             ("value", Any),
             ("id", Any),
+            ("index", int),
         ))
 ):
     """
@@ -58,13 +57,38 @@ class Signal(
     value : Any
         The signal value
     id : Any
-        A signal id used to (optionally) differentiate multiple signals
-        (`Multiple` is in `link.sink_channel.flags`)
+        .. deprecated:: 0.1.19
+
+    index: int
+        Position of the link in sink_node's input links at the time the signal
+        is enqueued or -1 if not applicable.
 
     See also
     --------
     InputSignal.flags, OutputSignal.flags
     """
+    def __new__(cls, link: SchemeLink, value: Any, id: Any = None,
+                index: int = -1):
+        return super().__new__(cls, link, value, id, index)
+
+    @property
+    def channel(self) -> InputSignal:
+        """Alias for `self.link.sink_channel`"""
+        return self.link.sink_channel
+
+    New: 'Type[New]'
+    Update: 'Type[Update]'
+    Close: 'Type[Close]'
+
+
+class New(Signal): ...
+class Update(Signal): ...
+class Close(Signal): ...
+
+
+Signal.New = New
+Signal.Update = Update
+Signal.Close = Close
 
 
 is_enabled = attrgetter("enabled")
@@ -203,8 +227,9 @@ class SignalManager(QObject):
         if self.__workflow is not None:
             for node in self.__workflow.nodes:
                 node.state_changed.disconnect(self._update)
+                node.removeEventFilter(self)
             for link in self.__workflow.links:
-                link.enabled_changed.disconnect(self.__on_link_enabled_changed)
+                self.__on_link_removed(link)
 
             self.__workflow.node_added.disconnect(self.__on_node_added)
             self.__workflow.node_removed.disconnect(self.__on_node_removed)
@@ -224,9 +249,10 @@ class SignalManager(QObject):
             for node in workflow.nodes:
                 self.__node_outputs[node] = defaultdict(_OutputState)
                 node.state_changed.connect(self._update)
+                node.installEventFilter(self)
 
             for link in workflow.links:
-                link.enabled_changed.connect(self.__on_link_enabled_changed)
+                self.__on_link_added(link)
             workflow.installEventFilter(self)
 
     def has_pending(self):  # type: () -> bool
@@ -310,6 +336,7 @@ class SignalManager(QObject):
 
         Should only be called by `SignalManager` implementations.
         """
+        state = SignalManager.RuntimeState(state)
         if self.__runtime_state != state:
             self.__runtime_state = state
             self.runtimeStateChanged.emit(self.__runtime_state)
@@ -335,12 +362,14 @@ class SignalManager(QObject):
 
         del self.__node_outputs[node]
         node.state_changed.disconnect(self._update)
+        node.removeEventFilter(self)
 
     def __on_node_added(self, node):
         # type: (SchemeNode) -> None
         self.__node_outputs[node] = defaultdict(_OutputState)
         # schedule update pass on state change
         node.state_changed.connect(self._update)
+        node.installEventFilter(self)
 
     def __on_link_added(self, link):
         # type: (SchemeLink) -> None
@@ -351,25 +380,38 @@ class SignalManager(QObject):
             SchemeLink.Invalidated,
             bool(state.flags & _OutputState.Invalidated)
         )
-        if link.enabled:
-            log.info("Scheduling signal data update for '%s'.", link)
-            self._schedule(self.signals_on_link(link))
-            self._update()
-
+        signals: List[Signal] = [Signal.New(*s)
+                                 for s in self.signals_on_link(link)]
+        if not link.is_enabled():
+            # Send New signals even if disabled. This is changed behaviour
+            # from <0.1.19 where signals were only sent when link was enabled.
+            # Because we need to maintain input consistency we cannot use the
+            # current signal value so replace it with None.
+            signals = [s._replace(value=None) for s in signals]
+        log.info("Scheduling signal data update for '%s'.", link)
+        self._schedule(signals)
         link.enabled_changed.connect(self.__on_link_enabled_changed)
 
     def __on_link_removed(self, link):
         # type: (SchemeLink) -> None
-        # purge all values in sink's queue
-        log.info("Scheduling signal data purge (%s).", link)
-        self.purge_link(link)
         link.enabled_changed.disconnect(self.__on_link_enabled_changed)
+
+    def eventFilter(self, recv: QObject, event: QEvent) -> bool:
+        etype = event.type()
+        if etype == LinkEvent.InputLinkRemoved:
+            event = typing.cast(LinkEvent, event)
+            link = event.link()
+            log.info("Scheduling close signal (%s).", link)
+            signals: List[Signal] = [Signal.Close(link, None, id, event.pos())
+                                     for id in self.link_contents(link)]
+            self._schedule(signals)
+        return super().eventFilter(recv, event)
 
     def __on_link_enabled_changed(self, enabled):
         if enabled:
             link = self.sender()
             log.info("Link %s enabled. Scheduling signal data update.", link)
-            self._schedule(self.signals_on_link(link))
+            self._update_link(link)
 
     def signals_on_link(self, link):
         # type: (SchemeLink) -> List[Signal]
@@ -377,13 +419,13 @@ class SignalManager(QObject):
         Return :class:`Signal` instances representing the current values
         present on the `link`.
         """
+        if self.__workflow is None:
+            return []
         items = self.link_contents(link)
-        signals = []
-
-        for key, value in items.items():
-            signals.append(Signal(link, value, key))
-
-        return signals
+        links_in = self.__workflow.find_links(sink_node=link.sink_node)
+        index = links_in.index(link)
+        return [Signal(link, value, key, index=index)
+                for key, value in items.items()]
 
     def link_contents(self, link):
         # type: (SchemeLink) -> Dict[Any, Any]
@@ -402,10 +444,10 @@ class SignalManager(QObject):
                        if sig.link is link]
             return {sig.id: sig.value for sig in pending}
 
-    def send(self, node, channel, value, id):
-        # type: (SchemeNode, OutputSignal, Any, Any) -> None
+    def send(self, node, channel, value, *args, **kwargs):
+        # type: (SchemeNode, OutputSignal, Any, Any, Any) -> None
         """
-        Send the `value` with `id` on an output `channel` from node.
+        Send the `value` on the output `channel` from `node`.
 
         Schedule the signal delivery to all dependent nodes
 
@@ -419,9 +461,25 @@ class SignalManager(QObject):
             The value to send,
         id : Any
             Signal id.
+
+            .. deprecated:: 0.1.19
+
         """
         if self.__workflow is None:
             raise RuntimeError("'send' called with no workflow!.")
+
+        # parse deprecated id parameter from *args, **kwargs.
+        def _id_(id):
+            return id
+        try:
+            id = _id_(*args, **kwargs)
+        except TypeError:
+            id = None
+        else:
+            warnings.warn(
+                "`id` parameter is deprecated and will be removed in v0.2",
+                FutureWarning, stacklevel=2
+            )
 
         log.debug("%r sending %r (id: %r) on channel %r",
                   node.title, type(value), id, channel.name)
@@ -429,8 +487,21 @@ class SignalManager(QObject):
         scheme = self.__workflow
 
         state = self.__node_outputs[node][channel]
-        state.outputs[id] = value
 
+        if state.outputs and id not in state.outputs:
+            raise RuntimeError(
+                "Sending multiple values on the same output channel via "
+                "different ids is no longer supported."
+            )
+
+        sigtype: Type[Signal]
+        if id in state.outputs:
+            sigtype = Signal.Update
+        else:
+            sigtype = Signal.New
+
+        state.outputs[id] = value
+        assert len(state.outputs) == 1
         # clear invalidated flag
         if state.flags & _OutputState.Invalidated:
             log.debug("%r clear invalidated flag on channel %r",
@@ -443,7 +514,9 @@ class SignalManager(QObject):
         )
         signals = []
         for link in links:
-            signals.append(Signal(link, value, id))
+            links_in = scheme.find_links(sink_node=link.sink_node)
+            index = links_in.index(link)
+            signals.append(sigtype(link, value, id, index=index))
             link.set_runtime_state_flag(SchemeLink.Invalidated, False)
 
         self._schedule(signals)
@@ -484,12 +557,14 @@ class SignalManager(QObject):
         # type: (SchemeLink) -> None
         """
         Purge the link (send None for all ids currently present)
-        """
-        contents = self.link_contents(link)
-        ids = contents.keys()
-        signals = [Signal(link, None, id) for id in ids]
 
-        self._schedule(signals)
+        .. deprecated:: 0.1.19
+        """
+        warnings.warn(
+            "`purge_link` is deprecated.", DeprecationWarning, stacklevel=2
+        )
+        self._schedule([Signal(link, None, id)
+                        for id in self.link_contents(link)])
 
     def _schedule(self, signals):
         # type: (List[Signal]) -> None
@@ -521,8 +596,7 @@ class SignalManager(QObject):
         """
         Schedule update of a single link.
         """
-        signals = self.signals_on_link(link)
-        self._schedule(signals)
+        self._schedule([Signal.Update(*s) for s in self.signals_on_link(link)])
 
     def process_queued(self, max_nodes=None):
         # type: (Any) -> None
@@ -591,7 +665,7 @@ class SignalManager(QObject):
                     link.set_dynamic_enabled(enabled)
                     if not enabled:
                         # Send None instead (clear the link)
-                        sig = Signal(link, None, sig.id)
+                        sig = sig._replace(value=None)
                 res.append(sig)
             return res
         signals_in = process_dynamic(signals_in)
@@ -1028,41 +1102,91 @@ def can_enable_dynamic(link, value):
     return isinstance(value, link.sink_types())
 
 
-def compress_signals(signals):
-    # type: (List[Signal]) -> List[Signal]
+def compress_signals(signals: List[Signal]) -> List[Signal]:
     """
     Compress a list of signals by dropping 'stale' signals.
 
-    Only the latest signal value on a link is preserved except when one of
-    the signals on the link had `None` value in which case the None signal
-    is preserved (by historical convention this meant a reset of the input
-    for pending nodes).
-
-    So for instance if a link had: `1, 2, None, 3` scheduled then the
-    list would be compressed to `None, 3`
+    * Multiple consecutive updates are dropped - preserving only the latest,
+      except when one of the updates had `None` value in which case the
+      `None` update signal is preserved (by historical convention this meant
+      a reset of the input for pending nodes). So for instance if a link had:
+      `1, 2, None, 3` scheduled updates then the list would be compressed
+      to `None, 3`.
+    * Updates preceding a Close signal are dropped - only Close is preserved.
 
     See Also
     --------
     SignalManager.compress_signals
     """
-    groups = group_by_all(reversed(signals),
-                          key=lambda sig: (sig.link, sig.id))
-    signals = []
+    # group by key in reverse order (to preserve order of last update)
+    groups = group_by_all(reversed(signals), key=lambda sig: (sig.link, sig.id))
+    out: List[Signal] = []
+    id_to_index = {id(s): i for i, s in enumerate(signals)}
+    for _, signals_rev in groups:
+        signals = compress_single(list(reversed(signals_rev)))
+        out.extend(reversed(signals))
+    out = list(reversed(out))
+    assert all(id(s) in id_to_index for s in out), 'Must preserve signal id'
+    # maintain relative order of (surviving) signals
+    return sorted(out, key=lambda s: id_to_index[id(s)])
 
-    def has_none(signals):
-        # type: (List[Signal]) -> bool
-        return any(sig.value is None for sig in signals)
 
-    for (link, id), signals_grouped in groups:
-        if has_none(signals_grouped[:1]):
-            signals.append(signals_grouped[0])
-        elif len(signals_grouped) > 1 and has_none(signals_grouped[1:]):
-            signals.append(signals_grouped[0])
-            signals.append(Signal(link, None, id))
+def compress_single(signals: List[Signal]) -> List[Signal]:
+    def is_none_update(signal: 'Optional[Signal]') -> bool:
+        return is_update(signal) and signal is not None and signal.value is None
+
+    def is_update(signal: 'Optional[Signal]') -> bool:
+        return isinstance(signal, Update) or type(signal) is Signal
+
+    def is_close(signal: 'Optional[Signal]') -> bool:
+        return isinstance(signal, Close)
+
+    out: List[Signal] = []
+    # 1.) Merge all consecutive updates
+    for i, sig in enumerate(signals):
+        prev = out[-1] if out else None
+        prev_prev = out[-2] if len(out) > 1 else None
+        if is_none_update(prev_prev) and is_update(prev) and is_none_update(sig):
+            # ..., None, X, None --> ..., None
+            out[-2:] = [sig]
+        elif is_none_update(prev_prev) and is_update(prev) and is_update(sig):
+            # ..., None, X, Y -> ..., None, Y
+            out[-1] = sig
+        elif is_none_update(prev) and is_none_update(sig):
+            # ..., None, None -> ..., None
+            out[-1] = sig
+        elif is_none_update(prev) and is_update(sig):
+            # ..., None, X -> ..., None, X
+            out.append(sig)
+        elif is_update(prev) and is_update(sig):
+            # ..., X, Y -> ..., Y
+            out[-1] = sig
         else:
-            signals.append(signals_grouped[0])
+            # ..., X -> ..., X
+            out.append(sig)
+    signals = out
 
-    return list(reversed(signals))
+    # Sanity check. There cannot be more then 2 consecutive updates in the
+    # compressed signals queue.
+    for i in range(len(signals) - 3):
+        assert not all(map(is_update, signals[i: i + 3]))
+
+    out: List[Signal] = []
+    # 2.) Drop all Update preceding a Close
+    for i, sig in enumerate(signals):
+        prev = out[-1] if out else None
+        prev_prev = out[-2] if len(out) > 1 else None
+        if is_update(prev_prev) and is_update(prev) and is_close(sig):
+            # ..., Y, X, Close --> ..., Close
+            assert is_none_update(prev_prev)
+            out[-2:] = [sig]
+        elif is_update(prev) and is_close(sig):
+            # ..., X, Close -> ..., Close
+            out[-1] = sig
+        else:
+            # ..., X -> ..., X
+            out.append(sig)
+    return out
 
 
 def expand_node(workflow, node):
@@ -1086,87 +1210,3 @@ def dependent_nodes(scheme, node):
     assert nodes[0] is node
     # Remove the first item (`node`).
     return nodes[1:]
-
-
-def traverse_bf(start, expand):
-    # type: (T, Callable[[T], Iterable[T]]) -> Iterable[T]
-    """
-    Breadth first traversal of a DAG starting from `start`.
-
-    Parameters
-    ----------
-    start : T
-        A starting node
-    expand : (T) -> Iterable[T]
-        A function returning children of a node.
-    """
-    queue = deque([start])
-    visited = set()  # type: Set[T]
-    while queue:
-        item = queue.popleft()
-        if item not in visited:
-            yield item
-            visited.add(item)
-            queue.extend(expand(item))
-
-
-def strongly_connected_components(nodes, expand):
-    # type: (Iterable[H], Callable[[H], Iterable[H]]) -> List[List[H]]
-    """
-    Return a list of strongly connected components.
-
-    Implementation of Tarjan's SCC algorithm.
-    """
-    # SCC found
-    components = []  # type: List[List[H]]
-    # node stack in BFS
-    stack = []       # type: List[H]
-    # == set(stack) : a set of all nodes in stack (for faster lookup)
-    stackset = set()
-
-    # node -> int increasing node numbering as encountered in DFS traversal
-    index = {}
-    # node -> int the lowest node index reachable from a node
-    lowlink = {}
-
-    indexgen = itertools.count()
-
-    def push_node(v):
-        # type: (H) -> None
-        """Push node onto the stack."""
-        stack.append(v)
-        stackset.add(v)
-        index[v] = lowlink[v] = next(indexgen)
-
-    def pop_scc(v):
-        # type: (H) -> List[H]
-        """Pop from the stack a SCC rooted at node v."""
-        i = stack.index(v)
-        scc = stack[i:]
-        del stack[i:]
-        stackset.difference_update(scc)
-        return scc
-
-    def isvisited(node):  # type: (H) -> bool
-        return node in index
-
-    def strong_connect(v):
-        # type: (H) -> None
-        push_node(v)
-
-        for w in expand(v):
-            if not isvisited(w):
-                strong_connect(w)
-                lowlink[v] = min(lowlink[v], lowlink[w])
-            elif w in stackset:
-                lowlink[v] = min(lowlink[v], index[w])
-
-        if index[v] == lowlink[v]:
-            scc = pop_scc(v)
-            components.append(scc)
-
-    for node in nodes:
-        if not isvisited(node):
-            strong_connect(node)
-
-    return components

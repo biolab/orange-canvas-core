@@ -209,7 +209,7 @@ class OutputSignal(object):
     explicit = None  # type: bool
     dynamic = None   # type: bool
 
-    def __init__(self, name, type, flags=Single + NonDefault,
+    def __init__(self, name, type, flags=NonDefault,
                  id=None, doc=None, replaces=()):
         # type: (str, TypeSpec, int, Optional[str], Optional[str], Iterable[str]) -> None
         self.name = name
@@ -224,16 +224,10 @@ class OutputSignal(object):
         if not (flags & Default or flags & NonDefault):
             flags += NonDefault
 
-        self.single = bool(flags & Single)
         self.default = bool(flags & Default)
         self.explicit = bool(flags & Explicit)
         self.dynamic = bool(flags & Dynamic)
         self.flags = flags
-
-        if self.dynamic and not self.single:
-            raise SignalSpecificationError(
-                "Output signal can not be 'Multiple' and 'Dynamic'."
-            )
 
     @property
     def types(self):

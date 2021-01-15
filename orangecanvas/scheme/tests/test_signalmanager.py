@@ -1,14 +1,14 @@
 import unittest
 
-from AnyQt.QtWidgets import QApplication
 from AnyQt.QtTest import QSignalSpy
 
 from orangecanvas.scheme import Scheme, SchemeNode, SchemeLink
 from orangecanvas.scheme import signalmanager
 from orangecanvas.scheme.signalmanager import (
-    SignalManager, Signal,  compress_signals
+    SignalManager, Signal, compress_signals, compress_single
 )
 from orangecanvas.registry import tests as registry_tests
+from orangecanvas.gui.test import QCoreAppTestCase
 
 
 class TestingSignalManager(SignalManager):
@@ -21,22 +21,12 @@ class TestingSignalManager(SignalManager):
             node.setProperty("-input-" + name, sig.value)
 
         for out in node.description.outputs:
-            self.send(node, out, "hello", None)
+            self.send(node, out, "hello")
 
 
-class TestSignalManager(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        app = QApplication.instance()
-        if app is None:
-            app = QApplication([])
-        cls.app = app
-
-    @classmethod
-    def tearDownClass(cls):
-        del cls.app
-
+class TestSignalManager(QCoreAppTestCase):
     def setUp(self):
+        super().setUp()
         reg = registry_tests.small_testing_registry()
         scheme = Scheme()
         zero = scheme.new_node(reg.widget("zero"))
@@ -63,8 +53,8 @@ class TestSignalManager(unittest.TestCase):
         sm.resume()
         n0, n1, n3 = workflow.nodes
 
-        sm.send(n0, n0.description.outputs[0], 'hello', None)
-        sm.send(n1, n1.description.outputs[0], 'hello', None)
+        sm.send(n0, n0.description.outputs[0], 'hello')
+        sm.send(n1, n1.description.outputs[0], 'hello')
         spy = QSignalSpy(sm.processingFinished[SchemeNode])
         self.assertTrue(spy.wait())
         self.assertSequenceEqual(list(spy), [[n3]])
@@ -81,6 +71,33 @@ class TestSignalManager(unittest.TestCase):
         self.assertEqual(n3.property("-input-left"), None)
         self.assertEqual(n3.property("-input-right"), 'hello')
 
+    def test_add_link_disabled(self):
+        workflow = self.scheme
+        sm = TestingSignalManager()
+        sm.set_workflow(workflow)
+        sm.start()
+        n0, n1, n2 = workflow.nodes
+        l0, l1 = workflow.links
+        workflow.remove_link(l0)
+        sm.send(n0, n0.description.outputs[0], 1)
+        sm.send(n1, n1.description.outputs[0], 2)
+        sm.process_queued()
+
+        self.assertFalse(sm.has_pending())
+        l0.set_enabled(False)
+        workflow.insert_link(0, l0)
+        self.assertSequenceEqual(
+            sm.pending_input_signals(n2), [Signal.New(l0, None, None, 0)]
+        )
+        l0.set_enabled(True)
+        self.assertSequenceEqual(
+            sm.pending_input_signals(n2),
+            [
+                Signal.New(l0, None, None, 0),
+                Signal.Update(l0, 1, None, 0),
+            ]
+        )
+
     def test_invalidated_flags(self):
         workflow = self.scheme
         sm = TestingSignalManager()
@@ -91,7 +108,7 @@ class TestSignalManager(unittest.TestCase):
         l0, l1 = workflow.links[:2]
 
         self.assertFalse(l0.runtime_state() & SchemeLink.Invalidated)
-        sm.send(n0, n0.description.outputs[0], 'hello', None)
+        sm.send(n0, n0.description.outputs[0], 'hello')
         self.assertFalse(l0.runtime_state() & SchemeLink.Invalidated)
         self.assertIn(n2, sm.node_update_front())
 
@@ -101,7 +118,7 @@ class TestSignalManager(unittest.TestCase):
         self.assertTrue(sm.has_invalidated_inputs(n2))
         self.assertNotIn(n2, sm.node_update_front())
 
-        sm.send(n0, n0.description.outputs[0], 'hello', None)
+        sm.send(n0, n0.description.outputs[0], 'hello')
         self.assertFalse(l0.runtime_state() & SchemeLink.Invalidated)
         self.assertFalse(sm.has_invalidated_outputs(n0))
         self.assertFalse(sm.has_invalidated_inputs(n2))
@@ -140,7 +157,7 @@ class TestSignalManager(unittest.TestCase):
 
         self.assertFalse(n3.test_state_flags(SchemeNode.Pending))
         self.assertFalse(l0.runtime_state() & SchemeLink.Pending)
-        sm.send(n0, n0.description.outputs[0], 'hello', None)
+        sm.send(n0, n0.description.outputs[0], 'hello')
         self.assertTrue(n3.test_state_flags(SchemeNode.Pending))
         self.assertTrue(l0.runtime_state() & SchemeLink.Pending)
 
@@ -158,8 +175,8 @@ class TestSignalManager(unittest.TestCase):
 
         n0, n1, n3 = workflow.nodes[:3]
         l0, l1 = workflow.links[:2]
-        sm.send(n0, n0.output_channel("value"), 'hello', None)
-        sm.send(n1, n1.output_channel("value"), 'hello', None)
+        sm.send(n0, n0.output_channel("value"), 'hello')
+        sm.send(n1, n1.output_channel("value"), 'hello')
         self.assertIn(n3, sm.node_update_front())
         n3.set_state_flags(SchemeNode.NotReady, True)
         spy = QSignalSpy(sm.processingStarted[SchemeNode])
@@ -218,42 +235,134 @@ class TestSignalManager(unittest.TestCase):
             signals_in[1:],
         )
 
+    def test_compress_signals_single(self):
+        New, Update, Close = Signal.New, Signal.Update, Signal.Close
+        workflow = self.scheme
+        link = workflow.links[0]
+        self.assertSequenceEqual(
+            compress_single([]), []
+        )
+        signals = [Update(link, None, 1)]
+        self.assertSequenceEqual(
+            compress_single(signals), signals
+        )
+        signals = [Update(link, None, 1), Update(link, 1, 1)]
+        self.assertSequenceEqual(
+            compress_single(signals), signals
+        )
+        signals = [Update(link, 1, 1), Update(link, None, 1)]
+        self.assertSequenceEqual(
+            compress_single(signals), [signals[-1]]
+        )
+        signals = [
+            Update(link, None, 1),
+            Update(link, 1, 1),
+            Update(link, None, 1),
+        ]
+        self.assertSequenceEqual(
+            compress_single(signals),
+            [signals[-1]]
+        )
+        signals = [
+            Update(link, None, 1),
+            Update(link, 1, 1),
+            Update(link, 2, 1),
+        ]
+        self.assertSequenceEqual(
+            compress_single(signals),
+            [signals[0], signals[-1]]
+        )
+        signals = [New(link, None, 1), Close(link, None, 1)]
+        self.assertSequenceEqual(
+            compress_single(signals), signals,
+        )
+        signals = [
+            New(link, 1, 1),
+            Update(link, 2, 1),
+            Close(link, None, 1)
+        ]
+        self.assertSequenceEqual(
+            compress_single(signals), [signals[0], signals[-1]]
+        )
+        signals = [
+            New(link, 1, 1),
+            Update(link, 1, 1),
+            Close(link, None, 1),
+            New(link, 1, 1)
+        ]
+        self.assertSequenceEqual(
+            compress_single(signals),
+            [signals[0], *signals[2:]]
+        )
+        signals = [
+            Update(link, 1, 1),
+            Update(link, 2, 1),
+            Close(link, None, 1)
+        ]
+        self.assertSequenceEqual(
+            compress_single(signals), [signals[-1]]
+        )
+        signals = [
+            Update(link, 1, 1),
+            Update(link, None, 1),
+            Update(link, 2, 1),
+            Close(link, None, 1)
+        ]
+        self.assertSequenceEqual(
+            compress_single(signals), [signals[-1]],
+        )
+        signals = [
+            Update(link, 1, 1),
+            Update(link, 2, 1),
+            Close(link, None, 1),
+        ]
+        self.assertSequenceEqual(
+            compress_single(signals), [signals[-1]]
+        )
+        signals = [
+            Update(link, 1, 1),
+            Update(link, 2, 1),
+            Close(link, None, 1),
+            New(link, None, 1),
+        ]
+        self.assertSequenceEqual(
+            compress_single(signals), signals[-2:]
+        )
 
-class TestSCC(unittest.TestCase):
-    def test_scc(self):
-        E1 = {}
-        scc = signalmanager.strongly_connected_components(E1, E1.__getitem__)
-        self.assertEqual(scc, [])
-
-        E2 = {1: []}
-        scc = signalmanager.strongly_connected_components(E2, E2.__getitem__)
-        self.assertEqual(scc, [[1]])
-
-        T1 = {1: [2, 3], 2: [4, 5], 3: [6, 7], 4: [], 5: [], 6: [], 7: []}
-        scc = signalmanager.strongly_connected_components(T1, T1.__getitem__)
-        self.assertEqual(scc, [[4], [5], [2], [6], [7], [3], [1]])
-
-        C1 = {1: [2], 2: [3], 3: [1]}
-        scc = signalmanager.strongly_connected_components(C1, C1.__getitem__)
-        self.assertEqual(scc, [[1, 2, 3]])
-
-        G1 = {1: [2, 3], 2: [3, 5], 3: [], 5: [2]}
-        scc = signalmanager.strongly_connected_components(G1, G1.__getitem__)
-        self.assertEqual(scc, [[3], [2, 5], [1]])
-
-        DAG1 = {1: [2, 3], 2: [3], 3: [4], 4: []}
-        scc = signalmanager.strongly_connected_components(
-            DAG1, DAG1.__getitem__)
-        self.assertEqual(scc, [[4], [3], [2], [1]])
-
-        G2 = {1: [2], 2: [1, 5], 3: [4], 4: [3, 5], 5: [6],
-              6: [7], 7: [8], 8: [6, 9], 9: []}
-        scc = signalmanager.strongly_connected_components(G2, G2.__getitem__)
-        self.assertEqual(scc, [[9], [6, 7, 8], [5], [1, 2], [3, 4]])
-
-        G3 = {1: [2], 2: [3], 3: [1],
-              4: [5, 3], 5: [4, 6],
-              6: [3, 7], 7: [6],
-              8: [8]}
-        scc = signalmanager.strongly_connected_components(G3, G3.__getitem__)
-        self.assertEqual(scc, [[1, 2, 3], [6, 7], [4, 5], [8]])
+    def test_compress_signals_typed(self):
+        l1, l2 = self.scheme.links[0], self.scheme.links[1]
+        New, Update, Close = Signal.New, Signal.Update, Signal.Close
+        signals = [
+            New(l1, 1, index=0),
+            Update(l1, 2, index=0),
+            New(l2, "a", index=0),
+            Update(l2, 2, index=0),
+            Close(l1, None, index=1),
+            New(l1, None, index=1),
+            Update(l2, "b", index=0)
+        ]
+        # must preserve relative order of New/Close
+        self.assertSequenceEqual(
+            compress_signals(signals),
+            [
+                New(l1, 1, index=0),
+                New(l2, "a", index=0),
+                Close(l1, None, index=1),
+                New(l1, None, index=1),
+                Update(l2, "b", index=0)
+            ],
+        )
+        signals = [
+            Update(l1, 2, index=0),
+            New(l2, "a", index=0),
+            Update(l2, 2, index=0),
+            Close(l1, None, index=1),
+        ]
+        self.assertSequenceEqual(
+            compress_signals(signals),
+            [
+                New(l2, "a", index=0),
+                Update(l2, 2, index=0),
+                Close(l1, None, index=1),
+            ],
+        )
