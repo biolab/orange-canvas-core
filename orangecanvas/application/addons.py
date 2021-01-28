@@ -1449,27 +1449,34 @@ class Installer(QObject):
     @Slot()
     def _next(self):
         command, pkg = self.__queue.popleft()
-
         try:
             if command == Install \
                     or (command == Upgrade and pkg.installable.force):
                 self.setStatusMessage(
                     "Installing {}".format(pkg.installable.name))
                 if self.conda:
-                    self.conda.install(pkg.installable, raise_on_fail=False)
-                self.pip.install(pkg.installable)
+                    try:
+                        self.conda.install(pkg.installable)
+                    except CommandFailed:
+                        self.pip.install(pkg.installable)
+                else:
+                    self.pip.install(pkg.installable)
             elif command == Upgrade:
                 self.setStatusMessage(
                     "Upgrading {}".format(pkg.installable.name))
                 if self.conda:
-                    self.conda.upgrade(pkg.installable, raise_on_fail=False)
-                self.pip.upgrade(pkg.installable)
+                    try:
+                        self.conda.upgrade(pkg.installable)
+                    except CommandFailed:
+                        self.pip.upgrade(pkg.installable)
+                else:
+                    self.pip.upgrade(pkg.installable)
             elif command == Uninstall:
                 self.setStatusMessage(
                     "Uninstalling {}".format(pkg.local.project_name))
                 if self.conda:
                     try:
-                        self.conda.uninstall(pkg.local, raise_on_fail=True)
+                        self.conda.uninstall(pkg.local)
                     except CommandFailed:
                         self.pip.uninstall(pkg.local)
                 else:
@@ -1552,24 +1559,24 @@ class CondaInstaller:
             os.environ["CONDA_DEFAULT_ENV"] = bin
             return conda
 
-    def install(self, pkg, raise_on_fail=False):
+    def install(self, pkg):
         version = "={}".format(pkg.version) if pkg.version is not None else ""
         cmd = [self.conda, "install", "--yes", "--quiet",
                "--satisfied-skip-solve",
                self._normalize(pkg.name) + version]
-        run_command(cmd, raise_on_fail=raise_on_fail)
+        return run_command(cmd)
 
-    def upgrade(self, pkg, raise_on_fail=False):
+    def upgrade(self, pkg):
         version = "={}".format(pkg.version) if pkg.version is not None else ""
         cmd = [self.conda, "install", "--yes", "--quiet",
                "--satisfied-skip-solve",
                self._normalize(pkg.name) + version]
-        run_command(cmd, raise_on_fail=raise_on_fail)
+        return run_command(cmd)
 
-    def uninstall(self, dist, raise_on_fail=False):
+    def uninstall(self, dist):
         cmd = [self.conda, "uninstall", "--yes",
                self._normalize(dist.project_name)]
-        run_command(cmd, raise_on_fail=raise_on_fail)
+        return run_command(cmd)
 
     def _normalize(self, name):
         # Conda 4.3.30 is inconsistent, upgrade command is case sensitive
