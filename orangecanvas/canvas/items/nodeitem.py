@@ -551,9 +551,10 @@ def matchDashPattern(l1, l2, spaceLen=2):
         return (l2, l1) if reverse else (l1, l2)
 
     elif l1d % 2 != 0 and l2d % 2 == 0:  # split line
-        l11 = l1[:l1d - 1]
-        l1m = l1[l1d]
-        l12 = l1[l1d+2:]
+        l11 = l1[:l1d - 2]
+        mid = l1[l1d-1]
+        l1m = [mid/2, 0, mid/2]
+        l12 = l1[l1d+1:]
 
         l21 = l2[:l2d-3]
         l2m = l2[l2d-2:l2d+1]
