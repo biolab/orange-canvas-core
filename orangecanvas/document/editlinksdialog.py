@@ -617,6 +617,7 @@ class EditLinksNode(QGraphicsWidget):
         return QIcon(self.__icon)
 
     def setSchemeNode(self, node):
+        # type: (SchemeNode) -> None
         """
         Set an instance of `SchemeNode`. The widget will be initialized
         with its icon and channels.
@@ -663,7 +664,7 @@ class EditLinksNode(QGraphicsWidget):
             text_item.setHtml(text)
             text_item.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
             text_item.setToolTip(
-                escape(getattr(channel, 'description', type_str(channel.type)))
+                escape(getattr(channel, 'description', type_str(channel.types)))
             )
 
             grid.addItem(text_item, i, label_row,
