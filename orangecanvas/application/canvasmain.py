@@ -949,13 +949,13 @@ class CanvasMainWindow(QMainWindow):
             self.__scheme_margins_enabled = enabled
             self.__update_scheme_margins()
 
-    def scheme_margins_enabled(self):
+    def _scheme_margins_enabled(self):
         # type: () -> bool
         return self.__scheme_margins_enabled
 
-    scheme_margins_enabled = Property(bool,
-                                      fget=scheme_margins_enabled,
-                                      fset=set_scheme_margins_enabled)
+    scheme_margins_enabled: bool
+    scheme_margins_enabled = Property(  # type: ignore
+        bool, _scheme_margins_enabled, set_scheme_margins_enabled)
 
     def __update_scheme_margins(self):
         """Update the margins around the scheme document.

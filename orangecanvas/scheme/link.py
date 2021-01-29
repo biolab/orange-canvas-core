@@ -325,7 +325,8 @@ class SchemeLink(QObject):
         """
         return self.__enabled
 
-    enabled = Property(bool, fget=is_enabled, fset=set_enabled)
+    enabled: bool
+    enabled = Property(bool, is_enabled, set_enabled)  # type: ignore
 
     def set_dynamic_enabled(self, enabled):
         # type: (bool) -> None
@@ -344,8 +345,9 @@ class SchemeLink(QObject):
         """
         return self.is_dynamic() and self.__dynamic_enabled
 
-    dynamic_enabled = Property(bool, fget=is_dynamic_enabled,
-                               fset=set_dynamic_enabled)
+    dynamic_enabled: bool
+    dynamic_enabled = Property(  # type: ignore
+        bool, is_dynamic_enabled, set_dynamic_enabled)
 
     def set_runtime_state(self, state):
         # type: (Union[State, int]) -> None
@@ -415,15 +417,15 @@ class SchemeLink(QObject):
         if self.__tool_tip != tool_tip:
             self.__tool_tip = tool_tip
 
-    def tool_tip(self):
+    def _tool_tip(self):
         # type: () -> str
         """
         Link tool tip.
         """
         return self.__tool_tip
 
-    tool_tip = Property(str, fget=tool_tip,  # type: ignore
-                        fset=set_tool_tip)
+    tool_tip: str
+    tool_tip = Property(str, _tool_tip, set_tool_tip)  # type: ignore
 
     def __str__(self):
         return "{0}(({1}, {2}) -> ({3}, {4}))".format(
