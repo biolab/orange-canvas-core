@@ -9,7 +9,7 @@ import copy
 import warnings
 
 import typing
-from typing import Union, Optional, List, Tuple, Iterable
+from typing import Union, Optional, List, Tuple, Iterable, Sequence
 
 from orangecanvas.utils import qualified_name
 
@@ -308,9 +308,9 @@ class WidgetDescription(object):
         A package name where the widget is implemented.
     project_name : str, optional
         The distribution name that provides the widget.
-    inputs : List[InputSignal]
+    inputs : Sequence[InputSignal]
         A list of input channels provided by the widget.
-    outputs : List[OutputSignal]
+    outputs : Sequence[OutputSignal]
         A list of output channels provided by the widget.
     help : str, optional
         URL or an Resource template of a detailed widget help page.
@@ -347,11 +347,11 @@ class WidgetDescription(object):
     category = None      # type: Optional[str]
     project_name = None  # type: Optional[str]
 
-    inputs = []   # type: List[InputSignal]
-    outputs = []  # type: List[OutputSignal]
+    inputs = []   # type: Sequence[InputSignal]
+    outputs = []  # type: Sequence[OutputSignal]
 
-    replaces = []  # type: List[str]
-    keywords = []  # type: List[str]
+    replaces = []  # type: Sequence[str]
+    keywords = []  # type: Sequence[str]
 
     def __init__(self, name, id, category=None, version=None,
                  description=None, long_description=None,
