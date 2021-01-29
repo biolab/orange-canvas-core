@@ -1477,7 +1477,7 @@ class NewTextAnnotation(UserInteraction):
             assert self.control is not None
             assert self.annotation is not None
             # Commit the annotation to the scheme.
-            self.annotation.rect = rect_to_tuple(rect)  # type: ignore
+            self.annotation.rect = rect_to_tuple(rect)
 
             self.document.addAnnotation(self.annotation)
 

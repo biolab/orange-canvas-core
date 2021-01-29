@@ -1002,7 +1002,7 @@ class SchemeEditWidget(QWidget):
         else:
             nodes = []
         if nodes:
-            x, y = nodes[-1].position  # type: ignore
+            x, y = nodes[-1].position
             position = (x + 150, y)
         else:
             position = (150, 150)
