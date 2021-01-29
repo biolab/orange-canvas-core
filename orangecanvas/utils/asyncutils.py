@@ -1,6 +1,7 @@
 import os
 import asyncio
 from concurrent import futures
+from typing import Optional
 
 from AnyQt.QtCore import QCoreApplication, QThread
 
@@ -14,14 +15,15 @@ def get_event_loop() -> asyncio.AbstractEventLoop:
     """
     try:
         # Python >= 3.7
-        get_running_loop = asyncio.get_running_loop
+        get_running_loop = asyncio.get_running_loop   # type: ignore
     except AttributeError:
-        get_running_loop = asyncio._get_running_loop
+        get_running_loop = asyncio._get_running_loop  # type: ignore
     app = QCoreApplication.instance()
     if app is None:
         raise RuntimeError("QCoreApplication is not running")
     if app.thread() is not QThread.currentThread():
         raise RuntimeError("Called from non-main thread")
+    loop: Optional[asyncio.AbstractEventLoop]
     try:
         loop = get_running_loop()
     except RuntimeError:

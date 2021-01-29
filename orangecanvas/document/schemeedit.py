@@ -1941,7 +1941,7 @@ class SchemeEditWidget(QWidget):
 
         view = self.view()
         try:
-            action = menu.exec_(view.mapToGlobal(view.mapFromScene(QPoint(x, y))))
+            action = menu.exec_(view.mapToGlobal(view.mapFromScene(QPointF(x, y))))
         finally:
             menu.setFilterFunc(None)
 

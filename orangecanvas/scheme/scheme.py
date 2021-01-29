@@ -613,9 +613,13 @@ class Scheme(QObject):
 
         return result
 
-    def propose_links(self, source_node, sink_node,
-                            source_signal=None, sink_signal=None):
-        # type: (SchemeNode, SchemeNode) -> List[Tuple[OutputSignal, InputSignal, int]]
+    def propose_links(
+            self,
+            source_node: SchemeNode,
+            sink_node: SchemeNode,
+            source_signal: Optional[OutputSignal] = None,
+            sink_signal: Optional[InputSignal] = None
+    ) -> List[Tuple[OutputSignal, InputSignal, int]]:
         """
         Return a list of ordered (:class:`OutputSignal`,
         :class:`InputSignal`, weight) tuples that could be added to

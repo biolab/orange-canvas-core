@@ -49,7 +49,7 @@ from AnyQt.QtCore import (
     pyqtProperty as Property, pyqtSignal as Signal
 )
 
-from ..scheme import Scheme, IncompatibleChannelTypeError
+from ..scheme import Scheme, IncompatibleChannelTypeError, SchemeNode
 from ..scheme import readwrite
 from ..scheme.readwrite import UnknownWidgetDefinition
 from ..gui.dropshadow import DropShadowFrame
@@ -1363,8 +1363,7 @@ class CanvasMainWindow(QMainWindow):
             path = recent[0]["path"]
             self.open_scheme_file(path)
 
-    def set_scheme(self, new_scheme, freeze_creation=False):
-        # type: (Scheme) -> None
+    def set_scheme(self, new_scheme: Scheme, freeze_creation=False):
         """
         Set new_scheme as the current shown scheme in this window.
 
@@ -1725,7 +1724,7 @@ class CanvasMainWindow(QMainWindow):
 
         try:
             with open(filename, "rb") as f:
-                # type: ({SchemeNode : {}}, [UndoCommand])
+                loaded: Tuple[Dict[SchemeNode, dict], List[UndoCommand]]
                 loaded = Unpickler(f, document.scheme()).load()
         except Exception:
             log.error("Could not load swp file: %r", filename, exc_info=True)
@@ -2321,11 +2320,11 @@ class CanvasMainWindow(QMainWindow):
             qself = qobjref(self)
 
             async def run(query_coro: Awaitable[QUrl], query: QUrl):
+                url: Optional[QUrl] = None
                 try:
                     url = await query_coro
                 except (KeyError, futures.TimeoutError):
                     log.info("No help topic found for %r", query)
-                    url = None
                 self_ = qself()
                 if self_ is not None:
                     self_.__handle_help_query_response(url)

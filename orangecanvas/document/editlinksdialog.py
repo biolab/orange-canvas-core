@@ -7,7 +7,7 @@ An Dialog to edit links between two nodes in the scheme.
 
 """
 import typing
-from typing import List, Tuple, Optional, Any
+from typing import cast, List, Tuple, Optional, Any, Union
 
 from collections import namedtuple
 from xml.sax.saxutils import escape
@@ -582,6 +582,8 @@ class EditLinksNode(QGraphicsWidget):
         self.layout().setAlignment(self.__channelLayout,
                                    Qt.AlignVCenter | channel_alignemnt)
 
+        self.node: Optional[SchemeNode] = None
+        self.channels: Union[List[InputSignal], List[OutputSignal]] = []
         if node is not None:
             self.setSchemeNode(node)
 
@@ -624,7 +626,7 @@ class EditLinksNode(QGraphicsWidget):
 
         """
         self.node = node
-
+        channels: Union[List[InputSignal], List[OutputSignal]]
         if self.__direction == Qt.LeftToRight:
             channels = node.output_channels()
         else:
@@ -655,8 +657,8 @@ class EditLinksNode(QGraphicsWidget):
 
         self.channelAnchors = []
         grid = self.__channelLayout
-
         for i, channel in enumerate(channels):
+            channel = cast(Union[InputSignal, OutputSignal], channel)
             text = label_template.format(align=align,
                                          name=escape(channel.name))
 
