@@ -6,33 +6,40 @@ Scheme
 The scheme package implements and defines the underlying workflow model.
 
 The :class:`.Scheme` class represents the workflow and is composed of a set
-of :class:`.SchemeNode` connected with :class:`.SchemeLink`, defining an
+of :class:`.Node`\\s connected with :class:`.Link`\\s, defining an
 directed acyclic graph (DAG). Additionally instances of
-:class:`.SchemeArrowAnnotation` or :class:`.SchemeTextAnnotation` can be
-inserted into the scheme.
-
+:class:`~.annotations.ArrowAnnotation` or :class:`~.annotations.TextAnnotation`
+can be inserted into the scheme.
 """
 
-from .node import SchemeNode
-from .link import SchemeLink, compatible_channels, can_connect, possible_links
+from .node import Node, SchemeNode
+from .metanode import MetaNode, InputNode, OutputNode
+from .link import Link, compatible_channels, can_connect, possible_links
 from .scheme import Scheme
-
-from .annotations import (
-    BaseSchemeAnnotation, SchemeArrowAnnotation, SchemeTextAnnotation
-)
+from .annotations import Annotation, ArrowAnnotation, TextAnnotation
+from ..registry import InputSignal, OutputSignal
 
 from .errors import *
 from .events import *
 
-#: Alias for SchemeNode
-Node = SchemeNode
+__all__ = [
+    "Node", "InputNode", "OutputNode", "SchemeNode", "MetaNode", "Link",
+    "Workflow", "Scheme", "Annotation", "ArrowAnnotation", "TextAnnotation",
+    "InputSignal", "OutputSignal", "compatible_channels", "can_connect",
+    "possible_links",
+    # from .events import *
+    "WorkflowEvent", "NodeEvent", "NodeInputChannelEvent",
+    "NodeOutputChannelEvent", "LinkEvent", "AnnotationEvent",
+    "WorkflowEnvChanged"
+]
+
 #: Alias for SchemeLink
-Link = SchemeLink
+SchemeLink = Link
 #: Alias for Scheme
 Workflow = Scheme
 #: Alias for BaseSchemeAnnotation
-Annotation = BaseSchemeAnnotation
+BaseSchemeAnnotation = Annotation
 #: Alias for SchemeArrowAnnotation
-Arrow = SchemeArrowAnnotation
+SchemeArrowAnnotation = Arrow = ArrowAnnotation
 #: Alias for SchemeTextAnnotation
-Text = SchemeTextAnnotation
+SchemeTextAnnotation = Text = TextAnnotation

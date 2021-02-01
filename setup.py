@@ -34,6 +34,7 @@ INSTALL_REQUIRES = (
     "importlib_resources; python_version<'3.9'",
     "packaging",
     "numpy",
+    "dataclasses; python_version<'3.7'",
 )
 
 

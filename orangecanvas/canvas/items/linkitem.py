@@ -24,8 +24,7 @@ from .nodeitem import AnchorPoint, SHADOW_COLOR
 from .graphicstextitem import GraphicsTextItem
 from .utils import stroke_path, qpainterpath_sub_path
 from ...registry import InputSignal, OutputSignal
-
-from ...scheme import SchemeLink
+from ...scheme import Link
 
 if typing.TYPE_CHECKING:
     from . import NodeItem, AnchorPoint
