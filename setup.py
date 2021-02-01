@@ -37,6 +37,7 @@ INSTALL_REQUIRES = (
     "typing_extensions",
     "packaging",
     "numpy",
+    "dataclasses; python_version<'3.7'",
 )
 
 

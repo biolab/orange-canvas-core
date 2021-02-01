@@ -28,7 +28,8 @@ from typing import (
 
 from typing_extensions import TypeGuard
 
-from . import SchemeNode, SchemeLink
+from .node import SchemeNode
+from .link import SchemeLink
 from .annotations import SchemeTextAnnotation, SchemeArrowAnnotation
 from .errors import IncompatibleChannelTypeError
 
