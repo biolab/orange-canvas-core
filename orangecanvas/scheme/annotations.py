@@ -10,12 +10,13 @@ from AnyQt.QtCore import QObject
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
 from ..utils import check_type
+from .element import Element
 
 Pos = Tuple[float, float]
 Rect = Tuple[float, float, float, float]
 
 
-class BaseSchemeAnnotation(QObject):
+class Annotation(Element):
     """
     Base class for scheme annotations.
     """
@@ -23,7 +24,7 @@ class BaseSchemeAnnotation(QObject):
     geometry_changed = Signal()
 
 
-class SchemeArrowAnnotation(BaseSchemeAnnotation):
+class ArrowAnnotation(Annotation):
     """
     An arrow annotation in the scheme.
     """
@@ -121,7 +122,7 @@ class SchemeArrowAnnotation(BaseSchemeAnnotation):
         self.__init__(*state)
 
 
-class SchemeTextAnnotation(BaseSchemeAnnotation):
+class TextAnnotation(Annotation):
     """
     Text annotation in the scheme.
     """
@@ -280,3 +281,9 @@ class SchemeTextAnnotation(BaseSchemeAnnotation):
 
     def __setstate__(self, state):
         self.__init__(*state)
+
+
+#: Aliases for back-compatibility
+BaseSchemeAnnotation = Annotation
+SchemeArrowAnnotation = ArrowAnnotation
+SchemeTextAnnotation = TextAnnotation
