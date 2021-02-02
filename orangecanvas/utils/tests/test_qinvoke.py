@@ -1,4 +1,5 @@
 import time
+from types import SimpleNamespace
 from typing import List, Optional, Callable
 
 import unittest
@@ -9,7 +10,7 @@ from concurrent.futures.thread import ThreadPoolExecutor
 
 from AnyQt.QtTest import QSignalSpy, QTest
 
-from ..qinvoke import qinvoke
+from ..qinvoke import qinvoke, connect_with_context
 
 
 class CoreAppTestCase(unittest.TestCase):
@@ -22,6 +23,14 @@ class CoreAppTestCase(unittest.TestCase):
     def tearDown(self) -> None:
         self.app = None
         super().tearDown()
+
+
+def delete(qobj: QObject):
+    assert qobj.thread() is QThread.currentThread()
+    spy = QSignalSpy(qobj.destroyed)
+    qobj.deleteLater()
+    QCoreApplication.sendPostedEvents(qobj, QEvent.DeferredDelete)
+    assert len(spy) == 1
 
 
 class TestMethodinvoke(CoreAppTestCase):
@@ -75,13 +84,6 @@ class TestMethodinvoke(CoreAppTestCase):
             nonlocal isdeleted
             isdeleted = True
 
-        def delete(qobj: QObject):
-            assert qobj.thread() is QThread.currentThread()
-            spy = QSignalSpy(qobj.destroyed)
-            qobj.deleteLater()
-            QCoreApplication.sendPostedEvents(qobj, QEvent.DeferredDelete)
-            assert len(spy) == 1
-
         context.destroyed.connect(mark_deleted)
 
         def func(i):
@@ -122,3 +124,41 @@ class TestMethodinvoke(CoreAppTestCase):
 
         with self.assertRaises(TypeError):
             qinvoke()
+
+
+class TestConnectWithContext(CoreAppTestCase):
+    def test_connect_with_context(self):
+        state = SimpleNamespace(th=None, greeting=None)
+        target = QObject()
+
+        def in_target_context(greeting: str):
+            state.th = QThread.currentThread()
+            state.greeting = greeting
+            target.setObjectName(greeting)
+
+        executor = ThreadPoolExecutor()
+        emiter = QObject()
+        connect_with_context(
+            emiter.objectNameChanged,
+            target,
+            in_target_context,
+        )
+
+        def run():
+            emiter.objectNameChanged.emit("hello")
+
+        spy = QSignalSpy(target.objectNameChanged)
+        executor.submit(run)
+        self.assertTrue(spy.wait())
+        self.assertIs(target.thread(), state.th)
+
+        # delete target context (and connection)
+        delete(target)
+        state.th = None
+        state.greeting = None
+
+        executor.map(run, range(10))
+        executor.shutdown(wait=True)
+        QTest.qWait(10)
+        self.assertIsNone(state.th)
+        self.assertIsNone(state.greeting)

@@ -1,5 +1,5 @@
-from typing import TypeVar, Callable, overload
-from AnyQt.QtCore import Qt, QObject, Signal
+from typing import TypeVar, Callable, overload, Optional
+from AnyQt.QtCore import Qt, QObject, Signal, pyqtBoundSignal as BoundSignal
 
 from functools import wraps
 
@@ -137,3 +137,26 @@ def qinvoke(func: Callable = None, context: QObject = None, type=Qt.QueuedConnec
         raise TypeError
 
     return decorator
+
+
+def connect_with_context(
+        signal: BoundSignal,
+        context: QObject,
+        functor: Callable,
+        type=Qt.AutoConnection
+):
+    """
+    Connect a signal to a callable functor to be placed in a specific event
+    loop of context.
+
+    The connection will automatically disconnect if the sender or the
+    context is destroyed. However, you should take care that any objects
+    used within the functor are still alive when the signal is emitted.
+
+    Note
+    ----
+    Like the QObject.connect overload that takes a explicit context QObject,
+    which is not exposed by PyQt
+    """
+    f = qinvoke(functor, context=context, type=type)
+    return signal.connect(f)
