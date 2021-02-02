@@ -1512,9 +1512,6 @@ class SchemeEditWidget(QWidget):
             handler = interactions.NewNodeAction(self)
             searchText = event.text()
 
-            # TODO: set the search text to event.text() and set focus on the
-            # search line
-
         if handler is not None:
             # Control + Backspace (remove widget action on Mac OSX) conflicts
             # with the 'Clear text' action in the search widget (there might
