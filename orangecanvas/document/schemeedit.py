@@ -42,7 +42,9 @@ from .suggestions import Suggestions
 from .usagestatistics import UsageStatistics
 from ..registry.qt import whats_this_helper, QtWidgetRegistry
 from ..gui.quickhelp import QuickHelpTipEvent
-from ..gui.utils import message_information, disabled
+from ..gui.utils import (
+    message_information, disabled, clipboard_has_format, clipboard_data
+)
 from ..scheme import (
     scheme, signalmanager, Scheme, SchemeNode, SchemeLink,
     BaseSchemeAnnotation, SchemeTextAnnotation, WorkflowEvent
@@ -2461,33 +2463,6 @@ def copy_link(link, source=None, sink=None):
         sink, link.sink_channel,
         enabled=link.enabled,
         properties=copy.deepcopy(link.properties))
-
-
-def clipboard_has_format(mimetype):
-    # type: (str) -> bool
-    """Does the system clipboard contain data for mimetype?"""
-    cb = QApplication.clipboard()
-    if cb is None:
-        return False
-    mime = cb.mimeData()
-    if mime is None:
-        return False
-    return mime.hasFormat(mimetype)
-
-
-def clipboard_data(mimetype):
-    # type: (str) -> Optional[bytes]
-    """Return the binary data of the system clipboard for mimetype."""
-    cb = QApplication.clipboard()
-    if cb is None:
-        return None
-    mime = cb.mimeData()
-    if mime is None:
-        return None
-    if mime.hasFormat(mimetype):
-        return bytes(mime.data(mimetype))
-    else:
-        return None
 
 
 def nodes_top_left(nodes):
