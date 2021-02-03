@@ -1,15 +1,15 @@
 from typing import Optional, Union, Any, Tuple
 
 from AnyQt.QtWidgets import (
-    QGraphicsItem, QGraphicsPathItem, QGraphicsWidget, QGraphicsTextItem,
+    QGraphicsItem, QGraphicsPathItem, QGraphicsWidget,
     QGraphicsDropShadowEffect, QMenu, QAction, QActionGroup,
-    QStyleOptionGraphicsItem, QWidget, QGraphicsSceneHoverEvent,
+    QStyleOptionGraphicsItem, QWidget,
     QGraphicsSceneMouseEvent, QGraphicsSceneResizeEvent,
     QGraphicsSceneContextMenuEvent
 )
 from AnyQt.QtGui import (
     QPainterPath, QPainterPathStroker, QPolygonF, QColor, QPen, QBrush,
-    QPalette, QPainter, QTextDocument, QTextCursor, QFocusEvent
+    QPalette, QPainter, QTextDocument, QTextCursor
 )
 from AnyQt.QtCore import (
     Qt, QPointF, QSizeF, QRectF, QLineF, QEvent, QMetaObject, QObject
@@ -20,6 +20,7 @@ from AnyQt.QtCore import (
 
 from orangecanvas.utils import markup
 from .graphicspathobject import GraphicsPathObject
+from .graphicstextitem import GraphicsTextEdit
 
 
 class Annotation(QGraphicsWidget):
@@ -28,24 +29,21 @@ class Annotation(QGraphicsWidget):
     """
 
 
-class GraphicsTextEdit(QGraphicsTextItem):
+class GraphicsTextEdit(GraphicsTextEdit):
     """
     QGraphicsTextItem subclass defining an additional placeholderText
     property (text displayed when no text is set).
-
     """
-    #: Signal emitted when editing operation starts (the item receives edit
-    #: focus)
-    editingStarted = Signal()
-    #: Signal emitted when editing operation ends (the item loses edit focus)
-    editingFinished = Signal()
 
     def __init__(self, *args, placeholderText="", **kwargs):
         # type: (Any, str, Any) -> None
+        kwargs.setdefault(
+            "editTriggers",
+            GraphicsTextEdit.DoubleClicked | GraphicsTextEdit.EditKeyPressed
+        )
         super().__init__(*args, **kwargs)
         self.setAcceptHoverEvents(True)
         self.__placeholderText = placeholderText
-        self.__editing = False  # text editing in progress
 
     def setPlaceholderText(self, text):
         # type: (str) -> None
@@ -88,55 +86,6 @@ class GraphicsTextEdit(QGraphicsTextItem):
             painter.setPen(QPen(color))
             painter.drawText(brect, Qt.AlignTop | Qt.AlignLeft, text)
 
-    def hoverMoveEvent(self, event):
-        # type: (QGraphicsSceneHoverEvent) -> None
-        layout = self.document().documentLayout()
-        if layout.anchorAt(event.pos()):
-            self.setCursor(Qt.PointingHandCursor)
-        else:
-            self.unsetCursor()
-        super().hoverMoveEvent(event)
-
-    def mousePressEvent(self, event):
-        # type: (QGraphicsSceneMouseEvent) -> None
-        flags = self.textInteractionFlags()
-        if flags & Qt.LinksAccessibleByMouse \
-                and not flags & Qt.TextSelectableByMouse \
-                and self.document().documentLayout().anchorAt(event.pos()):
-            # QGraphicsTextItem ignores the press event without
-            # Qt.TextSelectableByMouse flag set. This causes the
-            # corresponding mouse release to never get to this item
-            # and therefore no linkActivated/openUrl ...
-            super().mousePressEvent(event)
-            if not event.isAccepted():
-                event.accept()
-        else:
-            super().mousePressEvent(event)
-
-    def setTextInteractionFlags(self, flags):
-        # type: (Union[Qt.TextInteractionFlag, Qt.TextInteractionFlags]) -> None
-        super().setTextInteractionFlags(flags)
-        if self.hasFocus() and flags & Qt.TextEditable and not self.__editing:
-            self.__editing = True
-            self.editingStarted.emit()
-
-    def focusInEvent(self, event):
-        # type: (QFocusEvent) -> None
-        super().focusInEvent(event)
-        if self.textInteractionFlags() & Qt.TextEditable and \
-                not self.__editing:
-            self.__editing = True
-            self.editingStarted.emit()
-
-    def focusOutEvent(self, event):
-        # type: (QFocusEvent) -> None
-        super().focusOutEvent(event)
-        if self.__editing and \
-                event.reason() not in {Qt.ActiveWindowFocusReason,
-                                       Qt.PopupFocusReason}:
-            self.__editing = False
-            self.editingFinished.emit()
-
 
 class TextAnnotation(Annotation):
     """
@@ -175,7 +124,9 @@ class TextAnnotation(Annotation):
         self.__framePathItem = QGraphicsPathItem(self)
         self.__framePathItem.setPen(self.__framePen)
 
-        self.__textItem = GraphicsTextEdit(self)
+        self.__textItem = GraphicsTextEdit(
+            self, editTriggers=GraphicsTextEdit.NoEditTriggers
+        )
         self.__textItem.setOpenExternalLinks(True)
         self.__textItem.setPlaceholderText(self.tr("Enter text here"))
         self.__textItem.setPos(2, 2)
@@ -359,6 +310,7 @@ class TextAnnotation(Annotation):
         self.__textItem.setPlainText(self.__content)
         self.__textItem.setTextInteractionFlags(self.__textInteractionFlags)
         self.__textItem.setFocus(Qt.MouseFocusReason)
+        self.__textItem.edit()
         self.__textItem.document().contentsChanged.connect(
             self.textEdited
         )

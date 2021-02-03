@@ -1,11 +1,15 @@
-from typing import Optional, Iterable
+import enum
+import sys
+from typing import Optional, Iterable, Union
 
-from AnyQt.QtCore import Qt, QEvent
+from AnyQt.QtCore import Qt, QEvent, Signal
 from AnyQt.QtGui import (
-    QTextDocument, QTextBlock, QTextLine, QPalette, QPainter, QPen, QPainterPath
+    QTextDocument, QTextBlock, QTextLine, QPalette, QPainter, QPen,
+    QPainterPath, QFocusEvent, QKeyEvent, QTextBlockFormat, QTextCursor
 )
 from AnyQt.QtWidgets import (
     QGraphicsTextItem, QStyleOptionGraphicsItem, QStyle, QWidget, QApplication,
+    QGraphicsSceneHoverEvent, QGraphicsSceneMouseEvent,
 )
 
 from orangecanvas.utils import set_flag
@@ -42,7 +46,8 @@ class GraphicsTextItem(QGraphicsTextItem):
     def paint(self, painter, option, widget=None):
         # type: (QPainter, QStyleOptionGraphicsItem, Optional[QWidget]) -> None
         state = option.state | self.__styleState
-        if state & (QStyle.State_Selected | QStyle.State_HasFocus):
+        if state & (QStyle.State_Selected | QStyle.State_HasFocus) \
+                and not state & QStyle.State_Editing:
             path = self.__textBackgroundPath()
             palette = self.palette()
             if state & QStyle.State_Enabled:
@@ -151,3 +156,173 @@ def text_outline_path(doc: QTextDocument) -> QPainterPath:
         p.addRoundedRect(rect, 3, 3)
         path = path.united(p)
     return path
+
+
+class EditTriggers(enum.IntEnum):
+    NoEditTriggers = 0
+    CurrentChanged = 1
+    DoubleClicked = 2
+    SelectedClicked = 4
+    EditKeyPressed = 8
+    AnyKeyPressed = 16
+
+
+class GraphicsTextEdit(GraphicsTextItem):
+    EditTriggers = EditTriggers
+    NoEditTriggers = EditTriggers.NoEditTriggers
+    CurrentChanged = EditTriggers.CurrentChanged
+    DoubleClicked = EditTriggers.DoubleClicked
+    SelectedClicked = EditTriggers.SelectedClicked
+    EditKeyPressed = EditTriggers.EditKeyPressed
+    AnyKeyPressed = EditTriggers.AnyKeyPressed
+
+    #: Signal emitted when editing operation starts (the item receives edit
+    #: focus)
+    editingStarted = Signal()
+    #: Signal emitted when editing operation ends (the item loses edit focus)
+    editingFinished = Signal()
+
+    documentSizeChanged = Signal()
+
+    def __init__(self, *args, **kwargs):
+        self.__editTriggers = kwargs.pop(
+            "editTriggers", GraphicsTextEdit.DoubleClicked
+        )
+        alignment = kwargs.pop("alignment", None)
+        self.__returnKeyEndsEditing = kwargs.pop("returnKeyEndsEditing", False)
+        super().__init__(*args, **kwargs)
+        self.__editing = False
+        self.__textInteractionFlags = self.textInteractionFlags()
+
+        if sys.platform == "darwin":
+            self.__editKeys = (Qt.Key_Enter, Qt.Key_Return)
+        else:
+            self.__editKeys = (Qt.Key_F2,)
+
+        self.document().documentLayout().documentSizeChanged.connect(
+            self.documentSizeChanged
+        )
+        if alignment is not None:
+            self.setAlignment(alignment)
+
+    def setAlignment(self, alignment: Qt.Alignment) -> None:
+        """Set alignment for the current text block."""
+        block = QTextBlockFormat()
+        block.setAlignment(alignment)
+        cursor = self.textCursor()
+        cursor.mergeBlockFormat(block)
+        self.setTextCursor(cursor)
+
+    def alignment(self) -> Qt.Alignment:
+        return self.textCursor().blockFormat().alignment()
+
+    def selectAll(self) -> None:
+        """Select all text."""
+        cursor = self.textCursor()
+        cursor.select(QTextCursor.Document)
+        self.setTextCursor(cursor)
+
+    def clearSelection(self) -> None:
+        """Clear current selection."""
+        cursor = self.textCursor()
+        cursor.clearSelection()
+        self.setTextCursor(cursor)
+
+    def hoverMoveEvent(self, event: QGraphicsSceneHoverEvent) -> None:
+        layout = self.document().documentLayout()
+        if layout.anchorAt(event.pos()):
+            self.setCursor(Qt.PointingHandCursor)
+        else:
+            self.unsetCursor()
+        super().hoverMoveEvent(event)
+
+    def mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:
+        flags = self.textInteractionFlags()
+        if flags & Qt.LinksAccessibleByMouse \
+                and not flags & Qt.TextSelectableByMouse \
+                and self.document().documentLayout().anchorAt(event.pos()):
+            # QGraphicsTextItem ignores the press event without
+            # Qt.TextSelectableByMouse flag set. This causes the
+            # corresponding mouse release to never get to this item
+            # and therefore no linkActivated/openUrl ...
+            super().mousePressEvent(event)
+            if not event.isAccepted():
+                event.accept()
+        else:
+            super().mousePressEvent(event)
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        editing = self.__editing
+        if self.__editTriggers & EditTriggers.EditKeyPressed \
+                and not editing:
+            if event.key() in self.__editKeys:
+                self.__startEdit(Qt.ShortcutFocusReason)
+                event.accept()
+                return
+        elif self.__editTriggers & EditTriggers.AnyKeyPressed \
+                and not editing:
+            self.__startEdit(Qt.OtherFocusReason)
+            event.accept()
+            return
+        if editing and self.__returnKeyEndsEditing \
+                and event.key() in (Qt.Key_Enter, Qt.Key_Return):
+            self.__endEdit()
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+    def setTextInteractionFlags(
+            self, flags: Union[Qt.TextInteractionFlag, Qt.TextInteractionFlags]
+    ) -> None:
+        super().setTextInteractionFlags(flags)
+        if self.hasFocus() and flags & Qt.TextEditable and not self.__editing:
+            self.__startEdit(EditTriggers.NoEditTriggers)
+
+    def isEditing(self) -> bool:
+        """Is editing currently active."""
+        return self.__editing
+
+    def edit(self) -> None:
+        """Start editing"""
+        if not self.__editing:
+            self.__startEdit(Qt.OtherFocusReason)
+
+    def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent) -> None:
+        super().mouseDoubleClickEvent(event)
+        if self.__editTriggers & GraphicsTextEdit.DoubleClicked:
+            self.__startEdit(Qt.MouseFocusReason)
+
+    def focusInEvent(self, event: QFocusEvent)  -> None:
+        super().focusInEvent(event)
+        if self.textInteractionFlags() & Qt.TextEditable \
+                and not self.__editing \
+                and self.__editTriggers & EditTriggers.CurrentChanged:
+            self.__startEdit(event.reason())
+
+    def focusOutEvent(self, event: QFocusEvent) -> None:
+        super().focusOutEvent(event)
+        if self.__editing and event.reason() not in {
+            Qt.ActiveWindowFocusReason,
+            Qt.PopupFocusReason
+        }:
+            self.__endEdit()
+
+    def paint(self, painter, option, widget=None):
+        if self.__editing:
+            option.state |= QStyle.State_Editing
+        super().paint(painter, option, widget)
+
+    def __startEdit(self, focusReason=Qt.OtherFocusReason) -> None:
+        if self.__editing:
+            return
+        self.__editing = True
+        self.__textInteractionFlags = self.textInteractionFlags()
+        self.setTextInteractionFlags(Qt.TextEditorInteraction)
+        self.setFocus(focusReason)
+        self.editingStarted.emit()
+
+    def __endEdit(self) -> None:
+        self.__editing = False
+        self.clearSelection()
+        self.setTextInteractionFlags(self.__textInteractionFlags)
+        self.editingFinished.emit()
