@@ -27,13 +27,14 @@ from AnyQt.QtGui import (
 from AnyQt.QtCore import (
     Qt, QEvent, QPointF, QRectF, QRect, QSize, QTime, QTimer,
     QPropertyAnimation, QEasingCurve, QObject, QVariantAnimation,
-    QParallelAnimationGroup)
+    QParallelAnimationGroup, Slot)
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 from PyQt5.QtCore import pyqtProperty
 
 from .graphicspathobject import GraphicsPathObject
-from .graphicstextitem import GraphicsTextItem
+from .graphicstextitem import GraphicsTextItem, GraphicsTextEdit
 from .utils import saturated, radial_gradient
+from ...gui.utils import disconnected
 
 from ...scheme.node import UserMessage
 from ...registry import NAMED_COLORS, WidgetDescription, CategoryDescription, \
@@ -1349,7 +1350,11 @@ class NodeItem(QGraphicsWidget):
         self.outputAnchorItem.hide()
 
         # Title caption item
-        self.captionTextItem = GraphicsTextItem(self)
+        self.captionTextItem = GraphicsTextEdit(
+            self, editTriggers=GraphicsTextEdit.NoEditTriggers,
+            returnKeyEndsEditing=True,
+        )
+        self.captionTextItem.setTabChangesFocus(True)
         self.captionTextItem.setPlainText("")
         self.captionTextItem.setPos(0, 33)
 
@@ -1462,7 +1467,10 @@ class NodeItem(QGraphicsWidget):
         """
         if self.__title != title:
             self.__title = title
-            self.__updateTitleText()
+            if self.captionTextItem.isEditing():
+                self.captionTextItem.setPlainText(title)
+            else:
+                self.__updateTitleText()
 
     def title(self):
         # type: () -> str
@@ -1473,6 +1481,62 @@ class NodeItem(QGraphicsWidget):
 
     title_ = Property(str, fget=title, fset=setTitle,
                       doc="Node title text.")
+
+    #: Title editing has started
+    titleEditingStarted = Signal()
+    #: Title editing has finished
+    titleEditingFinished = Signal()
+
+    def editTitle(self):
+        """
+        Start the inline title text edit process.
+        """
+        if self.captionTextItem.isEditing():
+            return
+        self.captionTextItem.setPlainText(self.__title)
+        self.captionTextItem.selectAll()
+        self.captionTextItem.setAlignment(Qt.AlignCenter)
+        self.captionTextItem.document().clearUndoRedoStacks()
+        self.captionTextItem.editingFinished.connect(self.__editTitleFinish)
+        self.captionTextItem.edit()
+        doc = self.captionTextItem.document()
+        doc.documentLayout().documentSizeChanged.connect(
+            self.__autoLayoutTitleText, Qt.UniqueConnection
+        )
+        self.titleEditingStarted.emit()
+
+    def __editTitleFinish(self):
+        # called when title editing has finished
+        self.captionTextItem.editingFinished.disconnect(self.__editTitleFinish)
+        doc = self.captionTextItem.document()
+        doc.documentLayout().documentSizeChanged.disconnect(
+            self.__autoLayoutTitleText
+        )
+        name = self.captionTextItem.toPlainText()
+        if name != self.__title:
+            self.setTitle(name)
+        self.__updateTitleText()
+        self.titleEditingFinished.emit()
+
+    @Slot()
+    def __autoLayoutTitleText(self):
+        # auto layout the title during editing
+        doc = self.captionTextItem.document()
+        doc_copy = doc.clone()
+        doc_copy.adjustSize()
+        width = doc_copy.textWidth()
+        doc_copy.deleteLater()
+        if width == doc.textWidth():
+            return
+        self.prepareGeometryChange()
+        self.__boundingRect = None
+        with disconnected(
+                doc.documentLayout().documentSizeChanged,
+                self.__autoLayoutTitleText
+        ):
+            doc.adjustSize()
+        width = self.captionTextItem.textWidth()
+        self.captionTextItem.setPos(-width / 2.0, 33)
 
     def setAnimationEnabled(self, enabled):
         # type: (bool) -> None
@@ -1676,6 +1740,8 @@ class NodeItem(QGraphicsWidget):
         """
         Update the title text item.
         """
+        if self.captionTextItem.isEditing():
+            return
         text = ['<div align="center">%s' % escape(self.title())]
 
         status_text = []
