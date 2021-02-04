@@ -1,8 +1,10 @@
 """
 Tests for scheme document.
 """
-from typing import Iterable
+import sys
+import unittest
 from unittest import mock
+from typing import Iterable
 
 from AnyQt.QtCore import Qt, QPoint
 from AnyQt.QtGui import QPainterPath
@@ -212,6 +214,22 @@ class TestSchemeEdit(QAppTestCase):
         undo = w.undoStack()
         command = undo.command(undo.count() - 1)
         self.assertIsInstance(command, commands.RenameNodeCommand)
+
+    @unittest.skipUnless(sys.platform == "darwin", "macos only")
+    def test_node_rename_click_selected(self):
+        w = self.w
+        scene = w.scene()
+        view = w.view()
+        node = SchemeNode(self.reg.widget("one"), title="A")
+        w.addNode(node)
+        w.selectAll()
+        item = scene.item_for_node(node)
+        assert isinstance(item, items.NodeItem)
+        point = item.captionTextItem.boundingRect().center()
+        point = item.captionTextItem.mapToScene(point)
+        point = view.mapFromScene(point)
+        QTest.mouseClick(view.viewport(), Qt.LeftButton, Qt.NoModifier, point)
+        self.assertTrue(item.captionTextItem.isEditing())
 
     def test_arrow_annotation_action(self):
         w = self.w

@@ -1384,6 +1384,21 @@ class SchemeEditWidget(QWidget):
             event.accept()
             return True
         any_item = scene.item_at(pos)
+        # start node name edit on selected clicked
+        if sys.platform == "darwin" \
+                and isinstance(any_item, items.nodeitem.GraphicsTextEdit) \
+                and isinstance(any_item.parentItem(), items.NodeItem):
+            node = scene.node_for_item(any_item.parentItem())
+            selected = self.selectedNodes()
+            if node in selected:
+                # deselect all other elements except the node item
+                # and start the edit
+                for selected_node in selected:
+                    selected_node_item = scene.item_for_node(selected_node)
+                    selected_node_item.setSelected(selected_node is node)
+                self.editNodeTitle(node)
+                return True
+
         if not any_item:
             self.__emptyClickButtons |= event.button()
 
