@@ -60,6 +60,33 @@ def disabled(qobject):
         qobject.setEnabled(old_state)
 
 
+@contextmanager
+def disconnected(signal, slot, type=Qt.UniqueConnection):
+    """
+    A context manager disconnecting a slot from a signal.
+    ::
+
+        with disconnected(scene.selectionChanged, self.onSelectionChanged):
+            # Can change item selection in a scene without
+            # onSelectionChanged being invoked.
+            do_something()
+
+    Warning
+    -------
+    The relative order of the slot in signal's connections is not preserved.
+
+    Raises
+    ------
+    TypeError:
+        If the slot was not connected to the signal
+    """
+    signal.disconnect(slot)
+    try:
+        yield
+    finally:
+        signal.connect(slot, type)
+
+
 def StyledWidget_paintEvent(self, event):
     # type: (QWidget, QPaintEvent) -> None
     """A default styled QWidget subclass  paintEvent function.
