@@ -8,6 +8,7 @@ Scheme Editor Widget
 import io
 import logging
 import itertools
+import sys
 import unicodedata
 import copy
 import dictdiffer
@@ -20,8 +21,8 @@ from typing import (
 )
 
 from AnyQt.QtWidgets import (
-    QWidget, QVBoxLayout, QInputDialog, QMenu, QAction, QActionGroup,
-    QUndoStack, QUndoCommand, QGraphicsItem, QGraphicsTextItem,
+    QWidget, QVBoxLayout, QMenu, QAction, QActionGroup,
+    QUndoStack, QGraphicsItem, QGraphicsTextItem,
     QFormLayout, QComboBox, QDialog, QDialogButtonBox, QMessageBox, QCheckBox,
     QGraphicsSceneDragDropEvent, QGraphicsSceneMouseEvent,
     QGraphicsSceneContextMenuEvent, QGraphicsView, QGraphicsScene,
@@ -32,7 +33,7 @@ from AnyQt.QtGui import (
     QWhatsThisClickedEvent, QKeyEvent, QPalette
 )
 from AnyQt.QtCore import (
-    Qt, QObject, QEvent, QSignalMapper, QCoreApplication, QPoint, QPointF,
+    Qt, QObject, QEvent, QSignalMapper, QCoreApplication, QPointF,
     QMimeData, Slot)
 from AnyQt.QtCore import pyqtProperty as Property, pyqtSignal as Signal
 
@@ -58,6 +59,7 @@ from . import interactions
 from . import commands
 from . import quickmenu
 from ..utils import findf
+from ..utils.qinvoke import connect_with_context
 
 Pos = Tuple[float, float]
 RuntimeState = signalmanager.SignalManager.State
@@ -359,6 +361,12 @@ class SchemeEditWidget(QWidget):
             shortcut=QKeySequence(Qt.Key_F2),
             enabled=False
         )
+        if sys.platform == "darwin":
+            self.__renameAction.setShortcuts([
+                QKeySequence(Qt.Key_F2),
+                QKeySequence(Qt.Key_Enter),
+                QKeySequence(Qt.Key_Return)
+            ])
 
         self.__helpAction = QAction(
             self.tr("Help"), self,
@@ -1234,19 +1242,23 @@ class SchemeEditWidget(QWidget):
     def editNodeTitle(self, node):
         # type: (SchemeNode) -> None
         """
-        Edit (rename) the `node`'s title. Opens an input dialog.
+        Edit (rename) the `node`'s title.
         """
-        name, ok = QInputDialog.getText(
-            self, self.tr("Rename"),
-            self.tr("Enter a new name for the '%s' widget") % node.title,
-            text=node.title
-        )
+        scene = self.__scene
+        item = scene.item_for_node(node)
+        item.editTitle()
 
-        if ok and self.__scheme is not None:
+        def commit():
+            name = item.title()
+            if name == node.title:
+                return  # pragma: no cover
             self.__undoStack.push(
                 commands.RenameNodeCommand(self.__scheme, node, node.title,
                                            name)
             )
+        connect_with_context(
+            item.titleEditingFinished, self, commit
+        )
 
     def __onCleanChanged(self, clean):
         # type: (bool) -> None
@@ -1629,6 +1641,7 @@ class SchemeEditWidget(QWidget):
         annotations = self.selectedAnnotations()
         links = self.selectedLinks()
 
+        self.__renameAction.setEnabled(len(nodes) == 1)
         self.__openSelectedAction.setEnabled(bool(nodes))
         self.__removeSelectedAction.setEnabled(
             bool(nodes or annotations or links)
