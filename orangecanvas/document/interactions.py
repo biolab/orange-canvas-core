@@ -673,6 +673,8 @@ class NewLinkAction(UserInteraction):
         detailed dialog for link editing.
 
         """
+        UsageStatistics.set_sink_anchor_open(sink_signal is not None)
+        UsageStatistics.set_source_anchor_open(source_signal is not None)
         try:
             possible = self.scheme.propose_links(source_node, sink_node,
                                                  source_signal, sink_signal)
