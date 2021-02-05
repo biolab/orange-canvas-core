@@ -69,6 +69,8 @@ class UsageStatistics:
     _is_enabled = False
     statistics_sessions = []
     last_search_query = None
+    source_open = False
+    sink_open = False
 
     Unclassified, ToolboxClick, ToolboxDrag, QuickMenu, ExtendFromSink, ExtendFromSource, \
     InsertDrag, InsertMenu, Undo, Redo, Duplicate, Load \
@@ -361,7 +363,9 @@ class UsageStatistics:
             "Source Widget": src_id,
             "Sink Widget": sink_id,
             "Source Channel": link.source_channel.name,
-            "Sink Channel": link.sink_channel.name
+            "Sink Channel": link.sink_channel.name,
+            "Source Open": UsageStatistics.source_open,
+            "Sink Open:": UsageStatistics.sink_open,
         }
 
         self._events.append(event)
@@ -442,6 +446,20 @@ class UsageStatistics:
             return
 
         UsageStatistics.last_search_query = query
+
+    @staticmethod
+    def set_source_anchor_open(is_open):
+        if not UsageStatistics.is_enabled():
+            return
+
+        UsageStatistics.source_open = is_open
+
+    @staticmethod
+    def set_sink_anchor_open(is_open):
+        if not UsageStatistics.is_enabled():
+            return
+
+        UsageStatistics.sink_open = is_open
 
     @staticmethod
     def filename() -> str:
