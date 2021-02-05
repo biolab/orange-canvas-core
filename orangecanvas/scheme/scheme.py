@@ -150,13 +150,14 @@ class Scheme(QObject):
             self.__title = title
             self.title_changed.emit(title)
 
-    def title(self):
+    def _title(self):
         """
         The title (human readable string) of the scheme.
         """
         return self.__title
 
-    title = Property(str, fget=title, fset=set_title)  # type: ignore
+    title: str
+    title = Property(str, _title, set_title)  # type: ignore
 
     def set_description(self, description):
         # type: (str) -> None
@@ -167,14 +168,14 @@ class Scheme(QObject):
             self.__description = description
             self.description_changed.emit(description)
 
-    def description(self):
+    def _description(self):
         """
         Scheme description text.
         """
         return self.__description
 
-    description = Property(  # type: ignore
-        str, fget=description, fset=set_description)
+    description: str
+    description = Property(str, _description, set_description)  # type: ignore
 
     def add_node(self, node):
         # type: (SchemeNode) -> None
@@ -612,9 +613,13 @@ class Scheme(QObject):
 
         return result
 
-    def propose_links(self, source_node, sink_node,
-                            source_signal=None, sink_signal=None):
-        # type: (SchemeNode, SchemeNode) -> List[Tuple[OutputSignal, InputSignal, int]]
+    def propose_links(
+            self,
+            source_node: SchemeNode,
+            sink_node: SchemeNode,
+            source_signal: Optional[OutputSignal] = None,
+            sink_signal: Optional[InputSignal] = None
+    ) -> List[Tuple[OutputSignal, InputSignal, int]]:
         """
         Return a list of ordered (:class:`OutputSignal`,
         :class:`InputSignal`, weight) tuples that could be added to

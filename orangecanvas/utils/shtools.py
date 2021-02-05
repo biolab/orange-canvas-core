@@ -59,7 +59,8 @@ def python_process(
 def __nt_kwargs_defaults(kwargs):
     # do not open a new console window for command on windows.
     if hasattr(subprocess, "CREATE_NO_WINDOW"):
-        CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW  # Python >= 3.7
+        # Python >= 3.7
+        CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW  # type: ignore
     else:
         CREATE_NO_WINDOW = 0x08000000
     kwargs.setdefault("creationflags", CREATE_NO_WINDOW)

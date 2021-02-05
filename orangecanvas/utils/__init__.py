@@ -264,12 +264,12 @@ def findf(iterable, predicate, default=None):
     for item in iterable:
         if predicate(item):
             return item
-    return default
+    return typing.cast('Union[A, B]', default)
 
 
 def set_flag(flags, mask, on=True):
     # type: (F, SupportsInt, bool) -> F
     if on:
-        return type(flags)(flags | mask)
+        return type(flags)(flags | int(mask))
     else:
         return type(flags)(flags & ~int(mask))

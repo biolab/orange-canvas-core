@@ -429,15 +429,19 @@ class AnchorPoint(QGraphicsObject):
     #: Signal emitted when anchor's Input/Output channel changes.
     signalChanged = Signal(QGraphicsObject)
 
-    def __init__(self, parent=None, signal=None, **kwargs):
-        # type: (Optional[QGraphicsItem], Any) -> None
+    def __init__(
+            self,
+            parent: Optional[QGraphicsItem] = None,
+            signal: Union[InputSignal, OutputSignal, None] = None,
+            **kwargs
+    ) -> None:
         super().__init__(parent, **kwargs)
         self.setFlag(QGraphicsItem.ItemIsFocusable)
         self.setFlag(QGraphicsItem.ItemSendsScenePositionChanges, True)
         self.setFlag(QGraphicsItem.ItemHasNoContents, True)
         self.indicator = LinkAnchorIndicator(self)
 
-        self.signal = signal  # type: Optional[Union[InputSignal, OutputSignal]]
+        self.signal = signal
         self.__direction = QPointF()
 
         self.anim = QPropertyAnimation(self, b'pos', self)

@@ -17,7 +17,7 @@ def is_develop_egg(dist):
     """
     Is the distribution installed in development mode (setup.py develop)
     """
-    meta_provider = dist._provider
+    meta_provider = dist._provider  # type: ignore
     egg_info_dir = os.path.dirname(meta_provider.egg_info)
     egg_name = pkg_resources.to_filename(dist.project_name)
     return meta_provider.egg_info.endswith(egg_name + ".egg-info") \
@@ -116,7 +116,9 @@ def get_dist_url(dist):
     """
     Return the 'url' of the distribution (as passed to setup function)
     """
-    return get_meta_entry(dist, "Home-page")
+    url = get_meta_entry(dist, "Home-page")
+    assert isinstance(url, str) or url is None
+    return url
 
 
 def get_dist_meta(dist):

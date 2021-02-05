@@ -605,8 +605,12 @@ class NewLinkAction(UserInteraction):
         from_signal = self.from_signal
         from_desc = node.description
 
-        def is_compatible(source_signal, source, sink, sink_signal):
-            # type: (WidgetDescription, WidgetDescription) -> bool
+        def is_compatible(
+                source_signal: OutputSignal,
+                source: WidgetDescription,
+                sink: WidgetDescription,
+                sink_signal: InputSignal
+        ) -> bool:
             return any(scheme.compatible_channels(output, input)
                        for output
                        in ([source_signal] if source_signal else source.outputs)
@@ -658,9 +662,11 @@ class NewLinkAction(UserInteraction):
         else:
             return None
 
-    def connect_nodes(self, source_node, sink_node,
-                            source_signal=None, sink_signal=None):
-        # type: (Node, Node) -> None
+    def connect_nodes(
+            self, source_node: Node, sink_node: Node,
+            source_signal: Optional[OutputSignal] = None,
+            sink_signal: Optional[InputSignal] = None
+    ) -> None:
         """
         Connect `source_node` to `sink_node`. If there are more then one
         equally weighted and non conflicting links possible present a
@@ -1477,7 +1483,7 @@ class NewTextAnnotation(UserInteraction):
             assert self.control is not None
             assert self.annotation is not None
             # Commit the annotation to the scheme.
-            self.annotation.rect = rect_to_tuple(rect)  # type: ignore
+            self.annotation.rect = rect_to_tuple(rect)
 
             self.document.addAnnotation(self.annotation)
 

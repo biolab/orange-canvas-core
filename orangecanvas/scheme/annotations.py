@@ -4,7 +4,6 @@ Scheme Annotations
 ==================
 
 """
-import typing
 from typing import Tuple, Optional, Any
 
 from AnyQt.QtCore import QObject
@@ -12,9 +11,8 @@ from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
 from ..utils import check_type
 
-if typing.TYPE_CHECKING:
-    Pos = Tuple[float, float]
-    Rect = Tuple[float, float, float, float]
+Pos = Tuple[float, float]
+Rect = Tuple[float, float, float, float]
 
 
 class BaseSchemeAnnotation(QObject):
@@ -51,22 +49,24 @@ class SchemeArrowAnnotation(BaseSchemeAnnotation):
             self.__end_pos = end_pos
             self.geometry_changed.emit()
 
-    def start_pos(self):
+    def _start_pos(self):
         # type: () -> Pos
         """
         Start position of the arrow (base point).
         """
         return self.__start_pos
 
-    start_pos = Property(tuple, fget=start_pos)  # type: ignore
+    start_pos: Pos
+    start_pos = Property(tuple, _start_pos)  # type: ignore
 
-    def end_pos(self):
+    def _end_pos(self):
         """
         End position of the arrow (arrow head points toward the end).
         """
         return self.__end_pos
 
-    end_pos = Property(tuple, fget=end_pos)  # type: ignore
+    end_pos: Pos
+    end_pos = Property(tuple, _end_pos)  # type: ignore
 
     def set_geometry(self, geometry):
         # type: (Tuple[Pos, Pos]) -> None
@@ -78,14 +78,15 @@ class SchemeArrowAnnotation(BaseSchemeAnnotation):
         (start_pos, end_pos) = geometry
         self.set_line(start_pos, end_pos)
 
-    def geometry(self):
+    def _geometry(self):
         # type: () -> Tuple[Pos, Pos]
         """
         Return the start and end positions of the arrow.
         """
         return (self.start_pos, self.end_pos)
 
-    geometry = Property(tuple, fget=geometry, fset=set_geometry)  # type: ignore
+    geometry: Tuple[Pos, Pos]
+    geometry = Property(tuple, _geometry, set_geometry)  # type: ignore
 
     def set_color(self, color):
         # type: (str) -> None
@@ -99,14 +100,15 @@ class SchemeArrowAnnotation(BaseSchemeAnnotation):
             self.__color = color
             self.color_changed.emit(color)
 
-    def color(self):
+    def _color(self):
         # type: () -> str
         """
         The arrow's fill color.
         """
         return self.__color
 
-    color = Property(str, fget=color, fset=set_color)  # type: ignore
+    color: str
+    color = Property(str, _color, set_color)  # type: ignore
 
     def __getstate__(self):
         return self.__start_pos, \
@@ -153,14 +155,15 @@ class SchemeTextAnnotation(BaseSchemeAnnotation):
             self.__rect = rect
             self.geometry_changed.emit()
 
-    def rect(self):
+    def _rect(self):
         # type: () -> Rect
         """
         Text bounding rectangle
         """
         return self.__rect
 
-    rect = Property(tuple, fget=rect, fset=set_rect)  # type: ignore
+    rect: Rect
+    rect = Property(tuple, _rect, set_rect)  # type: ignore
 
     def set_geometry(self, rect):
         # type: (Rect) -> None
@@ -169,14 +172,15 @@ class SchemeTextAnnotation(BaseSchemeAnnotation):
         """
         self.set_rect(rect)
 
-    def geometry(self):
+    def _geometry(self):
         # type: () -> Rect
         """
         Text annotation geometry (same as ``rect``)
         """
         return self.__rect
 
-    geometry = Property(tuple, fget=geometry, fset=set_geometry)  # type: ignore
+    geometry: Rect
+    geometry = Property(tuple, _geometry, set_geometry)  # type: ignore
 
     def set_text(self, text):
         # type: (str) -> None
@@ -187,7 +191,7 @@ class SchemeTextAnnotation(BaseSchemeAnnotation):
         """
         self.set_content(text, "text/plain")
 
-    def text(self):
+    def _text(self):
         # type: () -> str
         """
         Annotation text.
@@ -197,7 +201,8 @@ class SchemeTextAnnotation(BaseSchemeAnnotation):
         """
         return self.__content
 
-    text = Property(str, fget=text, fset=set_text)  # type: ignore
+    text: str
+    text = Property(str, _text, set_text)  # type: ignore
 
     @property
     def content_type(self):
@@ -255,14 +260,15 @@ class SchemeTextAnnotation(BaseSchemeAnnotation):
             self.__font = font
             self.font_changed.emit(font)
 
-    def font(self):
+    def _font(self):
         # type: () -> dict
         """
         Annotation's font property dictionary.
         """
         return dict(self.__font)
 
-    font = Property(str, fget=font, fset=set_font)  # type: ignore
+    font: dict
+    font = Property(object, _font, set_font)  # type: ignore
 
     def __getstate__(self):
         return self.__rect, \

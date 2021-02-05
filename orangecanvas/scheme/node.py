@@ -107,6 +107,7 @@ class SchemeNode(QObject):
         self.__position = position or (0, 0)
         self.__progress = -1
         self.__processing_state = 0
+        self.__tool_tip = ""
         self.__status_message = ""
         self.__state_messages = {}  # type: Dict[str, UserMessage]
         self.__state = SchemeNode.NoState  # type: Union[SchemeNode.State, int]
@@ -161,13 +162,14 @@ class SchemeNode(QObject):
             self.__title = title
             self.title_changed.emit(self.__title)
 
-    def title(self):
+    def _title(self):
         """
         The node title.
         """
         return self.__title
 
-    title = Property(str, fset=set_title, fget=title)  # type: ignore
+    title: str
+    title = Property(str, _title, set_title)  # type: ignore
 
     #: Position of the node in the scheme has changed
     position_changed = Signal(tuple)
@@ -180,13 +182,14 @@ class SchemeNode(QObject):
             self.__position = pos
             self.position_changed.emit(pos)
 
-    def position(self):
+    def _get_position(self):
         """
         ``(x, y)`` tuple containing the position of the node in the scheme.
         """
         return self.__position
 
-    position = Property(tuple, fset=set_position, fget=position)  # type: ignore
+    position: Tuple[float, float]
+    position = Property(tuple, _get_position, set_position)  # type: ignore
 
     #: Node's progress value has changed.
     progress_changed = Signal(float)
@@ -199,13 +202,14 @@ class SchemeNode(QObject):
             self.__progress = value
             self.progress_changed.emit(value)
 
-    def progress(self):
+    def _progress(self):
         """
         The current progress value. -1 if progress is not set.
         """
         return self.__progress
 
-    progress = Property(float, fset=set_progress, fget=progress)  # type: ignore
+    progress: float
+    progress = Property(float, _progress, set_progress)  # type: ignore
 
     #: Node's processing state has changed.
     processing_state_changed = Signal(int)
@@ -216,24 +220,25 @@ class SchemeNode(QObject):
         """
         self.set_state_flags(SchemeNode.Running, bool(state))
 
-    def processing_state(self):
+    def _processing_state(self):
         """
         The node processing state, 0 for not processing, 1 the node is busy.
         """
         return int(bool(self.state() & SchemeNode.Running))
 
-    processing_state = Property(int, fset=set_processing_state,  # type: ignore
-                                fget=processing_state)
+    processing_state: int
+    processing_state = Property(  # type: ignore
+        int, _processing_state, set_processing_state)
 
     def set_tool_tip(self, tool_tip):
         if self.__tool_tip != tool_tip:
             self.__tool_tip = tool_tip
 
-    def tool_tip(self):
+    def _tool_tip(self):
         return self.__tool_tip
 
-    tool_tip = Property(str, fset=set_tool_tip,  # type: ignore
-                        fget=tool_tip)
+    tool_tip: str
+    tool_tip = Property(str, _tool_tip, set_tool_tip)  # type: ignore
 
     #: The node's status tip has changes
     status_message_changed = Signal(str)

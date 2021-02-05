@@ -566,7 +566,7 @@ class SearchWidget(LineEdit):
     def __init__(self, parent=None, **kwargs):
         # type: (Optional[QWidget], Any) -> None
         super().__init__(parent, **kwargs)
-        self.setAttribute(Qt.WA_MacShowFocusRect, 0)
+        self.setAttribute(Qt.WA_MacShowFocusRect, False)
 
         self.__setupUi()
 
@@ -1461,7 +1461,7 @@ class QuickMenu(FramelessWindow):
         self.__pages.removePage(row)
 
     def setSortingFunc(self, func):
-        # type: (Callable[[Any, Any], bool]) -> None
+        # type: (Optional[Callable[[Any, Any], bool]]) -> None
         """
         Set a sorting function in the suggest (search) menu.
         """

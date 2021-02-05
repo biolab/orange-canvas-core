@@ -1002,7 +1002,7 @@ class SchemeEditWidget(QWidget):
         else:
             nodes = []
         if nodes:
-            x, y = nodes[-1].position  # type: ignore
+            x, y = nodes[-1].position
             position = (x + 150, y)
         else:
             position = (150, 150)
@@ -1941,7 +1941,7 @@ class SchemeEditWidget(QWidget):
 
         view = self.view()
         try:
-            action = menu.exec_(view.mapToGlobal(view.mapFromScene(QPoint(x, y))))
+            action = menu.exec_(view.mapToGlobal(view.mapFromScene(QPointF(x, y))))
         finally:
             menu.setFilterFunc(None)
 

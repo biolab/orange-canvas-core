@@ -34,10 +34,10 @@ def run_after_exit(
     os.close(r)
     # Popen warns in __del__ if child did not complete yet (should
     # double fork to do this right, but since we exit immediately anyways).
-    run_after_exit.processes.append(p)
+    __run_after_exit_processes.append(p)
 
 
-run_after_exit.processes = []
+__run_after_exit_processes: List[subprocess.Popen] = []
 __write_fds: List[int] = []
 __write_fds_lock = threading.Lock()
 

@@ -80,7 +80,7 @@ def fix_qt_plugins_path():
         except ValueError:
             pass
         if idx is None:
-            return
+            return None
         return os.path.join(prefix, *path_components[idx + 1:])
 
     newpath = maybe_match_prefix(

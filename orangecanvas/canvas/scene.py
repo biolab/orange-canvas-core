@@ -334,12 +334,12 @@ class CanvasScene(QGraphicsScene):
         item = self.new_node_item(node.description)
 
         if node.position:
-            pos = QPointF(*node.position)  # type: ignore
+            pos = QPointF(*node.position)
             item.setPos(pos)
 
         item.setTitle(node.title)
-        item.setProcessingState(node.processing_state)  # type: ignore
-        item.setProgress(node.progress)  # type: ignore
+        item.setProcessingState(node.processing_state)
+        item.setProgress(node.progress)
 
         for message in node.state_messages():
             item.setStateMessage(message)
@@ -571,19 +571,19 @@ class CanvasScene(QGraphicsScene):
 
         if isinstance(scheme_annot, scheme.SchemeTextAnnotation):
             item = items.TextAnnotation()
-            x, y, w, h = scheme_annot.rect  # type: ignore
+            x, y, w, h = scheme_annot.rect
             item.setPos(x, y)
             item.resize(w, h)
             item.setTextInteractionFlags(Qt.TextEditorInteraction)
 
-            font = font_from_dict(scheme_annot.font, item.font()) # type: ignore
+            font = font_from_dict(scheme_annot.font, item.font())
             item.setFont(font)
             item.setContent(scheme_annot.content, scheme_annot.content_type)
             scheme_annot.content_changed.connect(item.setContent)
         elif isinstance(scheme_annot, scheme.SchemeArrowAnnotation):
             item = items.ArrowAnnotation()
             start, end = scheme_annot.start_pos, scheme_annot.end_pos
-            item.setLine(QLineF(QPointF(*start), QPointF(*end)))  # type: ignore
+            item.setLine(QLineF(QPointF(*start), QPointF(*end)))
             item.setColor(QColor(scheme_annot.color))
 
         scheme_annot.geometry_changed.connect(
@@ -786,10 +786,10 @@ class CanvasScene(QGraphicsScene):
         annot = self.sender()
         item = self.__item_for_annotation[annot]
         if isinstance(annot, scheme.SchemeTextAnnotation):
-            item.setGeometry(QRectF(*annot.rect))              # type: ignore
+            item.setGeometry(QRectF(*annot.rect))
         elif isinstance(annot, scheme.SchemeArrowAnnotation):
-            p1 = item.mapFromScene(QPointF(*annot.start_pos))  # type: ignore
-            p2 = item.mapFromScene(QPointF(*annot.end_pos))    # type: ignore
+            p1 = item.mapFromScene(QPointF(*annot.start_pos))
+            p2 = item.mapFromScene(QPointF(*annot.end_pos))
             item.setLine(QLineF(p1, p2))
         else:
             pass

@@ -12,7 +12,8 @@ from typing import List, Tuple, Optional, Any
 
 from AnyQt.QtWidgets import (
     QGraphicsItem, QGraphicsPathItem, QGraphicsWidget,
-    QGraphicsDropShadowEffect, QGraphicsSceneHoverEvent, QStyle
+    QGraphicsDropShadowEffect, QGraphicsSceneHoverEvent, QStyle,
+    QGraphicsSceneMouseEvent
 )
 from AnyQt.QtGui import (
     QPen, QBrush, QColor, QPainterPath, QTransform, QPalette,
@@ -22,6 +23,7 @@ from AnyQt.QtCore import Qt, QPointF, QRectF, QLineF, QEvent, QPropertyAnimation
 from .nodeitem import AnchorPoint, SHADOW_COLOR
 from .graphicstextitem import GraphicsTextItem
 from .utils import stroke_path
+from ...registry import InputSignal, OutputSignal
 
 from ...scheme import SchemeLink
 
@@ -376,7 +378,7 @@ class LinkItem(QGraphicsWidget):
         self.__updateFont()
 
     def setSourceItem(self, item, signal=None, anchor=None):
-        # type: (Optional[NodeItem], Optional[InputSignal], Optional[AnchorPoint]) -> None
+        # type: (Optional[NodeItem], Optional[OutputSignal], Optional[AnchorPoint]) -> None
         """
         Set the source `item` (:class:`.NodeItem`). Use `anchor`
         (:class:`.AnchorPoint`) as the curve start point (if ``None`` a new

@@ -35,6 +35,7 @@ class FilterProxyModel(QSortFilterProxyModel):
     def filterAcceptsRow(self, row, parent):
         # type: (int, QModelIndex) -> bool
         source = self.sourceModel()
+        assert source is not None
 
         def apply(f: FilterProxyModel.Filter):
             index = source.index(row, f.column, parent)
