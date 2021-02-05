@@ -684,7 +684,7 @@ class NodeAnchorItem(GraphicsPathObject):
 
             text = s.name
             lbl.setHtml('<div align="' + ('left' if alignLeft else 'right') +
-                        '" style="font-size: small; background-color: white;" >{0}</div>'
+                        '" style="font-size: small; background-color: palette(base);" >{0}</div>'
                         .format(text))
 
             cperc = self.__getChannelPercent(s)
