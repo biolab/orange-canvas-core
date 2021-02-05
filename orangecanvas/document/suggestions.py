@@ -34,7 +34,7 @@ class Suggestions:
             try:
                 with open(self.__frequencies_path, "rb") as f:
                     imported_freq = pickle.load(f)
-            except OSError:
+            except Exception:  # pylint: disable=broad-except
                 log.warning("Failed to open widget link frequencies.")
                 return False
 
