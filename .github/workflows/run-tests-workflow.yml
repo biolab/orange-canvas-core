@@ -102,13 +102,13 @@ jobs:
 
       - name: Run Tests
         if: ${{ !startsWith(runner.os, 'Linux') }}
-        run: pytest --cov=orangecanvas
+        run: pytest -v --cov=orangecanvas
 
       - name: Run Tests with Xvfb
         if: ${{ startsWith(runner.os, 'Linux') }}
         env:
           XVFBARGS: "-screen 0 1280x1024x24"
-        run: catchsegv xvfb-run -a -s "$XVFBARGS" pytest --cov=orangecanvas
+        run: catchsegv xvfb-run -a -s "$XVFBARGS" pytest -v --cov=orangecanvas
 
       - name: Update Wheel Cache
         if: ${{ success() }}
