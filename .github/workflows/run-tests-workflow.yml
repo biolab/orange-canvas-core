@@ -9,8 +9,7 @@ jobs:
     env:
       PYTHONFAULTHANDLER: 1
       PIP_NO_PIP_VERSION_CHECK: 1
-      PIP_WHEEL_DIR: .wheels
-      PIP_FIND_LINKS: .wheels
+      PIP_CACHE_DIR: .pip-cache
       PIP_PREFER_BINARY: 1
 
     strategy:
@@ -79,10 +78,10 @@ jobs:
         # https://www.riverbankcomputing.com/pipermail/pyqt/2020-June/042949.html
         run: sudo apt-get install -y libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0
 
-      - name: Setup Wheel Cache
+      - name: Setup Pip Cache
         uses: actions/cache@v2
         with:
-          path: .wheels
+          path: .pip-cache
           key: ${{ runner.os }}-py-${{ matrix.python-version }}-pip-${{ hashFiles('setup.*', '.github/workflows/run-tests-workflow.yml') }}
           restore-keys: |
             ${{ runner.os }}-py-${{ matrix.python-version }}-pip
@@ -109,11 +108,6 @@ jobs:
         env:
           XVFBARGS: "-screen 0 1280x1024x24"
         run: catchsegv xvfb-run -a -s "$XVFBARGS" pytest -v --cov=orangecanvas
-
-      - name: Update Wheel Cache
-        if: ${{ success() }}
-        run: python -m pip wheel $(pip list --format=freeze --exclude-editable)
-        shell: bash
 
       - name: Upload Coverage
         run: codecov
