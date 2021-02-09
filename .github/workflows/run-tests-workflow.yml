@@ -85,7 +85,7 @@ jobs:
           path: .wheels
           key: ${{ runner.os }}-py-${{ matrix.python-version }}-pip-${{ hashFiles('setup.*', '.github/workflows/run-tests-workflow.yml') }}
           restore-keys: |
-            ${{ runner.os }}-py-${{ matrix.python }}-pip
+            ${{ runner.os }}-py-${{ matrix.python-version }}-pip
 
       - name: Install Test Deps
         env:
