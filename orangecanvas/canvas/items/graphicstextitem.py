@@ -2,14 +2,15 @@ import enum
 import sys
 from typing import Optional, Iterable, Union
 
-from AnyQt.QtCore import Qt, QEvent, Signal
+from AnyQt.QtCore import Qt, QEvent, Signal, QSize, QRect
 from AnyQt.QtGui import (
     QTextDocument, QTextBlock, QTextLine, QPalette, QPainter, QPen,
-    QPainterPath, QFocusEvent, QKeyEvent, QTextBlockFormat, QTextCursor
+    QPainterPath, QFocusEvent, QKeyEvent, QTextBlockFormat, QTextCursor, QImage
 )
 from AnyQt.QtWidgets import (
     QGraphicsTextItem, QStyleOptionGraphicsItem, QStyle, QWidget, QApplication,
-    QGraphicsSceneHoverEvent, QGraphicsSceneMouseEvent,
+    QGraphicsSceneHoverEvent, QGraphicsSceneMouseEvent, QStyleOptionButton,
+    QGraphicsItem,
 )
 
 from orangecanvas.utils import set_flag
@@ -310,7 +311,24 @@ class GraphicsTextEdit(GraphicsTextItem):
     def paint(self, painter, option, widget=None):
         if self.__editing:
             option.state |= QStyle.State_Editing
+        # Disable base QGraphicsItem selected/focused outline
+        state = option.state
+        option = QStyleOptionGraphicsItem(option)
+        option.palette = self.palette().resolve(option.palette)
+        option.state &= ~(QStyle.State_Selected | QStyle.State_HasFocus)
         super().paint(painter, option, widget)
+        if state & QStyle.State_Editing:
+            brect = self.boundingRect()
+            width = 3.
+            color = qgraphicsitem_accent_color(self, option.palette)
+            color.setAlpha(230)
+            pen = QPen(color, width, Qt.SolidLine)
+            painter.setPen(pen)
+            adjust = width / 2.
+            pen.setJoinStyle(Qt.RoundJoin)
+            painter.drawRect(
+                brect.adjusted(adjust, adjust, -adjust, -adjust),
+            )
 
     def __startEdit(self, focusReason=Qt.OtherFocusReason) -> None:
         if self.__editing:
@@ -326,3 +344,47 @@ class GraphicsTextEdit(GraphicsTextItem):
         self.clearSelection()
         self.setTextInteractionFlags(self.__textInteractionFlags)
         self.editingFinished.emit()
+
+
+def qgraphicsitem_style(item: QGraphicsItem) -> QStyle:
+    if item.isWidget():
+        return item.style()
+    parent = item.parentWidget()
+    if parent is not None:
+        return parent.style()
+    scene = item.scene()
+    if scene is not None:
+        return scene.style()
+    return QApplication.style()
+
+
+def qmacstyle_accent_color(style: QStyle):
+    option = QStyleOptionButton()
+    option.state |= (QStyle.State_Active | QStyle.State_Enabled
+                     | QStyle.State_Raised)
+    option.features |= QStyleOptionButton.DefaultButton
+    option.text = ""
+    size = style.sizeFromContents(
+        QStyle.CT_PushButton, option, QSize(20, 10), None
+    )
+    option.rect = QRect(0, 0, size.width(), size.height())
+    img = QImage(
+        size.width(), size.height(), QImage.Format_ARGB32_Premultiplied
+    )
+    img.fill(Qt.transparent)
+    painter = QPainter(img)
+    try:
+        style.drawControl(QStyle.CE_PushButton, option, painter, None)
+    finally:
+        painter.end()
+    color = img.pixelColor(size.width() // 2, size.height() // 2)
+    return color
+
+
+def qgraphicsitem_accent_color(item: 'QGraphicsItem', palette: QPalette):
+    style = qgraphicsitem_style(item)
+    mo = style.metaObject()
+    if mo.className() == 'QMacStyle':
+        return qmacstyle_accent_color(style)
+    else:
+        return palette.highlight().color()
