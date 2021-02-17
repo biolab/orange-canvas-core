@@ -138,6 +138,7 @@ def category_from_package_globals(package):
     priority = getattr(package, "PRIORITY", sys.maxsize - 1)
     icon = getattr(package, "ICON", None)
     background = getattr(package, "BACKGROUND", None)
+    dark_background = getattr(package, "DARK_BACKGROUND", None)
     hidden = getattr(package, "HIDDEN", None)
 
     if priority == sys.maxsize - 1 and name.lower() == "prototypes":
@@ -159,4 +160,5 @@ def category_from_package_globals(package):
         priority=priority,
         icon=icon,
         background=background,
+        dark_background=dark_background,
         hidden=hidden)

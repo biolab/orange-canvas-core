@@ -477,7 +477,8 @@ class CategoryDescription(object):
                  maintainer=None, maintainer_email=None,
                  url=None, help=None, keywords=None,
                  widgets=None, priority=sys.maxsize,
-                 icon=None, background=None, hidden=False
+                 icon=None, background=None, dark_background=None,
+                 hidden=False
                  ):
 
         self.name = name
@@ -498,6 +499,7 @@ class CategoryDescription(object):
         self.priority = priority
         self.icon = icon
         self.background = background
+        self.dark_background = dark_background
         self.hidden = hidden
 
     def __str__(self):
