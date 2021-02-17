@@ -73,6 +73,7 @@ def widget_from_module_globals(module):
     priority = getattr(module, "PRIORITY", sys.maxsize)
     keywords = getattr(module, "KEYWORDS", None)
     background = getattr(module, "BACKGROUND", None)
+    dark_background = getattr(module, "DARK_BACKGROUND", None)
     replaces = getattr(module, "REPLACES", None)
 
     inputs = list(map(input_channel_from_args, inputs))
@@ -100,6 +101,7 @@ def widget_from_module_globals(module):
         priority=priority,
         icon=icon,
         background=background,
+        dark_background=dark_background,
         replaces=replaces)
 
 

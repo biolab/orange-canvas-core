@@ -361,7 +361,7 @@ class WidgetDescription(object):
                  maintainer=None, maintainer_email=None,
                  help=None, help_ref=None, url=None, keywords=None,
                  priority=sys.maxsize,
-                 icon=None, background=None,
+                 icon=None, background=None, dark_background=None,
                  replaces=None, short_name=None,
                  ):
         if inputs is None:
@@ -415,6 +415,7 @@ class WidgetDescription(object):
         self.priority = priority
         self.icon = icon
         self.background = background
+        self.dark_background = dark_background
         self.replaces = list(replaces)
 
     def __str__(self):
