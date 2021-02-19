@@ -472,11 +472,11 @@ class NewLinkAction(UserInteraction):
                 anchor = self.current_target_item.inputAnchorItem
             else:
                 anchor = self.current_target_item.outputAnchorItem
-            if not self.showing_incompatible_widget:
-                self.remove_tmp_anchor()
-                self.showing_incompatible_widget = True
-            else:
+            if self.showing_incompatible_widget:
                 anchor.setIncompatible(False)
+                self.showing_incompatible_widget = False
+            else:
+                self.remove_tmp_anchor()
             anchor.setHovered(False)
             anchor.setCompatibleSignals(None)
             self.current_target_item = None
