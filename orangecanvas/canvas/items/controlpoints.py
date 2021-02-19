@@ -39,9 +39,13 @@ class ControlPoint(GraphicsPathObject):
     BottomRight = Anchor.BottomRight
     BottomLeft = Anchor.BottomLeft
 
-    def __init__(self, parent=None, anchor=Free, constraint=Qt.Orientation(0),
-                 **kwargs):
-        # type: (Optional[QGraphicsItem], Anchor, Qt.Orientation, Any) -> None
+    def __init__(
+            self, parent: Optional[QGraphicsItem] = None,
+            anchor=Free,
+            constraint=Qt.Orientation(0),
+            cursor=Qt.ArrowCursor,
+            **kwargs
+    ) -> None:
         super().__init__(parent, **kwargs)
         self.setFlag(QGraphicsItem.ItemSendsGeometryChanges, False)
         self.setAcceptedMouseButtons(Qt.LeftButton)
@@ -52,6 +56,7 @@ class ControlPoint(GraphicsPathObject):
         self.__anchor = ControlPoint.Free
         self.__initialPosition = None  # type: Optional[QPointF]
         self.setAnchor(anchor)
+        self.setCursor(cursor)
 
         path = QPainterPath()
         path.addEllipse(QRectF(-4, -4, 8, 8))
@@ -160,16 +165,24 @@ class ControlPointRect(QGraphicsObject):
 
         self.__rect = QRectF(rect) if rect is not None else QRectF()
         self.__margins = QMargins()
-        points = \
-            [ControlPoint(self, ControlPoint.Left, constraint=Qt.Horizontal),
-             ControlPoint(self, ControlPoint.Top, constraint=Qt.Vertical),
-             ControlPoint(self, ControlPoint.TopLeft),
-             ControlPoint(self, ControlPoint.Right, constraint=Qt.Horizontal),
-             ControlPoint(self, ControlPoint.TopRight),
-             ControlPoint(self, ControlPoint.Bottom, constraint=Qt.Vertical),
-             ControlPoint(self, ControlPoint.BottomLeft),
-             ControlPoint(self, ControlPoint.BottomRight)
-             ]
+        points = [
+            ControlPoint(self, ControlPoint.Left, constraint=Qt.Horizontal,
+                         cursor=Qt.SizeHorCursor),
+            ControlPoint(self, ControlPoint.Top, constraint=Qt.Vertical,
+                         cursor=Qt.SizeVerCursor),
+            ControlPoint(self, ControlPoint.TopLeft,
+                         cursor=Qt.SizeFDiagCursor),
+            ControlPoint(self, ControlPoint.Right, constraint=Qt.Horizontal,
+                         cursor=Qt.SizeHorCursor),
+            ControlPoint(self, ControlPoint.TopRight,
+                         cursor=Qt.SizeBDiagCursor),
+            ControlPoint(self, ControlPoint.Bottom, constraint=Qt.Vertical,
+                         cursor=Qt.SizeVerCursor),
+            ControlPoint(self, ControlPoint.BottomLeft,
+                         cursor=Qt.SizeBDiagCursor),
+            ControlPoint(self, ControlPoint.BottomRight,
+                         cursor=Qt.SizeFDiagCursor)
+        ]
         assert(points == sorted(points, key=lambda p: p.anchor()))
 
         self.__points = dict((p.anchor(), p) for p in points)
@@ -363,11 +376,12 @@ class ControlPointLine(QGraphicsObject):
         self.setFlag(QGraphicsItem.ItemIsFocusable)
 
         self.__line = QLineF()
-        self.__points = \
-            [ControlPoint(self, ControlPoint.TopLeft),  # TopLeft is line start
-             ControlPoint(self, ControlPoint.BottomRight)  # line end
-             ]
-
+        self.__points = [
+            ControlPoint(self, ControlPoint.TopLeft,
+                         cursor=Qt.DragMoveCursor),  # TopLeft is line start
+            ControlPoint(self, ControlPoint.BottomRight,
+                         cursor=Qt.DragMoveCursor)  # line end
+        ]
         self.__activeControl = None  # type: Optional[ControlPoint]
 
         if self.scene():

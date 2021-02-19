@@ -7,13 +7,14 @@ import traceback
 import ctypes
 
 from contextlib import contextmanager
+from typing import Optional
 
 from AnyQt.QtWidgets import (
     QWidget, QMessageBox, QStyleOption, QStyle, QTextEdit, QScrollBar
 )
 from AnyQt.QtGui import (
     QGradient, QLinearGradient, QRadialGradient, QBrush, QPainter,
-    QPaintEvent, QColor, QPixmap, QPixmapCache, QTextOption
+    QPaintEvent, QColor, QPixmap, QPixmapCache, QTextOption, QGuiApplication
 )
 from AnyQt.QtCore import Qt, QPointF, QPoint, QRect, QRectF, Signal, QEvent
 
@@ -57,6 +58,33 @@ def disabled(qobject):
         yield
     finally:
         qobject.setEnabled(old_state)
+
+
+@contextmanager
+def disconnected(signal, slot, type=Qt.UniqueConnection):
+    """
+    A context manager disconnecting a slot from a signal.
+    ::
+
+        with disconnected(scene.selectionChanged, self.onSelectionChanged):
+            # Can change item selection in a scene without
+            # onSelectionChanged being invoked.
+            do_something()
+
+    Warning
+    -------
+    The relative order of the slot in signal's connections is not preserved.
+
+    Raises
+    ------
+    TypeError:
+        If the slot was not connected to the signal
+    """
+    signal.disconnect(slot)
+    try:
+        yield
+    finally:
+        signal.connect(slot, type)
 
 
 def StyledWidget_paintEvent(self, event):
@@ -540,3 +568,29 @@ def innerShadowPixmap(color, size, pos, length=5):
     QPixmapCache.insert(key, finalShadow)
 
     return finalShadow
+
+
+def clipboard_has_format(mimetype):
+    # type: (str) -> bool
+    """Does the system clipboard contain data for mimetype?"""
+    cb = QGuiApplication.clipboard()
+    if cb is None:
+        return False
+    mime = cb.mimeData()
+    if mime is None:
+        return False
+    return mime.hasFormat(mimetype)
+
+
+def clipboard_data(mimetype: str) -> Optional[bytes]:
+    """Return the binary data of the system clipboard for mimetype."""
+    cb = QGuiApplication.clipboard()
+    if cb is None:
+        return None
+    mime = cb.mimeData()
+    if mime is None:
+        return None
+    if mime.hasFormat(mimetype):
+        return bytes(mime.data(mimetype))
+    else:
+        return None

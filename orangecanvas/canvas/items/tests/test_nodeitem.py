@@ -1,6 +1,7 @@
-from AnyQt.QtCore import QTimer
+from AnyQt.QtCore import QTimer, Qt
 from AnyQt.QtWidgets import QGraphicsEllipseItem
 from AnyQt.QtGui import QPainterPath
+from AnyQt.QtTest import QSignalSpy, QTest
 
 from .. import NodeItem, AnchorPoint, NodeAnchorItem
 
@@ -205,3 +206,20 @@ class TestNodeItem(TestItems):
         anchoritem.setHovered(True)
         self.assertListEqual(anchoritem._NodeAnchorItem__pathStroker.dashPattern(),
                              list(anchoritem._NodeAnchorItem__channelDash))
+
+    def test_title_edit(self):
+        item = NodeItem()
+        item.setWidgetDescription(self.one_desc)
+        self.scene.addItem(item)
+        item.setTitle("AA")
+        item.setStatusMessage("BB")
+        self.assertIn("BB", item.captionTextItem.toPlainText())
+        spy = QSignalSpy(item.titleEditingFinished)
+        item.editTitle()
+        self.assertEqual(len(spy), 0)
+        self.assertEqual("AA", item.captionTextItem.toPlainText())
+        QTest.keyClicks(self.view.viewport(), "CCCC")
+        QTest.keyClick(self.view.viewport(), Qt.Key_Enter)
+        self.assertEqual(len(spy), 1)
+        self.assertIn("BB", item.captionTextItem.toPlainText())
+        self.assertIn("CCCC", item.captionTextItem.toPlainText())

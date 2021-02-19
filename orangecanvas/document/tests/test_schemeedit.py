@@ -1,14 +1,17 @@
 """
 Tests for scheme document.
 """
-from typing import Iterable
+import sys
+import unittest
 from unittest import mock
+from typing import Iterable
 
 from AnyQt.QtCore import Qt, QPoint
 from AnyQt.QtGui import QPainterPath
 from AnyQt.QtWidgets import QGraphicsWidget, QAction, QApplication
 from AnyQt.QtTest import QSignalSpy, QTest
 
+from .. import commands
 from ..schemeedit import SchemeEditWidget, SaveWindowGroup
 from ...canvas import items
 from ...scheme import Scheme, SchemeNode, SchemeLink, SchemeTextAnnotation, \
@@ -196,6 +199,37 @@ class TestSchemeEdit(QAppTestCase):
         action_by_name(actions, "action-zoom-in").trigger()
         action_by_name(actions, "action-zoom-out").trigger()
         action_by_name(actions, "action-zoom-reset").trigger()
+
+    def test_node_rename(self):
+        w = self.w
+        view = w.view()
+        node = SchemeNode(self.reg.widget("one"), title="A")
+        w.addNode(node)
+        w.editNodeTitle(node)
+        # simulate editing
+        QTest.keyClicks(view.viewport(), "BB")
+        QTest.keyClick(view.viewport(), Qt.Key_Enter)
+        self.assertEqual(node.title, "BB")
+        # last undo command must be rename command
+        undo = w.undoStack()
+        command = undo.command(undo.count() - 1)
+        self.assertIsInstance(command, commands.RenameNodeCommand)
+
+    @unittest.skipUnless(sys.platform == "darwin", "macos only")
+    def test_node_rename_click_selected(self):
+        w = self.w
+        scene = w.scene()
+        view = w.view()
+        node = SchemeNode(self.reg.widget("one"), title="A")
+        w.addNode(node)
+        w.selectAll()
+        item = scene.item_for_node(node)
+        assert isinstance(item, items.NodeItem)
+        point = item.captionTextItem.boundingRect().center()
+        point = item.captionTextItem.mapToScene(point)
+        point = view.mapFromScene(point)
+        QTest.mouseClick(view.viewport(), Qt.LeftButton, Qt.NoModifier, point)
+        self.assertTrue(item.captionTextItem.isEditing())
 
     def test_arrow_annotation_action(self):
         w = self.w

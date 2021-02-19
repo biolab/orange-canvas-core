@@ -8,6 +8,7 @@ Scheme Editor Widget
 import io
 import logging
 import itertools
+import sys
 import unicodedata
 import copy
 import dictdiffer
@@ -20,8 +21,8 @@ from typing import (
 )
 
 from AnyQt.QtWidgets import (
-    QWidget, QVBoxLayout, QInputDialog, QMenu, QAction, QActionGroup,
-    QUndoStack, QUndoCommand, QGraphicsItem, QGraphicsTextItem,
+    QWidget, QVBoxLayout, QMenu, QAction, QActionGroup,
+    QUndoStack, QGraphicsItem, QGraphicsTextItem,
     QFormLayout, QComboBox, QDialog, QDialogButtonBox, QMessageBox, QCheckBox,
     QGraphicsSceneDragDropEvent, QGraphicsSceneMouseEvent,
     QGraphicsSceneContextMenuEvent, QGraphicsView, QGraphicsScene,
@@ -32,7 +33,7 @@ from AnyQt.QtGui import (
     QWhatsThisClickedEvent, QKeyEvent, QPalette
 )
 from AnyQt.QtCore import (
-    Qt, QObject, QEvent, QSignalMapper, QCoreApplication, QPoint, QPointF,
+    Qt, QObject, QEvent, QSignalMapper, QCoreApplication, QPointF,
     QMimeData, Slot)
 from AnyQt.QtCore import pyqtProperty as Property, pyqtSignal as Signal
 
@@ -42,7 +43,9 @@ from .suggestions import Suggestions
 from .usagestatistics import UsageStatistics
 from ..registry.qt import whats_this_helper, QtWidgetRegistry
 from ..gui.quickhelp import QuickHelpTipEvent
-from ..gui.utils import message_information, disabled
+from ..gui.utils import (
+    message_information, disabled, clipboard_has_format, clipboard_data
+)
 from ..scheme import (
     scheme, signalmanager, Scheme, SchemeNode, SchemeLink,
     BaseSchemeAnnotation, SchemeTextAnnotation, WorkflowEvent
@@ -56,6 +59,7 @@ from . import interactions
 from . import commands
 from . import quickmenu
 from ..utils import findf
+from ..utils.qinvoke import connect_with_context
 
 Pos = Tuple[float, float]
 RuntimeState = signalmanager.SignalManager.State
@@ -357,6 +361,12 @@ class SchemeEditWidget(QWidget):
             shortcut=QKeySequence(Qt.Key_F2),
             enabled=False
         )
+        if sys.platform == "darwin":
+            self.__renameAction.setShortcuts([
+                QKeySequence(Qt.Key_F2),
+                QKeySequence(Qt.Key_Enter),
+                QKeySequence(Qt.Key_Return)
+            ])
 
         self.__helpAction = QAction(
             self.tr("Help"), self,
@@ -1232,19 +1242,23 @@ class SchemeEditWidget(QWidget):
     def editNodeTitle(self, node):
         # type: (SchemeNode) -> None
         """
-        Edit (rename) the `node`'s title. Opens an input dialog.
+        Edit (rename) the `node`'s title.
         """
-        name, ok = QInputDialog.getText(
-            self, self.tr("Rename"),
-            self.tr("Enter a new name for the '%s' widget") % node.title,
-            text=node.title
-        )
+        scene = self.__scene
+        item = scene.item_for_node(node)
+        item.editTitle()
 
-        if ok and self.__scheme is not None:
+        def commit():
+            name = item.title()
+            if name == node.title:
+                return  # pragma: no cover
             self.__undoStack.push(
                 commands.RenameNodeCommand(self.__scheme, node, node.title,
                                            name)
             )
+        connect_with_context(
+            item.titleEditingFinished, self, commit
+        )
 
     def __onCleanChanged(self, clean):
         # type: (bool) -> None
@@ -1370,6 +1384,21 @@ class SchemeEditWidget(QWidget):
             event.accept()
             return True
         any_item = scene.item_at(pos)
+        # start node name edit on selected clicked
+        if sys.platform == "darwin" \
+                and isinstance(any_item, items.nodeitem.GraphicsTextEdit) \
+                and isinstance(any_item.parentItem(), items.NodeItem):
+            node = scene.node_for_item(any_item.parentItem())
+            selected = self.selectedNodes()
+            if node in selected:
+                # deselect all other elements except the node item
+                # and start the edit
+                for selected_node in selected:
+                    selected_node_item = scene.item_for_node(selected_node)
+                    selected_node_item.setSelected(selected_node is node)
+                self.editNodeTitle(node)
+                return True
+
         if not any_item:
             self.__emptyClickButtons |= event.button()
 
@@ -1510,9 +1539,6 @@ class SchemeEditWidget(QWidget):
             handler = interactions.NewNodeAction(self)
             searchText = event.text()
 
-            # TODO: set the search text to event.text() and set focus on the
-            # search line
-
         if handler is not None:
             # Control + Backspace (remove widget action on Mac OSX) conflicts
             # with the 'Clear text' action in the search widget (there might
@@ -1630,6 +1656,7 @@ class SchemeEditWidget(QWidget):
         annotations = self.selectedAnnotations()
         links = self.selectedLinks()
 
+        self.__renameAction.setEnabled(len(nodes) == 1)
         self.__openSelectedAction.setEnabled(bool(nodes))
         self.__removeSelectedAction.setEnabled(
             bool(nodes or annotations or links)
@@ -2461,33 +2488,6 @@ def copy_link(link, source=None, sink=None):
         sink, link.sink_channel,
         enabled=link.enabled,
         properties=copy.deepcopy(link.properties))
-
-
-def clipboard_has_format(mimetype):
-    # type: (str) -> bool
-    """Does the system clipboard contain data for mimetype?"""
-    cb = QApplication.clipboard()
-    if cb is None:
-        return False
-    mime = cb.mimeData()
-    if mime is None:
-        return False
-    return mime.hasFormat(mimetype)
-
-
-def clipboard_data(mimetype):
-    # type: (str) -> Optional[bytes]
-    """Return the binary data of the system clipboard for mimetype."""
-    cb = QApplication.clipboard()
-    if cb is None:
-        return None
-    mime = cb.mimeData()
-    if mime is None:
-        return None
-    if mime.hasFormat(mimetype):
-        return bytes(mime.data(mimetype))
-    else:
-        return None
 
 
 def nodes_top_left(nodes):
