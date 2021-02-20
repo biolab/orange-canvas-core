@@ -506,27 +506,24 @@ def message(icon, text, title=None, informative_text=None, details=None,
     return mbox.exec()
 
 
-def innerGlowBackgroundPixmap(color, size, radius=5):
+def innerGlowBackgroundPixmap(light_color, dark_color, size, radius=10):
     """ Draws radial gradient pixmap, then uses that to draw
     a rounded-corner gradient rectangle pixmap.
 
     Args:
-        color (QColor): used as outer color (lightness 245 used for inner)
+        light_color (QColor): used as inner color
+        dark_color (QColor): used as outer color
         size (QSize): size of output pixmap
         radius (int): radius of inner glow rounded corners
     """
     key = "InnerGlowBackground " + \
-          color.name() + " " + \
+          light_color.name() + " " + \
+          dark_color.name() + " " + \
           str(radius)
 
     bg = QPixmapCache.find(key)
     if bg:
         return bg
-
-    # set background colors for gradient
-    color = color.toHsl()
-    light_color = color.fromHsl(color.hslHue(), color.hslSaturation(), 245)
-    dark_color = color
 
     # initialize radial gradient
     center = QPoint(radius, radius)
