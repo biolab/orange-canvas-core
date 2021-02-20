@@ -16,6 +16,7 @@ from AnyQt.QtWidgets import (
     QGraphicsItem, QGraphicsSceneContextMenuEvent, QMenu, QAction,
 )
 
+from orangecanvas.gui.utils import foreground_for_background
 from orangecanvas.utils import set_flag
 
 
@@ -63,11 +64,7 @@ class GraphicsTextItem(QGraphicsTextItem):
                 if not window.isActiveWindow():
                     cg = QPalette.Inactive
 
-            color = palette.color(
-                cg,
-                QPalette.Highlight if state & QStyle.State_Selected
-                else QPalette.Light
-            )
+            color = palette.color(cg, QPalette.Light)
 
             painter.save()
             painter.setPen(QPen(Qt.NoPen))
@@ -113,10 +110,13 @@ class GraphicsTextItem(QGraphicsTextItem):
         # type: () -> None
         if self.__styleState & QStyle.State_Selected \
                 and not self.__styleState & QStyle.State_Editing:
-            role = QPalette.HighlightedText
+            bgRole = QPalette.Light
+            bgColor = self.palette().color(bgRole)
+            color = foreground_for_background(bgColor)
         else:
             role = QPalette.WindowText
-        self.setDefaultTextColor(self.palette().color(role))
+            color = self.palette().color(role)
+        self.setDefaultTextColor(color)
 
     def setHtml(self, contents):
         # type: (str) -> None
