@@ -126,18 +126,15 @@ class ToolBoxTabButton(QToolButton):
 
         # highlight brush is used as the background for the icon and background
         # when the tab is expanded and as mouse hover color (lighter).
-        brush_highlight = palette.highlight()
-        foregroundrole = QPalette.ButtonText
+        brush_highlight = palette.midlight()
+        foregroundrole = QPalette.HighlightedText
         if opt.state & QStyle.State_Sunken:
             # State 'down' pressed during a mouse press (slightly darker).
-            background_brush = brush_darker(brush_highlight, 110)
-            foregroundrole = QPalette.HighlightedText
+            background_brush = palette.highlight()
         elif opt.state & QStyle.State_MouseOver:
-            background_brush = brush_darker(brush_highlight, 95)
-            foregroundrole = QPalette.HighlightedText
-        elif opt.state & QStyle.State_On:
             background_brush = brush_highlight
-            foregroundrole = QPalette.HighlightedText
+        elif opt.state & QStyle.State_On:
+            background_brush = palette.midlight()
         else:
             # The default button brush.
             background_brush = palette.button()
