@@ -58,16 +58,17 @@ class UndoCommand(QUndoCommand):
 
         # init must be called on unpickle-time to recreate Qt object
         UndoCommand.__init__(self, text, parent)
-        for child in state['_UndoCommand__children']:
-            child.__setstate__(self.__child_states[child])
+        if hasattr(self, '_UndoCommand__child_states'):
+            for child, s in self.__child_states.items():
+                child.__setstate__(s)
 
         self.__dict__ = {k: v for k, v in state.items()}
+        self.__initialized = True
 
     @staticmethod
     def from_QUndoCommand(qc: QUndoCommand, parent=None):
         if type(qc) == QUndoCommand:
             qc.__class__ = UndoCommand
-            qc.__initialized = True
 
         qc.__parent = parent
 
