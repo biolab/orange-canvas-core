@@ -298,6 +298,7 @@ class Main:
         window.setStyleSheet(stylesheet)
         window.output_view().setDocument(self.output)
         window.set_widget_registry(self.registry)
+        window.batch_mode = self.options.batch_mode
         return window
 
     def main_window_stylesheet(self):
@@ -492,6 +493,11 @@ def arg_parser():
     parser.add_argument(
         "--no-welcome", action="store_true",
         help="Don't show welcome dialog."
+    )
+    parser.add_argument(
+        "-b", "--batch-mode", action="store_true",
+        help="Run in batch mode - exit after initial workflow run, "
+        "print errors and return exit nonzero status if any error occured."
     )
     parser.add_argument(
         "--no-splash", action="store_true",
