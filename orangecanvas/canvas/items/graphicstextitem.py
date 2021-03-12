@@ -108,7 +108,8 @@ class GraphicsTextItem(QGraphicsTextItem):
 
     def __updateDefaultTextColor(self):
         # type: () -> None
-        if self.__styleState & QStyle.State_Selected:
+        if self.__styleState & QStyle.State_Selected \
+                and not self.__styleState & QStyle.State_Editing:
             role = QPalette.HighlightedText
         else:
             role = QPalette.WindowText
@@ -336,6 +337,7 @@ class GraphicsTextEdit(GraphicsTextItem):
         self.__editing = True
         self.__textInteractionFlags = self.textInteractionFlags()
         self.setTextInteractionFlags(Qt.TextEditorInteraction)
+        self.setStyleState(self.styleState() | QStyle.State_Editing)
         self.setFocus(focusReason)
         self.editingStarted.emit()
 
@@ -343,6 +345,7 @@ class GraphicsTextEdit(GraphicsTextItem):
         self.__editing = False
         self.clearSelection()
         self.setTextInteractionFlags(self.__textInteractionFlags)
+        self.setStyleState(self.styleState() & ~QStyle.State_Editing)
         self.editingFinished.emit()
 
 

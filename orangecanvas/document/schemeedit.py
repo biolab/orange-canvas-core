@@ -1244,6 +1244,7 @@ class SchemeEditWidget(QWidget):
         """
         Edit (rename) the `node`'s title.
         """
+        self.__view.setFocus(Qt.OtherFocusReason)
         scene = self.__scene
         item = scene.item_for_node(node)
         item.editTitle()
