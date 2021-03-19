@@ -488,6 +488,10 @@ class SortFilterProxyModel(QSortFilterProxyModel):
 
         name = description.name.lower()
         keywords = [k.lower() for k in description.keywords]
+        for k in keywords[:]:
+            if '-' in k:
+                keywords.append(k.replace('-', ''))
+                keywords.append(k.replace('-', ' '))
 
         query = self.__query
         # match name and keywords
