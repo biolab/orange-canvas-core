@@ -140,6 +140,7 @@ def scheme_svg_thumbnail(scheme_file):
     tmp_scene = scene.CanvasScene()
     tmp_scene.set_channel_names_visible(False)
     tmp_scene.set_registry(global_registry())
+    tmp_scene.set_node_animation_enabled(False)
     tmp_scene.set_scheme(scheme)
 
     # Force the anchor point layout.
