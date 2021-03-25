@@ -403,17 +403,20 @@ def main(argv=None):
 
     # Tee stdout and stderr into Output dock
     output_view = canvas_window.output_view()
+    output_doc = output_view.document()
     stdout = TextStream()
-    stdout.stream.connect(output_view.write)
+    stderr = TextStream()
+
     if sys.stdout:
         stdout.stream.connect(sys.stdout.write)
         stdout.flushed.connect(sys.stdout.flush)
-    stderr = TextStream()
-    error_writer = output_view.formated(color=Qt.red)
-    stderr.stream.connect(error_writer.write)
+
     if sys.stderr:
         stderr.stream.connect(sys.stderr.write)
         stderr.flushed.connect(sys.stderr.flush)
+
+    output_doc.connectStream(stdout)
+    output_doc.connectStream(stderr, color=Qt.red)
 
     with ExitStack() as stack:
         stack.enter_context(closing(stderr))
