@@ -5,9 +5,12 @@ from datetime import datetime
 from threading import current_thread
 
 from AnyQt.QtCore import Qt, QThread, QTimer, QCoreApplication, QEvent
+from AnyQt.QtGui import QTextCharFormat, QColor
+
 from ...gui.test import QAppTestCase
 
-from ..outputview import OutputView, TextStream, ExceptHook
+from ..outputview import OutputView, TextStream, ExceptHook, \
+    TerminalTextDocument
 
 
 class TestOutputView(QAppTestCase):
@@ -140,3 +143,23 @@ class TestOutputView(QAppTestCase):
         self.qWait(100)
         res.wait()
         pool.close()
+
+    def test_clone(self):
+        doc = TerminalTextDocument()
+        writer = TextStream()
+        doc.connectStream(writer)
+        writer.write("A")
+        doc_c = doc.clone()
+        writer.write("B")
+        self.assertEqual(doc.toPlainText(), "AB")
+        self.assertEqual(doc_c.toPlainText(), "AB")
+        writer_err = TextStream()
+        cf = QTextCharFormat()
+        cf.setForeground(QColor(Qt.red))
+        doc_c.connectStream(writer_err, cf)
+        writer_err.write("C")
+        self.assertEqual(doc_c.toPlainText(), "ABC")
+        self.assertEqual(doc.toPlainText(), "AB")
+        doc_c.disconnectStream(writer_err)
+        writer_err.write("D")
+        self.assertEqual(doc_c.toPlainText(), "ABC")

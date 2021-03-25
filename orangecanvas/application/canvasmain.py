@@ -23,11 +23,10 @@ import pkg_resources
 from AnyQt.QtWidgets import (
     QMainWindow, QWidget, QAction, QActionGroup, QMenu, QMenuBar, QDialog,
     QFileDialog, QMessageBox, QVBoxLayout, QSizePolicy, QToolBar, QToolButton,
-    QDockWidget, QApplication, QShortcut, QPlainTextEdit,
-    QPlainTextDocumentLayout, QFileIconProvider
+    QDockWidget, QApplication, QShortcut, QFileIconProvider
 )
 from AnyQt.QtGui import (
-    QColor, QIcon, QDesktopServices, QKeySequence, QTextDocument,
+    QColor, QIcon, QDesktopServices, QKeySequence,
     QWhatsThisClickedEvent, QShowEvent, QCloseEvent
 )
 from AnyQt.QtCore import (
@@ -77,7 +76,7 @@ from ..utils.settings import QSettings_readArray, QSettings_writeArray
 from ..utils.qinvoke import qinvoke
 from ..utils.pickle import Pickler, Unpickler, glob_scratch_swps, swp_name, \
     canvas_scratch_name_memo, register_loaded_swp
-from ..utils import unique, group_by_all, set_flag
+from ..utils import unique, group_by_all, set_flag, findf
 from ..utils.asyncutils import get_event_loop
 from ..utils.qobjref import qobjref
 
@@ -164,7 +163,6 @@ class CanvasMainWindow(QMainWindow):
         self.__registry_model = None  # type: Optional[QAbstractItemModel]
         # Proxy widget registry model
         self.__proxy_model = None  # type: Optional[FilterProxyModel]
-        self.__streams = []  # type: List[TextStream]
 
         # TODO: Help view and manager to separate singleton instance.
         self.help = None  # type: HelpManager
@@ -1017,28 +1015,24 @@ class CanvasMainWindow(QMainWindow):
                             self.SETTINGS_VERSION)
         window.set_tool_dock_expanded(self.dock_widget.expanded())
         window.set_float_widgets_on_top_enabled(self.float_widgets_on_top_action.isChecked())
-        logview = window.output_view()  # type: OutputView
 
-        te = logview.findChild(QPlainTextEdit)
+        output = window.output_view()  # type: OutputView
+        doc = self.output_view().document()
+        doc = doc.clone(output)
+        output.setDocument(doc)
 
-        doc = self.output_view().findChild(QPlainTextEdit).document()
-        # first clone the existing document and set it on the new instance
-        doc = doc.clone(parent=te)  # type: QTextDocument
-        doc.setDocumentLayout(QPlainTextDocumentLayout(doc))
-        te.setDocument(doc)
+        def is_connected(stream: TextStream) -> bool:
+            item = findf(doc.connectedStreams(), lambda s: s is stream)
+            return item is not None
 
-        # route the stdout/err if possible
+        # # route the stdout/err if possible
+        # TODO: Deprecate and remove this behaviour (use connectStream)
         stdout, stderr = sys.stdout, sys.stderr
-        if isinstance(stdout, TextStream):
-            stdout.stream.connect(logview.write)
+        if isinstance(stdout, TextStream) and not is_connected(stdout):
+            doc.connectStream(stdout)
 
-        if isinstance(stderr, TextStream):
-            err_formatter = logview.formatted(color=Qt.red)
-            stderr.stream.connect(err_formatter.write)
-
-        for stream in self.__streams:
-            if stream not in (stdout, stderr):
-                window.connect_output_stream(stream)
+        if isinstance(stderr, TextStream) and not is_connected(stderr):
+            doc.connectStream(stderr, color=Qt.red)
 
         CanvasMainWindow._instances.append(window)
         window.destroyed.connect(
@@ -2495,18 +2489,16 @@ class CanvasMainWindow(QMainWindow):
         The `stream` will be 'inherited' by new windows created by
         `create_new_window`.
         """
-        self.__streams.append(stream)
-        view = self.output_view()
-        stream.stream.connect(view.write)
+        doc = self.output_view().document()
+        doc.connectStream(stream)
 
     def disconnect_output_stream(self, stream: TextStream):
         """
         Disconnect a :class:`TextStream` instance from this window's
         output view.
         """
-        self.__streams.remove(stream)
-        view = self.output_view()
-        stream.stream.disconnect(view.write)
+        doc = self.output_view().document()
+        doc.disconnectStream(stream)
 
 
 def updated_flags(flags, mask, state):
