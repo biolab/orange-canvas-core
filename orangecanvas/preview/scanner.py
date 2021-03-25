@@ -145,6 +145,8 @@ def scheme_svg_thumbnail(scheme_file):
 
     # Force the anchor point layout.
     tmp_scene.anchor_layout().activate()
+    # Last added node is auto-selected. Need to clear.
+    tmp_scene.clearSelection()
 
     svg = scene.grab_svg(tmp_scene)
     tmp_scene.clear()
