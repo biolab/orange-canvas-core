@@ -614,19 +614,20 @@ def update_char_format(
     updated color, weight, background and font properties.
     """
     charformat = QTextCharFormat(baseformat)
-
     if color is not None:
         charformat.setForeground(color)
-
     if background is not None:
         charformat.setBackground(background)
-
     if font is not None:
         assert weight is None and italic is None and underline is None
         charformat.setFont(font)
     else:
-        font = update_font(baseformat.font(), weight, italic, underline)
-        charformat.setFont(font)
+        if weight is not None:
+            charformat.setFontWeight(weight)
+        if italic is not None:
+            charformat.setFontItalic(italic)
+        if underline is not None:
+            charformat.setFontUnderline(underline)
     return charformat
 
 
