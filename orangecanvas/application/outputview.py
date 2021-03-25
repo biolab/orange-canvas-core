@@ -14,6 +14,8 @@ from AnyQt.QtGui import (
 from AnyQt.QtCore import Qt, QObject, QCoreApplication, QThread, QSize
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
+from orangecanvas.gui.utils import update_char_format
+
 
 class TerminalView(QPlainTextEdit):
     def __init__(self, *args, **kwargs):
@@ -155,55 +157,6 @@ class OutputView(QWidget):
             "'Use 'formatted'", DeprecationWarning, stacklevel=2
         )
         return self.formatted(*args, **kwargs)
-
-
-def update_char_format(baseformat, color=None, background=None, weight=None,
-                       italic=None, underline=None, font=None):
-    """
-    Return a copy of `baseformat` :class:`QTextCharFormat` with
-    updated color, weight, background and font properties.
-
-    """
-    charformat = QTextCharFormat(baseformat)
-
-    if color is not None:
-        charformat.setForeground(color)
-
-    if background is not None:
-        charformat.setBackground(background)
-
-    if font is not None:
-        charformat.setFont(font)
-    else:
-        font = update_font(baseformat.font(), weight, italic, underline)
-        charformat.setFont(font)
-
-    return charformat
-
-
-def update_font(basefont, weight=None, italic=None, underline=None,
-                pixelSize=None, pointSize=None):
-    """
-    Return a copy of `basefont` :class:`QFont` with updated properties.
-    """
-    font = QFont(basefont)
-
-    if weight is not None:
-        font.setWeight(weight)
-
-    if italic is not None:
-        font.setItalic(italic)
-
-    if underline is not None:
-        font.setUnderline(underline)
-
-    if pixelSize is not None:
-        font.setPixelSize(pixelSize)
-
-    if pointSize is not None:
-        font.setPointSize(pointSize)
-
-    return font
 
 
 class Formatter(QObject):
