@@ -9,3 +9,4 @@ Document (``document``)
 
    document.schemeedit
    document.quickmenu
+   document.interactions

@@ -13,30 +13,33 @@ All interactions are subclasses of :class:`UserInteraction`.
 
 """
 import typing
-from typing import Optional, Any, Tuple, List, Set, Iterable
+from typing import Optional, Any, Tuple, List, Set, Iterable, Sequence, Dict
 
+import abc
 import logging
 from functools import reduce
 
-
-
 from AnyQt.QtWidgets import (
-    QApplication, QGraphicsRectItem, QUndoCommand, QGraphicsSceneMouseEvent,
+    QApplication, QGraphicsRectItem, QGraphicsSceneMouseEvent,
     QGraphicsSceneContextMenuEvent, QWidget, QGraphicsItem,
+    QGraphicsSceneDragDropEvent, QMenu, QAction
 )
 from AnyQt.QtGui import QPen, QBrush, QColor, QFontMetrics, QKeyEvent, QFont
 from AnyQt.QtCore import (
     Qt, QObject, QCoreApplication, QSizeF, QPointF, QRect, QRectF, QLineF,
-    QPoint,
+    QPoint, QMimeData,
 )
 from AnyQt.QtCore import pyqtSignal as Signal
 
 from orangecanvas.document.commands import UndoCommand
 from .usagestatistics import UsageStatistics
 from ..registry.description import WidgetDescription, OutputSignal, InputSignal
-from ..registry.qt import QtWidgetRegistry
+from ..registry.qt import QtWidgetRegistry, tooltip_helper, whats_this_helper
 from .. import scheme
-from ..scheme import SchemeNode as Node, SchemeLink as Link, Scheme, compatible_channels
+from ..scheme import (
+    SchemeNode as Node, SchemeLink as Link, Scheme, WorkflowEvent,
+    compatible_channels
+)
 from ..canvas import items
 from ..canvas.items import controlpoints
 from ..gui.quickhelp import QuickHelpTipEvent
@@ -49,6 +52,12 @@ if typing.TYPE_CHECKING:
     A = typing.TypeVar("A")
     #: Output/Input pair of a link
     OIPair = Tuple[OutputSignal, InputSignal]
+
+try:
+    from importlib.metadata import EntryPoint, entry_points
+except ImportError:
+    from importlib_metadata import EntryPoint, entry_points
+
 
 log = logging.getLogger(__name__)
 
@@ -232,6 +241,42 @@ class UserInteraction(QObject):
         # type: (QGraphicsSceneContextMenuEvent) -> bool
         """
         Handle a `QGraphicsScene.contextMenuEvent`
+        """
+        return False
+
+    def dragEnterEvent(self, event):
+        # type: (QGraphicsSceneDragDropEvent) -> bool
+        """
+        Handle a `QGraphicsScene.dragEnterEvent`
+
+        .. versionadded:: 0.1.20
+        """
+        return False
+
+    def dragMoveEvent(self, event):
+        # type: (QGraphicsSceneDragDropEvent) -> bool
+        """
+        Handle a `QGraphicsScene.dragMoveEvent`
+
+        .. versionadded:: 0.1.20
+        """
+        return False
+
+    def dragLeaveEvent(self, event):
+        # type: (QGraphicsSceneDragDropEvent) -> bool
+        """
+        Handle a `QGraphicsScene.dragLeaveEvent`
+
+        .. versionadded:: 0.1.20
+        """
+        return False
+
+    def dropEvent(self, event):
+        # type: (QGraphicsSceneDragDropEvent) -> bool
+        """
+        Handle a `QGraphicsScene.dropEvent`
+
+        .. versionadded:: 0.1.20
         """
         return False
 
@@ -1754,3 +1799,368 @@ class ResizeArrowAnnotation(UserInteraction):
         self.annotation = None
 
         super().end()
+
+
+class DropHandler(abc.ABC):
+    """
+    An abstract drop handler.
+
+    .. versionadded:: 0.1.20
+    """
+    @abc.abstractmethod
+    def accepts(self, document: 'SchemeEditWidget', event: 'QGraphicsSceneDragDropEvent') -> bool:
+        """
+        Returns True if a `document` can accept a drop of the data from `event`.
+        """
+        return False
+
+    @abc.abstractmethod
+    def doDrop(self, document: 'SchemeEditWidget', event: 'QGraphicsSceneDragDropEvent') -> bool:
+        """
+        Complete the drop of data from `event` onto the `document`.
+        """
+        return False
+
+
+class DropHandlerAction(abc.ABC):
+    @abc.abstractmethod
+    def actionFromDropEvent(
+            self, document: 'SchemeEditWidget', event: 'QGraphicsSceneDragDropEvent'
+    ) -> QAction:
+        """
+        Create and return an QAction representing a drop action.
+
+        This action is used to disambiguate between possible drop actions.
+
+        The action can have sub menus, however all actions in submenus **must**
+        have the `DropHandler` instance set as their `QAction.data()`.
+
+        The actions **must not** execute the actual drop from their triggered
+        slot connections. The drop will be dispatched to the `action.data()`
+        handler's `doDrop()` after that action is triggered and the menu is
+        closed.
+        """
+        raise NotImplementedError
+
+
+class NodeFromMimeDataDropHandler(DropHandler, DropHandlerAction):
+    """
+    Create a new node from dropped mime data.
+
+    Subclasses must override `canDropMimeData`, `parametersFromMimeData`,
+    and `qualifiedName`.
+
+    .. versionadded:: 0.1.20
+    """
+    @abc.abstractmethod
+    def qualifiedName(self) -> str:
+        """
+        The qualified name for the node created by this handler. The handler
+        will not be invoked if this name does not appear in the registry
+        associated with the workflow.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def canDropMimeData(self, document: 'SchemeEditWidget', data: 'QMimeData') -> bool:
+        """
+        Can the handler create a node from the drop mime data.
+
+        Reimplement this in a subclass to check if the `data` has appropriate
+        format.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def parametersFromMimeData(self, document: 'SchemeEditWidget', data: 'QMimeData') -> 'Dict[str, Any]':
+        """
+        Return the node parameters based from the drop mime data.
+        """
+        raise NotImplementedError
+
+    def accepts(self, document: 'SchemeEditWidget', event: 'QGraphicsSceneDragDropEvent') -> bool:
+        """Reimplemented."""
+        reg = document.registry()
+        if not reg.has_widget(self.qualifiedName()):
+            return False
+        return self.canDropMimeData(document, event.mimeData())
+
+    def nodeFromMimeData(self, document: 'SchemeEditWidget', data: 'QMimeData') -> 'Node':
+        reg = document.registry()
+        wd = reg.widget(self.qualifiedName())
+        node = document.newNodeHelper(wd)
+        parameters = self.parametersFromMimeData(document, data)
+        node.properties = parameters
+        return node
+
+    def doDrop(self, document: 'SchemeEditWidget', event: 'QGraphicsSceneDragDropEvent') -> bool:
+        """Reimplemented."""
+        reg = document.registry()
+        if not reg.has_widget(self.qualifiedName()):
+            return False
+        node = self.nodeFromMimeData(document, event.mimeData())
+        node.position = (event.scenePos().x(), event.scenePos().y())
+        activate = self.shouldActivateNode()
+        wd = document.widgetManager()
+        if activate and wd is not None:
+            def activate(node_, widget):
+                if node_ is node:
+                    try:
+                        self.activateNode(document, node, widget)
+                    finally:
+                        # self-disconnect the slot
+                        wd.widget_for_node_added.disconnect(activate)
+            wd.widget_for_node_added.connect(activate)
+        document.addNode(node)
+        if activate:
+            QApplication.postEvent(node, WorkflowEvent(WorkflowEvent.NodeActivateRequest))
+        return True
+
+    def shouldActivateNode(self) -> bool:
+        """
+        Should the new dropped node activate (open GUI controller) immediately.
+
+        If this method returns `True` then the `activateNode` method will be
+        called after the node has been added and the GUI controller created.
+
+        The default implementation returns False.
+        """
+        return False
+
+    def activateNode(self, document: 'SchemeEditWidget', node: 'Node', widget: 'QWidget') -> None:
+        """
+        Activate (open) the `node`'s GUI controller `widget` after a
+        completed drop.
+
+        Reimplement this if the node requires further configuration via the
+        GUI.
+
+        The default implementation delegates to the :class:`WidgetManager`
+        associated with the document.
+        """
+        wd = document.widgetManager()
+        if wd is not None:
+            wd.activate_widget_for_node(node, widget)
+        else:
+            widget.show()
+
+    def actionFromDropEvent(
+            self, document: 'SchemeEditWidget', event: 'QGraphicsSceneDragDropEvent'
+    ) -> QAction:
+        """Reimplemented."""
+        reg = document.registry()
+        ac = QAction(None)
+        ac.setData(self)
+        if reg is not None:
+            desc = reg.widget(self.qualifiedName())
+            ac.setText(desc.name)
+            ac.setToolTip(tooltip_helper(desc))
+            ac.setWhatsThis(whats_this_helper(desc))
+        else:
+            ac.setText(f"{self.qualifiedName()}")
+            ac.setEnabled(False)
+            ac.setVisible(False)
+        return ac
+
+
+def load_entry_point(
+        ep: EntryPoint, log: logging.Logger = None,
+) -> Tuple['EntryPoint', Any]:
+    if log is None:
+        log = logging.getLogger(__name__)
+    try:
+        value = ep.load()
+    except (ImportError, AttributeError):
+        log.exception("Could not load %s", ep)
+    except Exception:  # noqa
+        log.exception("Unexpected Error; %s will be skipped", ep)
+    else:
+        return ep, value
+
+
+def iter_load_entry_points(
+        iter: Iterable[EntryPoint], log: logging.Logger = None,
+):
+    if log is None:
+        log = logging.getLogger(__name__)
+    for ep in iter:
+        try:
+            ep, value = load_entry_point(ep, log)
+        except Exception:
+            pass
+        else:
+            yield ep, value
+
+
+class PluginDropHandler(DropHandler):
+    """
+    Delegate drop event processing to plugin drop handlers.
+
+    .. versionadded:: 0.1.20
+    """
+    #: The default entry point group
+    ENTRY_POINT = "orangecanvas.document.interactions.DropHandler"
+
+    def __init__(self, group=ENTRY_POINT, **kwargs):
+        super().__init__(**kwargs)
+        self.__group = group
+
+    def iterEntryPoints(self) -> Iterable['EntryPoint']:
+        """
+        Return an iterator over all entry points.
+        """
+        return entry_points().get(self.__group, [])
+
+    __entryPoints = None
+
+    def entryPoints(self) -> Iterable[Tuple['EntryPoint', 'DropHandler']]:
+        """
+        Return an iterator over entry points and instantiated drop handlers.
+        """
+        eps = []
+        if self.__entryPoints:
+            ep_iter = self.__entryPoints
+            store_eps = lambda ep, value: None
+        else:
+            ep_iter = self.iterEntryPoints()
+            ep_iter = iter_load_entry_points(ep_iter, log)
+            store_eps = lambda ep, value: eps.append((ep, value))
+
+        for ep, value in ep_iter:
+            if not issubclass(value, DropHandler):
+                log.error(
+                    f"{ep} yielded {type(value)}, expected a "
+                    f"{DropHandler} subtype"
+                )
+                continue
+            try:
+                handler = value()
+            except Exception:  # noqa
+                log.exception("Error in default constructor of %s", value)
+            else:
+                yield ep, handler
+                store_eps(ep, value)
+
+        self.__entryPoints = tuple(eps)
+
+    __accepts: Sequence[Tuple[EntryPoint, DropHandler]] = ()
+
+    def accepts(self, document: 'SchemeEditWidget', event: 'QGraphicsSceneDragDropEvent') -> bool:
+        """
+        Reimplemented.
+
+        Accept the event if any plugin handlers accept the event.
+        """
+        accepts = []
+        self.__accepts = ()
+        for ep, handler in self.entryPoints():
+            if handler.accepts(document, event):
+                accepts.append((ep, handler))
+        self.__accepts = tuple(accepts)
+        return bool(accepts)
+
+    def doDrop(
+            self, document: 'SchemeEditWidget', event: 'QGraphicsSceneDragDropEvent'
+    ) -> bool:
+        """
+        Reimplemented.
+
+        Dispatch the drop to the plugin handler that accepted the event.
+        In case there are multiple handlers that accepted the event, a menu
+        is used to select the handler.
+        """
+        handler: Optional[DropHandler] = None
+        if len(self.__accepts) == 1:
+            ep, handler = self.__accepts[0]
+        elif len(self.__accepts) > 1:
+            menu = QMenu(event.widget())
+            for ep_, handler_ in self.__accepts:
+                ac = action_for_handler(handler_, document, event)
+                if ac is None:
+                    ac = menu.addAction(ep_.name, )
+                else:
+                    menu.addAction(ac)
+                    ac.setParent(menu)
+                if not ac.toolTip():
+                    ac.setToolTip(f"{ep_.name} ({ep_.module_name})")
+                ac.setData(handler_)
+            action = menu.exec(event.screenPos())
+            if action is not None:
+                handler = action.data()
+        if handler is None:
+            return False
+        return handler.doDrop(document, event)
+
+
+def action_for_handler(handler: DropHandler, document, event) -> Optional[QAction]:
+    if isinstance(handler, DropHandlerAction):
+        return handler.actionFromDropEvent(document, event)
+    else:
+        return None
+
+
+class DropAction(UserInteraction):
+    """
+    A drop action on the workflow.
+    """
+    def __init__(
+            self, document, *args, dropHandlers: Sequence[DropHandler] = (),
+            **kwargs
+    ) -> None:
+        super().__init__(document, *args, **kwargs)
+        self.__designatedAction: Optional[DropHandler] = None
+        self.__dropHandlers = dropHandlers
+
+    def dropHandlers(self) -> Iterable[DropHandler]:
+        """Return an iterable over drop handlers."""
+        return iter(self.__dropHandlers)
+
+    def canHandleDrop(self, event: 'QGraphicsSceneDragDropEvent') -> bool:
+        """
+        Can this interactions handle the drop `event`.
+
+        The default implementation checks each `dropHandler` if it
+        :func:`~DropHandler.accepts` the event. The first such handler that
+        accepts is selected to be the designated handler and will receive
+        the drop (:func:`~DropHandler.doDrop`).
+        """
+        for ep in self.dropHandlers():
+            if ep.accepts(self.document, event):
+                self.__designatedAction = ep
+                return True
+        else:
+            return False
+
+    def dragEnterEvent(self, event):
+        if self.canHandleDrop(event):
+            event.acceptProposedAction()
+            return True
+        else:
+            return False
+
+    def dragMoveEvent(self, event):
+        if self.canHandleDrop(event):
+            event.acceptProposedAction()
+            return True
+        else:
+            return False
+
+    def dragLeaveEvent(self, even):
+        self.__designatedAction = None
+        self.end()
+        return False
+
+    def dropEvent(self, event):
+        if self.__designatedAction is not None:
+            try:
+                res = self.__designatedAction.doDrop(self.document, event)
+            except Exception:  # noqa
+                log.exception("")
+                res = False
+            if res:
+                event.acceptProposedAction()
+            self.end()
+            return True
+        else:
+            self.end()
+            return False

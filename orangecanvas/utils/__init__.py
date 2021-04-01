@@ -27,6 +27,7 @@ __all__ = [
     "mapping_get",
     "findf",
     "set_flag",
+    "UNUSED",
 ]
 
 if typing.TYPE_CHECKING:
@@ -273,3 +274,15 @@ def set_flag(flags, mask, on=True):
         return type(flags)(flags | int(mask))
     else:
         return type(flags)(flags & ~int(mask))
+
+
+def UNUSED(*_unused_args) -> None:
+    """
+    *Mark* the function arguments as unused for a code checker
+
+    Examples
+    --------
+    >>> def foo(bar, baz):
+    ...     UNUSED(bar, baz)
+    ...     return True
+    """

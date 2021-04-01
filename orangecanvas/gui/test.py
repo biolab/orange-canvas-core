@@ -7,8 +7,12 @@ import gc
 from typing import Callable, Any
 
 from AnyQt.QtWidgets import QApplication, QWidget
-from AnyQt.QtCore import QCoreApplication, QTimer, QStandardPaths, QPoint, Qt
-from AnyQt.QtGui import QMouseEvent
+from AnyQt.QtCore import (
+    QCoreApplication, QTimer, QStandardPaths, QPoint, Qt, QMimeData
+)
+from AnyQt.QtGui import (
+    QMouseEvent, QDragEnterEvent, QDropEvent, QDragMoveEvent, QDragLeaveEvent
+)
 from AnyQt.QtTest import QTest
 from AnyQt.QtCore import PYQT_VERSION
 
@@ -90,3 +94,89 @@ def mouseMove(widget, buttons, modifier=Qt.NoModifier, pos=QPoint(), delay=-1):
         QTest.qWait(delay)
 
     QCoreApplication.sendEvent(widget, me)
+
+
+def dragDrop(
+        widget: QWidget, mime: QMimeData, pos: QPoint = QPoint(),
+        action=Qt.CopyAction, buttons=Qt.LeftButton, modifiers=Qt.NoModifier
+) -> bool:
+    """
+    Simulate a drag/drop interaction on the `widget`.
+
+    A `QDragEnterEvent`, `QDragMoveEvent` and `QDropEvent` are created and
+    dispatched to the `widget`. However if any of the `QDragEnterEvent` or
+    `QDragMoveEvent` are not accepted, a `QDragLeaveEvent` is dispatched
+    to 'reset' the widget state before this function returns `False`
+
+    Parameters
+    ----------
+    widget: QWidget
+        The target widget.
+    mime: QMimeData
+        The mime data associated with the drag/drop.
+    pos: QPoint
+        Position of the drop
+    action: Qt.DropActions
+        Type of acceptable drop actions
+    buttons: Qt.MouseButtons:
+        Pressed mouse buttons.
+    modifiers: Qt.KeyboardModifiers
+        Pressed keyboard modifiers.
+
+    Returns
+    -------
+    state: bool
+        Were the events accepted.
+
+    See Also
+    --------
+    QDragEnterEvent, QDropEvent
+    """
+    if pos.isNull():
+        pos = widget.rect().center()
+
+    ev = QDragEnterEvent(pos, action, mime, buttons, modifiers)
+    ev.setAccepted(False)
+    QApplication.sendEvent(widget, ev)
+
+    ev = QDragMoveEvent(pos, action, mime, buttons, modifiers)
+    ev.setAccepted(False)
+    QApplication.sendEvent(widget, ev)
+
+    if not ev.isAccepted():
+        QApplication.sendEvent(widget, QDragLeaveEvent())
+        return False
+
+    ev = QDropEvent(pos, action, mime, buttons, modifiers)
+    ev.setAccepted(False)
+    QApplication.sendEvent(widget, ev)
+    return ev.isAccepted()
+
+
+def dragEnterLeave(
+        widget: QWidget, mime: QMimeData, pos=QPoint(),
+        action=Qt.CopyAction, buttons=Qt.LeftButton, modifiers=Qt.NoModifier
+) -> None:
+    """
+    Simulate a drag/move/leave interaction on the `widget`.
+
+    A QDragEnterEvent, QDragMoveEvent and a QDragLeaveEvent are created
+    and dispatched to the widget.
+    """
+    if pos.isNull():
+        pos = widget.rect().center()
+
+    ev = QDragEnterEvent(pos, action, mime, buttons, modifiers)
+    ev.setAccepted(False)
+    QApplication.sendEvent(widget, ev)
+
+    ev = QDragMoveEvent(
+        pos, action, mime, buttons, modifiers, QDragMoveEvent.DragMove
+    )
+    ev.setAccepted(False)
+    QApplication.sendEvent(widget, ev)
+
+    ev = QDragLeaveEvent()
+    ev.setAccepted(False)
+    QApplication.sendEvent(widget, ev)
+    return
