@@ -1,28 +1,24 @@
 """
-Orange Canvas main entry point
-
 """
+import argparse
 
 import os
 import sys
 import gc
-import re
 import logging
-import optparse
 import pickle
 import shlex
-import io
 import warnings
+
 from urllib.request import getproxies
 from contextlib import ExitStack, redirect_stdout, redirect_stderr, closing
 
-import pkg_resources
+from AnyQt.QtGui import QFont, QColor
+from AnyQt.QtCore import Qt, QSettings
 
-from AnyQt.QtGui import QFont, QColor, QPalette
-from AnyQt.QtCore import Qt, QDir, QSettings, QT_VERSION
 
 from .utils.after_exit import run_after_exit
-from .styles import breeze_dark
+from .styles import breeze_dark as _breeze_dark
 from .application.application import CanvasApplication
 from .application.canvasmain import CanvasMainWindow
 from .application.outputview import TextStream, ExceptHook
@@ -31,7 +27,6 @@ from . import utils, config
 from .gui.splashscreen import SplashScreen
 from .gui.utils import macos_set_nswindow_tabbing as _macos_set_nswindow_tabbing
 
-from .registry import qt
 from .registry import WidgetRegistry, set_global_registry
 from .registry import cache
 
@@ -56,12 +51,17 @@ def fix_win_pythonw_std_stream():
 default_proxies = None
 
 
+# TODO: Remove this
 def fix_set_proxy_env():
     """
     Set http_proxy/https_proxy environment variables (for requests, pip, ...)
     from user-specified settings or, if none, from system settings on OS X
     and from registry on Windos.
     """
+    warnings.warn(
+        "fix_set_proxy_env is deprecated", DeprecationWarning,
+        stacklevel=2
+    )
     # save default proxies so that setting can be reset
     global default_proxies
     if default_proxies is None:
@@ -90,54 +90,118 @@ def fix_macos_nswindow_tabbing():
     _macos_set_nswindow_tabbing()
 
 
+# Used to be defined here now moved to styles.
+def breeze_dark():
+    warnings.warn(
+        f"{__name__}'.breeze_dark()' has been moved to styles package.",
+        DeprecationWarning, stacklevel=2
+    )
+    return _breeze_dark()
+
+
+def make_stream_handler(level, fileobj=None, fmt=None):
+    handler = logging.StreamHandler(fileobj)
+    handler.setLevel(level)
+    if fmt:
+        handler.setFormatter(logging.Formatter(fmt))
+    return handler
+
+
+def make_file_handler(level, filename, mode="w", fmt=None):
+    handler = logging.FileHandler(filename, mode=mode)
+    handler.setLevel(level)
+    if fmt:
+        handler.setFormatter(logging.Formatter(fmt))
+    return handler
+
+
+LOG_LEVELS = [
+    logging.CRITICAL + 10,
+    logging.CRITICAL,
+    logging.ERROR,
+    logging.WARN,
+    logging.INFO,
+    logging.DEBUG
+]
+
+
+def setuplogging(
+        level=logging.ERROR,
+        filename='',
+        config={},
+):
+    stream_handler = make_stream_handler(
+        level
+    )
+    stream_handler.setLevel(level)
+
+
+def parse_args(argv):
+    def log_level(value):
+        if value in ("0", "1", "2", "3", "4", "5"):
+            return LOG_LEVELS[int(value)]
+        elif hasattr(logging, value.upper()):
+            return getattr(logging, value.upper())
+        else:
+            raise ValueError("Invalid log level {!r}".format(value))
+
+    parser = argparse.ArgumentParser(
+        usage="usage: %(prog)s [options] [workflow_file]"
+    )
+    parser.add_argument(
+        "--no-discovery", action="store_true",
+        help="Don't run widget discovery (use full cache instead)"
+    )
+    parser.add_argument(
+        "--force-discovery", action="store_true",
+        help="Force full widget discovery (invalidate cache)"
+    )
+    parser.add_argument(
+        "--no-welcome", action="store_true",
+        help="Don't show welcome dialog."
+    )
+    parser.add_argument(
+        "--no-splash", action="store_true",
+        help="Don't show splash screen."
+    )
+    parser.add_argument(
+        "-l", "--log-level",
+        help="Logging level (0, 1, 2, 3, 4)", type=log_level,
+        default=logging.ERROR,
+    )
+    parser.add_argument(
+        "--stylesheet",
+        help="Application level CSS style sheet to use", type=str, default=None
+    )
+    parser.add_argument(
+        "--config", help="Configuration namespace",
+        type=str, default="orangecanvas.example"
+    )
+    grp = parser.add_argument_group("Theme")
+
+    deprecated = parser.add_argument_group("Deprecated")
+    deprecated.add_argument(
+        "--qt", help="Additional arguments for QApplication.\nDeprecated. "
+        "List all arguments as normally to pass it to QApplication.",
+        type=str, default=None
+    )
+    deprecated.add_argument(
+        "--style", help="QStyle to use (deprecated: use -style)",
+        type=str, default=None
+    )
+    ns, rest = parser.parse_known_args(argv)
+    if ns.style is not None:
+        rest = ["-style", ns.style] + rest
+    if ns.qt is not None:
+        rest = shlex.split(ns.qt) + rest
+    return ns, rest
+
+
 def main(argv=None):
     if argv is None:
         argv = sys.argv
 
-    usage = "usage: %prog [options] [workflow_file]"
-    parser = optparse.OptionParser(usage=usage)
-
-    parser.add_option("--no-discovery",
-                      action="store_true",
-                      help="Don't run widget discovery "
-                           "(use full cache instead)")
-    parser.add_option("--force-discovery",
-                      action="store_true",
-                      help="Force full widget discovery "
-                           "(invalidate cache)")
-    parser.add_option("--no-welcome",
-                      action="store_true",
-                      help="Don't show welcome dialog.")
-    parser.add_option("--no-splash",
-                      action="store_true",
-                      help="Don't show splash screen.")
-    parser.add_option("-l", "--log-level",
-                      help="Logging level (0, 1, 2, 3, 4)",
-                      type="int", default=1)
-    parser.add_option("--style",
-                      help="QStyle to use",
-                      type="str", default=None)
-    parser.add_option("--stylesheet",
-                      help="Application level CSS style sheet to use",
-                      type="str", default=None)
-    parser.add_option("--qt",
-                      help="Additional arguments for QApplication",
-                      type="str", default=None)
-
-    parser.add_option("--config",
-                      help="Configuration namespace",
-                      type="str", default="orangecanvas.example")
-
-    # -m canvas orange.widgets
-    # -m canvas --config orange.widgets
-
-    (options, args) = parser.parse_args(argv[1:])
-
-    levels = [logging.CRITICAL,
-              logging.ERROR,
-              logging.WARN,
-              logging.INFO,
-              logging.DEBUG]
+    options, argv_rest = parse_args(argv)
 
     # Fix streams before configuring logging (otherwise it will store
     # and write to the old file descriptors)
@@ -146,15 +210,17 @@ def main(argv=None):
     # Set http_proxy environment variable(s) for some clients
     fix_set_proxy_env()
 
+    setuplogging(options.log_level,)
+
     # File handler should always be at least INFO level so we need
     # the application root level to be at least at INFO.
-    root_level = min(levels[options.log_level], logging.INFO)
+    root_level = min(options.log_level, logging.INFO)
     rootlogger = logging.getLogger(__package__)
     rootlogger.setLevel(root_level)
 
     # Standard output stream handler at the requested level
     stream_hander = logging.StreamHandler()
-    stream_hander.setLevel(level=levels[options.log_level])
+    stream_hander.setLevel(options.log_level)
     rootlogger.addHandler(stream_hander)
 
     if options.config is not None:
@@ -164,126 +230,28 @@ def main(argv=None):
             pass
         else:
             config.set_default(cfg())
-            log.info("activating %s", options.config)
 
-    log.info("Starting 'Orange Canvas' application.")
-
-    qt_argv = argv[:1]
-
-    style = options.style
-    defaultstylesheet = "orange.qss"
-    fusiontheme = None
-
-    if style is not None:
-        if style.startswith("fusion:"):
-            qt_argv += ["-style", "fusion"]
-            _, _, fusiontheme = style.partition(":")
-        else:
-            qt_argv += ["-style", style]
-
-    if options.qt is not None:
-        qt_argv += shlex.split(options.qt)
-
-    qt_argv += args
-
-    if QT_VERSION >= 0x50600:
-        CanvasApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
-
-    log.debug("Starting CanvasApplicaiton with argv = %r.", qt_argv)
-    app = CanvasApplication(qt_argv)
-    if app.style().metaObject().className() == "QFusionStyle":
-        if fusiontheme == "breeze-dark":
-            app.setPalette(breeze_dark())
-            defaultstylesheet = "darkorange.qss"
-
-    palette = app.palette()
-    if style is None and palette.color(QPalette.Window).value() < 127:
-        log.info("Switching default stylesheet to darkorange")
-        defaultstylesheet = "darkorange.qss"
-
-    # NOTE: config.init() must be called after the QApplication constructor
     config.init()
+    CanvasApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
+    qapp_argv = argv[:1] + argv_rest
+    app = CanvasApplication(qapp_argv)
+    argv = app.arguments()
 
     file_handler = logging.FileHandler(
         filename=os.path.join(config.log_dir(), "canvas.log"),
         mode="w"
     )
-
     file_handler.setLevel(root_level)
     rootlogger.addHandler(file_handler)
 
-    # intercept any QFileOpenEvent requests until the main window is
-    # fully initialized.
-    # NOTE: The QApplication must have the executable ($0) and filename
-    # arguments passed in argv otherwise the FileOpen events are
-    # triggered for them (this is done by Cocoa, but QApplicaiton filters
-    # them out if passed in argv)
-
-    open_requests = []
-
-    def onrequest(url):
-        log.info("Received an file open request %s", url)
-        open_requests.append(url)
-
-    app.fileOpenRequest.connect(onrequest)
-
     settings = QSettings()
-
-    stylesheet = options.stylesheet or defaultstylesheet
-    stylesheet_string = None
-
-    if stylesheet != "none":
-        if os.path.isfile(stylesheet):
-            with io.open(stylesheet, "r") as f:
-                stylesheet_string = f.read()
-        else:
-            if not os.path.splitext(stylesheet)[1]:
-                # no extension
-                stylesheet = os.path.extsep.join([stylesheet, "qss"])
-
-            pkg_name = __package__
-            resource = "styles/" + stylesheet
-
-            if pkg_resources.resource_exists(pkg_name, resource):
-                stylesheet_string = \
-                    pkg_resources.resource_string(pkg_name, resource).decode("utf-8")
-
-                base = pkg_resources.resource_filename(pkg_name, "styles")
-
-                pattern = re.compile(
-                    r"^\s@([a-zA-Z0-9_]+?)\s*:\s*([a-zA-Z0-9_/]+?);\s*$",
-                    flags=re.MULTILINE
-                )
-
-                matches = pattern.findall(stylesheet_string)
-
-                for prefix, search_path in matches:
-                    QDir.addSearchPath(prefix, os.path.join(base, search_path))
-                    log.info("Adding search path %r for prefix, %r",
-                             search_path, prefix)
-
-                stylesheet_string = pattern.sub("", stylesheet_string)
-
-            else:
-                log.info("%r style sheet not found.", stylesheet)
-
-    # Add the default canvas_icons search path
-    dirpath = os.path.abspath(os.path.dirname(__file__))
-    QDir.addSearchPath("canvas_icons", os.path.join(dirpath, "icons"))
-
-    canvas_window = CanvasMainWindow()
-    canvas_window.setAttribute(Qt.WA_DeleteOnClose)
-    canvas_window.setWindowIcon(config.application_icon())
-
-    if stylesheet_string is not None:
-        canvas_window.setStyleSheet(stylesheet_string)
 
     if not options.force_discovery:
         reg_cache = cache.registry_cache()
     else:
         reg_cache = None
 
-    widget_registry = qt.QtWidgetRegistry()
+    widget_registry = WidgetRegistry()
     widget_discovery = config.widget_discovery(
         widget_registry, cached_descriptions=reg_cache)
 
@@ -313,7 +281,7 @@ def main(argv=None):
     if options.no_discovery:
         with open(cache_filename, "rb") as f:
             widget_registry = pickle.load(f)
-        widget_registry = qt.QtWidgetRegistry(widget_registry)
+        widget_registry = WidgetRegistry(widget_registry)
     else:
         show_splash()
         widget_discovery.run(config.widgets_entry_points())
@@ -325,6 +293,11 @@ def main(argv=None):
             pickle.dump(WidgetRegistry(widget_registry), f)
 
     set_global_registry(widget_registry)
+
+    canvas_window = CanvasMainWindow()
+    canvas_window.setAttribute(Qt.WA_DeleteOnClose)
+
+    canvas_window.setWindowIcon(config.application_icon())
     canvas_window.set_widget_registry(widget_registry)
     canvas_window.show()
     canvas_window.raise_()
@@ -333,25 +306,16 @@ def main(argv=None):
         settings.value("startup/show-welcome-screen", True, type=bool) \
         and not options.no_welcome
 
-    # Process events to make sure the canvas_window layout has
-    # a chance to activate (the welcome dialog is modal and will
-    # block the event queue, plus we need a chance to receive open file
-    # signals when running without a splash screen)
-    app.processEvents()
-
+    # TODO: Document manager...
     app.fileOpenRequest.connect(canvas_window.open_scheme_file)
 
-    if want_welcome and not args and not open_requests:
+    if want_welcome and not argv:
+        # trigger the welcome dlg action.
         canvas_window.welcome_dialog()
-
-    elif args:
-        log.info("Loading a scheme from the command line argument %r",
-                 args[0])
-        canvas_window.load_scheme(args[0])
-    elif open_requests:
-        log.info("Loading a scheme from an `QFileOpenEvent` for %r",
-                 open_requests[-1])
-        canvas_window.load_scheme(open_requests[-1].toLocalFile())
+    elif argv:
+        # TODO: Could load multiple files
+        log.info("Loading a workflow from the command line argument %r", argv[0])
+        canvas_window.load_scheme(argv[0])
 
     # Tee stdout and stderr into Output dock
     output_view = canvas_window.output_view()
