@@ -20,7 +20,8 @@ from ...canvas import items
 from ...scheme import Scheme, SchemeNode, SchemeLink, SchemeTextAnnotation, \
                       SchemeArrowAnnotation
 from ...registry.tests import small_testing_registry
-from ...gui.test import QAppTestCase, mouseMove, dragDrop, dragEnterLeave
+from ...gui.test import QAppTestCase, mouseMove, dragDrop, dragEnterLeave, \
+    contextMenu
 from ...utils import findf
 from ...scheme.tests.test_widgetmanager import TestingWidgetManager
 
@@ -223,6 +224,9 @@ class TestSchemeEdit(QAppTestCase):
         w = self.w
         scene = w.scene()
         view = w.view()
+        w.show()
+        w.raise_()
+        w.activateWindow()
         node = SchemeNode(self.reg.widget("one"), title="A")
         w.addNode(node)
         w.selectAll()
@@ -233,6 +237,7 @@ class TestSchemeEdit(QAppTestCase):
         point = view.mapFromScene(point)
         QTest.mouseClick(view.viewport(), Qt.LeftButton, Qt.NoModifier, point)
         self.assertTrue(item.captionTextItem.isEditing())
+        contextMenu(view.viewport(), point)
 
     def test_arrow_annotation_action(self):
         w = self.w

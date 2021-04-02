@@ -11,7 +11,8 @@ from AnyQt.QtCore import (
     QCoreApplication, QTimer, QStandardPaths, QPoint, Qt, QMimeData
 )
 from AnyQt.QtGui import (
-    QMouseEvent, QDragEnterEvent, QDropEvent, QDragMoveEvent, QDragLeaveEvent
+    QMouseEvent, QDragEnterEvent, QDropEvent, QDragMoveEvent, QDragLeaveEvent,
+    QContextMenuEvent
 )
 from AnyQt.QtTest import QTest
 from AnyQt.QtCore import PYQT_VERSION
@@ -94,6 +95,18 @@ def mouseMove(widget, buttons, modifier=Qt.NoModifier, pos=QPoint(), delay=-1):
         QTest.qWait(delay)
 
     QCoreApplication.sendEvent(widget, me)
+
+
+def contextMenu(widget: QWidget, pos: QPoint, delay=-1) -> None:
+    """
+    Simulates a contextMenuEvent on the widget.
+    """
+    ev = QContextMenuEvent(
+        QContextMenuEvent.Mouse, pos, widget.mapToGlobal(pos)
+    )
+    if delay > 0:
+        QTest.qWait(delay)
+    QCoreApplication.sendEvent(widget, ev)
 
 
 def dragDrop(
