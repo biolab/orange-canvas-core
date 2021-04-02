@@ -1,6 +1,4 @@
 """
-Orange Canvas Application
-
 """
 import atexit
 import sys
@@ -98,6 +96,8 @@ class CanvasApplication(QApplication):
 
     def __init__(self, argv):
         fix_qt_plugins_path()
+        self.__fileOpenUrls = []
+        self.__in_exec = False
         if hasattr(Qt, "AA_EnableHighDpiScaling"):
             # Turn on HighDPI support when available
             QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
@@ -121,10 +121,24 @@ class CanvasApplication(QApplication):
 
     def event(self, event):
         if event.type() == QEvent.FileOpen:
-            self.fileOpenRequest.emit(event.url())
+            if not self.__in_exec:
+                self.__fileOpenUrls.append(event.url())
+            else:
+                self.fileOpenRequest.emit(event.url())
         elif event.type() == QEvent.PolishRequest:
             self.configureStyle()
         return super().event(event)
+
+    def exec(self) -> int:
+        while self.__fileOpenUrls:
+            self.fileOpenRequest.emit(self.__fileOpenUrls.pop(0))
+        self.__in_exec = True
+        try:
+            return super().exec()
+        finally:
+            self.__in_exec = False
+
+    exec_ = exec
 
     @staticmethod
     def parse_style_arguments(argv):
