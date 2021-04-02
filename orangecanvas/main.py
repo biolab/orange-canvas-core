@@ -43,9 +43,9 @@ def fix_win_pythonw_std_stream():
     if sys.platform == "win32" and \
             os.path.basename(sys.executable) == "pythonw.exe":
         if sys.stdout is None or sys.stdout.fileno() < 0:
-            sys.stdout = open(os.devnull, "w")
+            sys.stdout = open(os.devnull, "w", encoding="utf-8", errors="ignore")
         if sys.stderr is None or sys.stderr.fileno() < 0:
-            sys.stderr = open(os.devnull, "w")
+            sys.stderr = open(os.devnull, "w", encoding="utf-8", errors="ignore")
 
 
 default_proxies = None
