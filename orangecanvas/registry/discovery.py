@@ -7,7 +7,7 @@ Discover which widgets are installed/available.
 This module implements a discovery process
 
 """
-
+import abc
 import os
 import sys
 import stat
@@ -15,6 +15,8 @@ import logging
 import types
 import pkgutil
 from collections import namedtuple
+from typing import Union
+
 import pkg_resources
 
 from .description import (
@@ -61,9 +63,41 @@ class WidgetDiscovery(object):
     """
     Base widget discovery runner.
     """
+    class Handler:
+        @abc.abstractmethod
+        def handle_category(self, category: CategoryDescription): pass
 
-    def __init__(self, registry=None, cached_descriptions=None):
-        self.registry = registry
+        @abc.abstractmethod
+        def handle_widget(self, widget: WidgetDescription): pass
+
+    class RegistryHandler(Handler):
+        def __init__(self, registry: WidgetRegistry, **kwargs):
+            super().__init__(**kwargs)
+            self.registry = registry
+
+        def handle_category(self, category: CategoryDescription) -> None:
+            self.registry.register_category(category)
+
+        def handle_widget(self, desc: WidgetDescription) -> None:
+            self.registry.register_widget(desc)
+
+    def __init__(
+            self,
+            registry: Union[WidgetRegistry, Handler, None] = None,
+            cached_descriptions=None
+    ) -> None:
+        if isinstance(registry, WidgetRegistry):
+            self.registry = registry
+            self.handler = WidgetDiscovery.RegistryHandler(registry)
+        elif isinstance(registry, WidgetDiscovery.Handler):
+            self.handler = registry
+            self.registry = None
+        elif registry is None:
+            self.handler = None
+            self.registry = None
+        else:
+            raise TypeError("'WidgetRegistry', 'Handler' or None expected")
+
         self.cached_descriptions = cached_descriptions or {}
         version = (VERSION_HEX, )
         if self.cached_descriptions.get("!VERSION") != version:
@@ -214,8 +248,8 @@ class WidgetDiscovery(object):
         constructor.
 
         """
-        if self.registry:
-            self.registry.register_widget(desc)
+        if self.handler:
+            self.handler.handle_widget(desc)
 
     def handle_category(self, desc):
         """
@@ -225,8 +259,8 @@ class WidgetDiscovery(object):
         constructor.
 
         """
-        if self.registry:
-            self.registry.register_category(desc)
+        if self.handler:
+            self.handler.handle_category(desc)
 
     def iter_widget_descriptions(self, package, category_name=None,
                                  distribution=None):

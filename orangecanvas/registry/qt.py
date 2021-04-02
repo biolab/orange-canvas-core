@@ -56,6 +56,21 @@ class QtWidgetDiscovery(QObject, WidgetDiscovery):
         self.found_category.emit(description)
 
 
+class QtRegistryHandler(QObject, WidgetDiscovery.RegistryHandler):
+    # Found a widget with description
+    found_widget = Signal(WidgetDescription)
+    # Found a category with description
+    found_category = Signal(CategoryDescription)
+
+    def handle_category(self, category):
+        super().handle_category(category)
+        self.found_category.emit(category)
+
+    def handle_widget(self, desc):
+        super().handle_widget(desc)
+        self.found_widget.emit(desc)
+
+
 class QtWidgetRegistry(QObject, WidgetRegistry):
     """
     A QObject wrapper for `WidgetRegistry`

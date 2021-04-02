@@ -27,7 +27,7 @@ from . import utils, config
 from .gui.splashscreen import SplashScreen
 from .gui.utils import macos_set_nswindow_tabbing as _macos_set_nswindow_tabbing
 
-from .registry import WidgetRegistry, set_global_registry
+from .registry import WidgetDiscovery, WidgetRegistry, set_global_registry
 from .registry import cache
 
 log = logging.getLogger(__name__)
@@ -252,8 +252,10 @@ def main(argv=None):
         reg_cache = None
 
     widget_registry = WidgetRegistry()
+    handler = WidgetDiscovery.RegistryHandler(widget_registry)
     widget_discovery = config.widget_discovery(
-        widget_registry, cached_descriptions=reg_cache)
+        handler, cached_descriptions=reg_cache
+    )
 
     want_splash = \
         settings.value("startup/show-splash-screen", True, type=bool) and \
@@ -269,7 +271,7 @@ def main(argv=None):
         def show_message(message):
             splash_screen.showMessage(message, color=color)
 
-        widget_registry.category_added.connect(show_message)
+        # widget_registry.category_added.connect(show_message)
         show_splash = splash_screen.show
         close_splash = splash_screen.close
     else:
