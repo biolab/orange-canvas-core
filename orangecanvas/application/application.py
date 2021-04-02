@@ -17,6 +17,7 @@ from AnyQt.QtCore import (
 
 from orangecanvas.utils.after_exit import run_after_exit
 from orangecanvas.utils.asyncutils import get_event_loop
+from orangecanvas.gui.utils import macos_set_nswindow_tabbing
 
 
 def fix_qt_plugins_path():
@@ -115,6 +116,7 @@ class CanvasApplication(QApplication):
             if hasattr(sh, 'setShowShortcutsInContextMenus'):
                 # PyQt5.13 and up
                 sh.setShowShortcutsInContextMenus(True)
+        macos_set_nswindow_tabbing(False)
         self.configureStyle()
 
     def event(self, event):

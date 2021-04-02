@@ -12,6 +12,7 @@ import optparse
 import pickle
 import shlex
 import io
+import warnings
 from urllib.request import getproxies
 from contextlib import ExitStack, redirect_stdout, redirect_stderr, closing
 
@@ -28,7 +29,7 @@ from .application.outputview import TextStream, ExceptHook
 
 from . import utils, config
 from .gui.splashscreen import SplashScreen
-from .gui.utils import macos_set_nswindow_tabbing as fix_macos_nswindow_tabbing
+from .gui.utils import macos_set_nswindow_tabbing as _macos_set_nswindow_tabbing
 
 from .registry import qt
 from .registry import WidgetRegistry, set_global_registry
@@ -78,6 +79,15 @@ def fix_set_proxy_env():
             os.environ[env_scheme] = from_default  # crucial for windows/macos support
         else:
             os.environ.pop(env_scheme, "")
+
+
+def fix_macos_nswindow_tabbing():
+    warnings.warn(
+        f"'{__name__}.fix_macos_nswindow_tabbing()' is deprecated. Use "
+        "'orangecanvas.gui.utils.macos_set_nswindow_tabbing()' instead",
+        DeprecationWarning, stacklevel=2
+    )
+    _macos_set_nswindow_tabbing()
 
 
 def main(argv=None):
@@ -135,9 +145,6 @@ def main(argv=None):
 
     # Set http_proxy environment variable(s) for some clients
     fix_set_proxy_env()
-
-    # Try to fix macOS automatic window tabbing (Sierra and later)
-    fix_macos_nswindow_tabbing()
 
     # File handler should always be at least INFO level so we need
     # the application root level to be at least at INFO.
