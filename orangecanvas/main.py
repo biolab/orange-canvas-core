@@ -232,7 +232,7 @@ def main(argv=None):
             config.set_default(cfg())
 
     config.init()
-    CanvasApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
+
     qapp_argv = argv[:1] + argv_rest
     app = CanvasApplication(qapp_argv)
     argv = app.arguments()

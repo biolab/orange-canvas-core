@@ -95,16 +95,23 @@ class CanvasApplication(QApplication):
     __args = None
 
     def __init__(self, argv):
+        CanvasApplication.__args, argv_ = self.parseArguments(argv)
+        ns = CanvasApplication.__args
         fix_qt_plugins_path()
         self.__fileOpenUrls = []
         self.__in_exec = False
-        if hasattr(Qt, "AA_EnableHighDpiScaling"):
+
+        if ns.enable_high_dpi_scaling \
+                and hasattr(Qt, "AA_EnableHighDpiScaling"):
             # Turn on HighDPI support when available
             QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+        if ns.use_high_dpi_pixmaps \
+                and hasattr(Qt, "AA_UseHighDpiPixmaps"):
+            QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
 
-        CanvasApplication.__args, argv_ = self.parse_style_arguments(argv)
-        if self.__args.style:
+        if ns.style:
             argv_ = argv_ + ["-style", self.__args.style]
+
         super().__init__(argv_)
         # Make sure there is an asyncio event loop that runs on the
         # Qt event loop.
@@ -141,10 +148,17 @@ class CanvasApplication(QApplication):
     exec_ = exec
 
     @staticmethod
-    def parse_style_arguments(argv):
+    def argumentParser():
         parser = argparse.ArgumentParser()
         parser.add_argument("-style", type=str, default=None)
         parser.add_argument("-colortheme", type=str, default=None)
+        parser.add_argument("-enable-high-dpi-scaling", type=bool, default=True)
+        parser.add_argument("-use-high-dpi-pixmaps", type=bool, default=True)
+        return parser
+
+    @staticmethod
+    def parseArguments(argv):
+        parser = CanvasApplication.argumentParser()
         ns, rest = parser.parse_known_args(argv)
         if ns.style is not None:
             if ":" in ns.style:
