@@ -196,9 +196,6 @@ class CanvasMainWindow(QMainWindow):
     def setup_ui(self):
         """Setup main canvas ui
         """
-
-        log.info("Setting up Canvas main window.")
-
         # Two dummy tool bars to reserve space
         self.__dummy_top_toolbar = FakeToolBar(
             objectName="__dummy_top_toolbar")
