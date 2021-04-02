@@ -1,7 +1,10 @@
 """
 """
-from typing import Mapping, Callable
+import os
+import re
+from typing import Mapping, Callable, Tuple, List
 
+import pkg_resources
 from AnyQt.QtCore import Qt
 from AnyQt.QtGui import QPalette, QColor
 
@@ -114,3 +117,58 @@ colorthemes = {
     "zion-reversed": zion_reversed,
     "dark": dark
 }  # type: Mapping[str, Callable[[],QPalette]]
+
+
+def style_sheet(stylesheet: str) -> Tuple[str, List[Tuple[str, str]]]:
+    """
+    Load and return a stylesheet string from path.
+
+    Extract special `@prefix: subdirname` 'directives' and return the
+    (prefix, dirname) tuples. These should be added to `QDir.searchPath` in
+    order to locate resources.
+
+    Parameters
+    ----------
+    stylesheet: str
+        A path to a css (Qt's stylesheet) file. Can be a relative path w.r.t.
+        this package's directory.
+
+    Returns
+    -------
+    stylesheet: str
+    searchpaths: List[Tuple[str, str]]
+    """
+    def process_qss(content: str, base: str):
+        pattern = re.compile(
+            r"^\s@([a-zA-Z0-9_]+?)\s*:\s*([a-zA-Z0-9_/]+?);\s*$",
+            flags=re.MULTILINE
+        )
+        matches = pattern.findall(content)
+        paths = []
+        for prefix, search_path in matches:
+            paths.append((prefix, os.path.join(base, search_path)))
+        content = pattern.sub("", content)
+        return content, paths
+
+    stylesheet_string = None
+    try:
+        with open(stylesheet, "r", encoding="utf-8") as f:
+            stylesheet_string = f.read()
+    except (OSError, UnicodeDecodeError):
+        pass
+    else:
+        return process_qss(stylesheet_string, os.path.basename(stylesheet))
+
+    if not os.path.splitext(stylesheet)[1]:
+        # no extension
+        stylesheet = os.path.extsep.join([stylesheet, "qss"])
+
+    pkg_name = __package__
+    resource = stylesheet
+
+    if pkg_resources.resource_exists(pkg_name, resource):
+        stylesheet_string = \
+            pkg_resources.resource_string(pkg_name, resource).decode("utf-8")
+        base = pkg_resources.resource_filename(pkg_name, "")
+        return process_qss(stylesheet_string, base)
+    return stylesheet_string, []
