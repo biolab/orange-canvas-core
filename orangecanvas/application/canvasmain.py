@@ -1018,6 +1018,7 @@ class CanvasMainWindow(QMainWindow):
         window.setAttribute(Qt.WA_DeleteOnClose)
         window.setGeometry(self.geometry().translated(20, 20))
         window.setStyleSheet(self.styleSheet())
+        window.setWindowIcon(self.windowIcon())
         if self.widget_registry is not None:
             window.set_widget_registry(self.widget_registry)
         window.restoreState(self.saveState(self.SETTINGS_VERSION),
