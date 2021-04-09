@@ -5,14 +5,20 @@ import sys
 import warnings
 import traceback
 from types import TracebackType
-from typing import Any, Optional, List, Type
+from typing import Any, Optional, List, Type, Iterable, Tuple, Union, Mapping
 
-from AnyQt.QtWidgets import QWidget, QPlainTextEdit, QVBoxLayout, QSizePolicy
+from AnyQt.QtWidgets import (
+    QWidget, QPlainTextEdit, QVBoxLayout, QSizePolicy, QPlainTextDocumentLayout
+)
 from AnyQt.QtGui import (
-    QTextCursor, QTextCharFormat, QFont, QTextOption, QFontDatabase
+    QTextCursor, QTextCharFormat, QTextOption, QFontDatabase, QTextDocument,
+    QTextDocumentFragment
 )
 from AnyQt.QtCore import Qt, QObject, QCoreApplication, QThread, QSize
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
+
+from orangecanvas.gui.utils import update_char_format
+from orangecanvas.utils import findf
 
 
 class TerminalView(QPlainTextEdit):
@@ -23,15 +29,7 @@ class TerminalView(QPlainTextEdit):
         self.setTextInteractionFlags(Qt.TextBrowserInteraction)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-
-        try:
-            # Since Qt 5.2
-            font = QFontDatabase.systemFont(QFontDatabase.FixedFont)
-        except AttributeError:
-            font = self.font()
-            font.setStyleHint(QFont.Monospace)
-            font.setFamily("Monospace")
-
+        font = QFontDatabase.systemFont(QFontDatabase.FixedFont)
         self.setFont(font)
         self.setAttribute(Qt.WA_SetFont, False)
 
@@ -45,6 +43,133 @@ class TerminalView(QPlainTextEdit):
         return size
 
 
+class TerminalTextDocument(QTextDocument):
+    def __init__(self, parent=None, **kwargs):
+        super().__init__(parent, **kwargs)
+        self.setDocumentLayout(QPlainTextDocumentLayout(self))
+        self.__currentCharFormat = QTextCharFormat()
+        if 'defaultFont' not in kwargs:
+            defaultFont = QFontDatabase.systemFont(QFontDatabase.FixedFont)
+            self.setDefaultFont(defaultFont)
+        self.__streams = []
+
+    def setCurrentCharFormat(self, charformat: QTextCharFormat) -> None:
+        """Set the QTextCharFormat to be used when writing."""
+        assert QThread.currentThread() is self.thread()
+        if self.__currentCharFormat != charformat:
+            self.__currentCharFormat = QTextCharFormat(charformat)
+
+    def currentCharFormat(self) -> QTextCharFormat:
+        """Return the current char format."""
+        return QTextCharFormat(self.__currentCharFormat)
+
+    def textCursor(self) -> QTextCursor:
+        """Return a text cursor positioned at the end of the document."""
+        cursor = QTextCursor(self)
+        cursor.movePosition(QTextCursor.End, QTextCursor.MoveAnchor)
+        cursor.setCharFormat(self.__currentCharFormat)
+        return cursor
+
+    # ----------------------
+    # A file like interface.
+    # ----------------------
+
+    @Slot(str)
+    def write(self, string: str) -> None:
+        assert QThread.currentThread() is self.thread()
+        cursor = self.textCursor()
+        cursor.insertText(string)
+
+    @Slot(object)
+    def writelines(self, lines: Iterable[str]) -> None:
+        assert QThread.currentThread() is self.thread()
+        self.write("".join(lines))
+
+    @Slot()
+    def flush(self) -> None:
+        assert QThread.currentThread() is self.thread()
+
+    def writeWithFormat(self, string: str, charformat: QTextCharFormat) -> None:
+        assert QThread.currentThread() is self.thread()
+        cursor = self.textCursor()
+        cursor.setCharFormat(charformat)
+        cursor.insertText(string)
+
+    def writelinesWithFormat(self, lines, charformat):
+        # type: (List[str], QTextCharFormat) -> None
+        self.writeWithFormat("".join(lines), charformat)
+
+    def formatted(self, color=None, background=None, weight=None,
+                  italic=None, underline=None, font=None):
+        # type: (...) -> Formatter
+        """
+        Return a formatted file like object proxy.
+        """
+        charformat = update_char_format(
+            self.currentCharFormat(), color, background, weight,
+            italic, underline, font
+        )
+        return Formatter(self, charformat)
+
+    __streams: List[Tuple['TextStream', Optional['Formatter']]]
+
+    def connectedStreams(self) -> List['TextStream']:
+        """Return all streams connected using `connectStream`."""
+        return [s for s, _ in self.__streams]
+
+    def connectStream(
+            self, stream: 'TextStream',
+            charformat: Optional[QTextCharFormat] = None,
+            **kwargs
+    ) -> None:
+        """
+        Connect a :class:`TextStream` instance to this document.
+
+        The `stream` connection will be 'inherited' by `clone()`
+        """
+        if kwargs and charformat is not None:
+            raise TypeError("'charformat' and kwargs cannot be used together")
+        if kwargs:
+            charformat = update_char_format(QTextCharFormat(), **kwargs)
+        writer: Optional[Formatter] = None
+        if charformat is not None:
+            writer = Formatter(self, charformat)
+        self.__streams.append((stream, writer))
+        if writer is not None:
+            stream.stream.connect(writer.write)
+        else:
+            stream.stream.connect(self.write)
+
+    def disconnectStream(self, stream: 'TextStream'):
+        """
+        Disconnect a :class:`TextStream` instance from this document.
+        """
+        item = findf(self.__streams, lambda t: t[0] is stream)
+        if item is not None:
+            self.__streams.remove(item)
+            _, writer = item
+            if writer is not None:
+                stream.stream.disconnect(writer.write)
+            else:
+                stream.stream.disconnect(self.write)
+
+    def clone(self, parent=None) -> 'TerminalTextDocument':
+        """Create a new TerminalTextDocument that is a copy of this document."""
+        clone = type(self)()
+        clone.setParent(parent)
+        clone.setDocumentLayout(QPlainTextDocumentLayout(clone))
+        cursor = QTextCursor(clone)
+        cursor.insertFragment(QTextDocumentFragment(self))
+        clone.rootFrame().setFrameFormat(self.rootFrame().frameFormat())
+        clone.setDefaultStyleSheet(self.defaultStyleSheet())
+        clone.setDefaultFont(self.defaultFont())
+        clone.setDefaultTextOption(self.defaultTextOption())
+        clone.setCurrentCharFormat(self.currentCharFormat())
+        for s, w in self.__streams:
+            clone.connectStream(s, w.charformat if w is not None else None)
+        return clone
+
+
 class OutputView(QWidget):
     def __init__(self, parent=None, **kwargs):
         # type: (Optional[QWidget], Any) -> None
@@ -56,9 +181,9 @@ class OutputView(QWidget):
         self.layout().setContentsMargins(0, 0, 0, 0)
 
         self.__text = TerminalView()
+        self.__text.setDocument(TerminalTextDocument(self.__text))
         self.__text.setWordWrapMode(QTextOption.NoWrap)
-
-        self.__currentCharFormat = self.__text.currentCharFormat()
+        self.__text.setMaximumBlockCount(self.__lines)
 
         self.layout().addWidget(self.__text)
 
@@ -91,12 +216,11 @@ class OutputView(QWidget):
         """Set the QTextCharFormat to be used when writing.
         """
         assert QThread.currentThread() is self.thread()
-        if self.__currentCharFormat != charformat:
-            self.__currentCharFormat = QTextCharFormat(charformat)
+        self.document().setCurrentCharFormat(charformat)
 
     def currentCharFormat(self):
         # type: () -> QTextCharFormat
-        return QTextCharFormat(self.__currentCharFormat)
+        return QTextCharFormat(self.document().currentCharFormat())
 
     def toPlainText(self):
         # type: () -> str
@@ -110,10 +234,8 @@ class OutputView(QWidget):
     def write(self, string):
         # type: (str) -> None
         assert QThread.currentThread() is self.thread()
-        self.__text.moveCursor(QTextCursor.End, QTextCursor.MoveAnchor)
-        self.__text.setCurrentCharFormat(self.__currentCharFormat)
-
-        self.__text.insertPlainText(string)
+        doc = self.document()
+        doc.write(string)
 
     @Slot(object)
     def writelines(self, lines):
@@ -129,9 +251,8 @@ class OutputView(QWidget):
     def writeWithFormat(self, string, charformat):
         # type: (str, QTextCharFormat) -> None
         assert QThread.currentThread() is self.thread()
-        self.__text.moveCursor(QTextCursor.End, QTextCursor.MoveAnchor)
-        self.__text.setCurrentCharFormat(charformat)
-        self.__text.insertPlainText(string)
+        doc = self.document()
+        doc.writeWithFormat(string, charformat)
 
     def writelinesWithFormat(self, lines, charformat):
         # type: (List[str], QTextCharFormat) -> None
@@ -150,6 +271,14 @@ class OutputView(QWidget):
         )
         return Formatter(self, charformat)
 
+    def document(self) -> TerminalTextDocument:
+        return self.__text.document()
+
+    def setDocument(self, document: TerminalTextDocument) -> None:
+        document.setMaximumBlockCount(self.__lines)
+        document.setDefaultFont(self.__text.font())
+        self.__text.setDocument(document)
+
     def formated(self, *args, **kwargs):
         warnings.warn(
             "'Use 'formatted'", DeprecationWarning, stacklevel=2
@@ -157,58 +286,9 @@ class OutputView(QWidget):
         return self.formatted(*args, **kwargs)
 
 
-def update_char_format(baseformat, color=None, background=None, weight=None,
-                       italic=None, underline=None, font=None):
-    """
-    Return a copy of `baseformat` :class:`QTextCharFormat` with
-    updated color, weight, background and font properties.
-
-    """
-    charformat = QTextCharFormat(baseformat)
-
-    if color is not None:
-        charformat.setForeground(color)
-
-    if background is not None:
-        charformat.setBackground(background)
-
-    if font is not None:
-        charformat.setFont(font)
-    else:
-        font = update_font(baseformat.font(), weight, italic, underline)
-        charformat.setFont(font)
-
-    return charformat
-
-
-def update_font(basefont, weight=None, italic=None, underline=None,
-                pixelSize=None, pointSize=None):
-    """
-    Return a copy of `basefont` :class:`QFont` with updated properties.
-    """
-    font = QFont(basefont)
-
-    if weight is not None:
-        font.setWeight(weight)
-
-    if italic is not None:
-        font.setItalic(italic)
-
-    if underline is not None:
-        font.setUnderline(underline)
-
-    if pixelSize is not None:
-        font.setPixelSize(pixelSize)
-
-    if pointSize is not None:
-        font.setPointSize(pointSize)
-
-    return font
-
-
 class Formatter(QObject):
     def __init__(self, outputview, charformat):
-        # type: (OutputView, QTextCharFormat) -> None
+        # type: (Union[TerminalTextDocument, OutputView], QTextCharFormat) -> None
         # Parent to the output view. Ensure the formatter does not outlive it.
         super().__init__(outputview)
         self.outputview = outputview

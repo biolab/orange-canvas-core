@@ -7,14 +7,15 @@ import traceback
 import ctypes
 
 from contextlib import contextmanager
-from typing import Optional
+from typing import Optional, Union
 
 from AnyQt.QtWidgets import (
     QWidget, QMessageBox, QStyleOption, QStyle, QTextEdit, QScrollBar
 )
 from AnyQt.QtGui import (
     QGradient, QLinearGradient, QRadialGradient, QBrush, QPainter,
-    QPaintEvent, QColor, QPixmap, QPixmapCache, QTextOption, QGuiApplication
+    QPaintEvent, QColor, QPixmap, QPixmapCache, QTextOption, QGuiApplication,
+    QTextCharFormat, QFont
 )
 from AnyQt.QtCore import Qt, QPointF, QPoint, QRect, QRectF, Signal, QEvent
 
@@ -594,3 +595,68 @@ def clipboard_data(mimetype: str) -> Optional[bytes]:
         return bytes(mime.data(mimetype))
     else:
         return None
+
+
+_Color = Union[QColor, QBrush, Qt.GlobalColor, QGradient]
+
+
+def update_char_format(
+        baseformat: QTextCharFormat,
+        color: Optional[_Color] = None,
+        background: Optional[_Color] = None,
+        weight: Optional[int] = None,
+        italic: Optional[bool] = None,
+        underline: Optional[bool] = None,
+        font: Optional[QFont] = None
+) -> QTextCharFormat:
+    """
+    Return a copy of `baseformat` :class:`QTextCharFormat` with
+    updated color, weight, background and font properties.
+    """
+    charformat = QTextCharFormat(baseformat)
+    if color is not None:
+        charformat.setForeground(color)
+    if background is not None:
+        charformat.setBackground(background)
+    if font is not None:
+        assert weight is None and italic is None and underline is None
+        charformat.setFont(font)
+    else:
+        if weight is not None:
+            charformat.setFontWeight(weight)
+        if italic is not None:
+            charformat.setFontItalic(italic)
+        if underline is not None:
+            charformat.setFontUnderline(underline)
+    return charformat
+
+
+def update_font(
+        basefont: QFont,
+        weight: Optional[int] = None,
+        italic: Optional[bool] = None,
+        underline: Optional[bool] = None,
+        pixelSize: Optional[int] = None,
+        pointSize: Optional[float] = None
+) -> QFont:
+    """
+    Return a copy of `basefont` :class:`QFont` with updated properties.
+    """
+    font = QFont(basefont)
+
+    if weight is not None:
+        font.setWeight(weight)
+
+    if italic is not None:
+        font.setItalic(italic)
+
+    if underline is not None:
+        font.setUnderline(underline)
+
+    if pixelSize is not None:
+        font.setPixelSize(pixelSize)
+
+    if pointSize is not None:
+        font.setPointSizeF(pointSize)
+
+    return font
