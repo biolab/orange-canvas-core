@@ -87,8 +87,9 @@ def main(argv):
 
     if ns.arg:
         log.info("Starting new process with cmd: %r", ns.arg)
-        kwargs = {}
-        p = sh.create_process(ns.arg, **kwargs)
+        p = sh.create_process(
+            ns.arg, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
         main.p = p
     return 0
 
