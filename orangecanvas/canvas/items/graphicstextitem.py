@@ -1,19 +1,25 @@
 import enum
 import sys
-from typing import Optional, Iterable, Union
+from typing import Optional, Iterable, Union, Callable, Any
 
-from AnyQt.QtCore import Qt, QEvent, Signal, QSize, QRect
+from AnyQt.QtCore import (
+    Qt, QEvent, Signal, QSize, QRect, QPointF, QMimeData, qVersion
+)
 from AnyQt.QtGui import (
     QTextDocument, QTextBlock, QTextLine, QPalette, QPainter, QPen,
-    QPainterPath, QFocusEvent, QKeyEvent, QTextBlockFormat, QTextCursor, QImage
+    QPainterPath, QFocusEvent, QKeyEvent, QTextBlockFormat, QTextCursor, QImage,
+    QKeySequence, QIcon, QTextDocumentFragment
 )
 from AnyQt.QtWidgets import (
     QGraphicsTextItem, QStyleOptionGraphicsItem, QStyle, QWidget, QApplication,
     QGraphicsSceneHoverEvent, QGraphicsSceneMouseEvent, QStyleOptionButton,
-    QGraphicsItem,
+    QGraphicsItem, QGraphicsSceneContextMenuEvent, QMenu, QAction,
 )
 
 from orangecanvas.utils import set_flag
+
+
+qt_version = tuple(map(int, qVersion().split(".")[:3]))
 
 
 class GraphicsTextItem(QGraphicsTextItem):
@@ -127,6 +133,182 @@ class GraphicsTextItem(QGraphicsTextItem):
             self.__updateDefaultTextColor()
             self.update()
         return super().event(event)
+
+    if (5, 15, 1) <= qt_version <= (6, 0, 0):
+        # QTBUG-88309
+        def contextMenuEvent(self, event: QGraphicsSceneContextMenuEvent) -> None:
+            QGraphicsTextItem_contextMenuEvent(self, event)
+
+
+def QGraphicsTextItem_contextMenuEvent(
+        self: QGraphicsTextItem,
+        event: QGraphicsSceneContextMenuEvent
+) -> None:
+    menu = createStandardContextMenu(self, event.pos(), event.widget())
+    if menu is not None:
+        menu.popup(event.screenPos())
+
+
+def createStandardContextMenu(
+        item: QGraphicsTextItem,
+        pos: QPointF,
+        parent: Optional[QWidget] = None,
+        acceptRichText=False
+) -> Optional[QMenu]:
+    """
+    Like the private QWidgetTextControl::createStandardContextMenu
+    """
+    def setActionIcon(action: QAction, name: str):
+        icon = QIcon.fromTheme(name)
+        if not icon.isNull():
+            action.setIcon(icon)
+
+    def createMimeDataFromSelection(fragment: QTextDocumentFragment) -> QMimeData:
+        mime = QMimeData()
+        mime.setText(fragment.toPlainText())
+        mime.setHtml(fragment.toHtml(b"utf-8"))
+        # missing here is odf
+        return mime
+
+    def copy():
+        cursor = item.textCursor()
+        if cursor.hasSelection():
+            mime = createMimeDataFromSelection(QTextDocumentFragment(cursor))
+            QApplication.clipboard().setMimeData(mime)
+
+    def cut():
+        copy()
+        item.textCursor().removeSelectedText()
+
+    def copyLinkLocation():
+        mime = QMimeData()
+        mime.setText(link)
+        QApplication.clipboard().setMimeData(mime)
+
+    def canPaste():
+        mime = QApplication.clipboard().mimeData()
+        return mime.hasFormat("text/plain") or mime.hasFormat("text/html")
+
+    def paste():
+        mime = QApplication.clipboard().mimeData()
+        if mime is not None:
+            insertFromMimeData(mime)
+
+    def insertFromMimeData(mime: QMimeData):
+        fragment: Optional[QTextDocumentFragment] = None
+        if mime.hasHtml() and acceptRichText:
+            fragment = QTextDocumentFragment.fromHtml(mime.html())
+        elif mime.hasText():
+            fragment = QTextDocumentFragment.fromPlainText(mime.text())
+        if fragment is not None:
+            item.textCursor().insertFragment(fragment)
+
+    def deleteSelected():
+        cursor = item.textCursor()
+        cursor.removeSelectedText()
+
+    def selectAll():
+        cursor = item.textCursor()
+        cursor.select(QTextCursor.Document)
+        item.setTextCursor(cursor)
+
+    def addAction(
+            menu: QMenu,
+            text: str,
+            slot: Callable[[], Any],
+            shortcut: Optional[QKeySequence.StandardKey] = None,
+            enabled=True,
+            objectName="",
+            icon=""
+
+    ) -> QAction:
+        ac = menu.addAction(text)
+        ac.triggered.connect(slot)
+        ac.setEnabled(enabled)
+        if shortcut:
+            ac.setShortcut(shortcut)
+        if objectName:
+            ac.setObjectName(objectName)
+        if icon:
+            setActionIcon(ac, icon)
+        return ac
+    flags = item.textInteractionFlags()
+    showTextSelectionActions = flags & (
+            Qt.TextEditable | Qt.TextSelectableByKeyboard |
+            Qt.TextSelectableByMouse
+    )
+    doc = item.document()
+    cursor = item.textCursor()
+    assert doc is not None
+    layout = doc.documentLayout()
+    link = layout.anchorAt(pos)
+    if not link and not showTextSelectionActions:
+        return None
+    menu = QMenu(parent)
+    menu.setAttribute(Qt.WA_DeleteOnClose)
+    if flags & Qt.TextEditable:
+        addAction(
+            menu, "&Undo", doc.undo,
+            shortcut=QKeySequence.Undo,
+            enabled=doc.isUndoAvailable(),
+            objectName="edit-undo",
+            icon="edit-undo",
+        )
+        addAction(
+            menu, "&Redo", doc.redo,
+            shortcut=QKeySequence.Redo,
+            enabled=doc.isRedoAvailable(),
+            objectName="edit-redo",
+            icon="edit-redo",
+        )
+        menu.addSeparator()
+        addAction(
+            menu, "Cu&t", cut,
+            shortcut=QKeySequence.Cut,
+            enabled=cursor.hasSelection(),
+            objectName="edit-cut",
+            icon="edit-cut",
+        )
+
+    if showTextSelectionActions:
+        addAction(
+            menu, "&Copy", copy,
+            shortcut=QKeySequence.Copy,
+            enabled=cursor.hasSelection(),
+            objectName="edit-copy",
+            icon="edit-copy"
+        )
+
+    if flags & (Qt.LinksAccessibleByMouse | Qt.LinksAccessibleByKeyboard):
+        addAction(
+            menu, "Copy &Link Location", copyLinkLocation,
+            enabled=bool(link),
+            objectName="link-copy",
+        )
+
+    if flags & Qt.TextEditable:
+        addAction(
+            menu, "&Paste", paste,
+            shortcut=QKeySequence.Paste,
+            enabled=canPaste(),
+            objectName="edit-paste",
+            icon="edit-paste",
+        )
+        addAction(
+            menu, "Delete", deleteSelected,
+            enabled=cursor.hasSelection(),
+            objectName="edit-delete",
+            icon="edit-delete",
+        )
+
+    if showTextSelectionActions:
+        addAction(
+            menu, "Select All", selectAll,
+            shortcut=QKeySequence.SelectAll,
+            enabled=not doc.isEmpty(),
+            objectName="select-all",
+        )
+    return menu
 
 
 def iter_blocks(doc):
