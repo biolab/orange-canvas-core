@@ -174,7 +174,6 @@ class TestSignalManager(QCoreAppTestCase):
         sm.start()
 
         n0, n1, n3 = workflow.nodes[:3]
-        l0, l1 = workflow.links[:2]
         sm.send(n0, n0.output_channel("value"), 'hello')
         sm.send(n1, n1.output_channel("value"), 'hello')
         self.assertIn(n3, sm.node_update_front())
@@ -185,6 +184,25 @@ class TestSignalManager(QCoreAppTestCase):
         n3.set_state_flags(SchemeNode.NotReady, False)
         assert spy.wait()
         self.assertIn([n3], list(spy))
+
+    def test_start_finished(self):
+        workflow = self.scheme
+        sm = TestingSignalManager()
+        sm.set_workflow(workflow)
+        sm.start()
+
+        n0, n1, n3 = workflow.nodes[:3]
+        start_spy = QSignalSpy(sm.started)
+        fin_spy = QSignalSpy(sm.finished)
+        sm.send(n0, n0.output_channel("value"), 'hello')
+        sm.send(n1, n1.output_channel("value"), 'hello')
+        assert fin_spy.wait()
+        self.assertEqual(len(start_spy), 1)
+        self.assertEqual(len(fin_spy), 1)
+        sm.send(n1, n1.output_channel("value"), 'hello')
+        assert fin_spy.wait()
+        self.assertEqual(len(start_spy), 2)
+        self.assertEqual(len(fin_spy), 2)
 
     def test_compress_signals(self):
         workflow = self.scheme
