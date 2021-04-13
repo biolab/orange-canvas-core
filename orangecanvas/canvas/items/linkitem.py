@@ -16,7 +16,7 @@ from AnyQt.QtWidgets import (
     QGraphicsSceneMouseEvent
 )
 from AnyQt.QtGui import (
-    QPen, QBrush, QColor, QPainterPath, QTransform, QPalette,
+    QPen, QBrush, QColor, QPainterPath, QTransform, QPalette, QFont,
 )
 from AnyQt.QtCore import Qt, QPointF, QRectF, QLineF, QEvent, QPropertyAnimation, Signal, QTimer
 
@@ -843,7 +843,12 @@ class LinkItem(QGraphicsWidget):
 
     def __updateFont(self):
         # type: () -> None
-        self.linkTextItem.setFont(self.font())
+        font = self.font()
+        # linkTextItem will be rotated. Hinting causes bad positioning under
+        # rotation so we prefer to disable it. This is only a hint, on windows
+        # (DirectWrite engine) vertical hinting is still performed.
+        font.setHintingPreference(QFont.PreferNoHinting)
+        self.linkTextItem.setFont(font)
 
     def __updateAnchors(self):
         state = QStyle.State(0)
