@@ -15,6 +15,7 @@ import enum
 from collections import defaultdict
 from operator import attrgetter
 from functools import partial, reduce
+from itertools import chain
 
 import typing
 from typing import (
@@ -177,6 +178,15 @@ class SignalManager(QObject):
     #: Emitted when `SignalManager`'s runtime state changes.
     runtimeStateChanged = pyqtSignal(int)
 
+    #: Emitted when the execution finishes (there are no more nodes that
+    #: need to run). Note: the nodes can activate again due to user
+    #: interaction or other scheduled events, i.e. finished is not a definitive
+    #: state. Use at your own discretion.
+    finished = pyqtSignal()
+    #: Emitted when starting initial execution and when resuming after already
+    #: emitting `finished`.
+    started = pyqtSignal()
+
     def __init__(self, parent=None, *, max_running=None, **kwargs):
         # type: (Optional[QObject], Optional[int], Any) -> None
         super().__init__(parent, **kwargs)
@@ -192,6 +202,7 @@ class SignalManager(QObject):
         self.__update_timer = QTimer(self, interval=100, singleShot=True)
         self.__update_timer.timeout.connect(self.__process_next)
         self.__max_running = max_running
+        self.__has_finished = True
         if isinstance(parent, Scheme):
             self.set_workflow(parent)
 
@@ -1006,6 +1017,9 @@ class SignalManager(QObject):
 
         if not self.__input_queue:
             return
+        if self.__has_finished:
+            self.__has_finished = False
+            self.started.emit()
 
         if self.__process_next_helper(use_max_active=True):
             # Schedule another update (will be a noop if nothing to do).
@@ -1046,6 +1060,7 @@ class SignalManager(QObject):
             selected_node = eligible[0]
 
         self.process_node(selected_node)
+        self.__maybe_emit_finished()
         return True
 
     def _update(self):  # type: () -> None
@@ -1055,6 +1070,15 @@ class SignalManager(QObject):
         if self.__state == SignalManager.Running and \
                 not self.__update_timer.isActive():
             self.__update_timer.start()
+
+    def __maybe_emit_finished(self):
+        if self.__has_finished:  # already emitted finished
+            return
+        if any(chain(self.active_nodes(), self.blocking_nodes(),
+                     self.pending_nodes())):
+            return
+        self.__has_finished = True
+        self.finished.emit()
 
     def post_update_request(self):
         """
