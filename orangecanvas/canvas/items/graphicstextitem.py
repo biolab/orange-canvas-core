@@ -386,7 +386,7 @@ class GraphicsTextEdit(GraphicsTextItem):
         if alignment is not None:
             self.setAlignment(alignment)
 
-    def setAlignment(self, alignment: Qt.Alignment) -> None:
+    def setAlignment(self, alignment: Qt.AlignmentFlag) -> None:
         """Set alignment for the current text block."""
         block = QTextBlockFormat()
         block.setAlignment(alignment)
@@ -394,7 +394,7 @@ class GraphicsTextEdit(GraphicsTextItem):
         cursor.mergeBlockFormat(block)
         self.setTextCursor(cursor)
 
-    def alignment(self) -> Qt.Alignment:
+    def alignment(self) -> Qt.AlignmentFlag:
         return self.textCursor().blockFormat().alignment()
 
     def selectAll(self) -> None:
@@ -453,7 +453,7 @@ class GraphicsTextEdit(GraphicsTextItem):
         super().keyPressEvent(event)
 
     def setTextInteractionFlags(
-            self, flags: Union[Qt.TextInteractionFlag, Qt.TextInteractionFlags]
+            self, flags: Union['Qt.TextInteractionFlag', 'Qt.TextInteractionFlags']
     ) -> None:
         super().setTextInteractionFlags(flags)
         if self.hasFocus() and flags & Qt.TextEditable and not self.__editing:

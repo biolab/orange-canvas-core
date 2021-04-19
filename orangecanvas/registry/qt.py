@@ -85,16 +85,16 @@ class QtWidgetRegistry(QObject, WidgetRegistry):
 
     """
 
-    CATEGORY_DESC_ROLE = Qt.ItemDataRole(Qt.UserRole + 1)
+    CATEGORY_DESC_ROLE = Qt.UserRole + 1
     """Category Description Role"""
 
-    WIDGET_DESC_ROLE = Qt.ItemDataRole(Qt.UserRole + 2)
+    WIDGET_DESC_ROLE = Qt.UserRole + 2
     """Widget Description Role"""
 
-    WIDGET_ACTION_ROLE = Qt.ItemDataRole(Qt.UserRole + 3)
+    WIDGET_ACTION_ROLE = Qt.UserRole + 3
     """Widget Action Role"""
 
-    BACKGROUND_ROLE = Qt.ItemDataRole(Qt.UserRole + 4)
+    BACKGROUND_ROLE = Qt.UserRole + 4
     """Background color for widget/category in the canvas
     (different from Qt.BackgroundRole)
     """
