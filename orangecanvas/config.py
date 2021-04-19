@@ -59,7 +59,7 @@ def standard_location(type):
 
 
 standard_location.DesktopLocation = QStandardPaths.DesktopLocation      # type: ignore
-standard_location.DataLocation = QStandardPaths.DataLocation            # type: ignore
+standard_location.DataLocation = QStandardPaths.AppLocalDataLocation    # type: ignore
 standard_location.CacheLocation = QStandardPaths.CacheLocation          # type: ignore
 standard_location.DocumentsLocation = QStandardPaths.DocumentsLocation  # type: ignore
 
@@ -475,7 +475,7 @@ def data_dir():
     does not yet exists then create it.
     """
     init()
-    datadir = QStandardPaths.writableLocation(QStandardPaths.DataLocation)
+    datadir = QStandardPaths.writableLocation(QStandardPaths.AppLocalDataLocation)
     version = QCoreApplication.applicationVersion()
     datadir = os.path.join(datadir, version)
     if not os.path.isdir(datadir):
