@@ -93,7 +93,7 @@ class Scheme(QObject):
     # Signal emitted when the description of scheme changes.
     description_changed = Signal(str)
 
-    #: Signal emitted when the associated runtime environment changes
+    # Signal emitted when the associated runtime environment changes
     runtime_env_changed = Signal(str, object, object)
 
     # Signal emitted by subclass upon a detected settings change
