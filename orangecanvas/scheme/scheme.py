@@ -96,6 +96,9 @@ class Scheme(QObject):
     #: Signal emitted when the associated runtime environment changes
     runtime_env_changed = Signal(str, object, object)
 
+    # Signal emitted by subclass upon a detected settings change
+    node_properties_changed = Signal()
+
     def __init__(self, parent=None, title="", description="", env={},
                  **kwargs):
         # type: (Optional[QObject], str, str, Mapping[str, Any], Any) -> None
