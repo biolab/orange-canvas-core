@@ -23,7 +23,7 @@ PACKAGE_DATA = {
 
 INSTALL_REQUIRES = (
     "setuptools",
-    "AnyQt>=0.0.11",
+    "AnyQt>=0.0.12",
     "docutils",
     "commonmark>=0.8.1",
     "requests",

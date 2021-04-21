@@ -41,8 +41,7 @@ from AnyQt.QtCore import (
     QSettings, QStandardPaths, QEvent, QAbstractItemModel, QModelIndex,
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
-
-import sip
+from AnyQt import sip
 
 from orangecanvas.utils import unique, name_lookup, markup, qualified_name
 from orangecanvas.utils.shtools import python_process, create_process

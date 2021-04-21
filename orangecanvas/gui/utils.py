@@ -18,8 +18,7 @@ from AnyQt.QtGui import (
     QTextCharFormat, QFont
 )
 from AnyQt.QtCore import Qt, QPointF, QPoint, QRect, QRectF, Signal, QEvent
-
-import sip
+from AnyQt import sip
 
 
 @contextmanager

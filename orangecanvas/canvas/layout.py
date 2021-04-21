@@ -7,10 +7,9 @@ from operator import attrgetter
 import typing
 from typing import Optional, Any, List
 
-import sip
-
 from AnyQt.QtWidgets import QGraphicsObject, QApplication, QGraphicsItem
 from AnyQt.QtCore import QRectF, QLineF, QEvent, QPointF
+from AnyQt import sip
 
 from .items import (
     NodeItem, LinkItem, NodeAnchorItem, SourceAnchorItem, SinkAnchorItem
