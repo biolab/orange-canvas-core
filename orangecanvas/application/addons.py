@@ -924,7 +924,7 @@ class AddonManagerDialog(QDialog):
             dlg.accept()
         buttons.accepted.connect(query)
         buttons.rejected.connect(dlg.reject)
-        dlg.exec_()
+        dlg.exec()
 
     @Slot(str, str)
     def __show_error_for_query(self, text, error_details):
@@ -1126,7 +1126,7 @@ class AddonManagerDialog(QDialog):
             msg_box.setInformativeText('Press OK to restart {} now.'
                                        .format(name))
             msg_box.button(QMessageBox.Cancel).setText('Close later')
-            return msg_box.exec_()
+            return msg_box.exec()
 
         if QMessageBox.Ok == message_restart(self):
             self.accept()

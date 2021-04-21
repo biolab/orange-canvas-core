@@ -514,13 +514,13 @@ class CategoryPopupMenu(FramelessWindow):
         self.show()
         self.__menu.view().setFocus()
 
-    def exec_(self, pos=None):
+    def exec(self, pos=None):
         # type: (Optional[QPoint]) -> Optional[QAction]
         self.popup(pos)
         self.__loop = QEventLoop()
 
         self.__action = None
-        self.__loop.exec_()
+        self.__loop.exec()
         self.__loop = None
 
         if self.__action is not None:
@@ -528,6 +528,12 @@ class CategoryPopupMenu(FramelessWindow):
         else:
             action = None
         return action
+
+    def exec_(self, *args, **kwargs):
+        warnings.warn(
+            "exec_ is deprecated, use exec", DeprecationWarning, stacklevel=2
+        )
+        return self.exec(*args, **kwargs)
 
     def hideEvent(self, event):
         # type: (QHideEvent) -> None
@@ -568,7 +574,7 @@ class CategoryPopupMenu(FramelessWindow):
         filter = ToolTipEventFilter()
         viewport.installEventFilter(filter)
 
-        drag.exec_(Qt.CopyAction)
+        drag.exec(Qt.CopyAction)
 
         viewport.removeEventFilter(filter)
 

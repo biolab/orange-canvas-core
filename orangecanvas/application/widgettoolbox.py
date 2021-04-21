@@ -228,7 +228,7 @@ class WidgetToolGrid(ToolGrid):
         drag = QDrag(button)
         drag.setPixmap(icon.pixmap(self.iconSize()))
         drag.setMimeData(drag_data)
-        drag.exec_(Qt.CopyAction)
+        drag.exec(Qt.CopyAction)
 
 
 class DragStartEventListener(QObject):

@@ -57,7 +57,7 @@ class TestMenu(QAppTestCase):
         self.app.setActiveWindow(menu)
 
         self.singleShot(100, menu.close)
-        rval = menu.exec_(QPoint(200, 200))
+        rval = menu.exec(QPoint(200, 200))
 
         if triggered_action:
             self.assertIs(triggered_action[0], rval)

@@ -11,6 +11,7 @@ import typing
 import statistics
 import sys
 import logging
+import warnings
 
 from collections import namedtuple
 
@@ -1556,7 +1557,7 @@ class QuickMenu(FramelessWindow):
 
         self.setFocusProxy(self.__search)
 
-    def exec_(self, pos=None, searchText=""):
+    def exec(self, pos=None, searchText=""):
         # type: (Optional[QPoint], str) -> Optional[QAction]
         """
         Execute the menu at position `pos` (in global screen coordinates).
@@ -1569,13 +1570,19 @@ class QuickMenu(FramelessWindow):
 
         self.__triggeredAction = None
         self.__loop = QEventLoop()
-        self.__loop.exec_()
+        self.__loop.exec()
         self.__loop.deleteLater()
         self.__loop = None
 
         action = self.__triggeredAction
         self.__triggeredAction = None
         return action
+
+    def exec_(self, *args, **kwargs):
+        warnings.warn(
+            "exec_ is deprecated, use exec", DeprecationWarning, stacklevel=2
+        )
+        return self.exec(*args, **kwargs)
 
     def hideEvent(self, event):
         """

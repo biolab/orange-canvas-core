@@ -83,14 +83,14 @@ class TestMainWindow(TestMainWindowBase):
     def test_new_window(self):
         w = self.w
         with patch(
-            "orangecanvas.application.schemeinfo.SchemeInfoDialog.exec_",
+            "orangecanvas.application.schemeinfo.SchemeInfoDialog.exec",
         ):
             w.new_workflow_window()
 
     def test_examples_dialog(self):
         w = self.w
         with patch(
-            "orangecanvas.preview.previewdialog.PreviewDialog.exec_",
+            "orangecanvas.preview.previewdialog.PreviewDialog.exec",
             return_value=QDialog.Rejected,
         ):
             w.examples_dialog()
@@ -113,7 +113,7 @@ class TestMainWindow(TestMainWindowBase):
         dock.setExpanded(False)
         a = w.quick_category.actions()[0]
         with patch(
-            "orangecanvas.application.canvastooldock.CategoryPopupMenu.exec_",
+            "orangecanvas.application.canvastooldock.CategoryPopupMenu.exec",
             return_value=None,
         ):
             w.on_quick_category_action(a)

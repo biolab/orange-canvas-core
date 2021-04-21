@@ -426,7 +426,7 @@ def main(argv=None):
         log.info("Entering main event loop.")
         sys.excepthook = ExceptHook(stream=stderr)
         try:
-            status = app.exec_()
+            status = app.exec()
         finally:
             sys.excepthook = sys.__excepthook__
 

@@ -183,7 +183,7 @@ class TestAddonManagerDialog(QAppTestCase):
         def query(names):
             return query_res
 
-        with patch.object(QMessageBox, "exec_", return_value=QMessageBox.Cancel), \
+        with patch.object(QMessageBox, "exec", return_value=QMessageBox.Cancel), \
              patch.object(addons, "query_pypi", query):
             f = w.runQueryAndAddResults(
                 ["uber-pkg", "unter-pkg"],
@@ -203,7 +203,7 @@ class TestAddonManagerDialog(QAppTestCase):
                           lambda self, pkg: None), \
              patch.object(addons.CondaInstaller, "install",
                           lambda self, pkg, raise_on_fail: None), \
-             patch.object(QMessageBox, "exec_", return_value=QMessageBox.Cancel):
+             patch.object(QMessageBox, "exec", return_value=QMessageBox.Cancel):
             b = w.findChild(QDialogButtonBox)
             b.accepted.emit()
             QTest.qWait(1)

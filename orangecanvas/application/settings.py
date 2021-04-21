@@ -5,6 +5,7 @@ User settings/preference dialog
 """
 import sys
 import logging
+import warnings
 from functools import cmp_to_key
 from collections import namedtuple
 
@@ -552,13 +553,19 @@ class UserSettingsDialog(QMainWindow):
                 log.error("Error reseting %r", source.propertyName,
                           exc_info=True)
 
-    def exec_(self):
+    def exec(self):
         self.__loop = QEventLoop()
         self.show()
-        status = self.__loop.exec_()
+        status = self.__loop.exec()
         self.__loop = None
         refresh_proxies()
         return status
+
+    def exec_(self, *args, **kwargs):
+        warnings.warn(
+            "exec_ is deprecated, use exec", DeprecationWarning, stacklevel=2
+        )
+        return self.exec(*args, **kwargs)
 
     def hideEvent(self, event):
         super().hideEvent(event)

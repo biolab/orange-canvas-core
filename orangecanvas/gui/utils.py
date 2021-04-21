@@ -345,7 +345,7 @@ def message(icon, text, title=None, informative_text=None, details=None,
     if default_button is not None:
         mbox.setDefaultButton(default_button)
 
-    return mbox.exec_()
+    return mbox.exec()
 
 
 def innerGlowBackgroundPixmap(color, size, radius=5):

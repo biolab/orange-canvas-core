@@ -929,7 +929,7 @@ class CanvasMainWindow(QMainWindow):
                 popup.setRootIndex(model.index(i, 0))
                 button = self.quick_category.buttonForAction(action)
                 pos = popup_position_from_source(popup, button)
-                action = popup.exec_(pos)
+                action = popup.exec(pos)
                 if action is not None:
                     self.on_tool_box_widget_activated(action)
 
@@ -1800,7 +1800,7 @@ class CanvasMainWindow(QMainWindow):
 
         model.delayedScanUpdate()
 
-        status = dialog.exec_()
+        status = dialog.exec()
 
         index = dialog.currentIndex()
 
@@ -1834,7 +1834,7 @@ class CanvasMainWindow(QMainWindow):
         dialog.setModel(model)
 
         model.delayedScanUpdate()
-        status = dialog.exec_()
+        status = dialog.exec()
         index = dialog.currentIndex()
 
         dialog.deleteLater()
@@ -1930,7 +1930,7 @@ class CanvasMainWindow(QMainWindow):
             settings.value("startup/show-welcome-screen", True, type=bool)
         )
 
-        status = dialog.exec_()
+        status = dialog.exec()
 
         settings.setValue("startup/show-welcome-screen",
                           dialog.showAtStartup())
@@ -1968,7 +1968,7 @@ class CanvasMainWindow(QMainWindow):
         dlg = self.scheme_properties_dialog()
         dlg.setAutoCommit(False)
         dlg.setScheme(scheme)
-        status = dlg.exec_()
+        status = dlg.exec()
 
         if status == QDialog.Accepted:
             editor = dlg.editor
@@ -2026,7 +2026,7 @@ class CanvasMainWindow(QMainWindow):
         dlg = UserSettingsDialog(self)
         dlg.setWindowTitle(self.tr("Preferences"))
         dlg.show()
-        status = dlg.exec_()
+        status = dlg.exec()
 
         if status == 0:
             self.user_preferences_changed_notify_all()
@@ -2054,14 +2054,14 @@ class CanvasMainWindow(QMainWindow):
                         "Insufficient permissions to install add-ons. Try starting {name} "
                         "as a system administrator or install {name} in user folders."
                         .format(name=name),
-                        parent=self).exec_()
+                        parent=self).exec()
         dlg = addons.AddonManagerDialog(
             self, windowTitle=self.tr("Installer"), modal=True
         )
         dlg.setStyle(QApplication.style())
         dlg.setAttribute(Qt.WA_DeleteOnClose)
         dlg.start(config.default)
-        return dlg.exec_()
+        return dlg.exec()
 
     def set_float_widgets_on_top_enabled(self, enabled):
         # type: (bool) -> None
@@ -2084,7 +2084,7 @@ class CanvasMainWindow(QMainWindow):
         """
         dlg = AboutDialog(self)
         dlg.setAttribute(Qt.WA_DeleteOnClose)
-        dlg.exec_()
+        dlg.exec()
 
     def add_recent_scheme(self, title, path):
         # type: (str, str) -> None

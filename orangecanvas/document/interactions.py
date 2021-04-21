@@ -686,7 +686,7 @@ class NewLinkAction(UserInteraction):
         menu.setFilterFunc(filter)
         menu.triggerSearch()
         try:
-            action = menu.exec_(pos)
+            action = menu.exec(pos)
         finally:
             menu.setFilterFunc(None)
 
@@ -951,7 +951,7 @@ def edit_links(
     dlg.setLinks(initial_links)
 
     log.info("Executing a Link Editor Dialog.")
-    rval = dlg.exec_()
+    rval = dlg.exec()
 
     if rval == EditLinksDialog.Accepted:
         edited_links = dlg.links()
@@ -1050,7 +1050,7 @@ class NewNodeAction(UserInteraction):
 
         menu.setSortingFunc(defaultSort)
 
-        action = menu.exec_(pos, search_text)
+        action = menu.exec(pos, search_text)
         if action:
             item = action.property("item")
             desc = item.data(QtWidgetRegistry.WIDGET_DESC_ROLE)
@@ -1264,7 +1264,7 @@ class EditNodeLinksAction(UserInteraction):
         dlg.setLinks(initial_links)
 
         log.info("Executing a Link Editor Dialog.")
-        rval = dlg.exec_()
+        rval = dlg.exec()
 
         if rval == EditLinksDialog.Accepted:
             links_spec = dlg.links()
