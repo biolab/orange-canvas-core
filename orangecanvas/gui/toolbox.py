@@ -6,6 +6,7 @@ Tool Box Widget
 A reimplementation of the :class:`QToolBox` widget that keeps all the tabs
 in a single :class:`QScrollArea` instance and can keep multiple open tabs.
 """
+import enum
 from operator import eq, attrgetter
 
 import typing
@@ -13,7 +14,7 @@ from typing import NamedTuple, List, Iterable, Optional, Any, Callable
 
 from AnyQt.QtWidgets import (
     QWidget, QFrame, QSizePolicy, QStyle, QStyleOptionToolButton,
-    QStyleOptionToolBox, QScrollArea, QVBoxLayout, QToolButton,
+    QScrollArea, QVBoxLayout, QToolButton,
     QAction, QActionGroup, QApplication, QAbstractButton, QWIDGETSIZE_MAX,
 )
 from AnyQt.QtGui import (
@@ -45,6 +46,25 @@ class ToolBoxTabButton(QToolButton):
     """
     A tab button for an item in a :class:`ToolBox`.
     """
+    class TabPosition(enum.IntFlag):
+        Beginning = 0
+        Middle = 1
+        End = 2
+        OnlyOneTab = 3
+
+    Beginning = TabPosition.Beginning
+    Middle = TabPosition.Middle
+    End = TabPosition.End
+    OnlyOneTab = TabPosition.OnlyOneTab
+
+    class SelectedPosition(enum.IntFlag):
+        NotAdjacent = 0
+        NextIsSelected = 1
+        PreviousIsSelected = 2
+
+    NotAdjacent = SelectedPosition.NotAdjacent
+    NextIsSelected = SelectedPosition.NextIsSelected
+    PreviousIsSelected = SelectedPosition.PreviousIsSelected
 
     def setNativeStyling(self, state):
         # type: (bool) -> None
@@ -71,8 +91,8 @@ class ToolBoxTabButton(QToolButton):
     def __init__(self, parent=None, **kwargs):
         # type: (Optional[QWidget], Any) -> None
         self.__nativeStyling = False
-        self.position = QStyleOptionToolBox.OnlyOneTab
-        self.selected = QStyleOptionToolBox.NotAdjacent
+        self.position = ToolBoxTabButton.OnlyOneTab
+        self.selected = ToolBoxTabButton.NotAdjacent
         font = kwargs.pop("font", None)  # type: Optional[QFont]
         super().__init__(parent, **kwargs)
 
@@ -166,9 +186,9 @@ class ToolBoxTabButton(QToolButton):
         else:
             p.setPen(pen)
             # Draw the top/bottom border
-            if self.position == QStyleOptionToolBox.OnlyOneTab or \
-                    self.position == QStyleOptionToolBox.Beginning or \
-                    self.selected & QStyleOptionToolBox.PreviousIsSelected:
+            if self.position == ToolBoxTabButton.OnlyOneTab or \
+                    self.position == ToolBoxTabButton.Beginning or \
+                    self.selected & ToolBoxTabButton.PreviousIsSelected:
                 p.drawLine(rect.x(), rect.y(),
                            rect.x() + rect.width(), rect.y())
             p.drawLine(rect.x(), rect.y() + rect.height(),
@@ -560,13 +580,13 @@ class ToolBox(QFrame):
             # Update the `previous` tab buttons style hints
             previous = self.__pages[index - 1].button
             previous.selected = set_flag(
-                previous.selected, QStyleOptionToolBox.NextIsSelected, on
+                previous.selected, ToolBoxTabButton.NextIsSelected, on
             )
             previous.update()
         if index < self.count() - 1:
             next = self.__pages[index + 1].button
             next.selected = set_flag(
-                next.selected, QStyleOptionToolBox.PreviousIsSelected, on
+                next.selected, ToolBoxTabButton.PreviousIsSelected, on
             )
             next.update()
 
@@ -585,12 +605,12 @@ class ToolBox(QFrame):
             # type: (ToolBoxTabButton, bool, bool) -> None
             button.selected = set_flag(
                 button.selected,
-                QStyleOptionToolBox.NextIsSelected,
+                ToolBoxTabButton.NextIsSelected,
                 next_sel
             )
             button.selected = set_flag(
                 button.selected,
-                QStyleOptionToolBox.PreviousIsSelected,
+                ToolBoxTabButton.PreviousIsSelected,
                 prev_sel
             )
             button.update()
@@ -611,12 +631,12 @@ class ToolBox(QFrame):
         if self.count() == 0:
             return
         elif self.count() == 1:
-            self.__pages[0].button.position = QStyleOptionToolBox.OnlyOneTab
+            self.__pages[0].button.position = ToolBoxTabButton.OnlyOneTab
         else:
-            self.__pages[0].button.position = QStyleOptionToolBox.Beginning
-            self.__pages[-1].button.position = QStyleOptionToolBox.End
+            self.__pages[0].button.position = ToolBoxTabButton.Beginning
+            self.__pages[-1].button.position = ToolBoxTabButton.End
             for p in self.__pages[1:-1]:
-                p.button.position = QStyleOptionToolBox.Middle
+                p.button.position = ToolBoxTabButton.Middle
 
         for p in self.__pages:
             p.button.update()
