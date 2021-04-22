@@ -379,7 +379,7 @@ def innerGlowBackgroundPixmap(color, size, radius=5):
     # draw radial gradient pixmap
     pixPainter = QPainter(gradientPixmap)
     pixPainter.setPen(Qt.NoPen)
-    gradient = QRadialGradient(center, radius - 1)
+    gradient = QRadialGradient(QPointF(center), radius - 1)
     gradient.setColorAt(0, light_color)
     gradient.setColorAt(1, dark_color)
     pixPainter.setBrush(gradient)
