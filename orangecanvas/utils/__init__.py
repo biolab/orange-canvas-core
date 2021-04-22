@@ -1,3 +1,4 @@
+import enum
 import operator
 import types
 from functools import reduce
@@ -269,11 +270,13 @@ def findf(iterable, predicate, default=None):
 
 
 def set_flag(flags, mask, on=True):
-    # type: (F, SupportsInt, bool) -> F
+    # type: (F, Union[SupportsInt, enum.Flag], bool) -> F
+    if not isinstance(mask, enum.Flag):
+        mask = int(mask)
     if on:
-        return type(flags)(flags | int(mask))
+        return type(flags)(flags | mask)
     else:
-        return type(flags)(flags & ~int(mask))
+        return type(flags)(flags & ~mask)
 
 
 def UNUSED(*_unused_args) -> None:
