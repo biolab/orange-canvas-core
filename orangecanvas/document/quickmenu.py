@@ -28,7 +28,7 @@ from AnyQt.QtGui import (
     QPaintEvent, QColor, QMouseEvent, QPixmap)
 from AnyQt.QtCore import (
     Qt, QObject, QPoint, QSize, QRect, QEventLoop, QEvent, QModelIndex,
-    QTimer, QRegExp, QSortFilterProxyModel, QItemSelectionModel,
+    QRegularExpression, QSortFilterProxyModel, QItemSelectionModel,
     QAbstractItemModel,
     QSettings)
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
@@ -405,15 +405,14 @@ class SuggestMenuPage(MenuPage):
         proxy.setFilterFixedString(pattern)
         self.ensureCurrent()
 
-    def setFilterRegExp(self, pattern):
-        # type: (QRegExp) -> None
+    def setFilterRegularExpression(self, pattern):
+        # type: (QRegularExpression) -> None
         """
         Set the regular expression filtering pattern. Only items matching
         the `pattern` expression will be shown.
         """
         filter_proxy = self.__proxy()
-        filter_proxy.setFilterRegExp(pattern)
-
+        filter_proxy.setFilterRegularExpression(pattern)
         # re-sorts to make sure items that match by title are on top
         filter_proxy.invalidate()
         filter_proxy.sort(0)
