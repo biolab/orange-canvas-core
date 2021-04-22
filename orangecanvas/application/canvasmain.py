@@ -528,8 +528,8 @@ class CanvasMainWindow(QMainWindow):
             objectName="recent-action",
             toolTip=self.tr("Browse and open a recent workflow."),
             triggered=self.recent_scheme,
-            shortcut=QKeySequence(Qt.ControlModifier |
-                                  (Qt.ShiftModifier | Qt.Key_R)),
+            shortcut=QKeySequence(Qt.ControlModifier | Qt.ShiftModifier |
+                                  Qt.Key_R),
             icon=canvas_icons("Recent.svg")
         )
         self.reload_last_action = QAction(
@@ -601,8 +601,8 @@ class CanvasMainWindow(QMainWindow):
             self.tr("Expand Tool Dock"), self,
             objectName="toggle-tool-dock-expand",
             checkable=True,
-            shortcut=QKeySequence(Qt.ControlModifier |
-                                  (Qt.ShiftModifier | Qt.Key_D)),
+            shortcut=QKeySequence(Qt.ControlModifier | Qt.ShiftModifier |
+                                  Qt.Key_D),
             triggered=self.set_tool_dock_expanded
         )
         self.toggle_tool_dock_expand.setChecked(True)
@@ -1900,8 +1900,8 @@ class CanvasMainWindow(QMainWindow):
             objectName="welcome-recent-action",
             toolTip=self.tr("Browse and open a recent workflow."),
             triggered=open_recent,
-            shortcut=QKeySequence(Qt.ControlModifier |
-                                  (Qt.ShiftModifier | Qt.Key_R)),
+            shortcut=QKeySequence(Qt.ControlModifier | Qt.ShiftModifier |
+                                  Qt.Key_R),
             icon=canvas_icons("Recent.svg")
         )
 
