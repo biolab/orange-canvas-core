@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QToolButton
+from AnyQt.QtWidgets import QToolButton
 
 from orangecanvas.application.tests.test_mainwindow import TestMainWindowBase
 from orangecanvas.application.widgettoolbox import WidgetToolBox

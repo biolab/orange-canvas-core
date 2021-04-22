@@ -8,7 +8,7 @@ from zipfile import ZipFile
 from AnyQt.QtWidgets import QMessageBox, QDialogButtonBox
 from AnyQt.QtCore import QEventLoop, QUrl, QMimeData, QPoint, Qt
 from AnyQt.QtTest import QTest
-from PyQt5.QtGui import QDropEvent
+from AnyQt.QtGui import QDropEvent
 from pkg_resources import EntryPoint
 
 from orangecanvas.application import addons

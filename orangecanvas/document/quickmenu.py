@@ -24,16 +24,15 @@ from AnyQt.QtWidgets import (
     QStyleOptionViewItem, QSizeGrip, QAbstractItemView, QStyledItemDelegate
 )
 from AnyQt.QtGui import (
-    QIcon, QStandardItemModel, QPolygon, QRegion, QBrush, QPalette,
-    QPaintEvent, QColor, QMouseEvent, QPixmap)
+    QIcon, QStandardItemModel, QBrush, QPalette, QPaintEvent, QColor, QPainter,
+    QMouseEvent,
+)
 from AnyQt.QtCore import (
-    Qt, QObject, QPoint, QSize, QRect, QEventLoop, QEvent, QModelIndex,
-    QRegularExpression, QSortFilterProxyModel, QItemSelectionModel,
-    QAbstractItemModel,
-    QSettings)
+    Qt, QObject, QPoint, QPointF, QSize, QRect, QRectF, QEventLoop, QEvent,
+    QModelIndex, QRegularExpression, QSortFilterProxyModel, QItemSelectionModel,
+    QAbstractItemModel, QSettings
+)
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
-from PyQt5.QtCore import QRectF, QPointF
-from PyQt5.QtGui import QPainter
 
 from .usagestatistics import UsageStatistics
 from ..gui.framelesswindow import FramelessWindow

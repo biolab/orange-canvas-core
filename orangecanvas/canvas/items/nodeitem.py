@@ -30,7 +30,6 @@ from AnyQt.QtCore import (
     QParallelAnimationGroup, Slot
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
-from PyQt5.QtCore import pyqtProperty
 
 from .graphicspathobject import GraphicsPathObject
 from .graphicstextitem import GraphicsTextItem, GraphicsTextEdit
@@ -794,7 +793,7 @@ class NodeAnchorItem(GraphicsPathObject):
     def anchorOpen(self):
         return self.__anchorOpen
 
-    @pyqtProperty(float)
+    @Property(float)
     def anchorDashInterpFactor(self):
         return self.__dashInterpFactor
 

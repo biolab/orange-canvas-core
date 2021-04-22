@@ -2,7 +2,7 @@ import glob
 import os
 import pickle
 
-from PyQt5.QtCore import QSettings
+from AnyQt.QtCore import QSettings
 
 from orangecanvas import config
 from ..scheme import Scheme, SchemeNode, SchemeLink, BaseSchemeAnnotation
