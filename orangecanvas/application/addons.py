@@ -358,7 +358,7 @@ class PluginsModel(QStandardItemModel):
         item1 = StateItem()
         item1.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable |
                        Qt.ItemIsUserCheckable |
-                       (Qt.ItemIsUserTristate if updatable else 0))
+                       (Qt.ItemIsUserTristate if updatable else Qt.NoItemFlags))
         item1.setEnabled(not (item_is_core and not updatable))
         item1.setData(item_is_core, HasConstraintRole)
 
