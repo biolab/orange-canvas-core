@@ -6,7 +6,7 @@ from unittest.mock import patch
 from zipfile import ZipFile
 
 from AnyQt.QtWidgets import QMessageBox, QDialogButtonBox
-from AnyQt.QtCore import QEventLoop, QUrl, QMimeData, QPoint, Qt
+from AnyQt.QtCore import QEventLoop, QUrl, QMimeData, QPointF, Qt
 from AnyQt.QtTest import QTest
 from AnyQt.QtGui import QDropEvent
 from pkg_resources import EntryPoint
@@ -168,7 +168,7 @@ class TestAddonManagerDialog(QAppTestCase):
         data.setUrls([QUrl(url)])
 
         return QDropEvent(
-            QPoint(0, 0), Qt.MoveAction, data,
+            QPointF(0, 0), Qt.MoveAction, data,
             Qt.NoButton, Qt.NoModifier, QDropEvent.Drop)
 
     def test_run_query(self):
