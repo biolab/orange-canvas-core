@@ -659,3 +659,21 @@ def update_font(
         font.setPointSizeF(pointSize)
 
     return font
+
+
+def screen_geometry(widget: QWidget, pos: Optional[QPoint] = None) -> QRect:
+    screen = widget.screen()
+    if pos is not None:
+        sibling = screen.virtualSibling(pos)
+        if sibling is not None:
+            screen = sibling
+    return screen.geometry()
+
+
+def available_screen_geometry(widget: QWidget, pos: Optional[QPoint] = None) -> QRect:
+    screen = widget.screen()
+    if pos is not None:
+        sibling = screen.virtualSibling(pos)
+        if sibling is not None:
+            screen = sibling
+    return screen.availableGeometry()

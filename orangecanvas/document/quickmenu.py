@@ -1521,8 +1521,8 @@ class QuickMenu(FramelessWindow):
                 size.setHeight(ssize.height())
                 size = size.expandedTo(self.minimumSizeHint())
 
-        desktop = QApplication.desktop()
-        screen_geom = desktop.availableGeometry(pos)
+        screen = QApplication.screenAt(pos)
+        screen_geom = screen.availableGeometry()
 
         # Adjust the size to fit inside the screen.
         if size.height() > screen_geom.height():

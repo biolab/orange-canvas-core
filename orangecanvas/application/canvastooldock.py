@@ -22,7 +22,7 @@ from ..gui.toolgrid import ToolGrid
 from ..gui.toolbar import DynamicResizeToolBar
 from ..gui.quickhelp import QuickHelp
 from ..gui.framelesswindow import FramelessWindow
-from ..gui.utils import create_css_gradient
+from ..gui.utils import create_css_gradient, available_screen_geometry
 from ..document.quickmenu import MenuPage
 from .widgettoolbox import WidgetToolBox, iter_index, item_text, item_icon, item_tooltip
 from ..registry.qt import QtWidgetRegistry
@@ -644,8 +644,8 @@ def widget_popup_geometry(pos, widget):
     else:
         size = widget.sizeHint()
 
-    desktop = QApplication.desktop()
-    screen_geom = desktop.availableGeometry(pos)
+    screen = QApplication.screenAt(pos)
+    screen_geom = screen.availableGeometry()
 
     # Adjust the size to fit inside the screen.
     if size.height() > screen_geom.height():
@@ -686,8 +686,7 @@ def popup_position_from_source(popup, source, orientation=Qt.Vertical):
     else:
         size = popup.sizeHint()
 
-    desktop = QApplication.desktop()
-    screen_geom = desktop.availableGeometry(source)
+    screen_geom = available_screen_geometry(source)
     source_rect = QRect(source.mapToGlobal(QPoint(0, 0)), source.size())
 
     if orientation == Qt.Vertical:
