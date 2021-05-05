@@ -305,7 +305,7 @@ _State = SchemeLink.State
 
 class LinkItem(QGraphicsWidget):
     """
-    A Link item in the canvas that connects two :class:`.NodeItem`\s in the
+    A Link item in the canvas that connects two :class:`.NodeItem`\\s in the
     canvas.
 
     The link curve connects two `Anchor` items (see :func:`setSourceItem`
