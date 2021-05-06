@@ -9,6 +9,8 @@ from typing import (
     SupportsInt
 )
 
+from AnyQt.QtWidgets import QSizePolicy
+
 from .qtcompat import toPyObject
 
 __all__ = [
@@ -28,6 +30,9 @@ __all__ = [
     "mapping_get",
     "findf",
     "set_flag",
+    "is_flag_set",
+    "qsizepolicy_is_expanding",
+    "qsizepolicy_is_shrinking",
     "UNUSED",
 ]
 
@@ -277,6 +282,38 @@ def set_flag(flags, mask, on=True):
         return type(flags)(flags | mask)
     else:
         return type(flags)(flags & ~mask)
+
+
+def enum_as_int(value: Union[int, enum.Enum]) -> int:
+    """
+    Return a `enum.Enum` value as an `int.
+
+    This is function intended for extracting underlying Qt5/6 enum
+    values specifically with PyQt6 where most Qt enums are represented
+    with `enum.Enum` and lose their numerical value.
+
+    >>> from PyQt6.QtCore import Qt
+    >>> enum_as_int(Qt.Alignment.AlignLeft)
+    1
+    """
+    if isinstance(value, enum.Enum):
+        return int(value.value)
+    else:
+        return int(value)
+
+
+def is_flag_set(flags, mask):
+    flags_i = enum_as_int(flags)
+    mask_i = enum_as_int(mask)
+    return bool(flags_i & mask_i)
+
+
+def qsizepolicy_is_expanding(policy: QSizePolicy.Policy) -> bool:
+    return is_flag_set(policy, QSizePolicy.ExpandFlag)
+
+
+def qsizepolicy_is_shrinking(policy: QSizePolicy.Policy) -> bool:
+    return is_flag_set(policy, QSizePolicy.ShrinkFlag)
 
 
 def UNUSED(*_unused_args) -> None:
