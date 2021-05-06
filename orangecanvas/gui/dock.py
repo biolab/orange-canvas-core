@@ -235,8 +235,8 @@ class CollapsibleDockWidget(QDockWidget):
         # seem to have an effect (Qt 4.8.3).
         size = self.__stack.sizeHint()
         if size.isValid() and not size.isEmpty():
-            left, _, right, _ = self.getContentsMargins()
-            width = size.width() + left + right
+            margins = self.contentsMargins()
+            width = size.width() + margins.left() + margins.right()
 
             if width < self.minimumSizeHint().width():
                 if not self.__hasFixedWidth():

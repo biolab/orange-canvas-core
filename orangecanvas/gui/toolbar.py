@@ -35,8 +35,10 @@ class DynamicResizeToolBar(QToolBar):
         # type: () -> QSize
         hint = super().sizeHint()
         width, height = hint.width(), hint.height()
-        dx1, dy1, dw1, dh1 = self.getContentsMargins()
-        dx2, dy2, dw2, dh2 = self.layout().getContentsMargins()
+        m1 = self.contentsMargins()
+        m2 = self.layout().contentsMargins()
+        dx1, dy1, dw1, dh1 = m1.left(), m1.top(), m1.right(), m1.bottom()
+        dx2, dy2, dw2, dh2 = m2.left(), m2.top(), m2.right(), m2.bottom()
         dx, dy = dx1 + dx2, dy1 + dy2
         dw, dh = dw1 + dw2, dh1 + dh2
 
@@ -57,12 +59,9 @@ class DynamicResizeToolBar(QToolBar):
         mygeom = self.geometry()
         mygeom.setSize(size)
 
-        # Adjust for margins (both the widgets and the layouts.
-        dx, dy, dw, dh = self.getContentsMargins()
-        mygeom.adjust(dx, dy, -dw, -dh)
-
-        dx, dy, dw, dh = self.layout().getContentsMargins()
-        mygeom.adjust(dx, dy, -dw, -dh)
+        # Adjust for margins (both the widgets and the layouts).
+        mygeom = mygeom.marginsRemoved(self.contentsMargins())
+        mygeom = mygeom.marginsRemoved(self.layout().contentsMargins())
 
         actions = self.actions()
         widgets_it = map(self.widgetForAction, actions)
