@@ -2376,7 +2376,7 @@ class SaveWindowGroup(QDialog):
         layout.addLayout(form)
         self._combobox = cb = QComboBox(
             editable=True, minimumContentsLength=16,
-            sizeAdjustPolicy=QComboBox.AdjustToMinimumContentsLength,
+            sizeAdjustPolicy=QComboBox.AdjustToMinimumContentsLengthWithIcon,
             insertPolicy=QComboBox.NoInsert,
         )
         cb.currentIndexChanged.connect(self.__currentIndexChanged)
