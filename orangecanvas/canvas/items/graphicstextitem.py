@@ -457,7 +457,7 @@ class GraphicsTextEdit(GraphicsTextItem):
     ) -> None:
         super().setTextInteractionFlags(flags)
         if self.hasFocus() and flags & Qt.TextEditable and not self.__editing:
-            self.__startEdit(EditTriggers.NoEditTriggers)
+            self.__startEdit()
 
     def isEditing(self) -> bool:
         """Is editing currently active."""
@@ -473,7 +473,7 @@ class GraphicsTextEdit(GraphicsTextItem):
         if self.__editTriggers & GraphicsTextEdit.DoubleClicked:
             self.__startEdit(Qt.MouseFocusReason)
 
-    def focusInEvent(self, event: QFocusEvent)  -> None:
+    def focusInEvent(self, event: QFocusEvent) -> None:
         super().focusInEvent(event)
         if self.textInteractionFlags() & Qt.TextEditable \
                 and not self.__editing \
