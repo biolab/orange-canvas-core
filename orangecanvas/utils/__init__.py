@@ -9,6 +9,8 @@ from typing import (
     SupportsInt
 )
 
+from AnyQt.QtCore import Qt
+from AnyQt.QtGui import QMouseEvent, QWheelEvent
 from AnyQt.QtWidgets import QSizePolicy
 
 from .qtcompat import toPyObject
@@ -33,6 +35,7 @@ __all__ = [
     "is_flag_set",
     "qsizepolicy_is_expanding",
     "qsizepolicy_is_shrinking",
+    "is_event_source_mouse",
     "UNUSED",
 ]
 
@@ -314,6 +317,18 @@ def qsizepolicy_is_expanding(policy: QSizePolicy.Policy) -> bool:
 
 def qsizepolicy_is_shrinking(policy: QSizePolicy.Policy) -> bool:
     return is_flag_set(policy, QSizePolicy.ShrinkFlag)
+
+
+def is_event_source_mouse(event: Union[QWheelEvent, QMouseEvent]) -> bool:
+    """
+    Does th event originate from a mouse type device or from another source
+    (touchpad/screen).
+    """
+    try:
+        return event.source() != Qt.MouseEventNotSynthesized
+    except AttributeError:  # PyQt6
+        from AnyQt.QtGui import QInputDevice
+        return event.device().type() == QInputDevice.DeviceType.Mouse
 
 
 def UNUSED(*_unused_args) -> None:
