@@ -433,7 +433,6 @@ def main(argv=None):
     del canvas_window
 
     app.processEvents()
-    app.flush()
 
     # Collect any cycles before deleting the QApplication instance
     gc.collect()
