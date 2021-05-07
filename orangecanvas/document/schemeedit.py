@@ -160,7 +160,7 @@ class SchemeEditWidget(QWidget):
 
         self.__quickMenuTriggers = SchemeEditWidget.SpaceKey | \
                                    SchemeEditWidget.DoubleClicked
-        self.__emptyClickButtons = 0
+        self.__emptyClickButtons = Qt.NoButton
         self.__channelNamesVisible = True
         self.__nodeAnimationEnabled = True
         self.__possibleSelectionHandler = None
