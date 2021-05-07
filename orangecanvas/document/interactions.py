@@ -1170,8 +1170,8 @@ class RectangleSelectionAction(UserInteraction):
                                     Qt.IntersectsItemShape,
                                     Qt.AscendingOrder)
 
-        selected = set([item for item in selected if \
-                        item.flags() & Qt.ItemIsSelectable])
+        selected = set([item for item in selected if
+                        item.flags() & QGraphicsItem.ItemIsSelectable])
 
         if self.modifiers & Qt.ControlModifier:
             for item in selected | self.last_selection | \
