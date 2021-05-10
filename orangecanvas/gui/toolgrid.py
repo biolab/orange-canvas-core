@@ -189,7 +189,7 @@ class ToolGrid(QFrame):
 
         self.__gridSlots = []  # type: List[_ToolGridSlot]
         self.__mapper = QSignalMapper()
-        self.__mapper.mapped[QObject].connect(self.__onClicked)
+        self.__mapper.mappedObject.connect(self.__onClicked)
 
         layout = QGridLayout()
         layout.setContentsMargins(0, 0, 0, 0)

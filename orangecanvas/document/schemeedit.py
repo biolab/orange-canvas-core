@@ -204,7 +204,7 @@ class SchemeEditWidget(QWidget):
         self.__dropHandlers = ()  # type: Sequence[DropHandler]
 
         self.__editFinishedMapper = QSignalMapper(self)
-        self.__editFinishedMapper.mapped[QObject].connect(
+        self.__editFinishedMapper.mappedObject.connect(
             self.__onEditingFinished
         )
 
@@ -1472,7 +1472,7 @@ class SchemeEditWidget(QWidget):
             self.__scene.node_item_position_changed.connect(
                 self.__onNodePositionChanged
             )
-            self.__annotationGeomChanged.mapped[QObject].connect(
+            self.__annotationGeomChanged.mappedObject.connect(
                 self.__onAnnotationGeometryChanged
             )
 
@@ -1509,7 +1509,7 @@ class SchemeEditWidget(QWidget):
             self.__scene.node_item_position_changed.disconnect(
                 self.__onNodePositionChanged
             )
-            self.__annotationGeomChanged.mapped[QObject].disconnect(
+            self.__annotationGeomChanged.mappedObject.disconnect(
                 self.__onAnnotationGeometryChanged
             )
 
