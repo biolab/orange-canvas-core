@@ -25,11 +25,11 @@ from AnyQt.QtGui import (
     QPainterPathStroker, QConicalGradient,
     QTransform)
 from AnyQt.QtCore import (
-    Qt, QEvent, QPointF, QRectF, QRect, QSize, QTime, QTimer,
+    Qt, QEvent, QPointF, QRectF, QRect, QSize, QElapsedTimer, QTimer,
     QPropertyAnimation, QEasingCurve, QObject, QVariantAnimation,
-    QParallelAnimationGroup, Slot)
+    QParallelAnimationGroup, Slot
+)
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
-from PyQt5.QtCore import pyqtProperty
 
 from .graphicspathobject import GraphicsPathObject
 from .graphicstextitem import GraphicsTextItem, GraphicsTextEdit
@@ -793,7 +793,7 @@ class NodeAnchorItem(GraphicsPathObject):
     def anchorOpen(self):
         return self.__anchorOpen
 
-    @pyqtProperty(float)
+    @Property(float)
     def anchorDashInterpFactor(self):
         return self.__dashInterpFactor
 
@@ -1304,7 +1304,7 @@ class NodeItem(QGraphicsWidget):
         self.setFlag(QGraphicsItem.ItemIsMovable, True)
         self.setFlag(QGraphicsItem.ItemIsFocusable, True)
 
-        self.mousePressTime = QTime()
+        self.mousePressTime = QElapsedTimer()
         self.mousePressTime.start()
 
         self.__title = ""

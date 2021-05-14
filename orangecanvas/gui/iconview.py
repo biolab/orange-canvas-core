@@ -60,11 +60,11 @@ class LinearIconView(QListView):
             else:
                 sh = QSize(200, max(s.height() for s in shs))
 
-        left, top, right, bottom = self.getContentsMargins()
+        margins = self.contentsMargins()
         if flow == QListView.TopToBottom:
-            sh = sh + QSize(left + right, 0)
+            sh = sh + QSize(margins.left() + margins.right(), 0)
         else:
-            sh = sh + QSize(0, top + bottom)
+            sh = sh + QSize(0, margins.top() + margins.bottom())
 
         if flow == QListView.TopToBottom and \
                 self.verticalScrollBarPolicy() != Qt.ScrollBarAlwaysOff:

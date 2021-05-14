@@ -22,7 +22,7 @@ from ..gui.toolgrid import ToolGrid
 from ..gui.toolbar import DynamicResizeToolBar
 from ..gui.quickhelp import QuickHelp
 from ..gui.framelesswindow import FramelessWindow
-from ..gui.utils import create_css_gradient
+from ..gui.utils import create_css_gradient, available_screen_geometry
 from ..document.quickmenu import MenuPage
 from .widgettoolbox import WidgetToolBox, iter_index, item_text, item_icon, item_tooltip
 from ..registry.qt import QtWidgetRegistry
@@ -514,13 +514,13 @@ class CategoryPopupMenu(FramelessWindow):
         self.show()
         self.__menu.view().setFocus()
 
-    def exec_(self, pos=None):
+    def exec(self, pos=None):
         # type: (Optional[QPoint]) -> Optional[QAction]
         self.popup(pos)
         self.__loop = QEventLoop()
 
         self.__action = None
-        self.__loop.exec_()
+        self.__loop.exec()
         self.__loop = None
 
         if self.__action is not None:
@@ -528,6 +528,12 @@ class CategoryPopupMenu(FramelessWindow):
         else:
             action = None
         return action
+
+    def exec_(self, *args, **kwargs):
+        warnings.warn(
+            "exec_ is deprecated, use exec", DeprecationWarning, stacklevel=2
+        )
+        return self.exec(*args, **kwargs)
 
     def hideEvent(self, event):
         # type: (QHideEvent) -> None
@@ -568,7 +574,7 @@ class CategoryPopupMenu(FramelessWindow):
         filter = ToolTipEventFilter()
         viewport.installEventFilter(filter)
 
-        drag.exec_(Qt.CopyAction)
+        drag.exec(Qt.CopyAction)
 
         viewport.removeEventFilter(filter)
 
@@ -638,8 +644,8 @@ def widget_popup_geometry(pos, widget):
     else:
         size = widget.sizeHint()
 
-    desktop = QApplication.desktop()
-    screen_geom = desktop.availableGeometry(pos)
+    screen = QApplication.screenAt(pos)
+    screen_geom = screen.availableGeometry()
 
     # Adjust the size to fit inside the screen.
     if size.height() > screen_geom.height():
@@ -680,8 +686,7 @@ def popup_position_from_source(popup, source, orientation=Qt.Vertical):
     else:
         size = popup.sizeHint()
 
-    desktop = QApplication.desktop()
-    screen_geom = desktop.availableGeometry(source)
+    screen_geom = available_screen_geometry(source)
     source_rect = QRect(source.mapToGlobal(QPoint(0, 0)), source.size())
 
     if orientation == Qt.Vertical:

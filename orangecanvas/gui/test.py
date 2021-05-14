@@ -8,7 +8,7 @@ from typing import Callable, Any
 
 from AnyQt.QtWidgets import QApplication, QWidget
 from AnyQt.QtCore import (
-    QCoreApplication, QTimer, QStandardPaths, QPoint, Qt, QMimeData
+    QCoreApplication, QTimer, QStandardPaths, QPoint, Qt, QMimeData, QPointF
 )
 from AnyQt.QtGui import (
     QMouseEvent, QDragEnterEvent, QDropEvent, QDragMoveEvent, QDragLeaveEvent,
@@ -88,8 +88,8 @@ def mouseMove(widget, buttons, modifier=Qt.NoModifier, pos=QPoint(), delay=-1):
     if pos.isNull():
         pos = widget.rect().center()
     me = QMouseEvent(
-        QMouseEvent.MouseMove, pos, widget.mapToGlobal(pos), Qt.NoButton,
-        buttons, modifier
+        QMouseEvent.MouseMove, QPointF(pos), QPointF(widget.mapToGlobal(pos)),
+        Qt.NoButton, buttons, modifier
     )
     if delay > 0:
         QTest.qWait(delay)
@@ -160,7 +160,7 @@ def dragDrop(
         QApplication.sendEvent(widget, QDragLeaveEvent())
         return False
 
-    ev = QDropEvent(pos, action, mime, buttons, modifiers)
+    ev = QDropEvent(QPointF(pos), action, mime, buttons, modifiers)
     ev.setAccepted(False)
     QApplication.sendEvent(widget, ev)
     return ev.isAccepted()

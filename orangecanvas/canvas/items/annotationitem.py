@@ -780,7 +780,7 @@ class ArrowAnnotation(Annotation):
         """
         if self.isSelected():
             color = self.__color.darker(150)
-            pen = QPen(QColor(96, 158, 215), Qt.DashDotLine)
+            pen = QPen(QColor(96, 158, 215), 1.25, Qt.DashDotLine)
             pen.setWidthF(1.25)
             pen.setCosmetic(True)
             shadow = pen.color().darker(150)

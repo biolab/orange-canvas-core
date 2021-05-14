@@ -1,18 +1,19 @@
 from typing import Optional
-from unittest import skipIf
+from unittest import skipUnless
 
-from AnyQt.QtCore import QPointF, QPoint, Qt
+from AnyQt.QtCore import QPointF, QPoint, Qt, QT_VERSION_INFO
 from AnyQt.QtTest import QSignalSpy
-from AnyQt.QtWidgets import QGraphicsScene, QGraphicsView, QGraphicsItem, QMenu, \
-    QAction, QApplication, QWidget, QGraphicsTextItem
-
+from AnyQt.QtWidgets import (
+    QGraphicsScene, QGraphicsView, QGraphicsItem, QMenu, QAction,
+    QApplication, QWidget
+)
 from orangecanvas.gui.test import QAppTestCase, contextMenu
 from orangecanvas.canvas.items.graphicstextitem import GraphicsTextItem
 from orangecanvas.utils import findf
 
 
-@skipIf(GraphicsTextItem.contextMenuEvent == QGraphicsTextItem.contextMenuEvent,
-        "contextMenuEvent is not reimplemented")
+@skipUnless((5, 15, 1) <= QT_VERSION_INFO < (6, 0, 0),
+            "contextMenuEvent is not reimplemented")
 class TestGraphicsTextItem(QAppTestCase):
     def setUp(self):
         super().setUp()

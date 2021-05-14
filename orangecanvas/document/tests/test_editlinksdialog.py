@@ -30,7 +30,7 @@ class TestLinksEditDialog(test.QAppTestCase):
         self.assertSequenceEqual(dlg.links(), links)
         self.singleShot(50, dlg.close)
 
-        status = dlg.exec_()
+        status = dlg.exec()
 
         self.assertTrue(dlg.links() == [] or dlg.links() == links)
 

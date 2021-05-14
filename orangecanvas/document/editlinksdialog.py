@@ -46,7 +46,7 @@ class EditLinksDialog(QDialog):
     >>> dlg.setNodes(source_node, sink_node)
     >>> dlg.setLinks([(source_node.output_channel("Data"),
     ...                sink_node.input_channel("Data"))])
-    >>> if dlg.exec_() == EditLinksDialog.Accepted:
+    >>> if dlg.exec() == EditLinksDialog.Accepted:
     ...     new_links = dlg.links()
     ...
     """
@@ -122,9 +122,11 @@ class EditLinksDialog(QDialog):
 
     def __onGeometryChanged(self):
         size = self.scene.editWidget.size()
-        left, top, right, bottom = self.getContentsMargins()
-        self.view.setFixedSize(size.toSize() + \
-                               QSize(left + right + 4, top + bottom + 4))
+        m = self.contentsMargins()
+        self.view.setFixedSize(
+            size.toSize() + QSize(m.left() + m.right() + 4,
+                                  m.top() + m.bottom() + 4)
+        )
         self.view.setSceneRect(self.scene.editWidget.geometry())
 
 

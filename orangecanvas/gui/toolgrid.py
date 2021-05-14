@@ -141,7 +141,7 @@ class ToolGridButton(QToolButton):
         csize.setWidth(csize.width() * 3 // 2)
         size = style.sizeFromContents(
             QStyle.CT_ToolButton, opt, csize, self)
-        return size.expandedTo(QApplication.globalStrut())
+        return size
 
 
 class ToolGrid(QFrame):

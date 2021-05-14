@@ -41,8 +41,7 @@ from AnyQt.QtCore import (
     QSettings, QStandardPaths, QEvent, QAbstractItemModel, QModelIndex,
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
-
-import sip
+from AnyQt import sip
 
 from orangecanvas.utils import unique, name_lookup, markup, qualified_name
 from orangecanvas.utils.shtools import python_process, create_process
@@ -359,7 +358,7 @@ class PluginsModel(QStandardItemModel):
         item1 = StateItem()
         item1.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable |
                        Qt.ItemIsUserCheckable |
-                       (Qt.ItemIsUserTristate if updatable else 0))
+                       (Qt.ItemIsUserTristate if updatable else Qt.NoItemFlags))
         item1.setEnabled(not (item_is_core and not updatable))
         item1.setData(item_is_core, HasConstraintRole)
 
@@ -925,7 +924,7 @@ class AddonManagerDialog(QDialog):
             dlg.accept()
         buttons.accepted.connect(query)
         buttons.rejected.connect(dlg.reject)
-        dlg.exec_()
+        dlg.exec()
 
     @Slot(str, str)
     def __show_error_for_query(self, text, error_details):
@@ -1127,7 +1126,7 @@ class AddonManagerDialog(QDialog):
             msg_box.setInformativeText('Press OK to restart {} now.'
                                        .format(name))
             msg_box.button(QMessageBox.Cancel).setText('Close later')
-            return msg_box.exec_()
+            return msg_box.exec()
 
         if QMessageBox.Ok == message_restart(self):
             self.accept()

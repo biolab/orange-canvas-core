@@ -18,8 +18,7 @@ from AnyQt.QtGui import (
     QTextCharFormat, QFont
 )
 from AnyQt.QtCore import Qt, QPointF, QPoint, QRect, QRectF, Signal, QEvent
-
-import sip
+from AnyQt import sip
 
 
 @contextmanager
@@ -346,7 +345,7 @@ def message(icon, text, title=None, informative_text=None, details=None,
     if default_button is not None:
         mbox.setDefaultButton(default_button)
 
-    return mbox.exec_()
+    return mbox.exec()
 
 
 def innerGlowBackgroundPixmap(color, size, radius=5):
@@ -380,7 +379,7 @@ def innerGlowBackgroundPixmap(color, size, radius=5):
     # draw radial gradient pixmap
     pixPainter = QPainter(gradientPixmap)
     pixPainter.setPen(Qt.NoPen)
-    gradient = QRadialGradient(center, radius - 1)
+    gradient = QRadialGradient(QPointF(center), radius - 1)
     gradient.setColorAt(0, light_color)
     gradient.setColorAt(1, dark_color)
     pixPainter.setBrush(gradient)
@@ -660,3 +659,21 @@ def update_font(
         font.setPointSizeF(pointSize)
 
     return font
+
+
+def screen_geometry(widget: QWidget, pos: Optional[QPoint] = None) -> QRect:
+    screen = widget.screen()
+    if pos is not None:
+        sibling = screen.virtualSibling(pos)
+        if sibling is not None:
+            screen = sibling
+    return screen.geometry()
+
+
+def available_screen_geometry(widget: QWidget, pos: Optional[QPoint] = None) -> QRect:
+    screen = widget.screen()
+    if pos is not None:
+        sibling = screen.virtualSibling(pos)
+        if sibling is not None:
+            screen = sibling
+    return screen.availableGeometry()

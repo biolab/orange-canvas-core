@@ -160,7 +160,7 @@ class SchemeEditWidget(QWidget):
 
         self.__quickMenuTriggers = SchemeEditWidget.SpaceKey | \
                                    SchemeEditWidget.DoubleClicked
-        self.__emptyClickButtons = 0
+        self.__emptyClickButtons = Qt.NoButton
         self.__channelNamesVisible = True
         self.__nodeAnimationEnabled = True
         self.__possibleSelectionHandler = None
@@ -350,9 +350,9 @@ class SchemeEditWidget(QWidget):
             enabled=False
         )
 
-        shortcuts = [Qt.Key_Backspace,
-                     Qt.Key_Delete,
-                     Qt.ControlModifier + Qt.Key_Backspace]
+        shortcuts = [QKeySequence(Qt.Key_Backspace),
+                     QKeySequence(Qt.Key_Delete),
+                     QKeySequence(Qt.ControlModifier | Qt.Key_Backspace)]
 
         self.__removeSelectedAction.setShortcuts(shortcuts)
 
@@ -408,7 +408,7 @@ class SchemeEditWidget(QWidget):
             self.tr("Duplicate"), self,
             objectName="duplicate-action",
             enabled=False,
-            shortcut=QKeySequence(Qt.ControlModifier + Qt.Key_D),
+            shortcut=QKeySequence(Qt.ControlModifier | Qt.Key_D),
             triggered=self.__duplicateSelected,
         )
 
@@ -416,7 +416,7 @@ class SchemeEditWidget(QWidget):
             self.tr("Copy"), self,
             objectName="copy-action",
             enabled=False,
-            shortcut=QKeySequence(Qt.ControlModifier + Qt.Key_C),
+            shortcut=QKeySequence(Qt.ControlModifier | Qt.Key_C),
             triggered=self.__copyToClipboard,
         )
 
@@ -424,7 +424,7 @@ class SchemeEditWidget(QWidget):
             self.tr("Paste"), self,
             objectName="paste-action",
             enabled=clipboard_has_format(MimeTypeWorkflowFragment),
-            shortcut=QKeySequence(Qt.ControlModifier + Qt.Key_V),
+            shortcut=QKeySequence(Qt.ControlModifier | Qt.Key_V),
             triggered=self.__pasteFromClipboard,
         )
         QApplication.clipboard().dataChanged.connect(
@@ -495,7 +495,7 @@ class SchemeEditWidget(QWidget):
         self.__raiseWidgetsAction = QAction(
             self.tr("Bring Widgets to Front"), self,
             objectName="bring-widgets-to-front-action",
-            shortcut=QKeySequence(Qt.ControlModifier + Qt.Key_Down),
+            shortcut=QKeySequence(Qt.ControlModifier | Qt.Key_Down),
             shortcutContext=Qt.WindowShortcut,
         )
         self.__raiseWidgetsAction.triggered.connect(self.__raiseToFont)
@@ -2025,7 +2025,7 @@ class SchemeEditWidget(QWidget):
 
         view = self.view()
         try:
-            action = menu.exec_(view.mapToGlobal(view.mapFromScene(QPointF(x, y))))
+            action = menu.exec(view.mapToGlobal(view.mapFromScene(QPointF(x, y))))
         finally:
             menu.setFilterFunc(None)
 
@@ -2376,7 +2376,7 @@ class SaveWindowGroup(QDialog):
         layout.addLayout(form)
         self._combobox = cb = QComboBox(
             editable=True, minimumContentsLength=16,
-            sizeAdjustPolicy=QComboBox.AdjustToMinimumContentsLength,
+            sizeAdjustPolicy=QComboBox.AdjustToMinimumContentsLengthWithIcon,
             insertPolicy=QComboBox.NoInsert,
         )
         cb.currentIndexChanged.connect(self.__currentIndexChanged)

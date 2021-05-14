@@ -9,7 +9,7 @@ class TestSchemeInfo(test.QAppTestCase):
         dialog = SchemeInfoDialog()
         dialog.setScheme(scheme)
         self.singleShot(10, dialog.close)
-        status = dialog.exec_()
+        status = dialog.exec()
         if status == dialog.Accepted:
             self.assertEqual(scheme.title,
                              dialog.editor.name_edit.text())

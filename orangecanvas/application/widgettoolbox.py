@@ -199,7 +199,7 @@ class WidgetToolGrid(ToolGrid):
         """
         if parent == self.__rootIndex:
             for i in range(start, end + 1):
-                item = self.__rootIndex.child(i, 0)
+                item = self.__model.index(i, 0, self.__rootIndex)
                 self.__insertItem(i, item)
 
     def __on_rowsRemoved(self, parent, start, end):
@@ -228,7 +228,7 @@ class WidgetToolGrid(ToolGrid):
         drag = QDrag(button)
         drag.setPixmap(icon.pixmap(self.iconSize()))
         drag.setMimeData(drag_data)
-        drag.exec_(Qt.CopyAction)
+        drag.exec(Qt.CopyAction)
 
 
 class DragStartEventListener(QObject):

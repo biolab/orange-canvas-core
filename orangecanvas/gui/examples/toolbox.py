@@ -32,7 +32,7 @@ def main(argv=[]):
     )
     w.insertItem(2, p6, "Dear friend")
     w.show()
-    return app.exec_()
+    return app.exec()
 
 
 if __name__ == "__main__":

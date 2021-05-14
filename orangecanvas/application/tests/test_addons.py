@@ -6,9 +6,9 @@ from unittest.mock import patch
 from zipfile import ZipFile
 
 from AnyQt.QtWidgets import QMessageBox, QDialogButtonBox
-from AnyQt.QtCore import QEventLoop, QUrl, QMimeData, QPoint, Qt
+from AnyQt.QtCore import QEventLoop, QUrl, QMimeData, QPointF, Qt
 from AnyQt.QtTest import QTest
-from PyQt5.QtGui import QDropEvent
+from AnyQt.QtGui import QDropEvent
 from pkg_resources import EntryPoint
 
 from orangecanvas.application import addons
@@ -168,7 +168,7 @@ class TestAddonManagerDialog(QAppTestCase):
         data.setUrls([QUrl(url)])
 
         return QDropEvent(
-            QPoint(0, 0), Qt.MoveAction, data,
+            QPointF(0, 0), Qt.MoveAction, data,
             Qt.NoButton, Qt.NoModifier, QDropEvent.Drop)
 
     def test_run_query(self):
@@ -183,7 +183,7 @@ class TestAddonManagerDialog(QAppTestCase):
         def query(names):
             return query_res
 
-        with patch.object(QMessageBox, "exec_", return_value=QMessageBox.Cancel), \
+        with patch.object(QMessageBox, "exec", return_value=QMessageBox.Cancel), \
              patch.object(addons, "query_pypi", query):
             f = w.runQueryAndAddResults(
                 ["uber-pkg", "unter-pkg"],
@@ -203,7 +203,7 @@ class TestAddonManagerDialog(QAppTestCase):
                           lambda self, pkg: None), \
              patch.object(addons.CondaInstaller, "install",
                           lambda self, pkg, raise_on_fail: None), \
-             patch.object(QMessageBox, "exec_", return_value=QMessageBox.Cancel):
+             patch.object(QMessageBox, "exec", return_value=QMessageBox.Cancel):
             b = w.findChild(QDialogButtonBox)
             b.accepted.emit()
             QTest.qWait(1)

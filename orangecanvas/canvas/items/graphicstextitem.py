@@ -3,7 +3,7 @@ import sys
 from typing import Optional, Iterable, Union, Callable, Any
 
 from AnyQt.QtCore import (
-    Qt, QEvent, Signal, QSize, QRect, QPointF, QMimeData, qVersion
+    Qt, QEvent, Signal, QSize, QRect, QPointF, QMimeData, QT_VERSION_INFO
 )
 from AnyQt.QtGui import (
     QTextDocument, QTextBlock, QTextLine, QPalette, QPainter, QPen,
@@ -17,9 +17,6 @@ from AnyQt.QtWidgets import (
 )
 
 from orangecanvas.utils import set_flag
-
-
-qt_version = tuple(map(int, qVersion().split(".")[:3]))
 
 
 class GraphicsTextItem(QGraphicsTextItem):
@@ -134,7 +131,7 @@ class GraphicsTextItem(QGraphicsTextItem):
             self.update()
         return super().event(event)
 
-    if (5, 15, 1) <= qt_version <= (6, 0, 0):
+    if (5, 15, 1) <= QT_VERSION_INFO <= (6, 0, 0):
         # QTBUG-88309
         def contextMenuEvent(self, event: QGraphicsSceneContextMenuEvent) -> None:
             QGraphicsTextItem_contextMenuEvent(self, event)
@@ -460,7 +457,7 @@ class GraphicsTextEdit(GraphicsTextItem):
     ) -> None:
         super().setTextInteractionFlags(flags)
         if self.hasFocus() and flags & Qt.TextEditable and not self.__editing:
-            self.__startEdit(EditTriggers.NoEditTriggers)
+            self.__startEdit()
 
     def isEditing(self) -> bool:
         """Is editing currently active."""
@@ -476,7 +473,7 @@ class GraphicsTextEdit(GraphicsTextItem):
         if self.__editTriggers & GraphicsTextEdit.DoubleClicked:
             self.__startEdit(Qt.MouseFocusReason)
 
-    def focusInEvent(self, event: QFocusEvent)  -> None:
+    def focusInEvent(self, event: QFocusEvent) -> None:
         super().focusInEvent(event)
         if self.textInteractionFlags() & Qt.TextEditable \
                 and not self.__editing \

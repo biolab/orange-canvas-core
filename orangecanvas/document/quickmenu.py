@@ -11,6 +11,7 @@ import typing
 import statistics
 import sys
 import logging
+import warnings
 
 from collections import namedtuple
 
@@ -23,16 +24,15 @@ from AnyQt.QtWidgets import (
     QStyleOptionViewItem, QSizeGrip, QAbstractItemView, QStyledItemDelegate
 )
 from AnyQt.QtGui import (
-    QIcon, QStandardItemModel, QPolygon, QRegion, QBrush, QPalette,
-    QPaintEvent, QColor, QMouseEvent, QPixmap)
+    QIcon, QStandardItemModel, QBrush, QPalette, QPaintEvent, QColor, QPainter,
+    QMouseEvent,
+)
 from AnyQt.QtCore import (
-    Qt, QObject, QPoint, QSize, QRect, QEventLoop, QEvent, QModelIndex,
-    QTimer, QRegExp, QSortFilterProxyModel, QItemSelectionModel,
-    QAbstractItemModel,
-    QSettings)
+    Qt, QObject, QPoint, QPointF, QSize, QRect, QRectF, QEventLoop, QEvent,
+    QModelIndex, QRegularExpression, QSortFilterProxyModel, QItemSelectionModel,
+    QAbstractItemModel, QSettings
+)
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
-from PyQt5.QtCore import QRectF, QPointF
-from PyQt5.QtGui import QPainter
 
 from .usagestatistics import UsageStatistics
 from ..gui.framelesswindow import FramelessWindow
@@ -404,15 +404,14 @@ class SuggestMenuPage(MenuPage):
         proxy.setFilterFixedString(pattern)
         self.ensureCurrent()
 
-    def setFilterRegExp(self, pattern):
-        # type: (QRegExp) -> None
+    def setFilterRegularExpression(self, pattern):
+        # type: (QRegularExpression) -> None
         """
         Set the regular expression filtering pattern. Only items matching
         the `pattern` expression will be shown.
         """
         filter_proxy = self.__proxy()
-        filter_proxy.setFilterRegExp(pattern)
-
+        filter_proxy.setFilterRegularExpression(pattern)
         # re-sorts to make sure items that match by title are on top
         filter_proxy.invalidate()
         filter_proxy.sort(0)
@@ -1522,8 +1521,8 @@ class QuickMenu(FramelessWindow):
                 size.setHeight(ssize.height())
                 size = size.expandedTo(self.minimumSizeHint())
 
-        desktop = QApplication.desktop()
-        screen_geom = desktop.availableGeometry(pos)
+        screen = QApplication.screenAt(pos)
+        screen_geom = screen.availableGeometry()
 
         # Adjust the size to fit inside the screen.
         if size.height() > screen_geom.height():
@@ -1556,7 +1555,7 @@ class QuickMenu(FramelessWindow):
 
         self.setFocusProxy(self.__search)
 
-    def exec_(self, pos=None, searchText=""):
+    def exec(self, pos=None, searchText=""):
         # type: (Optional[QPoint], str) -> Optional[QAction]
         """
         Execute the menu at position `pos` (in global screen coordinates).
@@ -1569,13 +1568,19 @@ class QuickMenu(FramelessWindow):
 
         self.__triggeredAction = None
         self.__loop = QEventLoop()
-        self.__loop.exec_()
+        self.__loop.exec()
         self.__loop.deleteLater()
         self.__loop = None
 
         action = self.__triggeredAction
         self.__triggeredAction = None
         return action
+
+    def exec_(self, *args, **kwargs):
+        warnings.warn(
+            "exec_ is deprecated, use exec", DeprecationWarning, stacklevel=2
+        )
+        return self.exec(*args, **kwargs)
 
     def hideEvent(self, event):
         """

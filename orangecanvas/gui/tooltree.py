@@ -357,7 +357,7 @@ class FlattenedTreeItemModel(QAbstractProxyModel):
             return QModelIndex()
         index = model.index(key_path[0], 0)
         for row in key_path[1:]:
-            index = index.child(row, 0)
+            index = model.index(row, 0, index)
         return index
 
     def _updateRowMapping(self):
@@ -375,7 +375,7 @@ class FlattenedTreeItemModel(QAbstractProxyModel):
                     source_key.append(key_path)
 
                 for i in range(model.rowCount(index)):
-                    create_mapping(model, index.child(i, 0), key_path + (i, ))
+                    create_mapping(model, model.index(i, 0, index), key_path + (i, ))
 
             else:
                 source_offset_map[key_path] = len(source_offset_map)
