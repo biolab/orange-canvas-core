@@ -40,6 +40,7 @@ class Main:
     """
     #: The default config namespace
     DefaultConfig: Optional[str] = None
+    config: config.Config
     #: Arguments list (remaining after options parsing).
     arguments: List[str] = []
     #: Parsed option arguments
@@ -81,13 +82,18 @@ class Main:
         config_ns = self.DefaultConfig
         if self.options.config is not None:
             config_ns = self.options.config
+        cfg = None
         if config_ns is not None:
             try:
-                cfg = utils.name_lookup(config_ns)
+                cfg_class = utils.name_lookup(config_ns)
             except (ImportError, AttributeError):
                 pass
             else:
-                config.set_default(cfg())
+                cfg = cfg_class()
+        if cfg is None:
+            cfg = config.Default()
+        self.config = cfg
+        config.set_default(cfg)
         # Init config
         config.init()
 
@@ -119,7 +125,7 @@ class Main:
             not options.no_splash
 
         if want_splash:
-            pm, rect = config.splash_screen()
+            pm, rect = self.config.splash_screen()
             splash_screen = SplashScreen(pixmap=pm, textRect=rect)
             splash_screen.setAttribute(Qt.WA_DeleteOnClose)
             splash_screen.setFont(QFont("Helvetica", 12))
@@ -147,7 +153,7 @@ class Main:
         handler.found_category.connect(
             lambda cd: self.show_splash_message(cd.name)
         )
-        widget_discovery = config.widget_discovery(
+        widget_discovery = self.config.widget_discovery(
             handler, cached_descriptions=reg_cache
         )
         cache_filename = os.path.join(config.cache_dir(), "widget-registry.pck")
@@ -156,7 +162,7 @@ class Main:
                 widget_registry = pickle.load(f)
             widget_registry = WidgetRegistry(widget_registry)
         else:
-            widget_discovery.run(config.widgets_entry_points())
+            widget_discovery.run(self.config.widgets_entry_points())
 
             # Store cached descriptions
             cache.save_registry_cache(widget_discovery.cached_descriptions)
@@ -287,7 +293,7 @@ class Main:
     def setup_main_window(self):
         stylesheet = self.main_window_stylesheet()
         self.window = window = self.create_main_window()
-        window.setWindowIcon(config.application_icon())
+        window.setWindowIcon(self.config.application_icon())
         window.setStyleSheet(stylesheet)
         window.output_view().setDocument(self.output)
         window.set_widget_registry(self.registry)
