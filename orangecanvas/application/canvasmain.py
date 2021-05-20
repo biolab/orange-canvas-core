@@ -87,7 +87,7 @@ from ..preview import previewdialog, previewmodel
 from .. import config
 from . import examples
 from ..resources import load_styled_svg_icon
-from ..canvas import scene
+from ..canvas.utils import grab_svg
 
 log = logging.getLogger(__name__)
 
@@ -1858,7 +1858,7 @@ class CanvasMainWindow(QMainWindow):
 
     def __save_as_svg(self, path):
         doc = self.current_document()
-        content = scene.grab_svg(doc.scene())
+        content = grab_svg(doc.scene())
         with self._handle_os_write_error():
             with open(path, "wt", encoding="utf-8") as f:
                 f.write(content)
