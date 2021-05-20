@@ -29,10 +29,10 @@ from ..registry import (
     InputSignal, OutputSignal, NAMED_COLORS
 )
 from .. import scheme
-from ..scheme import Scheme, SchemeNode, SchemeLink, BaseSchemeAnnotation, Node
+from ..scheme import Scheme, Node, Link, Annotation
 from . import items
 from .items import NodeItem, LinkItem
-from .items.annotationitem import Annotation
+from .items.annotationitem import AnnotationItem
 
 from .layout import AnchorLayout
 from ..utils.qinvoke import connect_with_context as qconnect
@@ -151,10 +151,10 @@ class CanvasScene(QGraphicsScene):
     #: Signal emitted when a :class:`LinkItem` has been removed.
     link_item_removed = Signal(object)
 
-    #: Signal emitted when a :class:`Annotation` item has been added.
+    #: Signal emitted when a :class:`AnnotationItem` item has been added.
     annotation_added = Signal(object)
 
-    #: Signal emitted when a :class:`Annotation` item has been removed.
+    #: Signal emitted when a :class:`AnnotationItem` item has been removed.
     annotation_removed = Signal(object)
 
     #: Signal emitted when the position of a :class:`NodeItem` has changed.
@@ -184,17 +184,17 @@ class CanvasScene(QGraphicsScene):
 
         # All node items
         self.__node_items = []  # type: List[NodeItem]
-        # Mapping from SchemeNodes to canvas items
-        self.__item_for_node = {}  # type: Dict[SchemeNode, NodeItem]
+        # Mapping from Nodes to canvas items
+        self.__item_for_node = {}  # type: Dict[Node, NodeItem]
         # All link items
         self.__link_items = []  # type: List[LinkItem]
         # Mapping from SchemeLinks to canvas items.
-        self.__item_for_link = {}  # type: Dict[SchemeLink, LinkItem]
+        self.__item_for_link = {}  # type: Dict[Link, LinkItem]
 
         # All annotation items
-        self.__annotation_items = []  # type: List[Annotation]
+        self.__annotation_items = []  # type: List[AnnotationItem]
         # Mapping from SchemeAnnotations to canvas items.
-        self.__item_for_annotation = {}  # type: Dict[BaseSchemeAnnotation, Annotation]
+        self.__item_for_annotation = {}  # type: Dict[Annotation, AnnotationItem]
 
         # Is the scene editable
         self.editable = True
@@ -413,10 +413,10 @@ class CanvasScene(QGraphicsScene):
         return item
 
     def add_node(self, node):
-        # type: (SchemeNode) -> NodeItem
+        # type: (Node) -> NodeItem
         """
         Add and return a default constructed :class:`.NodeItem` for a
-        :class:`SchemeNode` instance `node`. If the `node` is already in
+        :class:`Node` instance `node`. If the `node` is already in
         the scene do nothing and just return its item.
 
         """
@@ -464,10 +464,10 @@ class CanvasScene(QGraphicsScene):
         self.node_item_removed.emit(item)
 
     def remove_node(self, node):
-        # type: (SchemeNode) -> None
+        # type: (Node) -> None
         """
         Remove the :class:`.NodeItem` instance that was previously
-        constructed for a :class:`SchemeNode` `node` using the `add_node`
+        constructed for a :class:`Node` `node` using the `add_node`
         method.
 
         """
@@ -504,10 +504,10 @@ class CanvasScene(QGraphicsScene):
         return item
 
     def add_link(self, scheme_link):
-        # type: (SchemeLink) -> LinkItem
+        # type: (Link) -> LinkItem
         """
         Create and add a :class:`.LinkItem` instance for a
-        :class:`SchemeLink` instance. If the link is already in the scene
+        :class:`Link` instance. If the link is already in the scene
         do nothing and just return its :class:`.LinkItem`.
 
         """
@@ -582,10 +582,10 @@ class CanvasScene(QGraphicsScene):
         return item
 
     def remove_link(self, scheme_link):
-        # type: (SchemeLink) -> None
+        # type: (Link) -> None
         """
         Remove a :class:`.LinkItem` instance that was previously constructed
-        for a :class:`SchemeLink` instance `link` using the `add_link` method.
+        for a :class:`Link` instance `link` using the `add_link` method.
 
         """
         item = self.__item_for_link.pop(scheme_link)
@@ -606,9 +606,9 @@ class CanvasScene(QGraphicsScene):
         return list(self.__link_items)
 
     def add_annotation_item(self, annotation):
-        # type: (Annotation) -> Annotation
+        # type: (AnnotationItem) -> AnnotationItem
         """
-        Add an :class:`.Annotation` item to the scene.
+        Add an :class:`.AnnotationItem` item to the scene.
         """
         self.__annotation_items.append(annotation)
         self.addItem(annotation)
@@ -616,7 +616,7 @@ class CanvasScene(QGraphicsScene):
         return annotation
 
     def add_annotation(self, scheme_annot):
-        # type: (BaseSchemeAnnotation) -> Annotation
+        # type: (Annotation) -> AnnotationItem
         """
         Create a new item for :class:`SchemeAnnotation` and add it
         to the scene. If the `scheme_annot` is already in the scene do
@@ -654,9 +654,9 @@ class CanvasScene(QGraphicsScene):
         return item
 
     def remove_annotation_item(self, annotation):
-        # type: (Annotation) -> None
+        # type: (AnnotationItem) -> None
         """
-        Remove an :class:`.Annotation` instance from the scene.
+        Remove an :class:`.AnnotationItem` instance from the scene.
 
         """
         self.__annotation_items.remove(annotation)
@@ -664,9 +664,9 @@ class CanvasScene(QGraphicsScene):
         self.annotation_removed.emit(annotation)
 
     def remove_annotation(self, scheme_annotation):
-        # type: (BaseSchemeAnnotation) -> None
+        # type: (Annotation) -> None
         """
-        Remove an :class:`.Annotation` instance that was previously added
+        Remove an :class:`.AnnotationItem` instance that was previously added
         using :func:`add_anotation`.
 
         """
@@ -681,18 +681,18 @@ class CanvasScene(QGraphicsScene):
         self.remove_annotation_item(item)
 
     def annotation_items(self):
-        # type: () -> List[Annotation]
+        # type: () -> List[AnnotationItem]
         """
-        Return all :class:`.Annotation` items in the scene.
+        Return all :class:`.AnnotationItem` items in the scene.
         """
         return self.__annotation_items.copy()
 
     def item_for_annotation(self, scheme_annotation):
-        # type: (BaseSchemeAnnotation) -> Annotation
+        # type: (Annotation) -> AnnotationItem
         return self.__item_for_annotation[scheme_annotation]
 
     def annotation_for_item(self, item):
-        # type: (Annotation) -> BaseSchemeAnnotation
+        # type: (AnnotationItem) -> Annotation
         rev = {v: k for k, v in self.__item_for_annotation.items()}
         return rev[item]
 
@@ -735,32 +735,32 @@ class CanvasScene(QGraphicsScene):
                   (link, self, self.scheme))
 
     def node_for_item(self, item):
-        # type: (NodeItem) -> SchemeNode
+        # type: (NodeItem) -> Node
         """
-        Return the `SchemeNode` for the `item`.
+        Return the `Node` for the `item`.
         """
         rev = dict([(v, k) for k, v in self.__item_for_node.items()])
         return rev[item]
 
     def item_for_node(self, node):
-        # type: (SchemeNode) -> NodeItem
+        # type: (Node) -> NodeItem
         """
-        Return the :class:`NodeItem` instance for a :class:`SchemeNode`.
+        Return the :class:`NodeItem` instance for a :class:`Node`.
         """
         return self.__item_for_node[node]
 
     def link_for_item(self, item):
-        # type: (LinkItem) -> SchemeLink
+        # type: (LinkItem) -> Link
         """
-        Return the `SchemeLink for `item` (:class:`LinkItem`).
+        Return the `Link for `item` (:class:`LinkItem`).
         """
         rev = dict([(v, k) for k, v in self.__item_for_link.items()])
         return rev[item]
 
     def item_for_link(self, link):
-        # type: (SchemeLink) -> LinkItem
+        # type: (Link) -> LinkItem
         """
-        Return the :class:`LinkItem` for a :class:`SchemeLink`
+        Return the :class:`LinkItem` for a :class:`Link`
         """
         return self.__item_for_link[link]
 
@@ -776,9 +776,9 @@ class CanvasScene(QGraphicsScene):
         return [item for item in self.__link_items if item.isSelected()]
 
     def selected_annotation_items(self):
-        # type: () -> List[Annotation]
+        # type: () -> List[AnnotationItem]
         """
-        Return the selected :class:`Annotation`'s
+        Return the selected :class:`AnnotationItem`'s
         """
         return [item for item in self.__annotation_items if item.isSelected()]
 
@@ -896,7 +896,6 @@ class CanvasScene(QGraphicsScene):
         if self.user_interaction_handler and \
                 self.user_interaction_handler.mouseMoveEvent(event):
             return
-
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
