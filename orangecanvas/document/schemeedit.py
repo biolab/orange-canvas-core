@@ -40,7 +40,7 @@ from AnyQt.QtCore import (
 from AnyQt.QtCore import pyqtProperty as Property, pyqtSignal as Signal
 
 from orangecanvas.document.commands import UndoCommand
-from .interactions import DropHandler
+from .interactions import DropHandler, propose_links
 from ..registry import WidgetDescription, WidgetRegistry
 from .suggestions import Suggestions
 from .usagestatistics import UsageStatistics
@@ -1096,8 +1096,8 @@ class SchemeEditWidget(QWidget):
         source_channel = old_link.source_channel
         sink_channel = old_link.sink_channel
 
-        proposed_links = (self.__scheme.propose_links(source_node, new_node),
-                          self.__scheme.propose_links(new_node, sink_node))
+        proposed_links = (propose_links(self.__scheme, source_node, new_node),
+                          propose_links(self.__scheme, new_node, sink_node))
         # Preserve existing {source,sink}_channel if possible; use first
         # proposed if not.
         first = findf(proposed_links[0], lambda t: t[0] == source_channel,
