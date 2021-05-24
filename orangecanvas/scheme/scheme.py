@@ -8,6 +8,7 @@ The :class:`Scheme` class defines a DAG (Directed Acyclic Graph) workflow.
 """
 import types
 import logging
+import warnings
 from contextlib import ExitStack
 from operator import itemgetter
 from collections import deque
@@ -630,46 +631,16 @@ class Scheme(QObject):
 
         .. note:: This can depend on the links already in the scheme.
 
+        .. deprecated:: 0.2.0
+           Use :func:`orangecanvas.document.interactions.propose_links`
         """
-        if source_node is sink_node and \
-                not self.loop_flags() & Scheme.AllowSelfLoops:
-            # Self loops are not enabled
-            return []
-
-        elif not self.loop_flags() & Scheme.AllowLoops and \
-                self.is_ancestor(sink_node, source_node):
-            # Loops are not enabled.
-            return []
-
-        outputs = [source_signal] if source_signal \
-             else source_node.output_channels()
-        inputs = [sink_signal] if sink_signal \
-            else sink_node.input_channels()
-
-        # Get existing links to sink channels that are Single.
-        links = self.find_links(None, None, sink_node)
-        already_connected_sinks = [link.sink_channel for link in links \
-                                   if link.sink_channel.single]
-
-        def weight(out_c, in_c):
-            # type: (OutputSignal, InputSignal) -> int
-            if out_c.explicit or in_c.explicit:
-                weight = -1  # Negative weight for explicit links
-            else:
-                check = [in_c not in already_connected_sinks,
-                         bool(in_c.default),
-                         bool(out_c.default)]
-                weights = [2 ** i for i in range(len(check), 0, -1)]
-                weight = sum([w for w, c in zip(weights, check) if c])
-            return weight
-
-        proposed_links = []
-        for out_c in outputs:
-            for in_c in inputs:
-                if compatible_channels(out_c, in_c):
-                    proposed_links.append((out_c, in_c, weight(out_c, in_c)))
-
-        return sorted(proposed_links, key=itemgetter(-1), reverse=True)
+        from orangecanvas.document.interactions import propose_links
+        warnings.warn("'propose_links' is deprecated use "
+                      "'orangecanvas.document.interactions.propose_links'",
+                      DeprecationWarning, stacklevel=2)
+        return propose_links(
+            self, source_node, sink_node, source_signal, sink_signal
+        )
 
     def insert_annotation(self, index: int, annotation: Annotation) -> None:
         """

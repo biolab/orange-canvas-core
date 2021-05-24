@@ -13,6 +13,7 @@ All interactions are subclasses of :class:`UserInteraction`.
 
 """
 import typing
+from operator import itemgetter
 from typing import Optional, Any, Tuple, List, Set, Iterable, Sequence, Dict
 
 import abc
@@ -40,6 +41,7 @@ from ..scheme import (
     SchemeNode as Node, SchemeLink as Link, Scheme, WorkflowEvent,
     compatible_channels
 )
+from ..scheme.link import _classify_connection
 from ..canvas import items
 from ..canvas.items import controlpoints
 from ..gui.quickhelp import QuickHelpTipEvent
@@ -304,6 +306,60 @@ def reversed_arguments(func):
     def wrapped(*args):
         return func(*reversed(args))
     return wrapped
+
+
+def propose_links(
+        workflow: Scheme,
+        source_node: 'Node',
+        sink_node: 'Node',
+        source_signal: Optional[OutputSignal] = None,
+        sink_signal: Optional[InputSignal] = None
+) -> List[Tuple[OutputSignal, InputSignal, int]]:
+    """
+    Return a list of ordered (:class:`OutputSignal`,
+    :class:`InputSignal`, weight) tuples that could be added to
+    the `workflow` between `source_node` and `sink_node`.
+
+    .. note:: This can depend on the links already in the `workflow`.
+    """
+    if source_node is sink_node and \
+            not workflow.loop_flags() & Scheme.AllowSelfLoops:
+        # Self loops are not enabled
+        return []
+    elif not workflow.loop_flags() & Scheme.AllowLoops and \
+            workflow.is_ancestor(sink_node, source_node):
+        # Loops are not enabled.
+        return []
+
+    outputs = [source_signal] if source_signal \
+        else source_node.output_channels()
+    inputs = [sink_signal] if sink_signal \
+        else sink_node.input_channels()
+
+    # Get existing links to sink channels that are Single.
+    links = workflow.find_links(None, None, sink_node)
+    already_connected_sinks = [link.sink_channel for link in links
+                               if link.sink_channel.single]
+
+    def weight(out_c, in_c):
+        # type: (OutputSignal, InputSignal) -> int
+        if out_c.explicit or in_c.explicit:
+            weight = -1  # Negative weight for explicit links
+        else:
+            check = [in_c not in already_connected_sinks,
+                     bool(in_c.default),
+                     bool(out_c.default)]
+            weights = [2 ** i for i in range(len(check), 0, -1)]
+            weight = sum([w for w, c in zip(weights, check) if c])
+        return weight
+
+    proposed_links = []
+    for out_c in outputs:
+        for in_c in inputs:
+            if compatible_channels(out_c, in_c):
+                proposed_links.append((out_c, in_c, weight(out_c, in_c)))
+
+    return sorted(proposed_links, key=itemgetter(-1), reverse=True)
 
 
 class NewLinkAction(UserInteraction):
