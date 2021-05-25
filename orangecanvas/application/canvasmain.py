@@ -1858,7 +1858,7 @@ class CanvasMainWindow(QMainWindow):
 
     def __save_as_svg(self, path):
         doc = self.current_document()
-        content = grab_svg(doc.scene())
+        content = grab_svg(doc.currentScene())
         with self._handle_os_write_error():
             with open(path, "wt", encoding="utf-8") as f:
                 f.write(content)
