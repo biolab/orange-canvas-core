@@ -474,6 +474,18 @@ class TestSchemeEdit(QAppTestCase):
         undo.undo()
         self.assertSequenceEqual(annotations, workflow.annotations)
 
+    def test_create_macro(self):
+        w = self.w
+        workflow = self.setup_test_workflow()
+        w.setRegistry(self.reg)
+        w.setScheme(workflow)
+        undo = w.undoStack()
+        w.selectAll()
+        w.createMacroFromSelection()
+        undo.undo()
+        self.assertTrue(len(workflow.root().nodes()), 1)
+        undo.redo()
+
     def test_window_groups(self):
         w = self.w
         workflow = self.setup_test_workflow()
