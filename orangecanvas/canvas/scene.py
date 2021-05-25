@@ -10,9 +10,6 @@ from typing import Dict, List, Optional, Any, Type, Tuple, Union
 
 import logging
 import itertools
-
-from operator import attrgetter
-
 from xml.sax.saxutils import escape
 
 from AnyQt.QtWidgets import QGraphicsScene, QGraphicsItem
@@ -193,9 +190,6 @@ class CanvasScene(QGraphicsScene):
         self.__annotation_items = []  # type: List[AnnotationItem]
         # Mapping from SchemeAnnotations to canvas items.
         self.__item_for_annotation = {}  # type: Dict[Annotation, AnnotationItem]
-
-        # Is the scene editable
-        self.editable = True
 
         # Anchor Layout
         self.__anchor_layout = AnchorLayout()
@@ -694,44 +688,6 @@ class CanvasScene(QGraphicsScene):
         rev = {v: k for k, v in self.__item_for_annotation.items()}
         return rev[item]
 
-    def commit_scheme_node(self, node):
-        """
-        Commit the `node` into the scheme.
-        """
-        if not self.editable:
-            raise Exception("Scheme not editable.")
-
-        if node not in self.__item_for_node:
-            raise ValueError("No 'NodeItem' for node.")
-
-        item = self.__item_for_node[node]
-
-        try:
-            self.scheme.add_node(node)
-        except Exception:
-            log.error("An error occurred while committing node '%s'",
-                      node, exc_info=True)
-            # Cleanup (remove the node item)
-            self.remove_node_item(item)
-            raise
-
-        log.debug("Commited node '%s' from '%s' to '%s'" % \
-                  (node, self, self.scheme))
-
-    def commit_scheme_link(self, link):
-        """
-        Commit a scheme link.
-        """
-        if not self.editable:
-            raise Exception("Scheme not editable")
-
-        if link not in self.__item_for_link:
-            raise ValueError("No 'LinkItem' for link.")
-
-        self.scheme.add_link(link)
-        log.debug("Commited link '%s' from '%s' to '%s'" % \
-                  (link, self, self.scheme))
-
     def node_for_item(self, item):
         # type: (NodeItem) -> Node
         """
@@ -780,14 +736,6 @@ class CanvasScene(QGraphicsScene):
         """
         return [item for item in self.__annotation_items if item.isSelected()]
 
-    def node_links(self, node_item):
-        # type: (NodeItem) -> List[LinkItem]
-        """
-        Return all links from the `node_item` (:class:`NodeItem`).
-        """
-        return self.node_output_links(node_item) + \
-               self.node_input_links(node_item)
-
     def node_output_links(self, node_item):
         # type: (NodeItem) -> List[LinkItem]
         """
@@ -804,19 +752,7 @@ class CanvasScene(QGraphicsScene):
         return [link for link in self.__link_items
                 if link.sinkItem == node_item]
 
-    def neighbor_nodes(self, node_item):
-        # type: (NodeItem) -> List[NodeItem]
-        """
-        Return a list of `node_item`'s (class:`NodeItem`) neighbor nodes.
-        """
-        neighbors = list(map(attrgetter("sourceItem"),
-                             self.node_input_links(node_item)))
-
-        neighbors.extend(map(attrgetter("sinkItem"),
-                             self.node_output_links(node_item)))
-        return neighbors
-
-    def set_widget_anchors_open(self, enabled: bool):
+    def set_widget_anchors_open(self, enabled):
         if self.__anchors_opened == enabled:
             return
         self.__anchors_opened = enabled
