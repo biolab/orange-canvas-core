@@ -5,11 +5,12 @@ from AnyQt.QtTest import QSignalSpy
 
 from ...gui import test
 from ...registry.tests import small_testing_registry
+from ...registry import InputSignal
 
 from .. import (
     Scheme, SchemeNode, SchemeLink, SchemeTextAnnotation,
     SchemeArrowAnnotation, SchemeTopologyError, SinkChannelError,
-    DuplicatedLinkError, IncompatibleChannelTypeError
+    DuplicatedLinkError, IncompatibleChannelTypeError, MetaNode, Link, Text
 )
 
 
@@ -117,10 +118,11 @@ class TestScheme(test.QCoreAppTestCase):
         one_desc = reg.widget("one")
         n1, n2 = SchemeNode(one_desc), SchemeNode(one_desc)
         w = Scheme()
+        r = w.root()
         spy = QSignalSpy(w.node_inserted)
         w.add_node(n1)
         w.insert_node(0, n2)
-        self.assertSequenceEqual(list(spy), [[0, n1], [0, n2]])
+        self.assertSequenceEqual(list(spy), [[0, n1, r], [0, n2, r]])
         self.assertSequenceEqual(w.nodes, [n2, n1])
 
     def test_insert_link(self):
@@ -129,6 +131,7 @@ class TestScheme(test.QCoreAppTestCase):
         add_desc = reg.widget("add")
         n1, n2, n3 = SchemeNode(one_desc), SchemeNode(one_desc), SchemeNode(add_desc)
         w = Scheme()
+        r = w.root()
         spy = QSignalSpy(w.link_inserted)
         w.add_node(n1)
         w.add_node(n2)
@@ -137,11 +140,12 @@ class TestScheme(test.QCoreAppTestCase):
         l2 = SchemeLink(n2, "value", n3, "right")
         w.add_link(l1)
         w.insert_link(0, l2)
-        self.assertSequenceEqual(list(spy), [[0, l1], [0, l2]])
+        self.assertSequenceEqual(list(spy), [[0, l1, r], [0, l2, r]])
         self.assertSequenceEqual(w.links, [l2, l1])
 
     def test_insert_annotation(self):
         w = Scheme()
+        r = w.root()
         a1 = SchemeTextAnnotation((0, 0, 1, 1), "a1")
         a2 = SchemeTextAnnotation((0, 0, 1, 1), "a2")
         a3 = SchemeTextAnnotation((0, 0, 1, 1), "a3")
@@ -150,4 +154,39 @@ class TestScheme(test.QCoreAppTestCase):
         w.insert_annotation(1, a2)
         w.insert_annotation(0, a3)
         self.assertSequenceEqual(w.annotations, [a3, a1, a2])
-        self.assertSequenceEqual(list(spy), [[0, a1], [1, a2], [0, a3]])
+        self.assertSequenceEqual(list(spy), [[0, a1, r], [1, a2, r], [0, a3, r]])
+
+    def test_meta_nodes(self):
+        w = Scheme()
+        reg = small_testing_registry()
+        one_desc = reg.widget("one")
+        add_desc = reg.widget("add")
+        neg_desc = reg.widget("negate")
+        n1, n2, n3 = SchemeNode(one_desc), SchemeNode(one_desc), SchemeNode(add_desc)
+        macro = MetaNode("Plus One")
+        w.add_node(macro)
+        self.assertIs(macro.parent_node(), w.root())
+        w.add_node(n1)
+        macro.add_node(n2)
+        macro.add_node(n3)
+        macro.add_link(Link(n2, "value", n3, "right"))
+        input = InputSignal("value", int, "-")
+        nodein = macro.create_input_node(input)
+        macro.add_link(Link(nodein, nodein.output_channels()[0], n3, "left"))
+        nodeout = macro.create_output_node(add_desc.outputs[0])
+        macro.add_link(Link(n3, n3.output_channels()[0],
+                            nodeout, nodeout.input_channels()[0]))
+        macro.add_annotation(Text((0, 0, 200, 200), "Add one"), )
+        w.add_link(Link(n1, "value", macro, "value"))
+
+        n4 = SchemeNode(neg_desc)
+        w.add_node(n4)
+        w.add_link(Link(macro, "result", n4, "value"))
+        self.assertIn(n4, w.downstream_nodes(n1))
+        self.assertIn(n3, w.downstream_nodes(n1))
+        self.assertIn(n4, w.downstream_nodes(n2))
+
+        self.assertIn(n2, w.upstream_nodes(n4))
+        self.assertIn(n3, w.upstream_nodes(n4))
+        self.assertIn(n1, w.upstream_nodes(n4))
+        w.clear()
