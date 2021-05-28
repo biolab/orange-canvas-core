@@ -1,13 +1,15 @@
 import enum
+import itertools
 import operator
 import types
+import unicodedata
 from collections import deque
 from functools import reduce
 
 import typing
 from typing import (
     Iterable, Set, Any, Optional, Union, Tuple, Callable, Mapping, List, Dict,
-    SupportsInt, cast, overload
+    SupportsInt, Container, cast, overload
 )
 
 from AnyQt.QtCore import Qt
@@ -38,7 +40,9 @@ __all__ = [
     "qsizepolicy_is_shrinking",
     "is_event_source_mouse",
     "UNUSED",
-    "apply_all"
+    "apply_all",
+    "uniquify",
+    "is_printable",
 ]
 
 if typing.TYPE_CHECKING:
@@ -363,3 +367,33 @@ def apply_all(op, seq):
     """Apply `op` on all elements of `seq`."""
     # from itertools recipes `consume`
     deque(map(op, seq), maxlen=0)
+
+
+def uniquify(item, names, pattern="{item}-{_}", start=0):
+    # type: (str, Container[str], str, int) -> str
+    """
+    Append a number to `item` such that it will be unique among `names`.
+
+    >>> uniquify("A", [])
+    'A-0'
+    >>> uniquify("A", ["A-0"])
+    'A-1'
+    >>> uniquify("A", ["A-0", "A-1"])
+    'A-2'
+    """
+    candidates = (pattern.format(item=item, _=i)
+                  for i in itertools.count(start))
+    candidates = itertools.dropwhile(lambda item: item in names, candidates)
+    return next(candidates)
+
+
+# All control character categories.
+_control = {"Cc", "Cf", "Cs", "Co", "Cn"}
+
+
+def is_printable(unichar):
+    # type: (str) -> bool
+    """
+    Return True if the unicode character `unichar` is a printable character.
+    """
+    return unicodedata.category(unichar) not in _control
