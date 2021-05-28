@@ -1234,7 +1234,8 @@ class CanvasMainWindow(QMainWindow):
         workflow: Optional[Scheme]
         """
         new_scheme = config.workflow_constructor(parent=self)
-        new_scheme.set_runtime_env("basedir", os.path.dirname(path))
+        new_scheme.set_runtime_env(
+            "basedir", os.path.abspath(os.path.dirname(path)))
         errors = []  # type: List[Exception]
         try:
             new_scheme.load_from(
@@ -1508,7 +1509,7 @@ class CanvasMainWindow(QMainWindow):
         # existing scheme file if `scheme.save_to` raises an error.
         buffer = io.BytesIO()
         try:
-            scheme.set_runtime_env("basedir", dirname)
+            scheme.set_runtime_env("basedir", os.path.abspath(dirname))
             scheme.save_to(buffer, pretty=True, pickle_fallback=True)
         except Exception:
             log.error("Error saving %r to %r", scheme, filename, exc_info=True)
