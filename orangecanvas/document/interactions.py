@@ -13,13 +13,13 @@ All interactions are subclasses of :class:`UserInteraction`.
 
 """
 import typing
-from operator import itemgetter
-from typing import Optional, Any, Tuple, List, Set, Iterable, Sequence, Dict
-
 import abc
 import logging
+from operator import itemgetter
 from functools import reduce
-
+from typing import (
+    Optional, Any, Tuple, List, Set, Iterable, Sequence, Dict,Union
+)
 from AnyQt.QtWidgets import (
     QApplication, QGraphicsRectItem, QGraphicsSceneMouseEvent,
     QGraphicsSceneContextMenuEvent, QWidget, QGraphicsItem,
@@ -37,10 +37,7 @@ from .usagestatistics import UsageStatistics
 from ..registry.description import WidgetDescription, OutputSignal, InputSignal
 from ..registry.qt import QtWidgetRegistry, tooltip_helper, whats_this_helper
 from .. import scheme
-from ..scheme import (
-    SchemeNode as Node, SchemeLink as Link, Scheme, WorkflowEvent,
-    compatible_channels
-)
+from ..scheme import Node, Link, Scheme, WorkflowEvent, compatible_channels
 from ..scheme.link import _classify_connection
 from ..canvas import items
 from ..canvas.items import controlpoints
