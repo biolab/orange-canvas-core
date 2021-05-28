@@ -112,6 +112,7 @@ class Scheme(QObject):
         self.__root._set_workflow(self)
         self.__loop_flags = Scheme.NoLoops
         self.__env = dict(env)   # type: Dict[str, Any]
+        self.__window_group_presets: List['Scheme.WindowGroup'] = []
 
     @property
     def nodes(self):
@@ -723,11 +724,11 @@ class Scheme(QObject):
 
         The base implementation returns an empty list.
         """
-        return self.property("_presets") or []
+        return list(self.__window_group_presets)
 
     def set_window_group_presets(self, groups):
         # type: (List[WindowGroup]) -> None
-        self.setProperty("_presets", groups)
+        self.__window_group_presets = list(groups)
         self.window_group_presets_changed.emit()
 
 
