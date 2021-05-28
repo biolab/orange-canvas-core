@@ -10,7 +10,6 @@ import io
 import logging
 import itertools
 import sys
-import unicodedata
 import copy
 import warnings
 import dictdiffer
@@ -19,7 +18,7 @@ from operator import attrgetter
 from urllib.parse import urlencode
 from contextlib import ExitStack, contextmanager
 from typing import (
-    List, Tuple, Optional, Container, Dict, Any, Iterable, Generator, Sequence
+    List, Tuple, Optional, Dict, Any, Iterable, Generator, Sequence
 )
 
 from AnyQt.QtWidgets import (
@@ -62,7 +61,7 @@ from ..canvas.items.annotationitem import Annotation as AnnotationItem
 from . import interactions
 from . import commands
 from . import quickmenu
-from ..utils import findf, UNUSED, apply_all
+from ..utils import findf, UNUSED, apply_all, uniquify, is_printable
 from ..utils.qinvoke import connect_with_context
 
 Pos = Tuple[float, float]
@@ -1058,14 +1057,10 @@ class SchemeEditWidget(QWidget):
         """
         if self.__scheme is None:
             return title
-        curr_titles = set([node.title for node in self.__scheme.nodes])
-        template = title + " ({0})"
-
-        enumerated = (template.format(i) for i in itertools.count(1))
-        candidates = itertools.chain([title], enumerated)
-
-        seq = itertools.dropwhile(curr_titles.__contains__, candidates)
-        return next(seq)
+        curr_titles = set([node.title for node in self.__scheme.all_nodes()])
+        if title not in curr_titles:
+            return title
+        return uniquify(title, curr_titles, "{item} ({_})", start=1)
 
     def nextPosition(self):
         # type: () -> Tuple[float, float]
@@ -2529,18 +2524,6 @@ def set_enabled_all(objects, enable):
         obj.setEnabled(enable)
 
 
-# All control character categories.
-_control = set(["Cc", "Cf", "Cs", "Co", "Cn"])
-
-
-def is_printable(unichar):
-    # type: (str) -> bool
-    """
-    Return True if the unicode character `unichar` is a printable character.
-    """
-    return unicodedata.category(unichar) not in _control
-
-
 def node_properties(scheme):
     # type: (Scheme) -> Dict[str, Dict[str, Any]]
     scheme.sync_node_properties()
@@ -2557,14 +2540,6 @@ def can_insert_node(new_node_desc, original_link):
            any(any(scheme.compatible_channels(output, input)
                    for output in new_node_desc.outputs)
                for input in original_link.sink_node.input_channels())
-
-
-def uniquify(item, names, pattern="{item}-{_}", start=0):
-    # type: (str, Container[str], str, int) -> str
-    candidates = (pattern.format(item=item, _=i)
-                  for i in itertools.count(start))
-    candidates = itertools.dropwhile(lambda item: item in names, candidates)
-    return next(candidates)
 
 
 def copy_node(node):
