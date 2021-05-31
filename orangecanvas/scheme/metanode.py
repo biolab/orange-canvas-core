@@ -1,8 +1,11 @@
+import pkgutil
 from itertools import chain
 from typing import TYPE_CHECKING, Optional, List, Iterable, TypeVar, Sequence
 
 from AnyQt.QtCore import Signal, QCoreApplication
+from AnyQt.QtGui import QIcon
 
+from ..gui.svgiconengine import SvgIconEngine
 from ..registry import InputSignal, OutputSignal
 from ..utils import findf, unique
 from ..utils.graph import traverse_bf
@@ -389,6 +392,9 @@ class MetaNode(Node):
             raise ValueError
         return node
 
+    def icon(self) -> QIcon:
+        return QIcon(SvgIconEngine(pkgutil.get_data("orangecanvas", "icons/MetaNode.svg")))
+
     def _set_workflow(self, workflow: Optional['Workflow']) -> None:
         super()._set_workflow(workflow)
         for el in chain(self.__nodes, self.__links, self.__annotations):
@@ -424,6 +430,9 @@ class InputNode(Node):
     def output_channels(self):  # type: () -> List[OutputSignal]
         return [self.__output]
 
+    def icon(self):
+        return QIcon(SvgIconEngine(pkgutil.get_data("orangecanvas", "icons/output.svg")))
+
 
 class OutputNode(Node):
     """
@@ -453,6 +462,9 @@ class OutputNode(Node):
 
     def output_channels(self):  # type: () -> List[OutputSignal]
         return [self.__output]
+
+    def icon(self):
+        return QIcon(SvgIconEngine(pkgutil.get_data("orangecanvas", "icons/input.svg")))
 
 
 T = TypeVar("T")

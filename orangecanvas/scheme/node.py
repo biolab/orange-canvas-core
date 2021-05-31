@@ -239,8 +239,7 @@ class Node(Element):
     title = Property(str, _title, set_title)  # type: ignore
 
     def icon(self) -> QIcon:
-        desc = self.description
-        return icon_loader.from_description(desc).get(desc.icon)
+        return QIcon()
 
     #: Position of the node in the scheme has changed
     position_changed = Signal(tuple)
@@ -535,6 +534,10 @@ class SchemeNode(Node):
         )
         self.output_channel_removed.emit(index, r)
         return r
+
+    def icon(self) -> QIcon:
+        desc = self.description
+        return icon_loader.from_description(desc).get(desc.icon)
 
     def __str__(self):
         return "SchemeNode(description_id=%r, title=%r, ...)" % \
