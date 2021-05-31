@@ -17,9 +17,9 @@ import dictdiffer
 
 from operator import attrgetter
 from urllib.parse import urlencode
-from contextlib import ExitStack, contextmanager
+from contextlib import ExitStack
 from typing import (
-    List, Tuple, Optional, Dict, Any, Iterable, Generator, Sequence
+    List, Tuple, Optional, Dict, Any, Iterable, Sequence
 )
 
 from AnyQt.QtWidgets import (
@@ -40,7 +40,7 @@ from AnyQt.QtCore import pyqtProperty as Property, pyqtSignal as Signal
 
 from orangecanvas.document.commands import UndoCommand
 from .interactions import DropHandler, UserInteraction, propose_links
-from .utils import prepare_macro_patch
+from .utils import prepare_macro_patch, disable_undo_stack_actions
 from .windowgroupsdialog import SaveWindowGroup
 from ..registry import WidgetDescription, WidgetRegistry
 from .suggestions import Suggestions
@@ -2591,31 +2591,3 @@ def nodes_top_left(nodes):
         min((n.position[0] for n in nodes), default=0),
         min((n.position[1] for n in nodes), default=0)
     )
-
-@contextmanager
-def disable_undo_stack_actions(
-        undo: QAction, redo: QAction, stack: QUndoStack
-) -> Generator[None, None, None]:
-    """
-    Disable the undo/redo actions of an undo stack.
-
-    On exit restore the enabled state to match the `stack.canUndo()`
-    and `stack.canRedo()`.
-
-    Parameters
-    ----------
-    undo: QAction
-    redo: QAction
-    stack: QUndoStack
-
-    Returns
-    -------
-    context: ContextManager
-    """
-    undo.setEnabled(False)
-    redo.setEnabled(False)
-    try:
-        yield
-    finally:
-        undo.setEnabled(stack.canUndo())
-        redo.setEnabled(stack.canRedo())

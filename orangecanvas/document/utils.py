@@ -1,9 +1,12 @@
 import statistics
 from copy import copy
+from contextlib import contextmanager
 from itertools import chain
-from typing import Sequence, Tuple
+from typing import Sequence, Tuple, Generator
 
 from dataclasses import dataclass
+
+from AnyQt.QtWidgets import QAction, QUndoStack
 
 from orangecanvas.scheme import Node, Link, MetaNode, OutputNode, InputNode
 from orangecanvas.utils import unique
@@ -107,3 +110,32 @@ def prepare_macro_patch(
         new_input_links, new_output_links,
         removed_links + links_in + links_out
     )
+
+
+@contextmanager
+def disable_undo_stack_actions(
+        undo: QAction, redo: QAction, stack: QUndoStack
+) -> Generator[None, None, None]:
+    """
+    Disable the undo/redo actions of an undo stack.
+
+    On exit restore the enabled state to match the `stack.canUndo()`
+    and `stack.canRedo()`.
+
+    Parameters
+    ----------
+    undo: QAction
+    redo: QAction
+    stack: QUndoStack
+
+    Returns
+    -------
+    context: ContextManager
+    """
+    undo.setEnabled(False)
+    redo.setEnabled(False)
+    try:
+        yield
+    finally:
+        undo.setEnabled(stack.canUndo())
+        redo.setEnabled(stack.canRedo())
