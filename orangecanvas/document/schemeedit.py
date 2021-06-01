@@ -649,8 +649,8 @@ class SchemeEditWidget(QWidget):
         if not modified:
             if self.__scheme:
                 self.__cleanProperties = node_properties(self.__scheme)
-                self.__cleanLinks = self.__scheme.links
-                self.__cleanAnnotations = self.__scheme.annotations
+                self.__cleanLinks = self.__scheme.all_links()
+                self.__cleanAnnotations = self.__scheme.all_annotations()
             else:
                 self.__cleanProperties = {}
                 self.__cleanLinks = []
@@ -697,7 +697,7 @@ class SchemeEditWidget(QWidget):
 
         cleanProperties = self.__cleanProperties
         # ignore diff for deleted nodes
-        currentNodes = self.__scheme.nodes
+        currentNodes = self.__scheme.all_nodes()
         cleanCurrentNodeProperties = {k: v
                                       for k, v in cleanProperties.items()
                                       if k in currentNodes}
@@ -714,7 +714,7 @@ class SchemeEditWidget(QWidget):
 
     def restoreProperties(self, dict_diff):
         ref_properties = {
-            node: node.properties for node in self.__scheme.nodes
+            node: node.properties for node in self.__scheme.all_nodes()
         }
         dictdiffer.patch(dict_diff, ref_properties, in_place=True)
 
@@ -867,8 +867,8 @@ class SchemeEditWidget(QWidget):
                     self.__reset_window_group_menu
                 )
                 self.__cleanProperties = node_properties(scheme)
-                self.__cleanLinks = scheme.links
-                self.__cleanAnnotations = scheme.annotations
+                self.__cleanLinks = scheme.all_links()
+                self.__cleanAnnotations = scheme.all_annotations()
                 sm = scheme.findChild(signalmanager.SignalManager)
                 if sm:
                     sm.stateChanged.connect(self.__signalManagerStateChanged)
@@ -2533,7 +2533,7 @@ def node_properties(scheme):
     # type: (Scheme) -> Dict[str, Dict[str, Any]]
     scheme.sync_node_properties()
     return {
-        node: dict(node.properties) for node in scheme.nodes
+        node: dict(node.properties) for node in scheme.all_nodes()
     }
 
 
