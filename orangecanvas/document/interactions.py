@@ -37,7 +37,9 @@ from .usagestatistics import UsageStatistics
 from ..registry.description import WidgetDescription, OutputSignal, InputSignal
 from ..registry.qt import QtWidgetRegistry, tooltip_helper, whats_this_helper
 from .. import scheme
-from ..scheme import Node, Link, Scheme, WorkflowEvent, compatible_channels
+from ..scheme import (
+    Node, MetaNode, Link, Scheme, WorkflowEvent, compatible_channels
+)
 from ..scheme.link import _classify_connection
 from ..canvas import items
 from ..canvas.items import controlpoints
@@ -107,10 +109,13 @@ class UserInteraction(QObject):
         # type: ('SchemeEditWidget', Optional[QObject], bool) -> None
         super().__init__(parent)
         self.document = document
-        self.scene = document.scene()
+        self.scene = document.currentScene()
         scheme_ = document.scheme()
+        root = document.root()
+        assert root is not None
         assert scheme_ is not None
         self.scheme = scheme_  # type: scheme.Scheme
+        self.root = root
         self.suggestions = document.suggestions()
         self.deleteOnEnd = deleteOnEnd
 
@@ -452,11 +457,11 @@ class NewLinkAction(UserInteraction):
         node2 = self.scene.node_for_item(target_item)
 
         if self.direction == self.FROM_SOURCE:
-            links = self.scheme.propose_links(node1, node2,
-                                              source_signal=self.from_signal)
+            links = propose_links(self.scheme, node1, node2,
+                                  source_signal=self.from_signal)
         else:
-            links = self.scheme.propose_links(node2, node1,
-                                              sink_signal=self.from_signal)
+            links = propose_links(self.scheme, node2, node1,
+                                  sink_signal=self.from_signal)
         return [(s1, s2) for s1, s2, _ in links]
 
     def can_connect(self, target_item):
@@ -665,7 +670,7 @@ class NewLinkAction(UserInteraction):
                     node = None
 
                 if node is not None:
-                    commands.AddNodeCommand(self.scheme, node, self.scheme.root(),
+                    commands.AddNodeCommand(self.scheme, node, self.root,
                                             parent=self.macro)
 
             if node is not None and not self.showing_incompatible_widget:
@@ -785,12 +790,13 @@ class NewLinkAction(UserInteraction):
         detailed dialog for link editing.
 
         """
-        root = self.scheme.root()
+        root = self.root
         UsageStatistics.set_sink_anchor_open(sink_signal is not None)
         UsageStatistics.set_source_anchor_open(source_signal is not None)
         try:
-            possible = self.scheme.propose_links(source_node, sink_node,
-                                                 source_signal, sink_signal)
+            possible = propose_links(
+                self.scheme, source_node, sink_node, source_signal, sink_signal
+            )
 
             log.debug("proposed (weighted) links: %r",
                       [(s1.name, s2.name, w) for s1, s2, w in possible])
@@ -800,8 +806,6 @@ class NewLinkAction(UserInteraction):
 
             source, sink, w = possible[0]
 
-            # just a list of signal tuples for now, will be converted
-            # to SchemeLinks later
             links_to_add = []     # type: List[Link]
             links_to_remove = []  # type: List[Link]
             show_link_dialog = False
@@ -842,9 +846,9 @@ class NewLinkAction(UserInteraction):
                 if rstatus == EditLinksDialog.Rejected:
                     raise UserCanceledError
             else:
-                # links_to_add now needs to be a list of actual SchemeLinks
+                # links_to_add now needs to be a list of actual Links
                 links_to_add = [
-                    scheme.SchemeLink(source_node, source, sink_node, sink)
+                    Link(source_node, source, sink_node, sink)
                 ]
                 links_to_add, links_to_remove = \
                     add_links_plan(self.scheme, links_to_add)
@@ -907,7 +911,7 @@ class NewLinkAction(UserInteraction):
 
         if status == EditLinksDialog.Accepted:
             links_to_add = [
-                scheme.SchemeLink(
+                Link(
                     source_node, source_channel,
                     sink_node, sink_channel
                 ) for source_channel, sink_channel in links_to_add_spec
@@ -1008,7 +1012,7 @@ def edit_links(
 
     dlg = EditLinksDialog(parent, windowTitle="Edit Links")
 
-    # all SchemeLinks between the two nodes.
+    # all Links between the two nodes.
     links = scheme.find_links(source_node=source_node, sink_node=sink_node)
     existing_links = [(link.source_channel, link.sink_channel)
                       for link in links]
@@ -1057,12 +1061,14 @@ def conflicting_single_link(scheme, link):
     If no such channel exists (or sink channel is not 'single')
     return `None`.
     """
+    node = link.sink_node
+    if isinstance(node, MetaNode):
+        node = node.node_for_input_channel(link.sink_channel)
     if link.sink_channel.single:
         existing = scheme.find_links(
-            sink_node=link.sink_node,
+            sink_node=node,
             sink_channel=link.sink_channel
         )
-
         if existing:
             assert len(existing) == 1
             return existing[0]
@@ -1073,8 +1079,13 @@ def remove_duplicates(links_to_add, links_to_remove):
     # type: (List[Link], List[Link]) -> Tuple[List[Link], List[Link]]
     def link_key(link):
         # type: (Link) -> Tuple[Node, OutputSignal, Node, InputSignal]
-        return (link.source_node, link.source_channel,
-                link.sink_node, link.sink_channel)
+        source_node, source_channel = link.source_node, link.source_channel
+        sink_node, sink_channel = link.sink_node, link.sink_channel
+        if isinstance(source_node, MetaNode):
+            source_node = source_node.node_for_output_channel(source_channel)
+        if isinstance(sink_node, MetaNode):
+            sink_node = sink_node.node_for_input_channel(sink_channel)
+        return source_node, source_channel, sink_node, sink_channel
 
     add_keys = list(map(link_key, links_to_add))
     remove_keys = list(map(link_key, links_to_remove))
@@ -1288,16 +1299,16 @@ class RectangleSelectionAction(UserInteraction):
 
 class EditNodeLinksAction(UserInteraction):
     """
-    Edit multiple links between two :class:`SchemeNode` instances using
+    Edit multiple links between two :class:`Node` instances using
     a :class:`EditLinksDialog`
 
     Parameters
     ----------
     document : :class:`SchemeEditWidget`
         The editor widget.
-    source_node : :class:`SchemeNode`
+    source_node : :class:`Node`
         The source (link start) node for the link editor.
-    sink_node : :class:`SchemeNode`
+    sink_node : :class:`Node`
         The sink (link end) node for the link editor.
 
     """
@@ -1370,8 +1381,8 @@ class EditNodeLinksAction(UserInteraction):
                 self.document.removeLink(links[0])
 
             for source_channel, sink_channel in links_to_add:
-                link = scheme.SchemeLink(self.source_node, source_channel,
-                                         self.sink_node, sink_channel)
+                link = Link(self.source_node, source_channel,
+                            self.sink_node, sink_channel)
 
                 self.document.addLink(link)
 
