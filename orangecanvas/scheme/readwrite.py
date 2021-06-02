@@ -602,6 +602,12 @@ def scheme_to_interm(scheme, data_format="literal", pickle_fallback=False):
         else:
             data = None
 
+        input_defs = output_defs = []
+        if node.input_channels() != desc.inputs:
+            input_defs = node.input_channels()[len(desc.inputs):]
+        if node.output_channels() != desc.outputs:
+            output_defs = node.output_channels()[len(desc.outputs):]
+
         inode = _node(
             id=str(node_id),
             title=node.title,
@@ -610,6 +616,8 @@ def scheme_to_interm(scheme, data_format="literal", pickle_fallback=False):
             qualified_name=desc.qualified_name,
             project_name=desc.project_name or "",
             version=desc.version or "",
+            added_inputs=tuple({"name": d.name, "type": d.type} for d in input_defs),
+            added_outputs=tuple({"name": d.name, "type": d.type} for d in output_defs),
             data=data,
         )
         node_ids[node] = str(node_id)
@@ -692,8 +700,19 @@ def scheme_to_etree_2_0(scheme, data_format="literal", pickle_fallback=False):
                 "position": node.position,
             }
         )
+        for input_def in node.added_inputs:
+            builder.start("added_input", {
+                "name": input_def["name"],
+                "type": input_def["type"],
+            })
+            builder.end("added_input")
+        for output_def in node.added_outputs:
+            builder.start("added_output", {
+                "name": output_def["name"],
+                "type": output_def["type"],
+            })
+            builder.end("added_output")
         builder.end("node")
-
     builder.end("nodes")
 
     # Links
