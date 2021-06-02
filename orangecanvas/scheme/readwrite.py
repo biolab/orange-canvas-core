@@ -25,9 +25,10 @@ from typing import (
 
 from typing_extensions import TypeGuard
 
-from .node import SchemeNode
-from .link import SchemeLink
-from .annotations import SchemeTextAnnotation, SchemeArrowAnnotation
+from .node import SchemeNode, Node
+from .metanode import MetaNode, InputNode, OutputNode
+from .link import Link
+from .annotations import SchemeTextAnnotation, SchemeArrowAnnotation, Annotation
 from .errors import IncompatibleChannelTypeError
 
 from ..registry import global_registry, WidgetRegistry
@@ -122,95 +123,260 @@ def _is_constant(
 
 
 # Intermediate scheme representation
-_scheme = NamedTuple(
-    "_scheme", [
-        ("title", str),
-        ("version", str),
-        ("description", str),
-        ("nodes", List['_node']),
-        ("links", List['_link']),
-        ("annotations", List['_annotation']),
-        ("session_state", '_session_data')
-    ]
-)
+class _scheme(NamedTuple):
+    title: str
+    version: str
+    description: str
+    nodes: List['_NodeType']
+    links: List['_link']
+    annotations: List['_annotation']
+    session_state: '_session_data'
 
-_node = NamedTuple(
-    "_node", [
-        ("id", str),
-        ("title", str),
-        ("name", str),
-        ("position", Tuple[float, float]),
-        ("project_name", str),
-        ("qualified_name", str),
-        ("version", str),
-        ("added_inputs", Tuple[dict]),
-        ("added_outputs", Tuple[dict]),
-        ("data", Optional['_data'])
-    ]
-)
 
-_data = NamedTuple(
-    "_data", [
-        ("format", str),
-        ("data", Union[bytes, str])
-    ]
-)
+class _node(NamedTuple):
+    id: str
+    title: str
+    position: Tuple[float, float]
+    project_name: str
+    qualified_name: str
+    version: str
+    added_inputs: Tuple[dict, ...]
+    added_outputs: Tuple[dict, ...]
+    data: Optional['_data']
 
-_link = NamedTuple(
-    "_link", [
-        ("id", str),
-        ("source_node_id", str),
-        ("sink_node_id", str),
-        ("source_channel", str),
-        ("source_channel_id", str),
-        ("sink_channel", str),
-        ("sink_channel_id", str),
-        ("enabled", bool),
-    ]
-)
 
-_annotation = NamedTuple(
-    "_annotation", [
-        ("id", str),
-        ("type", str),
-        ("params", Union['_text_params', '_arrow_params']),
-    ]
-)
+class _macro_node(NamedTuple):
+    id: str
+    title: str
+    position: Tuple[float, float]
+    version: str
+    nodes: List['_NodeType']
+    links: List['_link']
+    annotations: List['_annotation']
 
-_text_params = NamedTuple(
-    "_text_params", [
-        ("geometry", Tuple[float, float, float, float]),
-        ("text", str),
-        ("font", Dict[str, Any]),
-        ("content_type", str),
-    ]
-)
 
-_arrow_params = NamedTuple(
-    "_arrow_params", [
-        ("geometry", Tuple[Tuple[float, float], Tuple[float, float]]),
-        ("color", str),
-    ])
+class _input_node(NamedTuple):
+    id: str
+    title: str
+    position: Tuple[float, float]
+    type: Tuple[str, ...]
 
-_window_group = NamedTuple(
-    "_window_group", [
-        ("name", str),
-        ("default", bool),
-        ("state", List[Tuple[str, bytes]])
-    ]
-)
 
-_session_data = NamedTuple(
-    "_session_data", [
-        ("groups", List[_window_group])
-    ]
-)
+class _output_node(NamedTuple):
+    id: str
+    title: str
+    position: Tuple[float, float]
+    type: Tuple[str, ...]
+
+
+_NodeType = Union[_node, _macro_node, _input_node, _output_node]
+
+
+class _data(NamedTuple):
+    format: str
+    data: Union[bytes, str]
+
+
+class _link(NamedTuple):
+    id: str
+    source_node_id: str
+    sink_node_id: str
+    source_channel: str
+    source_channel_id: str
+    sink_channel: str
+    sink_channel_id: str
+    enabled: bool
+
+
+class _annotation(NamedTuple):
+    id: str
+    type: str
+    params: Union['_text_params', '_arrow_params']
+
+
+class _text_params(NamedTuple):
+    geometry: Tuple[float, float, float, float]
+    text: str
+    font: Dict[str, Any]
+    content_type: str
+
+
+class _arrow_params(NamedTuple):
+    geometry: Tuple[Tuple[float, float], Tuple[float, float]]
+    color: str
+
+
+class _window_group(NamedTuple):
+    name: str
+    default: bool
+    state: List[Tuple[str, bytes]]
+
+
+class _session_data(NamedTuple):
+    groups: List[_window_group]
+
+
+def _parse_ows_etree_node(node: Element) -> _NodeType:
+    node_id = node.get("id")
+    px, py = tuple_eval(node.get("position"))
+    added_inputs = []
+    added_outputs = []
+
+    for ai in node.findall("added_input"):
+        added_inputs.append(dict(ai.attrib))
+    for ao in node.findall("added_output"):
+        added_outputs.append(dict(ao.attrib))
+
+    return _node(  # type: ignore
+            id=node_id,
+            title=node.get("title"),
+            # name=node.get("name"),
+            position=(px, py),
+            project_name=node.get("project_name"),
+            qualified_name=node.get("qualified_name"),
+            version=node.get("version", ""),
+            added_inputs=tuple(added_inputs),
+            added_outputs=tuple(added_outputs),
+            data=None
+        )
+
+
+def _parse_ows_etree_macro_node(node: Element) -> _macro_node:
+    node_id = node.get("id")
+    px, py = tuple_eval(node.get("position", "0, 0"))
+    nodes, links, annotations = [], [], []
+
+    for enode in node.findall("./nodes/*"):
+        parser = _parse_ows_etree_node_dispatch[enode.tag]
+        nodes.append(parser(enode))
+    for elink in node.findall("./links/link"):
+        links.append(_parse_ows_etree_link(elink))
+    for eannot in node.findall("./annotations/*"):
+        parser = _parse_ows_etree_annotation_dispatch.get(eannot.tag, None)
+        if parser is not None:
+            annotations.append(parser(eannot))
+        else:
+            log.warning("Unknown annotation '%s'. Skipping.", eannot.tag)
+
+    return _macro_node(
+        id=node_id,
+        title=node.get("title"),
+        position=(px, py),
+        nodes=nodes,
+        links=links,
+        annotations=annotations,
+        version=node.get("version", ""),
+    )
+
+
+def parse_type_spec(string) -> Tuple[str, ...]:
+    parts = [s.strip() for s in string.split("|")]
+    return tuple(parts)
+
+
+def _parse_ows_etree_input_node(node: Element) -> _input_node:
+    node_id = node.get("id")
+    px, py = tuple_eval(node.get("position"))
+    types = parse_type_spec(node.get("type", ""))
+    return _input_node(
+            id=node_id,
+            title=node.get("title"),
+            position=(px, py),
+            type=types
+        )
+
+
+def _parse_ows_etree_output_node(node: Element) -> _output_node:
+    node_id = node.get("id")
+    px, py = tuple_eval(node.get("position"))
+    types = parse_type_spec(node.get("type", ""))
+    return _output_node(
+            id=node_id,
+            title=node.get("title"),
+            position=(px, py),
+            type=types
+        )
+
+
+def _parse_ows_etree_link(link: Element):
+    return _link(
+        id=link.get("id"),
+        source_node_id=link.get("source_node_id"),
+        sink_node_id=link.get("sink_node_id"),
+        source_channel=link.get("source_channel"),
+        source_channel_id=link.get("source_channel_id", ""),
+        sink_channel=link.get("sink_channel"),
+        sink_channel_id=link.get("sink_channel_id", ""),
+        enabled=link.get("enabled", "true") == "true",
+    )
+
+
+def _parse_ows_etree_text_annotation(annot: Element) -> _annotation:
+    rect = tuple_eval(annot.get("rect", "0.0, 0.0, 20.0, 20.0"))
+    font_family = annot.get("font-family", "").strip()
+    font_size = annot.get("font-size", "").strip()
+    font = {}  # type: Dict[str, Any]
+    if font_family:
+        font["family"] = font_family
+    if font_size:
+        font["size"] = int(font_size)
+
+    content_type = annot.get("type", "text/plain")
+
+    return _annotation(
+        id=annot.get("id"),
+        type="text",
+        params=_text_params(  # type: ignore
+            rect, annot.text or "", font, content_type),
+    )
+
+
+def _parse_ows_etree_arrow_annotation(annot: Element) -> _annotation:
+    start = tuple_eval(annot.get("start", "0, 0"))
+    end = tuple_eval(annot.get("end", "0, 0"))
+    color = annot.get("fill", "red")
+    return _annotation(
+        id=annot.get("id"),
+        type="arrow",
+        params=_arrow_params((start, end), color)
+    )
+
+
+def _parse_ows_etree_window_group(group: Element) -> _window_group:
+    name = group.get("name")  # type: str
+    default = group.get("default", "false") == "true"
+    state = []
+    for state_ in group.findall("./window_state"):
+        node_id = state_.get("node_id")
+        text_ = state_.text
+        if text_ is not None:
+            try:
+                data = base64.decodebytes(text_.encode("ascii"))
+            except (binascii.Error, UnicodeDecodeError):
+                data = b''
+        else:
+            data = b''
+        state.append((node_id, data))
+    return _window_group(name, default, state)
+
+
+_parse_ows_etree_node_dispatch = {
+    "node": _parse_ows_etree_node,
+    "input_node": _parse_ows_etree_input_node,
+    "output_node": _parse_ows_etree_output_node,
+    "macro_node": _parse_ows_etree_macro_node,
+}
+
+_parse_ows_etree_annotation_dispatch = {
+    "text": _parse_ows_etree_text_annotation,
+    "arrow": _parse_ows_etree_arrow_annotation,
+}
 
 
 def parse_ows_etree_v_2_0(tree):
     # type: (ElementTree) -> _scheme
     """
-    Parset an xml.etree.ElementTree struct into a intermediate workflow
+    Parse an xml.etree.ElementTree struct into a intermediate workflow
     representation.
     """
     scheme = tree.getroot()
@@ -244,7 +410,7 @@ def parse_ows_etree_v_2_0(tree):
             _node(  # type: ignore
                 id=node_id,
                 title=node.get("title"),
-                name=node.get("name"),
+                # name=node.get("name"),
                 position=(_px, _py),
                 project_name=node.get("project_name"),
                 qualified_name=node.get("qualified_name"),
@@ -336,6 +502,53 @@ def parse_ows_etree_v_2_0(tree):
     )
 
 
+def parse_ows_etree_v_3_0(tree):
+    # type: (ElementTree) -> _scheme
+    """
+    Parse an xml.etree.ElementTree struct into a intermediate workflow
+    representation.
+    """
+    scheme = tree.getroot()
+    version = scheme.get("version")
+
+    # First collect all properties
+    properties = {}  # type: Dict[str, _data]
+    for property in tree.findall("node_properties/properties"):
+        node_id = property.get("node_id")  # type: str
+        format = property.get("format")
+        if version == "2.0" and "data" in property.attrib:
+            data_str = property.get("data", default="")
+        else:
+            data_str = property.text or ""
+        properties[node_id] = _data(format, data_str)
+
+    root = _parse_ows_etree_macro_node(scheme)
+
+    def add_node_data(node: _NodeType) -> _NodeType:
+        if isinstance(node, _macro_node):
+            return node._replace(nodes=[add_node_data(n) for n in node.nodes])
+        elif isinstance(node, _node):
+            return node._replace(data=properties.get(node.id, None))
+        else:
+            return node
+    window_presets = []
+
+    for window_group in tree.findall("session_state/window_groups/group"):
+        window_presets.append(_parse_ows_etree_window_group(window_group))
+    session_state = _session_data(window_presets)
+    root = root._replace(nodes=[add_node_data(n) for n in root.nodes])
+
+    return _scheme(
+        version=version,
+        title=scheme.get("title", ""),
+        description=scheme.get("description"),
+        nodes=root.nodes,
+        links=root.links,
+        annotations=root.annotations,
+        session_state=session_state,
+    )
+
+
 class InvalidFormatError(ValueError):
     pass
 
@@ -364,8 +577,11 @@ def parse_ows_stream(stream):
             raise InvalidFormatError(
                 "Invalid Orange Workflow Scheme file (missing version)."
             )
-    if version in {"2.0", "2.1"}:
+    version_info = tuple(map(int, version.split(".")))
+    if (2, 0) <= version_info < (3, 0):
         return parse_ows_etree_v_2_0(doc)
+    elif (3, 0) <= version_info < (4, 0):
+        return parse_ows_etree_v_3_0(doc)
     else:
         raise UnsupportedFormatVersionError(
             f"Unsupported format version {version}")
@@ -393,41 +609,51 @@ def resolve_replaced(scheme_desc: _scheme, registry: WidgetRegistry) -> _scheme:
         replacements_channels[desc.qualified_name] = (input_repl, output_repl)
 
     # replace the nodes
-    nodes = scheme_desc.nodes
-    for i, node in list(enumerate(nodes)):
-        if not registry.has_widget(node.qualified_name) and \
-                node.qualified_name in replacements:
-            qname = replacements[node.qualified_name]
-            desc = registry.widget(qname)
-            nodes[i] = node._replace(qualified_name=desc.qualified_name,
-                                     project_name=desc.project_name)
-        nodes_by_id[node.id] = nodes[i]
+    def replace_macro(root: _macro_node):
+        nodes = root.nodes
+        for i, node in list(enumerate(nodes)):
+            if isinstance(node, _node) and \
+                    not registry.has_widget(node.qualified_name) and \
+                    node.qualified_name in replacements:
+                qname = replacements[node.qualified_name]
+                desc = registry.widget(qname)
+                nodes[i] = node._replace(qualified_name=desc.qualified_name,
+                                         project_name=desc.project_name)
+            if isinstance(node, _macro_node):
+                nodes[i] = replace_macro(node)
+            nodes_by_id[node.id] = nodes[i]
 
-    # replace links
-    links = scheme_desc.links
-    for i, link in list(enumerate(links)):
-        nsource = nodes_by_id[link.source_node_id]
-        nsink = nodes_by_id[link.sink_node_id]
+        # replace links
+        links = root.links
+        for i, link in list(enumerate(links)):
+            nsource = nodes_by_id[link.source_node_id]
+            nsink = nodes_by_id[link.sink_node_id]
+            source_rep = sink_rep = {}
+            if isinstance(nsource, _node):
+                _, source_rep = replacements_channels.get(
+                    nsource.qualified_name, ({}, {}))
+            if isinstance(nsink, _node):
+                sink_rep, _ = replacements_channels.get(
+                    nsink.qualified_name, ({}, {}))
 
-        _, source_rep = replacements_channels.get(
-            nsource.qualified_name, ({}, {}))
-        sink_rep, _ = replacements_channels.get(
-            nsink.qualified_name, ({}, {}))
-
-        if link.source_channel in source_rep:
-            link = link._replace(
-                source_channel=source_rep[link.source_channel])
-        if link.sink_channel in sink_rep:
-            link = link._replace(
-                sink_channel=sink_rep[link.sink_channel])
-        links[i] = link
-
-    return scheme_desc._replace(nodes=nodes, links=links)
+            if link.source_channel in source_rep:
+                link = link._replace(
+                    source_channel=source_rep[link.source_channel])
+            if link.sink_channel in sink_rep:
+                link = link._replace(
+                    sink_channel=sink_rep[link.sink_channel])
+            links[i] = link
+        return root._replace(nodes=nodes, links=links)
+    root = _macro_node(
+        "", "", (0, 0), "", scheme_desc.nodes, scheme_desc.links,
+        scheme_desc.annotations
+    )
+    root = replace_macro(root)
+    return scheme_desc._replace(nodes=root.nodes, links=root.links)
 
 
 def scheme_load(scheme, stream, registry=None, error_handler=None):
     desc = parse_ows_stream(stream)  # type: _scheme
-
     if registry is None:
         registry = global_registry()
 
@@ -437,89 +663,124 @@ def scheme_load(scheme, stream, registry=None, error_handler=None):
 
     desc = resolve_replaced(desc, registry)
     nodes_not_found = []
-    nodes = []
     nodes_by_id = {}
     links = []
-    annotations = []
 
     scheme.title = desc.title
     scheme.description = desc.description
+    root = scheme.root()
 
-    for node_d in desc.nodes:
+    def build_scheme_node(node: _node, parent: MetaNode) -> SchemeNode:
         try:
-            w_desc = registry.widget(node_d.qualified_name)
+            desc = registry.widget(node.qualified_name)
         except KeyError as ex:
             error_handler(UnknownWidgetDefinition(*ex.args))
-            nodes_not_found.append(node_d.id)
+            nodes_not_found.append(node.id)
         else:
-            node = SchemeNode(
-                w_desc, title=node_d.title, position=node_d.position)
-            for ai in node_d.added_inputs:
-                node.add_input_channel(
+            snode = SchemeNode(
+                desc, title=node.title, position=node.position)
+            for ai in node.added_inputs:
+                snode.add_input_channel(
                     InputSignal(ai["name"], ai["type"], "")
                 )
-            for ao in node_d.added_outputs:
-                node.add_output_channel(
+            for ao in node.added_outputs:
+                snode.add_output_channel(
                     OutputSignal(ao["name"], ao["type"])
                 )
-            data = node_d.data
-
-            if data:
+            if node.data:
                 try:
-                    properties = loads(data.data, data.format)
+                    properties = loads(node.data.data, node.data.format)
                 except Exception:
                     log.error("Could not load properties for %r.", node.title,
                               exc_info=True)
                 else:
-                    node.properties = properties
+                    snode.properties = properties
+            parent.add_node(snode)
+            nodes_by_id[node.id] = snode
+            return snode
 
-            nodes.append(node)
-            nodes_by_id[node_d.id] = node
+    def build_macro_node(node: _macro_node, parent: MetaNode) -> MetaNode:
+        meta = WidgetDescription(
+            "Macro", id="orangecanvas.meta", category="Utils/Meta",
+            qualified_name="orangecanvas.scheme.node.MetaNode",
+            inputs=[], outputs=[]
+        )
+        mnode = MetaNode(node.title, position=node.position)
+        mnode.description = meta
+        parent.add_node(mnode)
+        nodes_by_id[node.id] = mnode
+        build_macro_helper(mnode, node)
+        mnode.description.inputs = tuple(mnode.input_channels())
+        mnode.description.outputs = tuple(mnode.output_channels())
+        return mnode
 
-    for link_d in desc.links:
-        source_id = link_d.source_node_id
-        sink_id = link_d.sink_node_id
+    def build_macro_helper(mnode: MetaNode, node: _macro_node):
+        for node_d in node.nodes:
+            node_dispatch[type(node_d)](node_d, mnode)
 
-        if source_id in nodes_not_found or sink_id in nodes_not_found:
-            continue
+        for link_d in node.links:
+            source_id = link_d.source_node_id
+            sink_id = link_d.sink_node_id
+            if source_id in nodes_not_found or sink_id in nodes_not_found:
+                continue
+            source = nodes_by_id[source_id]
+            sink = nodes_by_id[sink_id]
+            try:
+                link = Link(
+                    source, _find_source_channel(source, link_d),
+                    sink, _find_sink_channel(sink, link_d),
+                    enabled=link_d.enabled
+                )
+            except (ValueError, IncompatibleChannelTypeError) as ex:
+                error_handler(ex)
+            else:
+                mnode.add_link(link)
 
-        source = nodes_by_id[source_id]
-        sink = nodes_by_id[sink_id]
-        try:
-            source_channel = _find_source_channel(source, link_d)
-            sink_channel = _find_sink_channel(sink, link_d)
-            link = SchemeLink(source, source_channel,
-                              sink, sink_channel,
-                              enabled=link_d.enabled)
-        except (ValueError, IncompatibleChannelTypeError) as ex:
-            error_handler(ex)
-        else:
-            links.append(link)
+        for annot_d in node.annotations:
+            params = annot_d.params
+            if annot_d.type == "text":
+                annot = SchemeTextAnnotation(
+                    params.geometry, params.text, params.content_type,
+                    params.font
+                )
+            elif annot_d.type == "arrow":
+                start, end = params.geometry
+                annot = SchemeArrowAnnotation(start, end, params.color)
+            else:
+                log.warning("Ignoring unknown annotation type: %r",
+                            annot_d.type)
+                continue
+            mnode.add_annotation(annot)
+        return mnode
 
-    for annot_d in desc.annotations:
-        params = annot_d.params
-        if annot_d.type == "text":
-            annot = SchemeTextAnnotation(
-                params.geometry, params.text, params.content_type,
-                params.font
-            )
-        elif annot_d.type == "arrow":
-            start, end = params.geometry
-            annot = SchemeArrowAnnotation(start, end, params.color)
+    def build_input_node(node: _input_node, parent: MetaNode) -> InputNode:
+        inode = InputNode(
+            InputSignal(node.title, node.type, ""),
+            OutputSignal(node.title, node.type),
+            title=node.title, position=node.position
+        )
+        parent.add_node(inode)
+        nodes_by_id[node.id] = inode
+        return inode
 
-        else:
-            log.warning("Ignoring unknown annotation type: %r", annot_d.type)
-            continue
-        annotations.append(annot)
+    def build_output_node(node: _output_node, parent: MetaNode) -> OutputNode:
+        onode = OutputNode(
+            InputSignal(node.title, node.type, ""),
+            OutputSignal(node.title, node.type),
+            title=node.title, position=node.position
+        )
+        parent.add_node(onode)
+        nodes_by_id[node.id] = onode
+        return onode
 
-    for node in nodes:
-        scheme.add_node(node)
-
-    for link in links:
-        scheme.add_link(link)
-
-    for annot in annotations:
-        scheme.add_annotation(annot)
+    node_dispatch = {
+        _node: build_scheme_node, _macro_node: build_macro_node,
+        _input_node: build_input_node, _output_node: build_output_node
+    }
+    _root_node = _macro_node(
+        "", "", (0., 0.), "", desc.nodes, desc.links, desc.annotations
+    )
+    build_macro_helper(root, _root_node)
 
     if desc.session_state.groups:
         groups = []
@@ -574,6 +835,112 @@ def _find_sink_channel(node: SchemeNode, link: _link) -> InputSignal:
         f"for {node.description.name!r}."
     )
 
+def _meta_node_to_interm(node: MetaNode, ids) -> _macro_node:
+    nodes = []
+    node_dispatch = {
+        SchemeNode: _node_to_interm,
+        MetaNode: _meta_node_to_interm,
+        OutputNode: _output_node_to_interm,
+        InputNode: _input_node_to_interm,
+    }
+    for n in node.nodes():
+        nodes.append(node_dispatch[type(n)](n, ids))
+    links = [_link_to_interm(link, ids) for link in node.links()]
+    annotations = [_annotation_to_interm(annot, ids) for annot in node.annotations()]
+
+    return _macro_node(
+        id=ids[node],
+        title=node.title,
+        position=node.position,
+        version="",
+        nodes=nodes,
+        links=links,
+        annotations=annotations,
+    )
+
+
+def _node_to_interm(node: SchemeNode, ids) -> _node:
+    desc = node.description
+    input_defs = output_defs = []
+    if node.input_channels() != desc.inputs:
+        input_defs = node.input_channels()[len(desc.inputs):]
+    if node.output_channels() != desc.outputs:
+        output_defs = node.output_channels()[len(desc.outputs):]
+
+    ttype = lambda s: ",".join(map(str, s))
+    added_inputs = tuple({"name": idef.name, "type": ttype(idef.type)}
+                         for idef in input_defs)
+    added_outputs = tuple({"name": odef.name, "type": ttype(odef.type)}
+                          for odef in output_defs)
+
+    return _node(
+        id=ids[node],
+        title=node.title,
+        position=node.position,
+        qualified_name=desc.qualified_name,
+        project_name=desc.project_name or "",
+        version=desc.version,
+        added_inputs=added_inputs,
+        added_outputs=added_outputs,
+        data=None,
+    )
+
+
+def _input_node_to_interm(node: InputNode, ids) -> _input_node:
+    return _input_node(
+        id=ids[node],
+        title=node.title,
+        position=node.position,
+        type=node.input_channels()[0].types,
+    )
+
+
+def _output_node_to_interm(node: OutputNode, ids) -> _output_node:
+    return _output_node(
+        id=ids[node],
+        title=node.title,
+        position=node.position,
+        type=node.output_channels()[0].types,
+    )
+
+
+def _link_to_interm(link: Link, ids):
+    return _link(
+        id=ids[link],
+        enabled=link.enabled,
+        source_node_id=ids[link.source_node],
+        source_channel=link.source_channel.name,
+        source_channel_id=link.source_channel.id,
+        sink_node_id=ids[link.sink_node],
+        sink_channel=link.sink_channel.name,
+        sink_channel_id=link.sink_channel.id,
+    )
+
+
+def _annotation_to_interm(annot: Annotation, ids) -> _annotation:
+    if isinstance(annot, SchemeTextAnnotation):
+        params = _text_params(
+            geometry=annot.geometry,
+            text=annot.text,
+            content_type=annot.content_type,
+            font={},  # deprecated.
+        )
+        type_ = "text"
+    elif isinstance(annot, SchemeArrowAnnotation):
+        params = _arrow_params(
+            geometry=annot.geometry,
+            color=annot.color
+        )
+        type_ = "arrow"
+    else:
+        raise TypeError()
+
+    return _annotation(
+        id=ids[annot],
+        type=type_,
+        params=params,
+    )
+
 
 def scheme_to_interm(scheme, data_format="literal", pickle_fallback=False):
     # type: (Scheme, str, bool) -> _scheme
@@ -581,93 +948,53 @@ def scheme_to_interm(scheme, data_format="literal", pickle_fallback=False):
     Return a workflow scheme in its intermediate representation for
     serialization.
     """
-    node_ids = {}  # type: Dict[SchemeNode, str]
-    nodes = []
-    links = []
-    annotations = []
+    node_ids: Dict[Node, str] = {
+        node: str(i + 1) for i, node in enumerate(scheme.all_nodes())
+    }
+    link_ids: Dict[Link, str] = {
+        link: str(i + 1) for i, link in enumerate(scheme.all_links())
+    }
+    annot_ids: Dict[Link, str] = {
+        annot: str(i + 1) for i, annot in enumerate(scheme.all_annotations())
+    }
     window_presets = []
-
+    ids = {**node_ids, **link_ids, **annot_ids}
     # Nodes
-    for node_id, node in enumerate(scheme.nodes):  # type: SchemeNode
-        desc = node.description
+    root = scheme.root()
+    ids[root] = ""
+    iroot = _meta_node_to_interm(root, ids)
+    node_properties = {}
+    for node in root.all_nodes():
         if node.properties:
             try:
-                data = dumps(node.properties, format=data_format,
-                             pickle_fallback=pickle_fallback)
-                data = _data(data_format, data)
+                data, format_ = dumps(node.properties, format=data_format,
+                                      pickle_fallback=pickle_fallback)
+                data = _data(format_, data)
             except Exception:
                 log.error("Error serializing properties for node %r",
                           node.title, exc_info=True)
                 raise
         else:
             data = None
+        node_properties[node_ids[node]] = data
 
-        input_defs = output_defs = []
-        if node.input_channels() != desc.inputs:
-            input_defs = node.input_channels()[len(desc.inputs):]
-        if node.output_channels() != desc.outputs:
-            output_defs = node.output_channels()[len(desc.outputs):]
-
-        inode = _node(
-            id=str(node_id),
-            title=node.title,
-            name=node.description.name,
-            position=node.position,
-            qualified_name=desc.qualified_name,
-            project_name=desc.project_name or "",
-            version=desc.version or "",
-            added_inputs=tuple({"name": d.name, "type": d.type} for d in input_defs),
-            added_outputs=tuple({"name": d.name, "type": d.type} for d in output_defs),
-            data=data,
-        )
-        node_ids[node] = str(node_id)
-        nodes.append(inode)
-
-    for link_id, link in enumerate(scheme.links):
-        ilink = _link(
-            id=str(link_id),
-            source_node_id=node_ids[link.source_node],
-            source_channel=link.source_channel.name,
-            source_channel_id=link.source_channel.id,
-            sink_node_id=node_ids[link.sink_node],
-            sink_channel=link.sink_channel.name,
-            sink_channel_id=link.sink_channel.id,
-            enabled=link.enabled,
-        )
-        links.append(ilink)
-
-    for annot_id, annot in enumerate(scheme.annotations):
-        if isinstance(annot, SchemeTextAnnotation):
-            atype = "text"
-            params = _text_params(
-                geometry=annot.geometry,
-                text=annot.text,
-                content_type=annot.content_type,
-                font={},  # deprecated.
-            )
-        elif isinstance(annot, SchemeArrowAnnotation):
-            atype = "arrow"
-            params = _arrow_params(
-                geometry=annot.geometry,
-                color=annot.color,
-            )
+    def fix_props(node: Union[_node, _macro_node, _input_node, _output_node]):
+        if isinstance(node, _macro_node):
+            return node._replace(nodes=[fix_props(n) for n in node.nodes])
+        elif isinstance(node, _node):
+            return node._replace(data=node_properties.get(node.id))
         else:
-            assert False
-
-        iannot = _annotation(
-            str(annot_id), type=atype, params=params,
-        )
-        annotations.append(iannot)
-
-    for preset in scheme.window_group_presets(): # type: Scheme.WindowGroup
+            return node
+    iroot = fix_props(iroot)
+    for preset in scheme.window_group_presets():
         state = [(node_ids[n], state) for n, state in preset.state]
         window_presets.append(
             _window_group(preset.name, preset.default, state)
         )
 
     return _scheme(
-        scheme.title, "2.0", scheme.description, nodes, links, annotations,
-        session_state=_session_data(window_presets),
+        scheme.title, "2.0", scheme.description, iroot.nodes, iroot.links,
+        iroot.annotations, session_state=_session_data(window_presets),
     )
 
 
@@ -692,7 +1019,7 @@ def scheme_to_etree_2_0(scheme, data_format="literal", pickle_fallback=False):
         builder.start(
             "node", {
                 "id": node.id,
-                "name": node.name,
+                # "name": node.name,
                 "qualified_name": node.qualified_name,
                 "project_name": node.project_name,
                 "version": node.version,
@@ -810,6 +1137,182 @@ def scheme_to_etree_2_0(scheme, data_format="literal", pickle_fallback=False):
 scheme_to_etree = scheme_to_etree_2_0
 
 
+def scheme_to_etree_3_0(scheme, data_format="literal", pickle_fallback=False):
+    scheme = scheme_to_interm(scheme, data_format=data_format,
+                              pickle_fallback=pickle_fallback)
+    builder = TreeBuilder(element_factory=Element)
+    all_nodes = []
+    builder.start(
+        "scheme", {
+            "version": "3.0",
+            "title": scheme.title,
+            "description": scheme.description,
+        }
+    )
+
+    iroot = _macro_node("", "", (0, 0), "", scheme.nodes, scheme.links, scheme.annotations)
+    # Nodes
+
+    def build_node(node: _node):
+        all_nodes.append(node)
+        builder.start(
+            "node", {
+                "id": node.id,
+                # "name": node.name,
+                "qualified_name": node.qualified_name,
+                "project_name": node.project_name,
+                "version": node.version or "",
+                "title": node.title,
+                "position": node.position,
+            }
+        )
+        for input_def in node.added_inputs:
+            builder.start("added_input", {
+                "name": input_def["name"],
+                "type": input_def["type"],
+            })
+            builder.end("added_input")
+        for output_def in node.added_outputs:
+            builder.start("added_output", {
+                "name": output_def["name"],
+                "type": output_def["type"],
+            })
+            builder.end("added_output")
+        builder.end("node")
+
+    def build_input_node(node: _input_node):
+        builder.start(
+            "input_node", {
+                "id": node.id,
+                "title": node.title,
+                "position": f"{node.position[0]}, {node.position[1]}",
+                "type": ",".join(node.type)
+            }
+        )
+        builder.end("input_node")
+
+    def build_output_node(node: _output_node):
+        builder.start(
+            "output_node", {
+                "id": node.id,
+                "title": node.title,
+                "position": f"{node.position[0]}, {node.position[1]}",
+                "type": ",".join(node.type)
+            }
+        )
+        builder.end("output_node")
+
+    def build_macro_node(node: _macro_node):
+        builder.start(
+            "macro_node", {
+                "id": node.id,
+                "title": node.title,
+                "position": f'{node.position[0]}, {node.position[1]}',
+                "version": "",
+            }
+        )
+        build_macro_node_helper(node)
+        builder.end("macro_node")
+
+    def build_macro_node_helper(node: _macro_node):
+        builder.start("nodes", {})
+        for n in node.nodes:
+            dispatch_node[type(n)](n)
+        builder.end("nodes")
+
+        # Links
+        builder.start("links", {})
+        for link in node.links:
+            builder.start(
+                "link", {
+                    "id": link.id,
+                    "source_node_id": link.source_node_id,
+                    "sink_node_id": link.sink_node_id,
+                    "source_channel": link.source_channel,
+                    "source_channel_id": link.source_channel_id or "",
+                    "sink_channel": link.sink_channel,
+                    "sink_channel_id": link.sink_channel_id or "",
+                    "enabled": "true" if link.enabled else "false",
+                }
+            )
+            builder.end("link")
+        builder.end("links")
+
+        # Annotations
+        builder.start("annotations", {})
+        for annotation in node.annotations:
+            attrs = {"id": annotation.id}
+            if annotation.type == "text":
+                tag = "text"
+                params = annotation.params  # type: _text_params
+                assert isinstance(params, _text_params)
+                attrs.update({
+                    "type": params.content_type,
+                    "rect": "{!r}, {!r}, {!r}, {!r}".format(*params.geometry)
+                })
+                data = params.text
+            elif annotation.type == "arrow":
+                tag = "arrow"
+                params = annotation.params  # type: _arrow_params
+                start, end = params.geometry
+                attrs.update({
+                    "start": "{!r}, {!r}".format(*start),
+                    "end": "{!r}, {!r}".format(*end),
+                    "fill": params.color
+                })
+                data = None
+            else:
+                log.warning("Can't save %r", annotation)
+                continue
+            builder.start(annotation.type, attrs)
+            if data is not None:
+                builder.data(data)
+            builder.end(tag)
+
+        builder.end("annotations")
+
+    dispatch_node = {
+        _macro_node: build_macro_node,
+        _node: build_node,
+        _input_node: build_input_node,
+        _output_node: build_output_node,
+    }
+    build_macro_node_helper(iroot)
+    # Node properties/settings
+    builder.start("node_properties", {})
+    for node in all_nodes:
+        if node.data is not None:
+            data = node.data
+            builder.start(
+                "properties", {
+                    "node_id": node.id,
+                    "format": data.format
+                }
+            )
+            builder.data(data.data)
+            builder.end("properties")
+
+    builder.end("node_properties")
+    builder.start("session_state", {})
+    builder.start("window_groups", {})
+
+    for g in scheme.session_state.groups:  # type: _window_group
+        builder.start(
+            "group", {"name": g.name, "default": str(g.default).lower()}
+        )
+        for node_id, data in g.state:
+            builder.start("window_state", {"node_id": node_id})
+            builder.data(base64.encodebytes(data).decode("ascii"))
+            builder.end("window_state")
+        builder.end("group")
+    builder.end("window_group")
+    builder.end("session_state")
+    builder.end("scheme")
+    root = builder.close()
+    tree = ElementTree(root)
+    return tree
+
+
 def scheme_to_ows_stream(scheme, stream, pretty=False, pickle_fallback=False):
     """
     Write scheme to a a stream in Orange Scheme .ows (v 2.0) format.
@@ -828,7 +1331,7 @@ def scheme_to_ows_stream(scheme, stream, pretty=False, pickle_fallback=False):
         notation.
 
     """
-    tree = scheme_to_etree_2_0(scheme, data_format="literal",
+    tree = scheme_to_etree_3_0(scheme, data_format="literal",
                                pickle_fallback=pickle_fallback)
     if pretty:
         indent(tree.getroot(), 0)
