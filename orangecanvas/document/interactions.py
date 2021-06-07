@@ -22,15 +22,14 @@ from typing import (
 )
 from AnyQt.QtWidgets import (
     QApplication, QGraphicsRectItem, QGraphicsSceneMouseEvent,
-    QGraphicsSceneContextMenuEvent, QWidget, QGraphicsItem,
-    QGraphicsSceneDragDropEvent, QMenu, QAction, QWidgetAction, QLabel
+    QWidget, QGraphicsItem, QGraphicsSceneDragDropEvent, QMenu, QAction,
+    QWidgetAction, QLabel
 )
-from AnyQt.QtGui import QPen, QBrush, QColor, QFontMetrics, QKeyEvent, QFont
+from AnyQt.QtGui import QPen, QBrush, QColor, QFontMetrics, QFont
 from AnyQt.QtCore import (
-    Qt, QObject, QCoreApplication, QSizeF, QPointF, QRect, QRectF, QLineF,
+    Qt, QObject, QSizeF, QPointF, QRect, QRectF, QLineF,
     QPoint, QMimeData,
 )
-from AnyQt.QtCore import pyqtSignal as Signal
 
 from orangecanvas.document.commands import UndoCommand
 from .usagestatistics import UsageStatistics
@@ -43,7 +42,7 @@ from ..scheme import (
 from ..scheme.link import _classify_connection
 from ..canvas import items
 from ..canvas.items import controlpoints
-from ..gui.quickhelp import QuickHelpTipEvent
+from ..gui.scene import UserInteraction as _UserInteraction
 from . import commands
 from .editlinksdialog import EditLinksDialog
 from ..utils import unique
@@ -65,7 +64,7 @@ def assert_not_none(optional):
     return optional
 
 
-class UserInteraction(QObject):
+class UserInteraction(_UserInteraction):
     """
     Base class for user interaction handlers.
 
@@ -78,38 +77,12 @@ class UserInteraction(QObject):
     deleteOnEnd : bool, optional
         Should the UserInteraction be deleted when it finishes (``True``
         by default).
-
     """
-    # Cancel reason flags
-
-    #: No specified reason
-    NoReason = 0
-    #: User canceled the operation (e.g. pressing ESC)
-    UserCancelReason = 1
-    #: Another interaction was set
-    InteractionOverrideReason = 3
-    #: An internal error occurred
-    ErrorReason = 4
-    #: Other (unspecified) reason
-    OtherReason = 5
-
-    #: Emitted when the interaction is set on the scene.
-    started = Signal()
-
-    #: Emitted when the interaction finishes successfully.
-    finished = Signal()
-
-    #: Emitted when the interaction ends (canceled or finished)
-    ended = Signal()
-
-    #: Emitted when the interaction is canceled.
-    canceled = Signal([], [int])
-
-    def __init__(self, document, parent=None, deleteOnEnd=True):
-        # type: ('SchemeEditWidget', Optional[QObject], bool) -> None
-        super().__init__(parent)
+    def __init__(self, document, parent=None, deleteOnEnd=True, **kwargs):
+        # type: ('SchemeEditWidget', Optional[QObject], bool, Any) -> None
+        scene = document.currentScene()
+        super().__init__(scene, parent, deleteOnEnd=deleteOnEnd, **kwargs)
         self.document = document
-        self.scene = document.currentScene()
         scheme_ = document.scheme()
         root = document.root()
         assert root is not None
@@ -117,180 +90,6 @@ class UserInteraction(QObject):
         self.scheme = scheme_  # type: scheme.Scheme
         self.root = root
         self.suggestions = document.suggestions()
-        self.deleteOnEnd = deleteOnEnd
-
-        self.cancelOnEsc = False
-
-        self.__finished = False
-        self.__canceled = False
-        self.__cancelReason = self.NoReason
-
-    def start(self):
-        # type: () -> None
-        """
-        Start the interaction. This is called by the :class:`CanvasScene` when
-        the interaction is installed.
-
-        .. note:: Must be called from subclass implementations.
-
-        """
-        self.started.emit()
-
-    def end(self):
-        # type: () -> None
-        """
-        Finish the interaction. Restore any leftover state in this method.
-
-        .. note:: This gets called from the default :func:`cancel`
-                  implementation.
-
-        """
-        self.__finished = True
-
-        if self.scene.user_interaction_handler is self:
-            self.scene.set_user_interaction_handler(None)
-
-        if self.__canceled:
-            self.canceled.emit()
-            self.canceled[int].emit(self.__cancelReason)
-        else:
-            self.finished.emit()
-
-        self.ended.emit()
-
-        if self.deleteOnEnd:
-            self.deleteLater()
-
-    def cancel(self, reason=OtherReason):
-        # type: (int) -> None
-        """
-        Cancel the interaction with `reason`.
-        """
-
-        self.__canceled = True
-        self.__cancelReason = reason
-
-        self.end()
-
-    def isFinished(self):
-        # type: () -> bool
-        """
-        Is the interaction finished.
-        """
-        return self.__finished
-
-    def isCanceled(self):
-        # type: () -> bool
-        """
-        Was the interaction canceled.
-        """
-        return self.__canceled
-
-    def cancelReason(self):
-        # type: () -> int
-        """
-        Return the reason the interaction was canceled.
-        """
-        return self.__cancelReason
-
-    def postQuickTip(self, contents: str) -> None:
-        """
-        Post a QuickHelpTipEvent with rich text `contents` to the document
-        editor.
-        """
-        hevent = QuickHelpTipEvent("", contents)
-        QApplication.postEvent(self.document, hevent)
-
-    def clearQuickTip(self):
-        """Clear the quick tip help event."""
-        self.postQuickTip("")
-
-    def mousePressEvent(self, event):
-        # type: (QGraphicsSceneMouseEvent) -> bool
-        """
-        Handle a `QGraphicsScene.mousePressEvent`.
-        """
-        return False
-
-    def mouseMoveEvent(self, event):
-        # type: (QGraphicsSceneMouseEvent) -> bool
-        """
-        Handle a `GraphicsScene.mouseMoveEvent`.
-        """
-        return False
-
-    def mouseReleaseEvent(self, event):
-        # type: (QGraphicsSceneMouseEvent) -> bool
-        """
-        Handle a `QGraphicsScene.mouseReleaseEvent`.
-        """
-        return False
-
-    def mouseDoubleClickEvent(self, event):
-        # type: (QGraphicsSceneMouseEvent) -> bool
-        """
-        Handle a `QGraphicsScene.mouseDoubleClickEvent`.
-        """
-        return False
-
-    def keyPressEvent(self, event):
-        # type: (QKeyEvent) -> bool
-        """
-        Handle a `QGraphicsScene.keyPressEvent`
-        """
-        if self.cancelOnEsc and event.key() == Qt.Key_Escape:
-            self.cancel(self.UserCancelReason)
-        return False
-
-    def keyReleaseEvent(self, event):
-        # type: (QKeyEvent) -> bool
-        """
-        Handle a `QGraphicsScene.keyPressEvent`
-        """
-        return False
-
-    def contextMenuEvent(self, event):
-        # type: (QGraphicsSceneContextMenuEvent) -> bool
-        """
-        Handle a `QGraphicsScene.contextMenuEvent`
-        """
-        return False
-
-    def dragEnterEvent(self, event):
-        # type: (QGraphicsSceneDragDropEvent) -> bool
-        """
-        Handle a `QGraphicsScene.dragEnterEvent`
-
-        .. versionadded:: 0.1.20
-        """
-        return False
-
-    def dragMoveEvent(self, event):
-        # type: (QGraphicsSceneDragDropEvent) -> bool
-        """
-        Handle a `QGraphicsScene.dragMoveEvent`
-
-        .. versionadded:: 0.1.20
-        """
-        return False
-
-    def dragLeaveEvent(self, event):
-        # type: (QGraphicsSceneDragDropEvent) -> bool
-        """
-        Handle a `QGraphicsScene.dragLeaveEvent`
-
-        .. versionadded:: 0.1.20
-        """
-        return False
-
-    def dropEvent(self, event):
-        # type: (QGraphicsSceneDragDropEvent) -> bool
-        """
-        Handle a `QGraphicsScene.dropEvent`
-
-        .. versionadded:: 0.1.20
-        """
-        return False
 
 
 class NoPossibleLinksError(ValueError):
