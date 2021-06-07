@@ -25,7 +25,7 @@ from ..registry import (
 )
 from .. import scheme
 from ..scheme import Scheme, Node, Link, Annotation, MetaNode, InputNode, OutputNode
-
+from ..gui.scene import GraphicsScene, UserInteraction
 from . import items
 from .items import NodeItem, LinkItem
 from .items.annotationitem import AnnotationItem
@@ -34,7 +34,6 @@ from .layout import AnchorLayout
 from ..utils.qinvoke import connect_with_context as qconnect
 
 if typing.TYPE_CHECKING:
-    from ..document.interactions import UserInteraction
     T = typing.TypeVar("T", bound=QGraphicsItem)
 
 
@@ -138,7 +137,7 @@ class ItemDelegate(QObject):
         item.deleteLater()
 
 
-class CanvasScene(QGraphicsScene):
+class CanvasScene(GraphicsScene):
     """
     A Graphics Scene for displaying an :class:`~.scheme.Scheme` instance.
     """
@@ -848,75 +847,8 @@ class CanvasScene(QGraphicsScene):
 
         return super().mousePressEvent(event)
 
-    def mouseMoveEvent(self, event):
-        if self.user_interaction_handler and \
-                self.user_interaction_handler.mouseMoveEvent(event):
-            return
-        super().mouseMoveEvent(event)
-
-    def mouseReleaseEvent(self, event):
-        if self.user_interaction_handler and \
-                self.user_interaction_handler.mouseReleaseEvent(event):
-            return
-        super().mouseReleaseEvent(event)
-
-    def mouseDoubleClickEvent(self, event):
-        if self.user_interaction_handler and \
-                self.user_interaction_handler.mouseDoubleClickEvent(event):
-            return
-        super().mouseDoubleClickEvent(event)
-
-    def keyPressEvent(self, event):
-        if self.user_interaction_handler and \
-                self.user_interaction_handler.keyPressEvent(event):
-            return
-        super().keyPressEvent(event)
-
-    def keyReleaseEvent(self, event):
-        if self.user_interaction_handler and \
-                self.user_interaction_handler.keyReleaseEvent(event):
-            return
-        super().keyReleaseEvent(event)
-
-    def contextMenuEvent(self, event):
-        if self.user_interaction_handler and \
-                self.user_interaction_handler.contextMenuEvent(event):
-            return
-        super().contextMenuEvent(event)
-
-    def dragEnterEvent(self, event):
-        if self.user_interaction_handler and \
-                self.user_interaction_handler.dragEnterEvent(event):
-            return
-        super().dragEnterEvent(event)
-
-    def dragMoveEvent(self, event):
-        if self.user_interaction_handler and \
-                self.user_interaction_handler.dragMoveEvent(event):
-            return
-        super().dragMoveEvent(event)
-
-    def dragLeaveEvent(self, event):
-        if self.user_interaction_handler and \
-                self.user_interaction_handler.dragLeaveEvent(event):
-            return
-        super().dragLeaveEvent(event)
-
-    def dropEvent(self, event):
-        if self.user_interaction_handler and \
-                self.user_interaction_handler.dropEvent(event):
-            return
-        super().dropEvent(event)
-
     def set_user_interaction_handler(self, handler):
-        # type: (UserInteraction) -> None
-        if self.user_interaction_handler and \
-                not self.user_interaction_handler.isFinished():
-            self.user_interaction_handler.cancel()
-
-        log.debug("Setting interaction '%s' to '%s'" % (handler, self))
-
-        self.user_interaction_handler = handler
+        super().set_user_interaction_handler(handler)
         if handler:
             if self.__node_animation_enabled:
                 self.__animations_temporarily_disabled = True
