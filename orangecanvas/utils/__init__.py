@@ -3,7 +3,7 @@ import itertools
 import operator
 import types
 import unicodedata
-from collections import deque
+from collections import deque, Counter
 from functools import reduce
 
 import typing
@@ -42,6 +42,7 @@ __all__ = [
     "UNUSED",
     "apply_all",
     "uniquify",
+    "enumerate_strings",
     "is_printable",
 ]
 
@@ -385,6 +386,23 @@ def uniquify(item, names, pattern="{item}-{_}", start=0):
                   for i in itertools.count(start))
     candidates = itertools.dropwhile(lambda item: item in names, candidates)
     return next(candidates)
+
+
+def enumerate_strings(items, pattern="{item}-{_}"):
+    """
+    Return with possibly appended numbers such that all are unique.
+    """
+    items = list(items)
+    counts = Counter(items)
+    if len(counts) == len(items):
+        return items
+    for i in range(len(items)):
+        items_ = items[:i] + items[i + 1:]
+        item = items[i]
+        if counts[item] > 1:
+            items[i] = uniquify(item, items_, pattern=pattern, start=1)
+            counts[items[i]] += 1
+    return items
 
 
 # All control character categories.

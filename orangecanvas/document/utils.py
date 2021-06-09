@@ -10,7 +10,7 @@ from AnyQt.QtCore import QPointF, QRectF
 from AnyQt.QtWidgets import QAction, QUndoStack
 
 from orangecanvas.scheme import Node, Link, MetaNode, OutputNode, InputNode
-from orangecanvas.utils import unique
+from orangecanvas.utils import unique, enumerate_strings
 from orangecanvas.utils.graph import traverse_bf
 
 Pos = Tuple[float, float]
@@ -61,7 +61,6 @@ def prepare_macro_patch(
     outputs_right = nodes_bbox.right() + 200
 
     nodes_set = set(nodes)
-    # TODO: MetaNode <-> InputNode/OutputNode link mapping
     links_internal = [
         link for link in parent.links()
         if link.source_node in nodes_set and link.sink_node in nodes_set
@@ -78,42 +77,69 @@ def prepare_macro_patch(
     pos = (round(statistics.mean(n.position[0] for n in nodes)),
            round(statistics.mean(n.position[1] for n in nodes)))
 
-    # return nodes, links_internal, links_in, links_out, pos
-    inputs = [copy(link.sink_channel) for link in links_in]
-    outputs = [copy(link.source_channel) for link in links_out]
+    # group links_in, links_out by node, channel
+    inputs_ = list(unique(
+        map(lambda link: (link.sink_node, link.sink_channel), links_in)))
+    outputs_ = list(unique(
+        map(lambda link: (link.source_node, link.source_channel), links_out)))
+
+    def copy_with_name(channel, name):
+        c = copy(channel)
+        c.name = name
+        return c
+
+    new_names = enumerate_strings(
+        [c.name for _, c in inputs_], pattern="{item} ({_})"
+    )
+    new_inputs_ = [((node, channel), copy_with_name(channel, name=name))
+                   for (node, channel), name in zip(inputs_, new_names)]
+    inputs = [_2 for _1, _2 in new_inputs_]
+
+    # new_outputs_ = [(node, channel) for ((node, channel), _) in outputs_]
+    new_names = enumerate_strings(
+        [c.name for _, c in outputs_], pattern="{item} ({_})"
+    )
+    new_outputs_ = [((node, channel), copy_with_name(channel, name=name))
+                    for (node, channel), name in zip(outputs_, new_names)]
+    outputs = [_2 for _1, _2 in new_outputs_]
+    new_inputs = dict(new_inputs_); assert len(new_inputs) == len(new_inputs_)
+    new_outputs = dict(new_outputs_); assert len(new_outputs) == len(new_outputs_)
 
     newnode = MetaNode('Macro', position=pos)
 
     input_nodes = [newnode.create_input_node(input) for input in inputs]
-    for inode, link in zip(input_nodes, links_in):
-        inode.position = (inputs_left, link.sink_node.position[1])
+    for inode, (node, _) in zip(input_nodes, inputs_):
+        inode.position = (inputs_left, node.position[1])
     output_nodes = [newnode.create_output_node(output) for output in outputs]
-    for onode, link in zip(output_nodes, links_out):
-        onode.position = (outputs_right, link.source_node.position[1])
+    for onode, (node, _)in zip(output_nodes, outputs_):
+        onode.position = (outputs_right, node.position[1])
 
+    # relink A -> (InputNode -> B ...)
     new_input_links = []
-    for i, (link, node_in), in enumerate(zip(links_in, input_nodes)):
-        # relink A -> (InputNode -> B ...)
+    for i, link in enumerate(links_in):
+        new_input = new_inputs[link.sink_node, link.sink_channel]
         new_input_links += [
-            Link(link.source_node, link.source_channel, newnode,
-                 newnode.input_channels()[i], enabled=link.enabled)
+            Link(link.source_node, link.source_channel, newnode, new_input,
+                 enabled=link.enabled)
         ]
+    for inode, (node, channel) in zip(input_nodes, inputs_):
         links_internal += [
-            Link(node_in, node_in.output_channels()[0],
-                 link.sink_node, link.sink_channel)
+            Link(inode, inode.source_channel, node, channel),
         ]
 
+    # relink (... C -> OutputNode) -> D
     new_output_links = []
-    for i, (link, node_out) in enumerate(zip(links_out, output_nodes)):
-        # relink (... C -> OutputNode) -> D
-        links_internal += [
-            Link(link.source_node, link.source_channel,
-                 node_out, node_out.input_channels()[0], enabled=link.enabled),
-        ]
+    for i, link in enumerate(links_out):
+        new_output = new_outputs[link.source_node, link.source_channel]
         new_output_links += [
-            Link(newnode, newnode.output_channels()[i], link.sink_node,
-                 link.sink_channel)
+            Link(newnode, new_output, link.sink_node, link.sink_channel,
+                 enabled=link.enabled)
         ]
+    for onode, (node, channel) in zip(output_nodes, outputs_):
+        links_internal += [
+            Link(node, channel, onode, onode.sink_channel),
+        ]
+
     return PrepareMacroPatchResult(
         newnode, nodes,
         links_internal,
