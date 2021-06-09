@@ -39,7 +39,9 @@ from AnyQt.QtCore import pyqtProperty as Property, pyqtSignal as Signal
 
 from orangecanvas.document.commands import UndoCommand
 from .interactions import DropHandler, UserInteraction, propose_links
-from .utils import prepare_macro_patch, disable_undo_stack_actions
+from .utils import (
+    prepare_macro_patch, disable_undo_stack_actions, nodes_bounding_box
+)
 from .windowgroupsdialog import SaveWindowGroup
 from ..registry import WidgetDescription, WidgetRegistry
 from .suggestions import Suggestions
@@ -2166,7 +2168,7 @@ class SchemeEditWidget(QWidget):
         if not nodedups:
             return
 
-        pos = nodes_top_left(nodedups)
+        pos = nodes_bounding_box(nodedups).topLeft()
         self.__paste(nodedups, linkdups, pos + DuplicateOffset,
                      commandname=self.tr("Duplicate"))
 
@@ -2194,7 +2196,7 @@ class SchemeEditWidget(QWidget):
         mime = QMimeData()
         mime.setData(MimeTypeWorkflowFragment, buff.getvalue())
         cb.setMimeData(mime)
-        self.__pasteOrigin = nodes_top_left(nodes) + DuplicateOffset
+        self.__pasteOrigin = nodes_bounding_box(nodes).topLeft() + DuplicateOffset
 
     def __updatePasteActionState(self):
         self.__pasteAction.setEnabled(
@@ -2259,7 +2261,7 @@ class SchemeEditWidget(QWidget):
 
         if pos is not None:
             # top left of nodedups brect
-            origin = nodes_top_left(nodedups)
+            origin = nodes_bounding_box(nodedups).topLeft()
             delta = pos - origin
             # move nodedups to be relative to pos
             for nodedup in nodedups:
@@ -2566,12 +2568,3 @@ def copy_link(link, source=None, sink=None):
         sink, link.sink_channel,
         enabled=link.enabled,
         properties=copy.deepcopy(link.properties))
-
-
-def nodes_top_left(nodes):
-    # type: (List[SchemeNode]) -> QPointF
-    """Return the top left point of bbox containing all the node positions."""
-    return QPointF(
-        min((n.position[0] for n in nodes), default=0),
-        min((n.position[1] for n in nodes), default=0)
-    )
