@@ -6,6 +6,7 @@ from typing import Sequence, Tuple, Generator
 
 from dataclasses import dataclass
 
+from AnyQt.QtCore import QPointF, QRectF
 from AnyQt.QtWidgets import QAction, QUndoStack
 
 from orangecanvas.scheme import Node, Link, MetaNode, OutputNode, InputNode
@@ -55,6 +56,10 @@ def prepare_macro_patch(
     )
     expanded = all_ancestors & all_descendants
     nodes = list(unique(chain(nodes, expanded)))
+    nodes_bbox = nodes_bounding_box(nodes)
+    inputs_left = nodes_bbox.left() - 200
+    outputs_right = nodes_bbox.right() + 200
+
     nodes_set = set(nodes)
     # TODO: MetaNode <-> InputNode/OutputNode link mapping
     links_internal = [
@@ -80,7 +85,12 @@ def prepare_macro_patch(
     newnode = MetaNode('Macro', position=pos)
 
     input_nodes = [newnode.create_input_node(input) for input in inputs]
+    for inode, link in zip(input_nodes, links_in):
+        inode.position = (inputs_left, link.sink_node.position[1])
     output_nodes = [newnode.create_output_node(output) for output in outputs]
+    for onode, link in zip(output_nodes, links_out):
+        onode.position = (outputs_right, link.source_node.position[1])
+
     new_input_links = []
     for i, (link, node_in), in enumerate(zip(links_in, input_nodes)):
         # relink A -> (InputNode -> B ...)
@@ -139,3 +149,17 @@ def disable_undo_stack_actions(
     finally:
         undo.setEnabled(stack.canUndo())
         redo.setEnabled(stack.canRedo())
+
+
+def nodes_bounding_box(nodes):
+    # type: (Sequence[Node]) -> QRectF
+    """Return bounding box containing all the node positions."""
+    positions = [n.position for n in nodes]
+    p1 = (min((x for x, _ in positions), default=0),
+          min((y for _, y in positions), default=0))
+    p2 = (max((x for x, _ in positions), default=0),
+          max((y for _, y in positions), default=0))
+    r = QRectF()
+    r.setTopLeft(QPointF(*p1))
+    r.setBottomRight(QPointF(*p2))
+    return r
