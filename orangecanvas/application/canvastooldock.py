@@ -645,6 +645,8 @@ def widget_popup_geometry(pos, widget):
         size = widget.sizeHint()
 
     screen = QApplication.screenAt(pos)
+    if screen is None:
+        screen = QApplication.primaryScreen()
     screen_geom = screen.availableGeometry()
 
     # Adjust the size to fit inside the screen.
