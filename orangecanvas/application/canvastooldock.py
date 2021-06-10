@@ -702,14 +702,14 @@ def popup_position_from_source(popup, source, orientation=Qt.Vertical):
         if dy < 0:
             y = source_rect.top()
         else:
-            y = source_rect.top() - dy
+            y = max(screen_geom.top(), source_rect.top() - dy)
     else:
         # right overflow
         dx = source_rect.left() + size.width() - screen_geom.right()
         if dx < 0:
             x = source_rect.left()
         else:
-            x = source_rect.left() - dx
+            x = max(source_rect.left() - dx, screen_geom.left())
 
         if source_rect.bottom() + size.height() < screen_geom.bottom():
             y = source_rect.bottom()
