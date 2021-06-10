@@ -19,7 +19,7 @@ from operator import attrgetter
 from urllib.parse import urlencode
 from contextlib import ExitStack
 from typing import (
-    List, Tuple, Optional, Dict, Any, Iterable, Sequence
+    List, Tuple, Optional, Dict, Any, Iterable, Sequence, cast
 )
 
 from AnyQt.QtWidgets import (
@@ -27,7 +27,7 @@ from AnyQt.QtWidgets import (
     QUndoStack, QGraphicsItem, QGraphicsTextItem,
     QGraphicsSceneDragDropEvent, QGraphicsSceneMouseEvent,
     QGraphicsSceneContextMenuEvent, QGraphicsView, QGraphicsScene,
-    QApplication
+    QApplication, QGestureEvent, QSwipeGesture
 )
 from AnyQt.QtGui import (
     QKeySequence, QCursor, QFont, QPainter, QPixmap, QColor, QIcon,
@@ -162,9 +162,9 @@ class SchemeEditWidget(QWidget):
         #: Channel anchors separate on hover on Shift key
         OnShift = "OnShift"
 
-    def __init__(self, parent=None, ):
-        super().__init__(parent)
-
+    def __init__(self, parent=None, **kwargs):
+        super().__init__(parent, **kwargs)
+        self.grabGesture(Qt.SwipeGesture)
         self.__modified = False
         self.__registry = None       # type: Optional[WidgetRegistry]
         self.__scheme = None         # type: Optional[Scheme]
@@ -206,6 +206,8 @@ class SchemeEditWidget(QWidget):
         self.__cleanAnnotations = []
 
         self.__dropHandlers = ()  # type: Sequence[DropHandler]
+        self.__history = []      # type: List[MetaNode]
+        self.__historyIndex = -1
 
         self.__editFinishedMapper = QSignalMapper(self)
         self.__editFinishedMapper.mappedObject.connect(
@@ -905,10 +907,11 @@ class SchemeEditWidget(QWidget):
             scene.set_scheme(scheme, self.__root)
 
             self.__view.setScene(scene)
-
+            self.__history = [self.__root]
+            self.__historyIndex = 0
             if self.__scheme:
                 self.__scheme.installEventFilter(self)
-                nodes = self.__scheme.nodes
+                nodes = self.__root.nodes()
                 if nodes:
                     # TODO: First in root layer
                     self.ensureVisible(nodes[0])
@@ -1299,7 +1302,7 @@ class SchemeEditWidget(QWidget):
         if len(nodes) == 1:
             node = nodes[0]
             if isinstance(node, MetaNode):
-                self.openMetaNode(node)
+                self.__historyPush(node)
                 return
         # TODO: Dispatch to WidgetManager directly
         for node in nodes:
@@ -1320,7 +1323,7 @@ class SchemeEditWidget(QWidget):
         parent = current.parent_node()
         if parent is None:
             return
-        self.openMetaNode(parent)
+        self.__historyPush(parent)
 
     def openMetaNode(self, node: MetaNode):
         view = self.__view
@@ -1348,6 +1351,21 @@ class SchemeEditWidget(QWidget):
         else:
             view.setScene(scene)
         self.__openParentMetaNodeAction.setEnabled(node is not workflow.root())
+
+    def __historyPush(self, node: MetaNode):
+        self.openMetaNode(node)
+        if self.__historyIndex >= 0:
+            del self.__history[self.__historyIndex + 1:]
+        else:
+            del self.__history[:]
+        self.__history.append(node)
+        self.__historyIndex = len(self.__history) - 1
+
+    def __historyStep(self, step: int):
+        index = max(self.__historyIndex + step, -1)
+        if 0 <= index < len(self.__history):
+            self.__historyIndex = index
+            self.openMetaNode(self.__history[index])
 
     def editNodeTitle(self, node):
         # type: (Node) -> None
@@ -1792,6 +1810,25 @@ class SchemeEditWidget(QWidget):
     def sceneDropEvent(self, event: QGraphicsSceneDragDropEvent) -> bool:
         UNUSED(event)
         return False
+
+    def event(self, event):
+        if event.type() == QEvent.Gesture:
+            self.gestureEvent(cast(QGestureEvent, event))
+        return super().event(event)
+
+    def gestureEvent(self, event: QGestureEvent):
+        gesture = event.gesture(Qt.SwipeGesture)
+        if gesture is not None:
+            self.swipeGestureEvent(event)
+
+    def swipeGestureEvent(self, event: QGestureEvent):
+        gesture = event.gesture(Qt.SwipeGesture)
+        if gesture.horizontalDirection() == QSwipeGesture.Left and \
+                gesture.state() == Qt.GestureFinished:
+            self.__historyStep(-1)
+        elif gesture.horizontalDirection() == QSwipeGesture.Right and \
+                gesture.state() == Qt.GestureFinished:
+            self.__historyStep(1)
 
     def _userInteractionHandler(self) -> Optional[UserInteraction]:
         return self.currentScene().user_interaction_handler
