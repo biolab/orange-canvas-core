@@ -2,8 +2,10 @@
 Test for canvas toolbox.
 """
 
-from AnyQt.QtWidgets import QWidget, QToolBar, QTextEdit, QSplitter
-from AnyQt.QtCore import Qt, QTimer
+from AnyQt.QtWidgets import (
+    QWidget, QToolBar, QTextEdit, QSplitter, QApplication
+)
+from AnyQt.QtCore import Qt, QTimer, QPoint
 
 from ...registry import tests as registry_tests
 from ...registry.qt import QtWidgetRegistry
@@ -11,7 +13,7 @@ from ...gui.dock import CollapsibleDockWidget
 
 from ..canvastooldock import (
     WidgetToolBox, CanvasToolDock, SplitterResizer, QuickCategoryToolbar,
-    CategoryPopupMenu
+    CategoryPopupMenu, popup_position_from_source, widget_popup_geometry
 )
 
 from ...gui import test
@@ -97,5 +99,20 @@ class TestPopupMenu(test.QAppTestCase):
         w = CategoryPopupMenu()
         w.setModel(model)
         w.setRootIndex(model.index(0, 0))
-        w.show()
+        w.popup()
         self.qWait()
+
+    def test_popup_position(self):
+        popup = CategoryPopupMenu()
+        screen = popup.screen()
+        screen_geom = screen.availableGeometry()
+        popup.setMinimumHeight(screen_geom.height() + 20)
+        w = QWidget()
+        w.setGeometry(
+            screen_geom.left() + 100, screen_geom.top() + 100, 20, 20
+        )
+        pos = popup_position_from_source(popup, w)
+        self.assertTrue(screen_geom.contains(pos))
+        pos = QPoint(screen_geom.top() - 100, screen_geom.left() - 100)
+        geom = widget_popup_geometry(pos, popup)
+        self.assertEqual(screen_geom.intersected(geom), geom)

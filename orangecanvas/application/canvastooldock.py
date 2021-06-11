@@ -648,20 +648,13 @@ def widget_popup_geometry(pos, widget):
     if screen is None:
         screen = QApplication.primaryScreen()
     screen_geom = screen.availableGeometry()
-
-    # Adjust the size to fit inside the screen.
-    if size.height() > screen_geom.height():
-        size.setHeight(screen_geom.height())
-    if size.width() > screen_geom.width():
-        size.setWidth(screen_geom.width())
-
+    size = size.boundedTo(screen_geom.size())
     geom = QRect(pos, size)
 
     if geom.top() < screen_geom.top():
-        geom.setTop(screen_geom.top())
-
+        geom.moveTop(screen_geom.top())
     if geom.left() < screen_geom.left():
-        geom.setLeft(screen_geom.left())
+        geom.moveLeft(screen_geom.left())
 
     bottom_margin = screen_geom.bottom() - geom.bottom()
     right_margin = screen_geom.right() - geom.right()
