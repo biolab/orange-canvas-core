@@ -2279,7 +2279,13 @@ class SchemeEditWidget(QWidget):
             log.error("pasteFromClipboard:", exc_info=True)
             QApplication.beep()
             return
-        self.__paste(sch.nodes, sch.links, self.__pasteOrigin)
+        root = sch.root()
+        # take/remove all nodes and links
+        links = root.links()
+        nodes = root.nodes()
+        apply_all(root.remove_link, links)
+        apply_all(root.remove_node, nodes)
+        self.__paste(nodes, links, self.__pasteOrigin)
         self.__pasteOrigin = self.__pasteOrigin + DuplicateOffset
 
     def __paste(self, nodedups, linkdups, pos: Optional[QPointF] = None,
