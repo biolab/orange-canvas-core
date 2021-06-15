@@ -351,11 +351,15 @@ class WidgetManager(QObject):
             self.__add_widget_for_node(node)
 
     def __on_node_added(self, node):
-        # type: (SchemeNode) -> None
+        # type: (Node) -> None
         assert self.__workflow is not None
-        # ignore MetaNodes and co.
-        if isinstance(node, SchemeNode):
-            self.__add_node(node)
+        if isinstance(node, MetaNode):
+            nodes = node.all_nodes()
+        else:
+            nodes = [node]
+        for n in nodes:
+            if isinstance(n, SchemeNode):
+                self.__add_node(n)
 
     def __add_node(self, node):
         # type: (SchemeNode) -> None
@@ -371,7 +375,12 @@ class WidgetManager(QObject):
     def __on_node_removed(self, node):  # type: (SchemeNode) -> None
         assert self.__workflow is not None
         assert node not in self.__workflow.all_nodes()
-        self.__remove_node(node)
+        if isinstance(node, MetaNode):
+            nodes = node.all_nodes()
+        else:
+            nodes = [node]
+        for n in nodes:
+            self.__remove_node(n)
 
     def __remove_node(self, node):  # type: (SchemeNode) -> None
         # remove the node and its widget from tracking.
