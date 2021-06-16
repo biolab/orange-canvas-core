@@ -2708,7 +2708,11 @@ def scheme_requires(
     desc = readwrite.parse_ows_stream(stream)
     if registry is not None:
         desc = readwrite.resolve_replaced(desc, registry)
-    return list(unique(m.project_name for m in desc.nodes if m.project_name))
+    nodes = filter(
+        lambda n: isinstance(n, readwrite._node),
+        desc.iter_all_nodes()
+    )
+    return list(unique(m.project_name for m in nodes if m.project_name))
 
 
 K = TypeVar("K")
