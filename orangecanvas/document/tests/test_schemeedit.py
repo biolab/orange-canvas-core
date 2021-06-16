@@ -378,7 +378,7 @@ class TestSchemeEdit(QAppTestCase):
         w.insertNode(neg, target)
         self.assertEqual(workflow.nodes[-1], neg)
 
-        self.assertSequenceEqual(list(spyrem), [[target]])
+        self.assertSequenceEqual(list(spyrem), [[target, workflow.root()]])
         self.assertEqual(len(spyadd), 2)
         w.undoStack().undo()
 
