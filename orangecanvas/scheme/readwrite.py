@@ -132,6 +132,19 @@ class _scheme(NamedTuple):
     annotations: List['_annotation']
     session_state: '_session_data'
 
+    @property
+    def root(self):
+        return _macro_node(
+            id="", title=self.title, position=(0., 0.), version="",
+            nodes=self.nodes, links=self.links, annotations=self.annotations,
+        )
+
+    def iter_all_nodes(self):
+        def all_nodes(root):
+            child_nodes = getattr(root, "nodes", [])
+            yield from chain([root], *(all_nodes(c) for c in child_nodes))
+        yield from chain.from_iterable(all_nodes(c) for c in self.nodes)
+
 
 class _node(NamedTuple):
     id: str
