@@ -289,10 +289,11 @@ class UsageStatistics:
 
         event = {
             "Type": EventType.NodeAdd,
-            "Widget Name": widget.description.id,
-            "Widget": widget_id
+            "Widget Name": (
+                widget.description.id if hasattr(widget, "description") else ""
+            ),
+            "Widget": widget_id,
         }
-
         self._events.append(event)
 
     def log_node_remove(self, widget):
