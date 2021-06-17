@@ -7,7 +7,8 @@ from typing import Callable, Optional, Tuple, List, Any
 from AnyQt.QtWidgets import QUndoCommand
 
 from ..scheme import (
-    Workflow, Node, Link, MetaNode, Annotation, Text, Arrow,
+    Workflow, Node, Link, MetaNode, Annotation, Text, Arrow, InputNode,
+    OutputNode,
 )
 
 Pos = Tuple[float, float]
@@ -97,6 +98,34 @@ class AddNodeCommand(UndoCommand):
         self.scheme.remove_node(self.node)
 
 
+def input_links(node: Node):
+    parent = node.parent_node()
+    ilinks = parent.input_links(node)
+    if isinstance(node, InputNode):
+        parent_ = parent.parent_node()
+        imacro = parent_.find_links(
+            sink_node=parent,
+            sink_channel=node.input_channels()[0],
+        )
+    else:
+        imacro = []
+    return ilinks, imacro
+
+
+def output_links(node: Node):
+    parent = node.parent_node()
+    olinks = parent.output_links(node)
+    if isinstance(node, OutputNode):
+        parent_ = parent.parent_node()
+        omacro = parent_.find_links(
+            source_node=parent,
+            source_channel=node.output_channels()[0],
+        )
+    else:
+        omacro = []
+    return olinks, omacro
+
+
 class RemoveNodeCommand(UndoCommand):
     def __init__(self, scheme, node, parent_node, parent=None):
         # type: (Workflow, Node, MetaNode, Optional[UndoCommand]) -> None
@@ -105,10 +134,12 @@ class RemoveNodeCommand(UndoCommand):
         self.node = node
         self.parent_node = parent_node
         self._index = -1
-        links = (parent_node.input_links(node) +
-                 parent_node.output_links(node))
-        for link in links:
+        ilinks, imacro = input_links(node)
+        olinks, omacro = output_links(node)
+        for link in ilinks + olinks:
             RemoveLinkCommand(scheme, link, parent_node, parent=self)
+        for link in imacro + omacro:
+            RemoveLinkCommand(scheme, link, parent_node.parent_node(), parent=self)
 
     def redo(self):
         # redo child commands
