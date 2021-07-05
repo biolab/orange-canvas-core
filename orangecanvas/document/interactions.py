@@ -519,27 +519,33 @@ class NewLinkAction(UserInteraction):
         menu = self.document.quickMenu()
         node = self.scene.node_for_item(self.from_item)
         from_signal = self.from_signal
-        from_desc = node.description
+        from_sink = self.direction == self.FROM_SINK
+        if self.from_signal:
+            from_signals = [self.from_signal]
+        elif from_sink:
+            from_signals = node.input_channels()
+        else:
+            from_signals = node.output_channels()
+        from_desc = getattr(node, "description", None)
+        if from_desc is not None:
+            from_name = from_desc.name
+        else:
+            from_name = ""
 
         def is_compatible(
-                source_signal: OutputSignal,
-                source: WidgetDescription,
-                sink: WidgetDescription,
-                sink_signal: InputSignal
+                source_signals: Sequence[OutputSignal],
+                sink_signals: Sequence[InputSignal],
         ) -> bool:
-            return any(scheme.compatible_channels(output, input)
-                       for output
-                       in ([source_signal] if source_signal else source.outputs)
-                       for input
-                       in ([sink_signal] if sink_signal else sink.inputs))
 
-        from_sink = self.direction == self.FROM_SINK
+            return any(scheme.compatible_channels(output, input)
+                       for output in source_signals for input in sink_signals)
+
         if from_sink:
             # Reverse the argument order.
             is_compatible = reversed_arguments(is_compatible)
-            suggestion_sort = self.suggestions.get_source_suggestions(from_desc.name)
+            suggestion_sort = self.suggestions.get_source_suggestions(from_name)
         else:
-            suggestion_sort = self.suggestions.get_sink_suggestions(from_desc.name)
+            suggestion_sort = self.suggestions.get_sink_suggestions(from_name)
 
         def sort(left, right):
             # list stores frequencies, so sign is flipped
@@ -550,7 +556,7 @@ class NewLinkAction(UserInteraction):
         def filter(index):
             desc = index.data(QtWidgetRegistry.WIDGET_DESC_ROLE)
             if isinstance(desc, WidgetDescription):
-                return is_compatible(from_signal, from_desc, desc, None)
+                return is_compatible(from_signals, desc.outputs if from_sink else desc.inputs)
             else:
                 return False
 
