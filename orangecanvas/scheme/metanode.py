@@ -7,7 +7,7 @@ from AnyQt.QtGui import QIcon
 
 from ..gui.svgiconengine import SvgIconEngine
 from ..registry import InputSignal, OutputSignal
-from ..utils import findf, unique
+from ..utils import findf, unique, apply_all
 from ..utils.graph import traverse_bf
 from .node import Node
 from .link import Link, compatible_channels
@@ -400,6 +400,30 @@ class MetaNode(Node):
         for el in chain(self.__nodes, self.__links, self.__annotations):
             el._set_workflow(workflow)
 
+    def __getstate__(self):
+        nodes = self.nodes()
+        links = self.links()
+        annotations = self.annotations()
+        return {
+            "title": self.title, "position": self.position,
+            "properties": self.properties,
+            "nodes": nodes,
+            "links": links,
+            "annotations": annotations,
+        }
+
+    def __setstate__(self, state):
+        title = state.pop("title")
+        position = state.pop("position")
+        properties = state.pop("properties")
+        nodes = state["nodes"]
+        links = state["links"]
+        annotations = state["annotations"]
+        self.__init__(title, position, properties=properties)
+        apply_all(self.add_node, nodes)
+        apply_all(self.add_link, links)
+        apply_all(self.add_annotation, annotations)
+
 
 class InputNode(Node):
     """
@@ -433,6 +457,12 @@ class InputNode(Node):
     def icon(self):
         return QIcon(SvgIconEngine(pkgutil.get_data("orangecanvas", "icons/output.svg")))
 
+    def __reduce_ex__(self, protocol):
+        return reconstruct, (type(self), (), {
+            "input": self.__input, "output": self.__output, "title": self.title,
+            "position": self.position, "properties": self.properties
+        },)
+
 
 class OutputNode(Node):
     """
@@ -465,6 +495,16 @@ class OutputNode(Node):
 
     def icon(self):
         return QIcon(SvgIconEngine(pkgutil.get_data("orangecanvas", "icons/input.svg")))
+
+    def __reduce_ex__(self, protocol):
+        return reconstruct, (type(self), (), {
+            "input": self.__input, "output": self.__output, "title": self.title,
+            "position": self.position, "properties": self.properties
+        },)
+
+
+def reconstruct(type, args, kwargs):
+    return type(*args, **kwargs)
 
 
 T = TypeVar("T")

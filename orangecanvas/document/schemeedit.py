@@ -2245,6 +2245,7 @@ class SchemeEditWidget(QWidget):
         Return a deep copy of currently selected nodes and links between them.
         """
         scheme = self.scheme()
+        root = self.root()
         if scheme is None:
             return [], []
 
@@ -2253,17 +2254,11 @@ class SchemeEditWidget(QWidget):
 
         # original nodes and links
         nodes = self.selectedNodes()
-        links = [link for link in scheme.links
-                 if link.source_node in nodes and
-                 link.sink_node in nodes]
+        links = [link for link in root.links()
+                 if link.source_node in nodes and link.sink_node in nodes]
 
         # deepcopied nodes and links
-        nodedups = [copy_node(node) for node in nodes]
-        node_to_dup = dict(zip(nodes, nodedups))
-        linkdups = [copy_link(link, source=node_to_dup[link.source_node],
-                              sink=node_to_dup[link.sink_node])
-                    for link in links]
-
+        nodedups, linkdups = copy.deepcopy((nodes, links))
         return nodedups, linkdups
 
     def __pasteFromClipboard(self):
@@ -2585,29 +2580,3 @@ def can_insert_node(new_node_desc, original_link):
            any(any(scheme.compatible_channels(output, input)
                    for output in new_node_desc.outputs)
                for input in original_link.sink_node.input_channels())
-
-
-def copy_node(node):
-    # type: (SchemeNode) -> SchemeNode
-    desc = node.description
-    newnode = SchemeNode(
-        desc, node.title, position=node.position,
-        properties=copy.deepcopy(node.properties)
-    )
-
-    for ic in node.input_channels()[len(desc.inputs):]:
-        newnode.add_input_channel(ic)
-    for oc in node.output_channels()[len(desc.outputs):]:
-        newnode.add_output_channel(oc)
-    return newnode
-
-
-def copy_link(link, source=None, sink=None):
-    # type: (Link, Optional[SchemeNode], Optional[SchemeNode]) -> Link
-    source = link.source_node if source is None else source
-    sink = link.sink_node if sink is None else sink
-    return Link(
-        source, link.source_channel,
-        sink, link.sink_channel,
-        enabled=link.enabled,
-        properties=copy.deepcopy(link.properties))
