@@ -548,10 +548,16 @@ class SchemeNode(Node):
 
     def __getstate__(self):
         return self.description, \
-               self.__title, \
-               self.__position, \
+               self.title, \
+               self.position, \
                self.properties, \
-               self.parent()
+               self.__inputs, \
+               self.__outputs
 
     def __setstate__(self, state):
+        *state, inputs, outputs = state
         self.__init__(*state)
+        for ic in self.__inputs:
+            self.add_input_channel(ic)
+        for oc in self.__outputs:
+            self.add_output_channel(oc)
