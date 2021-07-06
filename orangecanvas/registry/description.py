@@ -227,6 +227,7 @@ class OutputSignal(object):
         self.default = bool(flags & Default)
         self.explicit = bool(flags & Explicit)
         self.dynamic = bool(flags & Dynamic)
+        self.single = bool(flags & Single)
         self.flags = flags
 
     @property
