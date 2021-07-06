@@ -34,6 +34,7 @@ from .errors import IncompatibleChannelTypeError
 from ..registry import global_registry, WidgetRegistry
 from ..registry import WidgetDescription, InputSignal, OutputSignal
 from ..utils import findf
+from ..registry.description import Multiple, Single
 
 log = logging.getLogger(__name__)
 
@@ -173,6 +174,7 @@ class _input_node(NamedTuple):
     title: str
     position: Tuple[float, float]
     type: Tuple[str, ...]
+    multiple: bool = False
 
 
 class _output_node(NamedTuple):
@@ -295,7 +297,8 @@ def _parse_ows_etree_input_node(node: Element) -> _input_node:
             id=node_id,
             title=node.get("title"),
             position=(px, py),
-            type=types
+            type=types,
+            multiple=node.get("multiple", "false") == "true"
         )
 
 
@@ -767,9 +770,10 @@ def scheme_load(scheme, stream, registry=None, error_handler=None):
         return mnode
 
     def build_input_node(node: _input_node, parent: MetaNode) -> InputNode:
+        flags = Multiple if node.multiple else Single
         inode = InputNode(
-            InputSignal(node.title, node.type, ""),
-            OutputSignal(node.title, node.type),
+            InputSignal(node.title, node.type, "", flags=flags),
+            OutputSignal(node.title, node.type, flags=flags),
             title=node.title, position=node.position
         )
         parent.add_node(inode)
@@ -905,6 +909,7 @@ def _input_node_to_interm(node: InputNode, ids) -> _input_node:
         title=node.title,
         position=node.position,
         type=node.input_channels()[0].types,
+        multiple=not node.input_channels()[0].single
     )
 
 
@@ -1199,7 +1204,8 @@ def scheme_to_etree_3_0(scheme, data_format="literal", pickle_fallback=False):
                 "id": node.id,
                 "title": node.title,
                 "position": f"{node.position[0]}, {node.position[1]}",
-                "type": ",".join(node.type)
+                "type": ",".join(node.type),
+                "multiple": str(node.multiple).lower()
             }
         )
         builder.end("input_node")
