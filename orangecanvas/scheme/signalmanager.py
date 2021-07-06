@@ -84,6 +84,7 @@ class Signal(
     New: 'Type[New]'
     Update: 'Type[Update]'
     Close: 'Type[Close]'
+    Payload: 'Type[MultiLinkPayload]'
 
 
 class New(Signal): ...
@@ -94,6 +95,21 @@ class Close(Signal): ...
 Signal.New = New
 Signal.Update = Update
 Signal.Close = Close
+
+
+class MultiLinkPayload(NamedTuple):
+    link: Link
+    value: Any
+    id: Any = None
+    index: int = -1
+    payload: Signal = None
+
+    @property
+    def channel(self):
+        return self.link.sink_channel
+
+
+Signal.Payload = MultiLinkPayload
 
 
 is_enabled = attrgetter("enabled")
@@ -551,6 +567,13 @@ class SignalManager(QObject):
         )
         signals: List[Signal] = [Signal.New(*s)
                                  for s in self.signals_on_link(link)]
+        if isinstance(link.source_node, InputNode) and not link.source_channel.single:
+            signals = [
+                Signal.Payload(
+                    link, sig.value, sig.id, sig.index, payload=sig
+                )
+                for sig in signals
+            ]
         if not link.is_enabled():
             # Send New signals even if disabled. This is changed behaviour
             # from <0.1.19 where signals were only sent when link was enabled.
@@ -571,9 +594,21 @@ class SignalManager(QObject):
         if etype == LinkEvent.InputLinkRemoved:
             event = typing.cast(LinkEvent, event)
             link = event.link()
+            signals: List[Signal] = []
             log.info("Scheduling close signal (%s).", link)
-            signals: List[Signal] = [Signal.Close(link, None, id, event.pos())
-                                     for id in self.link_contents(link)]
+            source = link.source_node
+            if isinstance(source, InputNode) and not source.sink_channel.single:
+                # close multi payload link
+                contents = self.link_contents(link)
+                signals = [  # type: ignore
+                    Signal.Payload(
+                        link, None, id_, event.pos(),
+                        payload=Signal.Close(link, None, (link_, id_), event.pos()))
+                    for (link_, id_), _ in contents.items()
+                ]
+            else:
+                signals = [Signal.Close(link, None, id, event.pos())
+                           for id in self.link_contents(link)]
             self._schedule(signals)
         return super().eventFilter(recv, event)
 
@@ -824,7 +859,8 @@ class SignalManager(QObject):
         signals_in = process_dynamic(signals_in)
         assert ({sig.link for sig in self.__input_queue}
                 .intersection({sig.link for sig in signals_in}) == set([]))
-
+        signals_in = [sig.payload if isinstance(sig, Signal.Payload) else sig
+                      for sig in signals_in]
         if isinstance(node, SchemeNode):
             # implementation for concrete node implementations
             self._set_runtime_state(SignalManager.Processing)
@@ -864,14 +900,30 @@ class SignalManager(QObject):
         for sig in signals:
             inode = input_nodes[sig.channel]
             outputs = self.__node_outputs[inode][inode.source_channel].outputs
-            sigtype = Signal.New if sig.id not in outputs else Signal.Update
-            outputs[sig.id] = sig.value
+            if not sig.channel.single:
+                sig_id = (sig.link, sig.id)
+            else:
+                sig_id = sig.id
+            sigtype = Signal.New if sig_id not in outputs else Signal.Update
+            outputs[sig_id] = sig.value
+            if isinstance(sig, Signal.Close):
+                del outputs[sig_id]
             for link in links[sig.channel]:
-                sig = sigtype(
-                    link=link, value=sig.value, id=sig.id,
-                    index=link_index(link)
-                )
-                signals_.append(sig)
+                if not sig.channel.single:
+                    sig_ = Signal.Payload(
+                        link, value=sig.value, id=sig_id,
+                        index=sig.index,  # TODO: fix index
+                        payload=sigtype(
+                            link=link, value=sig.value, id=sig_id,
+                            index=link_index(link)
+                        )
+                    )
+                else:
+                    sig_ = sigtype(
+                        link=link, value=sig.value, id=sig_id,
+                        index=link_index(link)
+                    )
+                signals_.append(sig_)
 
         self._schedule(signals_)
         self.__update_timer.start(0)
