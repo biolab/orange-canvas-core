@@ -21,7 +21,7 @@ from ..interactions import (
 )
 from ...canvas import items
 from ...scheme import Scheme, SchemeNode, SchemeLink, SchemeTextAnnotation, \
-                      SchemeArrowAnnotation
+    SchemeArrowAnnotation, MetaNode
 from ...registry.tests import small_testing_registry
 from ...gui.test import QAppTestCase, mouseMove, dragDrop, dragEnterLeave, \
     contextMenu
@@ -484,6 +484,24 @@ class TestSchemeEdit(QAppTestCase):
         w.createMacroFromSelection()
         undo.undo()
         self.assertTrue(len(workflow.root().nodes()), 1)
+        undo.redo()
+
+    def test_expand_macro(self):
+        w = self.w
+        workflow = self.setup_test_workflow()
+        w.setRegistry(self.reg)
+        w.setScheme(workflow)
+        one, add = workflow.root().nodes()[1:3]
+        w.setSelection([one, add])
+        w.createMacroFromSelection()
+        self.assertEqual(len(workflow.root().nodes()), 3)
+        node = findf(workflow.root().nodes(), lambda n: isinstance(n, MetaNode))
+        assert node is not None
+        w.expandMacro(node)
+        self.assertEqual(len(workflow.root().nodes()), 4)
+        undo = w.undoStack()
+        undo.undo()
+        self.assertEqual(len(workflow.root().nodes()), 3)
         undo.redo()
 
     def test_window_groups(self):

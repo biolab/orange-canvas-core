@@ -148,6 +148,54 @@ def prepare_macro_patch(
     )
 
 
+@dataclass
+class PrepareExpandMacroResult:
+    nodes: Sequence[Node]
+    links: Sequence[Link]
+
+
+def prepare_expand_macro(
+        parent: MetaNode, node: MetaNode) -> PrepareExpandMacroResult:
+    nodes = node.nodes()
+    links_in = parent.find_links(sink_node=node)
+    links_out = parent.find_links(source_node=node)
+    links_internal = [
+        link for link in node.links() if not (
+                isinstance(link.sink_node, OutputNode) or
+                isinstance(link.source_node, InputNode)
+        )
+    ]
+    links_in_new = []
+    links_out_new = []
+    # merge all X -> (Input_A -> Y ...) to X -> Y
+    for ilink1 in links_in:
+        inode = node.node_for_input_channel(ilink1.sink_channel)
+        for ilink2 in node.find_links(
+                source_node=inode, source_channel=inode.source_channel
+        ):
+            links_in_new.append(
+                Link(ilink1.source_node, ilink1.source_channel,
+                     ilink2.sink_node, ilink2.sink_channel,
+                     enabled=ilink1.enabled)
+            )
+
+    # merge all (.. X -> Output_A) -> Y ...) to X -> Y
+    for olink1 in links_out:
+        onode = node.node_for_output_channel(olink1.source_channel)
+        for olink2 in node.find_links(
+                sink_node=onode, sink_channel=onode.sink_channel):
+            links_out_new.append(
+                Link(olink2.source_node, olink2.source_channel,
+                     olink1.sink_node, olink1.sink_channel,
+                     enabled=olink1.enabled)
+            )
+    nodes = [node for node in nodes
+             if not isinstance(node, (InputNode, OutputNode))]
+    return PrepareExpandMacroResult(
+        nodes, links_in_new + links_internal + links_out_new
+    )
+
+
 @contextmanager
 def disable_undo_stack_actions(
         undo: QAction, redo: QAction, stack: QUndoStack

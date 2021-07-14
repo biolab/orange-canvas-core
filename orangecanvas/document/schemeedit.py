@@ -41,7 +41,8 @@ from AnyQt.QtCore import pyqtProperty as Property, pyqtSignal as Signal
 from orangecanvas.document.commands import UndoCommand
 from .interactions import DropHandler, UserInteraction, propose_links
 from .utils import (
-    prepare_macro_patch, disable_undo_stack_actions, nodes_bounding_box
+    prepare_macro_patch, disable_undo_stack_actions, nodes_bounding_box,
+    prepare_expand_macro
 )
 from .windowgroupsdialog import SaveWindowGroup
 from ..registry import WidgetDescription, WidgetRegistry
@@ -231,6 +232,7 @@ class SchemeEditWidget(QWidget):
         self.__editMenu.addAction(self.__pasteAction)
         self.__editMenu.addAction(self.__selectAllAction)
         self.__editMenu.addAction(self.__createMacroAction)
+        self.__editMenu.addAction(self.__expandMacroAction)
 
         # Widget context menu
         self.__widgetMenu = QMenu(self.tr("Widget"), self)
@@ -241,6 +243,7 @@ class SchemeEditWidget(QWidget):
         self.__widgetMenu.addAction(self.__duplicateSelectedAction)
         self.__widgetMenu.addAction(self.__copySelectedAction)
         self.__widgetMenu.addAction(self.__createMacroAction)
+        self.__widgetMenu.addAction(self.__expandMacroAction)
         self.__widgetMenu.addSeparator()
         self.__widgetMenu.addAction(self.__helpAction)
 
@@ -446,6 +449,12 @@ class SchemeEditWidget(QWidget):
             enabled=False,
             shortcut=QKeySequence(Qt.ControlModifier | Qt.ShiftModifier | Qt.Key_M),
             triggered=self.createMacroFromSelection,
+        )
+        self.__expandMacroAction = QAction(
+            self.tr("Expand Macro"), self,
+            objectName="expand-macro-action",
+            enabled=False,
+            triggered=self.__expandMacroFromSelection,
         )
         self.__pasteAction = QAction(
             self.tr("Paste"), self,
@@ -1906,6 +1915,7 @@ class SchemeEditWidget(QWidget):
         self.__duplicateSelectedAction.setEnabled(bool(nodes))
         self.__copySelectedAction.setEnabled(bool(nodes))
         self.__createMacroAction.setEnabled(len(nodes) >= 2)
+        self.__expandMacroAction.setEnabled(len(nodes) == 1 and isinstance(nodes[0], MetaNode))
 
         if len(nodes) > 1:
             self.__openSelectedAction.setText(self.tr("Open All"))
@@ -2402,6 +2412,28 @@ class SchemeEditWidget(QWidget):
             scene.clearSelection()
             item.setSelected(True)
             self.editNodeTitle(macro)
+
+    def __expandMacroFromSelection(self):
+        nodes = self.selectedNodes()
+        if len(nodes) == 1:
+            node = nodes[0]
+            if isinstance(node, MetaNode):
+                self.expandMacro(node)
+
+    def expandMacro(self, macro: MetaNode):
+        model = self.__scheme
+        parent = self.__root
+        assert model is not None
+        assert parent is not None
+        res = prepare_expand_macro(parent, macro)
+        stack = self.__undoStack
+        stack.beginMacro(self.tr("Expand Macro Node"))
+        stack.push(commands.RemoveNodeCommand(model, macro, parent))
+        for node in res.nodes:
+            stack.push(commands.AddNodeCommand(model, node, parent))
+        for link in res.links:
+            stack.push(commands.AddLinkCommand(model, link, parent))
+        stack.endMacro()
 
     def __startControlPointEdit(self, item):
         # type: (items.annotationitem.Annotation) -> None
