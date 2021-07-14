@@ -54,13 +54,14 @@ from ..gui.utils import (
 )
 from ..scheme import (
     scheme, signalmanager, Scheme, SchemeNode, MetaNode, Node, Link,
-    BaseSchemeAnnotation, SchemeTextAnnotation, WorkflowEvent,
+    Annotation, TextAnnotation, WorkflowEvent,
 )
+from ..scheme.element import Element
 from ..scheme.widgetmanager import WidgetManager
 from ..canvas.scene import CanvasScene
 from ..canvas.view import CanvasView
 from ..canvas import items
-from ..canvas.items.annotationitem import Annotation as AnnotationItem
+from ..canvas.items.annotationitem import AnnotationItem
 from . import interactions
 from . import commands
 from . import quickmenu
@@ -1160,9 +1161,9 @@ class SchemeEditWidget(QWidget):
         self.__scheme.link_added.connect(func)
 
     def addAnnotation(self, annotation):
-        # type: (BaseSchemeAnnotation) -> None
+        # type: (Annotation) -> None
         """
-        Add `annotation` (:class:`.BaseSchemeAnnotation`) to the scheme
+        Add `annotation` (:class:`.Annotation`) to the scheme
         """
         if self.__scheme is None:
             raise NoWorkflowError()
@@ -1170,9 +1171,9 @@ class SchemeEditWidget(QWidget):
         self.__undoStack.push(command)
 
     def removeAnnotation(self, annotation):
-        # type: (BaseSchemeAnnotation) -> None
+        # type: (Annotation) -> None
         """
-        Remove `annotation` (:class:`.BaseSchemeAnnotation`) from the scheme.
+        Remove `annotation` (:class:`.Annotation`) from the scheme.
         """
         if self.__scheme is None:
             raise NoWorkflowError()
@@ -1225,6 +1226,11 @@ class SchemeEditWidget(QWidget):
         for item in scene.items():
             if item.flags() & QGraphicsItem.ItemIsSelectable:
                 item.setSelected(True)
+
+    def clearSelection(self) -> None:
+        """Clear selection."""
+        scene = self.currentScene()
+        scene.clearSelection()
 
     def alignToGrid(self):
         # type: () -> None
@@ -1291,12 +1297,33 @@ class SchemeEditWidget(QWidget):
                         self.currentScene().selected_link_items()))
 
     def selectedAnnotations(self):
-        # type: () -> List[BaseSchemeAnnotation]
+        # type: () -> List[Annotation]
         """
-        Return all selected :class:`.BaseSchemeAnnotation` items.
+        Return all selected :class:`.Annotation` items.
         """
         return list(map(self.currentScene().annotation_for_item,
                         self.currentScene().selected_annotation_items()))
+
+    def select(self, elements: Sequence[Element]):
+        scene = self.currentScene()
+        items = []
+        for el in elements:
+            if isinstance(el, Node):
+                item = scene.item_for_node(el)
+            elif isinstance(el, Link):
+                item = scene.item_for_link(el)
+            elif isinstance(el, Annotation):
+                item = scene.item_for_annotation(el)
+            else:
+                raise TypeError
+            items.append(item)
+        # scene.clearSelection()
+        apply_all(lambda item: item.setSelected(True), items)
+
+    def setSelection(self, elements: Sequence[Element]):
+        scene = self.currentScene()
+        scene.clearSelection()
+        self.select(elements)
 
     def __openNodes(self, nodes: Sequence[Node]):
         if len(nodes) == 1:
@@ -1629,7 +1656,7 @@ class SchemeEditWidget(QWidget):
                         command = commands.MoveNodeCommand(
                             scheme, scheme_item, old, new
                         )
-                    elif isinstance(scheme_item, BaseSchemeAnnotation):
+                    elif isinstance(scheme_item, Annotation):
                         command = commands.AnnotationGeometryChange(
                             scheme, scheme_item, old, new
                         )
@@ -1991,7 +2018,7 @@ class SchemeEditWidget(QWidget):
         Text annotation editing has finished.
         """
         annot = self.currentScene().annotation_for_item(item)
-        assert isinstance(annot, SchemeTextAnnotation)
+        assert isinstance(annot, TextAnnotation)
         content_type = item.contentType()
         content = item.content()
 
