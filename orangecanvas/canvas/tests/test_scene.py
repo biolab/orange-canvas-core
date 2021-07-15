@@ -122,6 +122,7 @@ class TestScene(QAppTestCase):
 
         for node, item in zip(nodes, node_items):
             self.assertIs(item, self.scene.item_for_node(node))
+            self.assertIs(item, self.scene.item_for_element(node))
 
         # Remove a widget
         test_scheme.remove_node(cons_node)
@@ -149,6 +150,9 @@ class TestScene(QAppTestCase):
         test_scheme.add_link(link1)
         self.assertTrue(len(self.scene.link_items()) == 1)
         self.assertSequenceEqual(self.scene.link_items(), link_items)
+        for link, item in zip([link1], link_items):
+            self.assertEqual(self.scene.item_for_element(link1), item)
+            self.assertEqual(self.scene.item_for_link(link1), item)
         self.qWait()
 
     def widget_desc(self):

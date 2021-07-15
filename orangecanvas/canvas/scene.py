@@ -31,6 +31,7 @@ from .items import NodeItem, LinkItem
 from .items.annotationitem import AnnotationItem
 
 from .layout import AnchorLayout
+from ..scheme.element import Element
 from ..utils.qinvoke import connect_with_context as qconnect
 
 if typing.TYPE_CHECKING:
@@ -738,6 +739,17 @@ class CanvasScene(GraphicsScene):
         Return the :class:`LinkItem` for a :class:`Link`
         """
         return self.__item_for_link[link]
+
+    def item_for_element(self, element: Element) -> QGraphicsItem:
+        """Return the associated :class:`QGraphicsItem` for the `element`."""
+        if isinstance(element, Node):
+            return self.__item_for_node[element]
+        elif isinstance(element, Link):
+            return self.__item_for_link[element]
+        elif isinstance(element, Annotation):
+            return self.__item_for_annotation[element]
+        else:
+            raise TypeError(element)
 
     def selected_node_items(self):
         # type: () -> List[NodeItem]
