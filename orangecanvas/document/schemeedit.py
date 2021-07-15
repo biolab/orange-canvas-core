@@ -2239,10 +2239,41 @@ class SchemeEditWidget(QWidget):
         """
         Duplicate currently selected nodes.
         """
-        nodedups, linkdups = self.__copySelected()
+        scheme = self.scheme()
+        if scheme is None:
+            return
+        # ensure up to date node properties (settings)
+        scheme.sync_node_properties()
+
+        def duplicate(root: MetaNode, nodes: Sequence[Node], links: Sequence[Link]):
+            # links between nodes
+            links_between = [
+                link for link in root.links()
+                if link.source_node in nodes and link.sink_node in nodes
+            ]
+            # selected links that are connected to nodes on one side
+            links_ = [link for link in links
+                      if link.sink_node in nodes and
+                         link.source_node not in nodes]
+            links_ += [link for link in links
+                       if link.source_node in nodes and
+                          link.sink_node not in nodes and
+                          not link.sink_channel.single]
+
+            nodes_other = set(root.nodes()) - set(nodes)
+            memo = {id(node): node for node in nodes_other}
+            links = links_between + links_
+            # ensure links are in the same relative order as in root.links()
+            order = {link: i for i, link in enumerate(links)}
+            links = sorted(links, key=order.get)
+            # deepcopied nodes and links
+            nodedups, linkdups = copy.deepcopy((nodes, links), memo=memo)
+            return nodedups, linkdups
+        nodedups, linkdups = duplicate(
+            self.__root, self.selectedNodes(), self.selectedLinks()
+        )
         if not nodedups:
             return
-
         pos = nodes_bounding_box(nodedups).topLeft()
         self.__paste(nodedups, linkdups, pos + DuplicateOffset,
                      commandname=self.tr("Duplicate"))
@@ -2364,17 +2395,8 @@ class SchemeEditWidget(QWidget):
         statistics = self.usageStatistics()
         statistics.begin_action(UsageStatistics.Duplicate)
         self.__undoStack.push(command)
-        scene = self.currentScene()
-
-        # deselect selected
-        selected = scene.selectedItems()
-        for item in selected:
-            item.setSelected(False)
-
-        # select pasted
-        for node in nodedups:
-            item = scene.item_for_node(node)
-            item.setSelected(True)
+        # select the pasted elements
+        self.setSelection(nodedups + linkdups)
 
     def __createMacro(self, nodes: List['Node']) -> MetaNode:
         assert nodes
