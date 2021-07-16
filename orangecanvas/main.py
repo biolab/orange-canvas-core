@@ -1,95 +1,379 @@
 """
-Orange Canvas main entry point
-
 """
+import argparse
 
 import os
 import sys
 import gc
-import re
 import logging
-import optparse
 import pickle
 import shlex
-import shutil
-import io
-from urllib.request import getproxies
-from contextlib import ExitStack, redirect_stdout, redirect_stderr, closing
+import warnings
+from typing import List, Optional, IO, Any
 
-import pkg_resources
+from urllib.request import getproxies
+from contextlib import ExitStack, closing
 
 from AnyQt.QtGui import QFont, QColor, QPalette
-from AnyQt.QtCore import Qt, QDir, QSettings, QT_VERSION
+from AnyQt.QtCore import Qt, QSettings, QTimer, QUrl, QDir
 
 from .utils.after_exit import run_after_exit
-from .styles import breeze_dark
+from .styles import style_sheet, breeze_dark as _breeze_dark
 from .application.application import CanvasApplication
 from .application.canvasmain import CanvasMainWindow
-from .application.outputview import TextStream, ExceptHook
+from .application.outputview import TextStream, ExceptHook, TerminalTextDocument
 
 from . import utils, config
 from .gui.splashscreen import SplashScreen
-from .registry import qt
+from .gui.utils import macos_set_nswindow_tabbing as _macos_set_nswindow_tabbing
+
 from .registry import WidgetRegistry, set_global_registry
+from .registry.qt import QtRegistryHandler
 from .registry import cache
 
 log = logging.getLogger(__name__)
 
 
-def fix_macos_nswindow_tabbing():
+class Main:
     """
-    Disable automatic NSWindow tabbing on macOS Sierra and higher.
-
-    See QTBUG-61707
+    A helper 'main' runner class.
     """
-    import ctypes
-    import ctypes.util
-    import platform
+    #: The default config namespace
+    DefaultConfig: Optional[str] = None
+    config: config.Config
+    #: Arguments list (remaining after options parsing).
+    arguments: List[str] = []
+    #: Parsed option arguments
+    options: argparse.Namespace = None
+    registry: WidgetRegistry = None
+    application: CanvasApplication = None
 
-    if sys.platform != "darwin":
-        return
-    ver, _, _ = platform.mac_ver()
-    ver = tuple(map(int, ver.split(".")[:2]))
-    if ver < (10, 12):
-        return
+    def __init__(self):
+        self.options = argparse.Namespace()
+        self.arguments: List[str] = []
 
-    c_char_p, c_void_p = ctypes.c_char_p, ctypes.c_void_p
-    id = Sel = Class = c_void_p
+    def argument_parser(self) -> argparse.ArgumentParser:
+        """
+        Construct an return an `argparse.ArgumentParser` instance
+        """
+        return arg_parser()
 
-    def annotate(func, restype, argtypes):
-        func.restype = restype
-        func.argtypes = argtypes
-        return func
-    try:
-        libobjc = ctypes.cdll.LoadLibrary(ctypes.util.find_library("libobjc"))
-        # Load AppKit.framework which contains NSWindow class
-        # pylint: disable=unused-variable
-        AppKit = ctypes.cdll.LoadLibrary(ctypes.util.find_library("AppKit"))
-        objc_getClass = annotate(
-            libobjc.objc_getClass, Class, [c_char_p])
-        objc_msgSend = annotate(
-            libobjc.objc_msgSend, id, [id, Sel])
-        sel_registerName = annotate(
-            libobjc.sel_registerName, Sel, [c_char_p])
-        class_getClassMethod = annotate(
-            libobjc.class_getClassMethod, c_void_p, [Class, Sel])
-    except (OSError, AttributeError):
-        return
+    def parse_arguments(self, argv: List[str]):
+        """
+        Parse the `argv` argument list.
 
-    NSWindow = objc_getClass(b"NSWindow")
-    if NSWindow is None:
-        return
-    setAllowsAutomaticWindowTabbing = sel_registerName(
-        b'setAllowsAutomaticWindowTabbing:'
-    )
-    # class_respondsToSelector does not work (for class methods)
-    if class_getClassMethod(NSWindow, setAllowsAutomaticWindowTabbing):
-        # [NSWindow setAllowsAutomaticWindowTabbing: NO]
-        objc_msgSend(
-            NSWindow,
-            setAllowsAutomaticWindowTabbing,
-            ctypes.c_bool(False),
+        Initialize the options
+        """
+        parser = self.argument_parser()
+        options, argv_rest = parser.parse_known_args(argv[1:])
+        # Handle the deprecated args (let QApplication handle this)
+        if options.style is not None:
+            argv_rest = ["-style", options.style] + argv_rest
+        if options.qt is not None:
+            argv_rest = shlex.split(options.qt) + argv_rest
+
+        self.options = options
+        self.arguments = argv_rest
+
+    def activate_default_config(self):
+        """
+        Activate the default configuration (:mod:`config`)
+        """
+        config_ns = self.DefaultConfig
+        if self.options.config is not None:
+            config_ns = self.options.config
+        cfg = None
+        if config_ns is not None:
+            try:
+                cfg_class = utils.name_lookup(config_ns)
+            except (ImportError, AttributeError):
+                pass
+            else:
+                cfg = cfg_class()
+        if cfg is None:
+            cfg = config.Default()
+        self.config = cfg
+        config.set_default(cfg)
+        # Init config
+        config.init()
+
+    def show_splash_message(self, message: str, color=QColor()):
+        """Display splash screen message"""
+        splash = self.splash_screen()
+        if splash is not None:
+            splash.show()
+            splash.showMessage(message, color=color)
+
+    def close_splash_screen(self):
+        """Close splash screen."""
+        splash = self.splash_screen()
+        if splash is not None:
+            splash.close()
+            self.__splash_screen = None
+
+    __splash_screen = None
+
+    def splash_screen(self) -> SplashScreen:
+        """Return the application splash screen"""
+        if self.__splash_screen is not None:
+            return self.__splash_screen[0]
+
+        settings = QSettings()
+        options = self.options
+        want_splash = \
+            settings.value("startup/show-splash-screen", True, type=bool) and \
+            not options.no_splash
+
+        if want_splash:
+            pm, rect = self.config.splash_screen()
+            splash_screen = SplashScreen(pixmap=pm, textRect=rect)
+            splash_screen.setAttribute(Qt.WA_DeleteOnClose)
+            splash_screen.setFont(QFont("Helvetica", 12))
+            palette = splash_screen.palette()
+            color = QColor("#FFD39F")
+            palette.setColor(QPalette.Text, color)
+            splash_screen.setPalette(palette)
+        else:
+            splash_screen = None
+        self.__splash_screen = (splash_screen,)
+        return splash_screen
+
+    def run_discovery(self) -> WidgetRegistry:
+        """
+        Run the widget discovery and return the resulting registry.
+        """
+        options = self.options
+        if not options.force_discovery:
+            reg_cache = cache.registry_cache()
+        else:
+            reg_cache = None
+
+        widget_registry = WidgetRegistry()
+        handler = QtRegistryHandler(registry=widget_registry)
+        handler.found_category.connect(
+            lambda cd: self.show_splash_message(cd.name)
         )
+        widget_discovery = self.config.widget_discovery(
+            handler, cached_descriptions=reg_cache
+        )
+        cache_filename = os.path.join(config.cache_dir(), "widget-registry.pck")
+        if options.no_discovery:
+            with open(cache_filename, "rb") as f:
+                widget_registry = pickle.load(f)
+            widget_registry = WidgetRegistry(widget_registry)
+        else:
+            widget_discovery.run(self.config.widgets_entry_points())
+
+            # Store cached descriptions
+            cache.save_registry_cache(widget_discovery.cached_descriptions)
+            with open(cache_filename, "wb") as f:
+                pickle.dump(WidgetRegistry(widget_registry), f)
+        self.registry = widget_registry
+        self.close_splash_screen()
+        return widget_registry
+
+    def setup_application(self):
+        # sys.argv[0] must be in QApplication's argv list.
+        self.application = CanvasApplication(sys.argv[:1] + self.arguments)
+        # Update the arguments
+        self.arguments = self.application.arguments()[1:]
+        fix_set_proxy_env()
+
+    def tear_down_application(self):
+        gc.collect()
+        self.application.processEvents()
+        del self.application
+
+    #: An exit stack to run cleanup at application exit.
+    stack: ExitStack
+
+    def run(self, argv: List[str]) -> int:
+        if argv is None:
+            argv = sys.argv
+        fix_win_pythonw_std_stream()
+        self.parse_arguments(argv)
+        self.activate_default_config()
+        with ExitStack() as stack:
+            self.stack = stack
+            self.setup_application()
+            stack.callback(self.tear_down_application)
+            self.setup_sys_redirections()
+            stack.callback(self.tear_down_sys_redirections)
+            self.setup_logging()
+            stack.callback(self.tear_down_logging)
+            paths = self.arguments
+            log.debug("Loading paths from argv: %s", " ,".join(paths))
+
+            def record_path(url: QUrl):
+                log.debug("Path from FileOpen event: %s", url.toLocalFile())
+                paths.append(url.toLocalFile())
+
+            self.application.fileOpenRequest.connect(record_path)
+
+            registry = self.run_discovery()
+            set_global_registry(registry)
+
+            mainwindow = self.setup_main_window()
+            mainwindow.show()
+
+            if not paths:
+                self.show_welcome_screen(mainwindow)
+            else:
+                self.open_files(paths)
+
+            def open_request(url):
+                path = url.toLocalFile()
+                if os.path.exists(path) and not (
+                    path.endswith("pydevd.py") or
+                    path.endswith("run_profiler.py")
+                ):
+                    mainwindow.open_scheme_file(path)
+            self.application.fileOpenRequest.connect(open_request)
+            rv = self.application.exec()
+            del mainwindow
+        if rv == 96:
+            log.info('Restarting via exit code 96.')
+            run_after_exit([sys.executable, sys.argv[0]])
+        return rv
+
+    def open_files(self, paths):
+        _windows = [self.window]
+
+        def _window():
+            if _windows:
+                return _windows.pop(0)
+            else:
+                return self.window.create_new_window()
+
+        for path in paths:
+            w = _window()
+            w.open_scheme_file(path)
+            w.show()
+
+    def setup_logging(self):
+        level = self.options.log_level
+        logformat = "%(asctime)s:%(levelname)s:%(name)s: %(message)s"
+
+        # File handler should always be at least INFO level so we need
+        # the application root level to be at least at INFO.
+        root_level = min(level, logging.INFO)
+        rootlogger = logging.getLogger()
+        rootlogger.setLevel(root_level)
+
+        # Standard output stream handler at the requested level
+        stream_hander = make_stream_handler(
+            level, fileobj=self.__stderr__, fmt=logformat
+        )
+        rootlogger.addHandler(stream_hander)
+        # Setup log capture for MainWindow/Log
+        log_stream = TextStream(objectName="-log-stream")
+        self.output.connectStream(log_stream)
+        self.stack.push(closing(log_stream))  # close on exit
+        log_handler = make_stream_handler(
+            level, fileobj=log_stream, fmt=logformat
+        )
+        rootlogger.addHandler(log_handler)
+
+        # Also log to file
+        file_handler = make_file_handler(
+            root_level, os.path.join(config.log_dir(), "canvas.log"),
+            mode="w",
+        )
+        rootlogger.addHandler(file_handler)
+
+    def tear_down_logging(self):
+        pass
+
+    def create_main_window(self) -> CanvasMainWindow:
+        """Create the (initial) main window."""
+        return CanvasMainWindow()
+
+    window: CanvasMainWindow
+
+    def setup_main_window(self):
+        stylesheet = self.main_window_stylesheet()
+        self.window = window = self.create_main_window()
+        window.setWindowIcon(self.config.application_icon())
+        window.setStyleSheet(stylesheet)
+        window.output_view().setDocument(self.output)
+        window.set_widget_registry(self.registry)
+        return window
+
+    def main_window_stylesheet(self):
+        """Return the stylesheet for the main window."""
+        options = self.options
+        palette = self.application.palette()
+        stylesheet = "orange.qss"
+        if palette.color(QPalette.Window).value() < 127:
+            log.info("Switching default stylesheet to darkorange")
+            stylesheet = "darkorange.qss"
+
+        if options.stylesheet is not None:
+            stylesheet = options.stylesheet
+        qss, paths = style_sheet(stylesheet)
+        for prefix, path in paths:
+            if path not in QDir.searchPaths(prefix):
+                log.info("Adding search path %r for prefix, %r", path, prefix)
+                QDir.addSearchPath(prefix, path)
+        return qss
+
+    def show_welcome_screen(self, parent: CanvasMainWindow):
+        """Show the initial welcome screen."""
+        settings = QSettings()
+        options = self.options
+        want_welcome = settings.value(
+            "startup/show-welcome-screen", True, type=bool
+        ) and not options.no_welcome
+
+        def trigger():
+            if not parent.is_transient():
+                return
+            swp_loaded = parent.ask_load_swp_if_exists()
+            if not swp_loaded and want_welcome:
+                parent.welcome_action.trigger()
+
+        # On a timer to allow FileOpen events to be delivered. If so
+        # then do not show the welcome screen.
+        QTimer.singleShot(0, trigger)
+
+    __stdout__: Optional[IO] = None
+    __stderr__: Optional[IO] = None
+    __excepthook__: Optional[Any] = None
+
+    output: TerminalTextDocument
+
+    def setup_sys_redirections(self):
+        self.output = doc = TerminalTextDocument()
+
+        stdout = TextStream(objectName="-stdout")
+        stderr = TextStream(objectName="-stderr")
+        doc.connectStream(stdout)
+        doc.connectStream(stderr, color=Qt.red)
+
+        if sys.stdout is not None:
+            stdout.stream.connect(sys.stdout.write, Qt.DirectConnection)
+
+        self.__stdout__ = sys.stdout
+        sys.stdout = stdout
+
+        if sys.stderr is not None:
+            stderr.stream.connect(sys.stderr.write, Qt.DirectConnection)
+
+        self.__stderr__ = sys.stderr
+        sys.stderr = stderr
+        self.__excepthook__ = sys.excepthook
+        sys.excepthook = ExceptHook(stream=stderr)
+
+        self.stack.push(closing(stdout))
+        self.stack.push(closing(stderr))
+
+    def tear_down_sys_redirections(self):
+        if self.__excepthook__ is not None:
+            sys.excepthook = self.__excepthook__
+        if self.__stderr__ is not None:
+            sys.stderr = self.__stderr__
+        if self.__stdout__ is not None:
+            sys.stdout = self.__stdout__
 
 
 def fix_win_pythonw_std_stream():
@@ -102,20 +386,25 @@ def fix_win_pythonw_std_stream():
     if sys.platform == "win32" and \
             os.path.basename(sys.executable) == "pythonw.exe":
         if sys.stdout is None or sys.stdout.fileno() < 0:
-            sys.stdout = open(os.devnull, "w")
+            sys.stdout = open(os.devnull, "w", encoding="utf-8", errors="ignore")
         if sys.stderr is None or sys.stderr.fileno() < 0:
-            sys.stderr = open(os.devnull, "w")
+            sys.stderr = open(os.devnull, "w", encoding="utf-8", errors="ignore")
 
 
 default_proxies = None
 
 
+# TODO: Remove this
 def fix_set_proxy_env():
     """
     Set http_proxy/https_proxy environment variables (for requests, pip, ...)
     from user-specified settings or, if none, from system settings on OS X
     and from registry on Windos.
     """
+    warnings.warn(
+        "fix_set_proxy_env is deprecated", DeprecationWarning,
+        stacklevel=2
+    )
     # save default proxies so that setting can be reset
     global default_proxies
     if default_proxies is None:
@@ -135,315 +424,107 @@ def fix_set_proxy_env():
             os.environ.pop(env_scheme, "")
 
 
-def main(argv=None):
-    if argv is None:
-        argv = sys.argv
+def fix_macos_nswindow_tabbing():
+    warnings.warn(
+        f"'{__name__}.fix_macos_nswindow_tabbing()' is deprecated. Use "
+        "'orangecanvas.gui.utils.macos_set_nswindow_tabbing()' instead",
+        DeprecationWarning, stacklevel=2
+    )
+    _macos_set_nswindow_tabbing()
 
-    usage = "usage: %prog [options] [workflow_file]"
-    parser = optparse.OptionParser(usage=usage)
 
-    parser.add_option("--no-discovery",
-                      action="store_true",
-                      help="Don't run widget discovery "
-                           "(use full cache instead)")
-    parser.add_option("--force-discovery",
-                      action="store_true",
-                      help="Force full widget discovery "
-                           "(invalidate cache)")
-    parser.add_option("--no-welcome",
-                      action="store_true",
-                      help="Don't show welcome dialog.")
-    parser.add_option("--no-splash",
-                      action="store_true",
-                      help="Don't show splash screen.")
-    parser.add_option("-l", "--log-level",
-                      help="Logging level (0, 1, 2, 3, 4)",
-                      type="int", default=1)
-    parser.add_option("--style",
-                      help="QStyle to use",
-                      type="str", default=None)
-    parser.add_option("--stylesheet",
-                      help="Application level CSS style sheet to use",
-                      type="str", default=None)
-    parser.add_option("--qt",
-                      help="Additional arguments for QApplication",
-                      type="str", default=None)
+# Used to be defined here now moved to styles.
+def breeze_dark():
+    warnings.warn(
+        f"{__name__}'.breeze_dark()' has been moved to styles package.",
+        DeprecationWarning, stacklevel=2
+    )
+    return _breeze_dark()
 
-    parser.add_option("--config",
-                      help="Configuration namespace",
-                      type="str", default="orangecanvas.example")
 
-    # -m canvas orange.widgets
-    # -m canvas --config orange.widgets
+def make_stream_handler(level, fileobj=None, fmt=None):
+    handler = logging.StreamHandler(fileobj)
+    handler.setLevel(level)
+    if fmt:
+        handler.setFormatter(logging.Formatter(fmt))
+    return handler
 
-    (options, args) = parser.parse_args(argv[1:])
 
-    levels = [logging.CRITICAL,
-              logging.ERROR,
-              logging.WARN,
-              logging.INFO,
-              logging.DEBUG]
+def make_file_handler(level, filename, mode="w", fmt=None):
+    handler = logging.FileHandler(filename, mode=mode)
+    handler.setLevel(level)
+    if fmt:
+        handler.setFormatter(logging.Formatter(fmt))
+    return handler
 
-    # Fix streams before configuring logging (otherwise it will store
-    # and write to the old file descriptors)
-    fix_win_pythonw_std_stream()
 
-    # Set http_proxy environment variable(s) for some clients
-    fix_set_proxy_env()
+LOG_LEVELS = [
+    logging.CRITICAL + 10,
+    logging.CRITICAL,
+    logging.ERROR,
+    logging.WARN,
+    logging.INFO,
+    logging.DEBUG
+]
 
-    # Try to fix macOS automatic window tabbing (Sierra and later)
-    fix_macos_nswindow_tabbing()
 
-    # File handler should always be at least INFO level so we need
-    # the application root level to be at least at INFO.
-    root_level = min(levels[options.log_level], logging.INFO)
-    rootlogger = logging.getLogger(__package__)
-    rootlogger.setLevel(root_level)
-
-    # Standard output stream handler at the requested level
-    stream_hander = logging.StreamHandler()
-    stream_hander.setLevel(level=levels[options.log_level])
-    rootlogger.addHandler(stream_hander)
-
-    if options.config is not None:
-        try:
-            cfg = utils.name_lookup(options.config)
-        except (ImportError, AttributeError):
-            pass
+def arg_parser():
+    def log_level(value):
+        if value in ("0", "1", "2", "3", "4", "5"):
+            return LOG_LEVELS[int(value)]
+        elif hasattr(logging, value.upper()):
+            return getattr(logging, value.upper())
         else:
-            config.set_default(cfg())
-            log.info("activating %s", options.config)
+            raise ValueError("Invalid log level {!r}".format(value))
 
-    log.info("Starting 'Orange Canvas' application.")
-
-    qt_argv = argv[:1]
-
-    style = options.style
-    defaultstylesheet = "orange.qss"
-    fusiontheme = None
-
-    if style is not None:
-        if style.startswith("fusion:"):
-            qt_argv += ["-style", "fusion"]
-            _, _, fusiontheme = style.partition(":")
-        else:
-            qt_argv += ["-style", style]
-
-    if options.qt is not None:
-        qt_argv += shlex.split(options.qt)
-
-    qt_argv += args
-
-    if QT_VERSION >= 0x50600:
-        CanvasApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
-
-    log.debug("Starting CanvasApplicaiton with argv = %r.", qt_argv)
-    app = CanvasApplication(qt_argv)
-    if app.style().metaObject().className() == "QFusionStyle":
-        if fusiontheme == "breeze-dark":
-            app.setPalette(breeze_dark())
-            defaultstylesheet = "darkorange.qss"
-
-    palette = app.palette()
-    if style is None and palette.color(QPalette.Window).value() < 127:
-        log.info("Switching default stylesheet to darkorange")
-        defaultstylesheet = "darkorange.qss"
-
-    # NOTE: config.init() must be called after the QApplication constructor
-    config.init()
-
-    file_handler = logging.FileHandler(
-        filename=os.path.join(config.log_dir(), "canvas.log"),
-        mode="w"
+    parser = argparse.ArgumentParser(
+        usage="usage: %(prog)s [options] [workflow_file]"
+    )
+    parser.add_argument(
+        "--no-discovery", action="store_true",
+        help="Don't run widget discovery (use full cache instead)"
+    )
+    parser.add_argument(
+        "--force-discovery", action="store_true",
+        help="Force full widget discovery (invalidate cache)"
+    )
+    parser.add_argument(
+        "--no-welcome", action="store_true",
+        help="Don't show welcome dialog."
+    )
+    parser.add_argument(
+        "--no-splash", action="store_true",
+        help="Don't show splash screen."
+    )
+    parser.add_argument(
+        "-l", "--log-level",
+        help="Logging level (0, 1, 2, 3, 4)", type=log_level,
+        default=logging.ERROR,
+    )
+    parser.add_argument(
+        "--stylesheet",
+        help="Application level CSS style sheet to use", type=str, default=None
+    )
+    parser.add_argument(
+        "--config", help="Configuration namespace",
+        type=str, default=None,
     )
 
-    file_handler.setLevel(root_level)
-    rootlogger.addHandler(file_handler)
+    deprecated = parser.add_argument_group("Deprecated")
+    deprecated.add_argument(
+        "--qt", help="Additional arguments for QApplication.\nDeprecated. "
+        "List all arguments as normally to pass it to QApplication.",
+        type=str, default=None
+    )
+    deprecated.add_argument(
+        "--style", help="QStyle to use (deprecated: use -style)",
+        type=str, default=None
+    )
+    return parser
 
-    # intercept any QFileOpenEvent requests until the main window is
-    # fully initialized.
-    # NOTE: The QApplication must have the executable ($0) and filename
-    # arguments passed in argv otherwise the FileOpen events are
-    # triggered for them (this is done by Cocoa, but QApplicaiton filters
-    # them out if passed in argv)
 
-    open_requests = []
-
-    def onrequest(url):
-        log.info("Received an file open request %s", url)
-        open_requests.append(url)
-
-    app.fileOpenRequest.connect(onrequest)
-
-    settings = QSettings()
-
-    stylesheet = options.stylesheet or defaultstylesheet
-    stylesheet_string = None
-
-    if stylesheet != "none":
-        if os.path.isfile(stylesheet):
-            with io.open(stylesheet, "r") as f:
-                stylesheet_string = f.read()
-        else:
-            if not os.path.splitext(stylesheet)[1]:
-                # no extension
-                stylesheet = os.path.extsep.join([stylesheet, "qss"])
-
-            pkg_name = __package__
-            resource = "styles/" + stylesheet
-
-            if pkg_resources.resource_exists(pkg_name, resource):
-                stylesheet_string = \
-                    pkg_resources.resource_string(pkg_name, resource).decode("utf-8")
-
-                base = pkg_resources.resource_filename(pkg_name, "styles")
-
-                pattern = re.compile(
-                    r"^\s@([a-zA-Z0-9_]+?)\s*:\s*([a-zA-Z0-9_/]+?);\s*$",
-                    flags=re.MULTILINE
-                )
-
-                matches = pattern.findall(stylesheet_string)
-
-                for prefix, search_path in matches:
-                    QDir.addSearchPath(prefix, os.path.join(base, search_path))
-                    log.info("Adding search path %r for prefix, %r",
-                             search_path, prefix)
-
-                stylesheet_string = pattern.sub("", stylesheet_string)
-
-            else:
-                log.info("%r style sheet not found.", stylesheet)
-
-    # Add the default canvas_icons search path
-    dirpath = os.path.abspath(os.path.dirname(__file__))
-    QDir.addSearchPath("canvas_icons", os.path.join(dirpath, "icons"))
-
-    canvas_window = CanvasMainWindow()
-    canvas_window.setAttribute(Qt.WA_DeleteOnClose)
-    canvas_window.setWindowIcon(config.application_icon())
-
-    if stylesheet_string is not None:
-        canvas_window.setStyleSheet(stylesheet_string)
-
-    if not options.force_discovery:
-        reg_cache = cache.registry_cache()
-    else:
-        reg_cache = None
-
-    widget_registry = qt.QtWidgetRegistry()
-    widget_discovery = config.widget_discovery(
-        widget_registry, cached_descriptions=reg_cache)
-
-    want_splash = \
-        settings.value("startup/show-splash-screen", True, type=bool) and \
-        not options.no_splash
-
-    if want_splash:
-        pm, rect = config.splash_screen()
-        splash_screen = SplashScreen(pixmap=pm, textRect=rect)
-        splash_screen.setAttribute(Qt.WA_DeleteOnClose)
-        splash_screen.setFont(QFont("Helvetica", 12))
-        color = QColor("#FFD39F")
-
-        def show_message(message):
-            splash_screen.showMessage(message, color=color)
-
-        widget_registry.category_added.connect(show_message)
-        show_splash = splash_screen.show
-        close_splash = splash_screen.close
-    else:
-        show_splash = close_splash = lambda: None
-
-    log.info("Running widget discovery process.")
-
-    cache_filename = os.path.join(config.cache_dir(), "widget-registry.pck")
-    if options.no_discovery:
-        with open(cache_filename, "rb") as f:
-            widget_registry = pickle.load(f)
-        widget_registry = qt.QtWidgetRegistry(widget_registry)
-    else:
-        show_splash()
-        widget_discovery.run(config.widgets_entry_points())
-        close_splash()
-
-        # Store cached descriptions
-        cache.save_registry_cache(widget_discovery.cached_descriptions)
-        with open(cache_filename, "wb") as f:
-            pickle.dump(WidgetRegistry(widget_registry), f)
-
-    set_global_registry(widget_registry)
-    canvas_window.set_widget_registry(widget_registry)
-    canvas_window.show()
-    canvas_window.raise_()
-
-    want_welcome = \
-        settings.value("startup/show-welcome-screen", True, type=bool) \
-        and not options.no_welcome
-
-    # Process events to make sure the canvas_window layout has
-    # a chance to activate (the welcome dialog is modal and will
-    # block the event queue, plus we need a chance to receive open file
-    # signals when running without a splash screen)
-    app.processEvents()
-
-    app.fileOpenRequest.connect(canvas_window.open_scheme_file)
-
-    if want_welcome and not args and not open_requests:
-        canvas_window.welcome_dialog()
-
-    elif args:
-        log.info("Loading a scheme from the command line argument %r",
-                 args[0])
-        canvas_window.load_scheme(args[0])
-    elif open_requests:
-        log.info("Loading a scheme from an `QFileOpenEvent` for %r",
-                 open_requests[-1])
-        canvas_window.load_scheme(open_requests[-1].toLocalFile())
-
-    # Tee stdout and stderr into Output dock
-    output_view = canvas_window.output_view()
-    output_doc = output_view.document()
-    stdout = TextStream()
-    stderr = TextStream()
-
-    if sys.stdout:
-        stdout.stream.connect(sys.stdout.write)
-        stdout.flushed.connect(sys.stdout.flush)
-
-    if sys.stderr:
-        stderr.stream.connect(sys.stderr.write)
-        stderr.flushed.connect(sys.stderr.flush)
-
-    output_doc.connectStream(stdout)
-    output_doc.connectStream(stderr, color=Qt.red)
-
-    with ExitStack() as stack:
-        stack.enter_context(closing(stderr))
-        stack.enter_context(closing(stdout))
-        stack.enter_context(redirect_stdout(stdout))
-        stack.enter_context(redirect_stderr(stderr))
-        log.info("Entering main event loop.")
-        sys.excepthook = ExceptHook(stream=stderr)
-        try:
-            status = app.exec()
-        finally:
-            sys.excepthook = sys.__excepthook__
-
-    del canvas_window
-
-    app.processEvents()
-
-    # Collect any cycles before deleting the QApplication instance
-    gc.collect()
-
-    del app
-
-    if status == 96:
-        log.info('Restarting via exit code 96.')
-        run_after_exit([sys.executable, sys.argv[0]])
-
-    return status
+def main(argv=None):
+    return Main().run(argv)
 
 
 if __name__ == "__main__":

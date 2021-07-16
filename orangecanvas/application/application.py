@@ -1,6 +1,4 @@
 """
-Orange Canvas Application
-
 """
 import atexit
 import sys
@@ -17,6 +15,7 @@ from AnyQt.QtCore import (
 
 from orangecanvas.utils.after_exit import run_after_exit
 from orangecanvas.utils.asyncutils import get_event_loop
+from orangecanvas.gui.utils import macos_set_nswindow_tabbing
 
 
 def fix_qt_plugins_path():
@@ -96,14 +95,23 @@ class CanvasApplication(QApplication):
     __args = None
 
     def __init__(self, argv):
+        CanvasApplication.__args, argv_ = self.parseArguments(argv)
+        ns = CanvasApplication.__args
         fix_qt_plugins_path()
-        if hasattr(Qt, "AA_EnableHighDpiScaling"):
+        self.__fileOpenUrls = []
+        self.__in_exec = False
+
+        if ns.enable_high_dpi_scaling \
+                and hasattr(Qt, "AA_EnableHighDpiScaling"):
             # Turn on HighDPI support when available
             QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+        if ns.use_high_dpi_pixmaps \
+                and hasattr(Qt, "AA_UseHighDpiPixmaps"):
+            QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
 
-        CanvasApplication.__args, argv_ = self.parse_style_arguments(argv)
-        if self.__args.style:
+        if ns.style:
             argv_ = argv_ + ["-style", self.__args.style]
+
         super().__init__(argv_)
         # Make sure there is an asyncio event loop that runs on the
         # Qt event loop.
@@ -115,20 +123,42 @@ class CanvasApplication(QApplication):
             if hasattr(sh, 'setShowShortcutsInContextMenus'):
                 # PyQt5.13 and up
                 sh.setShowShortcutsInContextMenus(True)
+        macos_set_nswindow_tabbing(False)
         self.configureStyle()
 
     def event(self, event):
         if event.type() == QEvent.FileOpen:
-            self.fileOpenRequest.emit(event.url())
+            if not self.__in_exec:
+                self.__fileOpenUrls.append(event.url())
+            else:
+                self.fileOpenRequest.emit(event.url())
         elif event.type() == QEvent.PolishRequest:
             self.configureStyle()
         return super().event(event)
 
+    def exec(self) -> int:
+        while self.__fileOpenUrls:
+            self.fileOpenRequest.emit(self.__fileOpenUrls.pop(0))
+        self.__in_exec = True
+        try:
+            return super().exec()
+        finally:
+            self.__in_exec = False
+
+    exec_ = exec
+
     @staticmethod
-    def parse_style_arguments(argv):
+    def argumentParser():
         parser = argparse.ArgumentParser()
         parser.add_argument("-style", type=str, default=None)
         parser.add_argument("-colortheme", type=str, default=None)
+        parser.add_argument("-enable-high-dpi-scaling", type=bool, default=True)
+        parser.add_argument("-use-high-dpi-pixmaps", type=bool, default=True)
+        return parser
+
+    @staticmethod
+    def parseArguments(argv):
+        parser = CanvasApplication.argumentParser()
         ns, rest = parser.parse_known_args(argv)
         if ns.style is not None:
             if ":" in ns.style:
