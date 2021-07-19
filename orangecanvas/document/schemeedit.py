@@ -1084,8 +1084,8 @@ class SchemeEditWidget(QWidget):
         Return the next default node position as a (x, y) tuple. This is
         a position left of the last added node.
         """
-        if self.__scheme is not None:
-            nodes = self.__scheme.nodes
+        if self.__root is not None:
+            nodes = self.__root.nodes()
         else:
             nodes = []
         if nodes:
@@ -2361,8 +2361,7 @@ class SchemeEditWidget(QWidget):
             return
 
         # find unique names for new nodes
-        allnames = {node.title for node in scheme.nodes}
-
+        allnames = {node.title for node in scheme.all_nodes()}
         for nodedup in nodedups:
             nodedup.title = uniquify(
                 remove_copy_number(nodedup.title), allnames,
