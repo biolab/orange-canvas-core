@@ -102,16 +102,16 @@ class TestScheme(test.QCoreAppTestCase):
         text_annot = SchemeTextAnnotation((0, 0, 100, 20), "Text")
         scheme.add_annotation(text_annot)
         self.assertSequenceEqual(annotations_added, [text_annot])
-        self.assertSequenceEqual(scheme.annotations, annotations_added)
+        self.assertSequenceEqual(scheme.root().annotations(), annotations_added)
 
         arrow_annot = SchemeArrowAnnotation((0, 100), (100, 100))
         scheme.add_annotation(arrow_annot)
         self.assertSequenceEqual(annotations_added, [text_annot, arrow_annot])
-        self.assertSequenceEqual(scheme.annotations, annotations_added)
+        self.assertSequenceEqual(scheme.root().annotations(), annotations_added)
 
         scheme.remove_annotation(text_annot)
         self.assertSequenceEqual(annotations_added, [arrow_annot])
-        self.assertSequenceEqual(scheme.annotations, annotations_added)
+        self.assertSequenceEqual(scheme.root().annotations(), annotations_added)
 
     def test_insert_node(self):
         reg = small_testing_registry()
@@ -123,7 +123,7 @@ class TestScheme(test.QCoreAppTestCase):
         w.add_node(n1)
         w.insert_node(0, n2)
         self.assertSequenceEqual(list(spy), [[0, n1, r], [0, n2, r]])
-        self.assertSequenceEqual(w.nodes, [n2, n1])
+        self.assertSequenceEqual(w.root().nodes(), [n2, n1])
 
     def test_insert_link(self):
         reg = small_testing_registry()
@@ -141,7 +141,7 @@ class TestScheme(test.QCoreAppTestCase):
         w.add_link(l1)
         w.insert_link(0, l2)
         self.assertSequenceEqual(list(spy), [[0, l1, r], [0, l2, r]])
-        self.assertSequenceEqual(w.links, [l2, l1])
+        self.assertSequenceEqual(w.root().links(), [l2, l1])
 
     def test_insert_annotation(self):
         w = Scheme()
@@ -153,7 +153,7 @@ class TestScheme(test.QCoreAppTestCase):
         w.insert_annotation(0, a1)
         w.insert_annotation(1, a2)
         w.insert_annotation(0, a3)
-        self.assertSequenceEqual(w.annotations, [a3, a1, a2])
+        self.assertSequenceEqual(w.root().annotations(), [a3, a1, a2])
         self.assertSequenceEqual(list(spy), [[0, a1, r], [1, a2, r], [0, a3, r]])
 
     def test_meta_nodes(self):
