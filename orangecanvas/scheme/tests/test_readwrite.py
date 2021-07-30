@@ -49,17 +49,17 @@ class TestReadWrite(test.QAppTestCase):
 
         scheme_1 = readwrite.scheme_load(Scheme(), stream, reg)
 
-        self.assertTrue(len(scheme.nodes) == len(scheme_1.nodes))
-        self.assertTrue(len(scheme.links) == len(scheme_1.links))
-        self.assertTrue(len(scheme.annotations) == len(scheme_1.annotations))
+        self.assertEqual(len(scheme.all_nodes()), len(scheme_1.all_nodes()))
+        self.assertEqual(len(scheme.all_links()), len(scheme_1.all_links()))
+        self.assertEqual(len(scheme.all_annotations()), len(scheme_1.all_annotations()))
 
-        for n1, n2 in zip(scheme.nodes, scheme_1.nodes):
+        for n1, n2 in zip(scheme.all_nodes(), scheme_1.all_nodes()):
             self.assertEqual(n1.position, n2.position)
             self.assertEqual(n1.title, n2.title)
 
-        for link1, link2 in zip(scheme.links, scheme_1.links):
-            self.assertEqual(link1.source_type(), link2.source_type())
-            self.assertEqual(link1.sink_type(), link2.sink_type())
+        for link1, link2 in zip(scheme.all_links(), scheme_1.all_links()):
+            self.assertEqual(link1.source_types(), link2.source_types())
+            self.assertEqual(link1.sink_types(), link2.sink_types())
 
             self.assertEqual(link1.source_channel.name,
                              link2.source_channel.name)
@@ -69,7 +69,7 @@ class TestReadWrite(test.QAppTestCase):
 
             self.assertEqual(link1.enabled, link2.enabled)
 
-        for annot1, annot2 in zip(scheme.annotations, scheme_1.annotations):
+        for annot1, annot2 in zip(scheme.all_annotations(), scheme_1.all_annotations()):
             self.assertIs(type(annot1), type(annot2))
             if isinstance(annot1, SchemeTextAnnotation):
                 self.assertEqual(annot1.text, annot2.text)
@@ -166,7 +166,7 @@ class TestReadWrite(test.QAppTestCase):
         stream.seek(0)
         scheme_1 = Scheme()
         readwrite.scheme_load(scheme_1, stream, reg)
-        node_1 = scheme_1.nodes[0]
+        node_1 = scheme_1.root().nodes()[0]
         self.assertEqual(node_1.input_channels()[-1].name, "b")
         self.assertEqual(node_1.output_channels()[-1].name, "b")
 
