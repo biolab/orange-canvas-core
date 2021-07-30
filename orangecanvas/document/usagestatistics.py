@@ -382,17 +382,17 @@ class UsageStatistics:
         if not self.is_enabled():
             return
 
-        if not scheme or not scheme.nodes:
+        if not scheme or not scheme.root().nodes():
             return
 
         self.begin_action(ActionType.Load)
 
         # first log nodes
-        for node in scheme.nodes:
+        for node in scheme.all_nodes():
             self.log_node_add(node)
 
         # then log links
-        for link in scheme.links:
+        for link in scheme.all_links():
             self.log_link_add(link)
 
         self.end_action()
