@@ -1548,6 +1548,9 @@ class SchemeEditWidget(QWidget):
                 # Re post the event
                 self.__showHelpFor(event.href())
             elif event.type() == WorkflowEvent.ActivateParentRequest:
+                node = event.node()
+                self.__historyPush(node.parent_node())
+                self.ensureVisible(node)
                 self.window().activateWindow()
                 self.window().raise_()
 
