@@ -45,6 +45,7 @@ from .utils import (
     prepare_expand_macro
 )
 from .windowgroupsdialog import SaveWindowGroup
+from ..gui.breadcrumbs import Breadcrumbs
 from ..registry import WidgetDescription, WidgetRegistry
 from .suggestions import Suggestions
 from .usagestatistics import UsageStatistics
@@ -551,7 +552,13 @@ class SchemeEditWidget(QWidget):
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-
+        self.__nav_bar = Breadcrumbs(
+            visible=False,
+            objectName="breadcrumbs-navigation-bar"
+        )
+        self.__nav_bar.setBackgroundRole(QPalette.Base)
+        self.__nav_bar.setAutoFillBackground(True)
+        self.__nav_bar.activated.connect(self.__on_nav_bar_activated)
         scene = CanvasScene(self)
         scene.setItemIndexMethod(CanvasScene.NoIndex)
         self.__setupScene(scene)
@@ -562,7 +569,7 @@ class SchemeEditWidget(QWidget):
 
         self.__view = view
         self.__scenes = {"root": scene}
-
+        layout.addWidget(self.__nav_bar)
         layout.addWidget(view)
         self.setLayout(layout)
 
@@ -1387,6 +1394,24 @@ class SchemeEditWidget(QWidget):
         else:
             view.setScene(scene)
         self.__openParentMetaNodeAction.setEnabled(node is not workflow.root())
+        components = []
+        node_ = node
+        while node_ is not None:
+            components.append(node_.title)
+            node_ = node_.parent_node()
+
+        self.__nav_bar.setBreadcrumbs(components[::-1])
+        self.__nav_bar.setVisible(node is not workflow.root())
+
+    def __on_nav_bar_activated(self, index):
+        node = self.__root
+        nodes = []
+        while node is not None:
+            nodes.append(node)
+            node = node.parent_node()
+        nodes = nodes[::-1]
+        if nodes[index] is not self.__root:
+            self.__historyPush(nodes[index])
 
     def __historyPush(self, node: MetaNode):
         self.openMetaNode(node)
