@@ -495,21 +495,26 @@ class TestSchemeEdit(QAppTestCase):
 
     def test_expand_macro(self):
         w = self.w
-        workflow = self.setup_test_workflow()
-        w.setRegistry(self.reg)
-        w.setScheme(workflow)
-        one, add = workflow.root().nodes()[1:3]
-        w.setSelection([one, add])
-        w.createMacroFromSelection()
-        self.assertEqual(len(workflow.root().nodes()), 3)
-        node = findf(workflow.root().nodes(), lambda n: isinstance(n, MetaNode))
-        assert node is not None
+        workflow, node = self.setup_test_meta_node(w)
         w.expandMacro(node)
         self.assertEqual(len(workflow.root().nodes()), 4)
         undo = w.undoStack()
         undo.undo()
         self.assertEqual(len(workflow.root().nodes()), 3)
         undo.redo()
+
+    def test_open_meta_node(self):
+        w = self.w
+        workflow, node = self.setup_test_meta_node(w)
+        self.assertIs(w.root(), workflow.root())
+        self.assertIs(w.currentScene().root, workflow.root())
+        w.openMetaNode(node)
+        self.assertIs(w.root(), node)
+        self.assertIs(w.currentScene().root, node)
+        undo = w.undoStack()
+        # Undo/remove macro must update the current displayed root
+        undo.undo()
+        self.assertIs(w.root(), workflow.root())
 
     def test_window_groups(self):
         w = self.w
@@ -726,6 +731,17 @@ class TestSchemeEdit(QAppTestCase):
         scheme.add_annotation(SchemeArrowAnnotation((0, 0), (10, 10)))
         scheme.add_annotation(SchemeTextAnnotation((0, 100, 200, 200), "$$"))
         return scheme
+
+    @classmethod
+    def setup_test_meta_node(cls, editor: SchemeEditWidget):
+        workflow = cls.setup_test_workflow()
+        editor.setRegistry(cls.reg)
+        editor.setScheme(workflow)
+        one, add = workflow.root().nodes()[1:3]
+        editor.setSelection([one, add])
+        editor.createMacroFromSelection()
+        node = findf(workflow.root().nodes(), lambda n: isinstance(n, MetaNode))
+        return workflow, node
 
 
 class TestDropHandler(DropHandler):

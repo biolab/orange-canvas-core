@@ -1578,6 +1578,23 @@ class SchemeEditWidget(QWidget):
                 self.ensureVisible(node)
                 self.window().activateWindow()
                 self.window().raise_()
+            elif event.type() == WorkflowEvent.NodeRemoved:
+                node = event.node()
+                # meta node removed, if the current displayed is this or a
+                # child thereof we must ensure to change display to the
+                # nodes's parent
+                if isinstance(node, MetaNode) \
+                        and self.__root in [node, *node.all_nodes()]:
+                    nodes = [node, *node.all_nodes()]
+                    del self.__history[self.__historyIndex + 1:]
+                    # filter all nodes from history,
+                    self.__history = [n for n in self.__history if n not in nodes]
+                    self.__historyIndex = len(self.__history) - 1
+                    self.openMetaNode(self.__history[self.__historyIndex])
+                if isinstance(node, MetaNode) and node in self.__scenes:
+                    scene = self.__scenes.pop(node)
+                    self.__teardownScene(scene)
+                    scene.deleteLater()
 
         return super().eventFilter(obj, event)
 
