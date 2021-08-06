@@ -659,7 +659,7 @@ class NewLinkAction(UserInteraction):
                     node = None
 
                 if node is not None:
-                    commands.AddNodeCommand(self.scheme, node,
+                    commands.AddNodeCommand(self.scheme, node, self.scheme.root(),
                                             parent=self.macro)
 
             if node is not None and not self.showing_incompatible_widget:
@@ -779,6 +779,7 @@ class NewLinkAction(UserInteraction):
         detailed dialog for link editing.
 
         """
+        root = self.scheme.root()
         UsageStatistics.set_sink_anchor_open(sink_signal is not None)
         UsageStatistics.set_source_anchor_open(source_signal is not None)
         try:
@@ -846,7 +847,7 @@ class NewLinkAction(UserInteraction):
             self.cleanup()
 
             for link in links_to_remove:
-                commands.RemoveLinkCommand(self.scheme, link,
+                commands.RemoveLinkCommand(self.scheme, link, root,
                                            parent=self.macro)
 
             for link in links_to_add:
@@ -858,7 +859,7 @@ class NewLinkAction(UserInteraction):
                 )
 
                 if not duplicate:
-                    commands.AddLinkCommand(self.scheme, link,
+                    commands.AddLinkCommand(self.scheme, link, root,
                                             parent=self.macro)
 
         except scheme.IncompatibleChannelTypeError:
