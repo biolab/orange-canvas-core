@@ -924,6 +924,7 @@ class CanvasMainWindow(QMainWindow):
             if i != -1:
                 popup.setModel(model)
                 popup.setRootIndex(model.index(i, 0))
+                popup.adjustSize()
                 button = self.quick_category.buttonForAction(action)
                 pos = popup_position_from_source(popup, button)
                 action = popup.exec(pos)

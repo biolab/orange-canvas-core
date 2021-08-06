@@ -645,21 +645,16 @@ def widget_popup_geometry(pos, widget):
         size = widget.sizeHint()
 
     screen = QApplication.screenAt(pos)
+    if screen is None:
+        screen = QApplication.primaryScreen()
     screen_geom = screen.availableGeometry()
-
-    # Adjust the size to fit inside the screen.
-    if size.height() > screen_geom.height():
-        size.setHeight(screen_geom.height())
-    if size.width() > screen_geom.width():
-        size.setWidth(screen_geom.width())
-
+    size = size.boundedTo(screen_geom.size())
     geom = QRect(pos, size)
 
     if geom.top() < screen_geom.top():
-        geom.setTop(screen_geom.top())
-
+        geom.moveTop(screen_geom.top())
     if geom.left() < screen_geom.left():
-        geom.setLeft(screen_geom.left())
+        geom.moveLeft(screen_geom.left())
 
     bottom_margin = screen_geom.bottom() - geom.bottom()
     right_margin = screen_geom.right() - geom.right()
@@ -700,14 +695,14 @@ def popup_position_from_source(popup, source, orientation=Qt.Vertical):
         if dy < 0:
             y = source_rect.top()
         else:
-            y = source_rect.top() - dy
+            y = max(screen_geom.top(), source_rect.top() - dy)
     else:
         # right overflow
         dx = source_rect.left() + size.width() - screen_geom.right()
         if dx < 0:
             x = source_rect.left()
         else:
-            x = source_rect.left() - dx
+            x = max(source_rect.left() - dx, screen_geom.left())
 
         if source_rect.bottom() + size.height() < screen_geom.bottom():
             y = source_rect.bottom()
