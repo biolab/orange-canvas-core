@@ -1491,7 +1491,10 @@ class QuickMenu(FramelessWindow):
         """
         if pos is None:
             pos = QPoint()
+            screen = QApplication.screenAt(pos)
         else:
+            pos = QPoint(pos)
+            screen = QApplication.screenAt(pos)
             # to avoid accidental category hovers, offset the quickmenu
             # these were calculated by hand, the actual values can't be grabbed
             # before showing the menu for the first time (and they're defined in qss)
@@ -1521,7 +1524,8 @@ class QuickMenu(FramelessWindow):
                 size.setHeight(ssize.height())
                 size = size.expandedTo(self.minimumSizeHint())
 
-        screen = QApplication.screenAt(pos)
+        if screen is None:
+            screen = QApplication.primaryScreen()
         screen_geom = screen.availableGeometry()
 
         # Adjust the size to fit inside the screen.
