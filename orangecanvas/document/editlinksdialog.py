@@ -27,12 +27,11 @@ from AnyQt.QtCore import (
     Qt, QObject, QSize, QSizeF, QPointF, QRectF, QEvent
 )
 
-from ..scheme import compatible_channels
+from ..scheme import Node, compatible_channels
 from ..registry import InputSignal, OutputSignal
 from ..utils import type_str
 
 if typing.TYPE_CHECKING:
-    from ..scheme import SchemeNode
     IOPair = Tuple[OutputSignal, InputSignal]
 
 
@@ -89,14 +88,12 @@ class EditLinksDialog(QDialog):
 
         self.setSizeGripEnabled(False)
 
-    def setNodes(self, source_node, sink_node):
-        # type: (SchemeNode, SchemeNode) -> None
+    def setNodes(self, source_node: Node, sink_node: Node) -> None:
         """
-        Set the source/sink nodes (:class:`.SchemeNode` instances)
+        Set the source/sink nodes (:class:`.Node` instances)
         between which to edit the links.
 
         .. note:: This should be called before :func:`setLinks`.
-
         """
         self.scene.editWidget.setNodes(source_node, sink_node)
 
@@ -582,10 +579,10 @@ class EditLinksNode(QGraphicsWidget):
         self.layout().setAlignment(self.__channelLayout,
                                    Qt.AlignVCenter | channel_alignemnt)
 
-        self.node: Optional[SchemeNode] = None
+        self.node: Optional[Node] = None
         self.channels: Union[List[InputSignal], List[OutputSignal]] = []
         if node is not None:
-            self.setSchemeNode(node)
+            self.setNode(node)
 
     def setIconSize(self, size):
         """
@@ -619,11 +616,12 @@ class EditLinksNode(QGraphicsWidget):
         return QIcon(self.__icon)
 
     def setSchemeNode(self, node):
-        # type: (SchemeNode) -> None
-        """
-        Set an instance of `SchemeNode`. The widget will be initialized
-        with its icon and channels.
+        self.setNode(node)
 
+    def setNode(self, node: Node) -> None:
+        """
+        Set an instance of `Node`. The widget will be initialized with its
+        icon and channels.
         """
         self.node = node
         channels: Union[List[InputSignal], List[OutputSignal]]
