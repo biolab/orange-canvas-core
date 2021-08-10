@@ -1289,7 +1289,7 @@ class NodeItem(QGraphicsWidget):
     def from_node(cls, node: Node) -> 'NodeItem':
         """
         Create an :class:`NodeItem` instance and initialize it from a
-        :class:`SchemeNode` instance.
+        :class:`Node` instance.
         """
         self = cls()
         self.initFrom(node)
