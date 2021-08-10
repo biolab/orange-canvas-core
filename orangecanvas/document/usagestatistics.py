@@ -10,7 +10,7 @@ from typing import List
 from AnyQt.QtCore import QCoreApplication, QSettings
 
 from orangecanvas import config
-from orangecanvas.scheme import SchemeNode, SchemeLink, Scheme
+from orangecanvas.scheme import Node, Link, Scheme
 
 log = logging.getLogger(__name__)
 
@@ -152,7 +152,7 @@ class UsageStatistics:
         Parameters
         ----------
         from_sink : bool
-        extended_widget : SchemeNode
+        extended_widget : Node
         """
         if not self.is_enabled():
             return
@@ -187,7 +187,7 @@ class UsageStatistics:
         Parameters
         ----------
         via_drag : bool
-        original_link : SchemeLink
+        original_link : Link
         """
         if not self.is_enabled():
             return
@@ -275,7 +275,7 @@ class UsageStatistics:
 
         Parameters
         ----------
-        widget : SchemeNode
+        widget : Node
         """
         if not self.is_enabled():
             return
@@ -302,7 +302,7 @@ class UsageStatistics:
 
         Parameters
         ----------
-        widget : SchemeNode
+        widget : Node
         """
         if not self.is_enabled():
             return
@@ -327,7 +327,7 @@ class UsageStatistics:
 
         Parameters
         ----------
-        link : SchemeLink
+        link : Link
         """
         if not self.is_enabled():
             return
@@ -340,7 +340,7 @@ class UsageStatistics:
 
         Parameters
         ----------
-        link : SchemeLink
+        link : Link
         """
         if not self.is_enabled():
             return
