@@ -1156,6 +1156,20 @@ class CanvasMainWindow(QMainWindow):
                     return
                 f.seek(0, os.SEEK_SET)
                 new_scheme = self.new_scheme_from_contents_and_path(f, filename)
+        except readwrite.UnsupportedFormatVersionError:
+            mb = QMessageBox(
+                self, windowTitle=self.tr("Error"),
+                icon=QMessageBox.Critical,
+                text=self.tr("Unsupported format version"),
+                informativeText=self.tr(
+                    "The file was saved in a format not supported by this "
+                    "application."
+                ),
+                detailedText="".join(traceback.format_exc()),
+            )
+            mb.setAttribute(Qt.WA_DeleteOnClose)
+            mb.setWindowModality(Qt.WindowModal)
+            mb.open()
         except Exception as err:
             mb = QMessageBox(
                 parent=self, windowTitle=self.tr("Error"),

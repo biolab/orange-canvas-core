@@ -321,30 +321,39 @@ def parse_ows_etree_v_2_0(tree):
     )
 
 
+class InvalidFormatError(ValueError):
+    pass
+
+
+class UnsupportedFormatVersionError(ValueError):
+    pass
+
+
 def parse_ows_stream(stream):
     # type: (Union[AnyStr, IO]) -> _scheme
     doc = parse(stream)
     scheme_el = doc.getroot()
     if scheme_el.tag != "scheme":
-        raise ValueError(
+        raise InvalidFormatError(
             "Invalid Orange Workflow Scheme file"
         )
     version = scheme_el.get("version", None)
     if version is None:
         # Check for "widgets" tag - old Orange<2.7 format
         if scheme_el.find("widgets") is not None:
-            raise ValueError(
+            raise UnsupportedFormatVersionError(
                 "Cannot open Orange Workflow Scheme v1.0. This format is no "
                 "longer supported"
             )
         else:
-            raise ValueError(
+            raise InvalidFormatError(
                 "Invalid Orange Workflow Scheme file (missing version)."
             )
     if version in {"2.0", "2.1"}:
         return parse_ows_etree_v_2_0(doc)
     else:
-        raise ValueError()
+        raise UnsupportedFormatVersionError(
+            f"Unsupported format version {version}")
 
 
 def resolve_replaced(scheme_desc: _scheme, registry: WidgetRegistry) -> _scheme:

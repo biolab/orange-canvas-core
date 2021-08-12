@@ -307,6 +307,18 @@ class TestMainWindowLoad(TestMainWindowBase):
                           return_value=QDialog.Rejected):
             w.install_requirements(["uber-package-shiny", "spasm"])
 
+    def test_load_unsupported_format(self):
+        w = self.w
+        workflow = w.current_document().scheme()
+        with temp_named_file('<scheme version="99.9"></scheme>') as fname, \
+                patch.object(QMessageBox, "open", lambda self: None):
+            w.load_scheme(fname)
+            self.assertIs(w.current_document().scheme(), workflow)
+            dlg = w.findChild(QMessageBox)
+            self.assertIsNotNone(dlg)
+            self.assertIn("99.9", dlg.detailedText())
+            dlg.done(QMessageBox.Ok)
+
 
 TEST_OWS = b"""\
 <?xml version='1.0' encoding='utf-8'?>
