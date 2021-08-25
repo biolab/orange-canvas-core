@@ -657,16 +657,9 @@ class Scheme(QObject):
                 # Zero weight for explicit links
                 weight = 0
             else:
-                # Does the connection type check (can only ever be False for
-                # dynamic signals)
-                type_checks, _ = _classify_connection(out_c, in_c)
-                # Dynamic signals that require runtime instance type check
-                # are considered last.
-                check = [type_checks,
-                         in_c not in already_connected_sinks,
+                check = [in_c not in already_connected_sinks,
                          bool(in_c.default),
-                         bool(out_c.default)
-                         ]
+                         bool(out_c.default)]
                 weights = [2 ** i for i in range(len(check), 0, -1)]
                 weight = sum([w for w, c in zip(weights, check) if c])
             return weight
