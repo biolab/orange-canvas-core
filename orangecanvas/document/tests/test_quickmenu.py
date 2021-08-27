@@ -89,3 +89,11 @@ class TestMenu(QAppTestCase):
         self.assertEqual(get(3), "3")
         self.assertEqual(flat.rowCount(), model.rowCount())
         self.assertEqual(flat.columnCount(), 1)
+
+    def test_popup_position(self):
+        menu = QuickMenu()
+        screen = menu.screen()
+        screen_geom = screen.availableGeometry()
+        menu.popup(QPoint(screen_geom.topLeft() - QPoint(20, 20)))
+        geom = menu.geometry()
+        self.assertEqual(screen_geom.intersected(geom), geom)
