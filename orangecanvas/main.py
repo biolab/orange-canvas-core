@@ -293,7 +293,8 @@ class Main:
     def setup_main_window(self):
         stylesheet = self.main_window_stylesheet()
         self.window = window = self.create_main_window()
-        window.setWindowIcon(self.config.application_icon())
+        if sys.platform != "darwin":  # on macOS transient document views do not have an icon.
+            window.setWindowIcon(self.config.application_icon())
         window.setStyleSheet(stylesheet)
         window.output_view().setDocument(self.output)
         window.set_widget_registry(self.registry)

@@ -240,8 +240,9 @@ class CanvasMainWindow(QMainWindow):
         frame.setWidget(self.scheme_widget)
 
         # Window 'title'
+        self.__update_window_title()
         self.setWindowFilePath(self.scheme_widget.path())
-        self.scheme_widget.pathChanged.connect(self.setWindowFilePath)
+        self.scheme_widget.pathChanged.connect(self.__update_window_title)
         self.scheme_widget.modificationChanged.connect(self.setWindowModified)
 
         # QMainWindow's Dock widget
@@ -812,6 +813,15 @@ class CanvasMainWindow(QMainWindow):
 
         self.__update_from_settings()
 
+    def __update_window_title(self):
+        path = self.current_document().path()
+        if path:
+            self.setWindowTitle("")
+            self.setWindowFilePath(path)
+        else:
+            self.setWindowFilePath("")
+            self.setWindowTitle(self.tr("Untitled [*]"))
+
     def setWindowFilePath(self, filePath):  # type: (str) -> None
         if sys.platform == "darwin":
             super().setWindowFilePath(filePath)
@@ -1009,6 +1019,7 @@ class CanvasMainWindow(QMainWindow):
         window.setAttribute(Qt.WA_DeleteOnClose)
         window.setGeometry(self.geometry().translated(20, 20))
         window.setStyleSheet(self.styleSheet())
+        window.setWindowIcon(self.windowIcon())
         if self.widget_registry is not None:
             window.set_widget_registry(self.widget_registry)
         window.restoreState(self.saveState(self.SETTINGS_VERSION),
