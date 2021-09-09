@@ -1553,7 +1553,14 @@ class SchemeEditWidget(QWidget):
             elif etype == QEvent.GraphicsSceneDrop:
                 return self.sceneDropEvent(event)
             elif etype == QEvent.GraphicsSceneMousePress:
-                self.__pasteOrigin = event.scenePos()
+                if event.button() == Qt.BackButton:
+                    self.__historyStep(-1)
+                elif event.button() == Qt.ForwardButton:
+                    self.__historyStep(1)
+                elif event.button() in (
+                        Qt.LeftButton, Qt.RightButton, Qt.MiddleButton
+                ):
+                    self.__pasteOrigin = event.scenePos()
                 return self.sceneMousePressEvent(event)
             elif etype == QEvent.GraphicsSceneMouseMove:
                 return self.sceneMouseMoveEvent(event)
@@ -1734,8 +1741,8 @@ class SchemeEditWidget(QWidget):
             return False
 
         item = scene.item_at(event.scenePos())
-        if not item and self.__quickMenuTriggers & \
-                SchemeEditWidget.DoubleClicked:
+        if not item and event.button() == Qt.LeftButton and \
+                self.__quickMenuTriggers & SchemeEditWidget.DoubleClicked:
             # Double click on an empty spot
             # Create a new node using QuickMenu
             action = interactions.NewNodeAction(self)
