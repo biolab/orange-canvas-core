@@ -23,6 +23,7 @@ from AnyQt.QtCore import (
     Qt, QCoreApplication, QPoint, QRect, QSettings, QStandardPaths, QEvent
 )
 
+from .gui.utils import windows_set_current_process_app_user_model_id
 from .utils.settings import Settings, config_slot
 
 if typing.TYPE_CHECKING:
@@ -74,6 +75,11 @@ class Config:
     ApplicationName = ""     # type: str
     #: Version
     ApplicationVersion = ""  # type: str
+    #: AppUserModelID as used on windows for grouping in the task bar
+    #: (https://docs.microsoft.com/en-us/windows/win32/shell/appids).
+    #: This ensures the program does not group with other Python programs
+    #: and gets its own task icon.
+    AppUserModelID = None    # type: Optional[str]
 
     def init(self):
         """
@@ -87,6 +93,10 @@ class Config:
         QCoreApplication.setApplicationVersion(self.ApplicationVersion)
         QSettings.setDefaultFormat(QSettings.IniFormat)
         app = QCoreApplication.instance()
+
+        if self.AppUserModelID:
+            windows_set_current_process_app_user_model_id(self.AppUserModelID)
+
         if app is not None:
             QCoreApplication.sendEvent(app, QEvent(QEvent.PolishRequest))
 

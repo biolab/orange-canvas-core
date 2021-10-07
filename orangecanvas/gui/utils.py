@@ -2,6 +2,7 @@
 Helper utilities
 
 """
+import os
 import sys
 import traceback
 from typing import List
@@ -179,6 +180,21 @@ def is_dwm_compositing_enabled():  # type: () -> bool
     rval = DwmIsCompositionEnabled(ctypes.byref(enabled))
 
     return rval == 0 and enabled.value
+
+
+def windows_set_current_process_app_user_model_id(appid: str):
+    """
+    On Windows set the AppUserModelID to `appid` for the current process.
+
+    Does nothing on other systems
+    """
+    if os.name != "nt":
+        return
+    from ctypes import windll
+    try:
+        windll.shell32.SetCurrentProcessExplicitAppUserModelID(appid)
+    except AttributeError:
+        pass
 
 
 def macos_set_nswindow_tabbing(enable=False):
