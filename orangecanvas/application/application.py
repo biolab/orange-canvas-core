@@ -10,7 +10,8 @@ from typing import Optional, List, Sequence
 import AnyQt
 from AnyQt.QtWidgets import QApplication
 from AnyQt.QtCore import (
-    Qt, QUrl, QEvent, QSettings, QLibraryInfo, pyqtSignal as Signal
+    Qt, QUrl, QEvent, QSettings, QLibraryInfo, pyqtSignal as Signal,
+    QT_VERSION_INFO
 )
 
 from orangecanvas.utils.after_exit import run_after_exit
@@ -123,7 +124,8 @@ class CanvasApplication(QApplication):
             if hasattr(sh, 'setShowShortcutsInContextMenus'):
                 # PyQt5.13 and up
                 sh.setShowShortcutsInContextMenus(True)
-        macos_set_nswindow_tabbing(False)
+        if QT_VERSION_INFO < (5, 15):  # QTBUG-61707
+            macos_set_nswindow_tabbing(False)
         self.configureStyle()
 
     def event(self, event):
