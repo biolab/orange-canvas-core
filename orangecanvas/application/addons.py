@@ -68,10 +68,10 @@ def normalize_name(name):
 def prettify_name(name):
     dash_split = name.split('-')
     # Orange3-ImageAnalytics => ImageAnalytics
-    if len(dash_split) > 1 and dash_split[0].lower() in ['orange', 'orange3']:
-        name = '-'.join(dash_split[1:])
+    orange_prefix = len(dash_split) > 1 and dash_split[0].lower() in ['orange', 'orange3']
+    name = ' '.join(dash_split[1:] if orange_prefix else dash_split)
     # ImageAnalytics => Image Analytics  # while keeping acronyms
-    return re.sub(r"(?<!^)([A-Z][a-z]|(?<=[a-z])[A-Z])", r" \1", name)
+    return re.sub(r"(?<!^)((?<![\s\d])[A-Z][a-z]|(?<=[a-z])[A-Z])", r" \1", name)
 
 
 class Installable(
