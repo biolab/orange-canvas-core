@@ -246,6 +246,7 @@ class SchemeEditWidget(QWidget):
         self.__menuBarWidgetMenu.addAction(self.__helpAction)
 
         self.__linkMenu = QMenu(self.tr("Link"), self)
+        self.__linkMenu.addAction(self.__linkTriggerAction)
         self.__linkMenu.addAction(self.__linkEnableAction)
         self.__linkMenu.addSeparator()
         self.__linkMenu.addAction(self.__nodeInsertAction)
@@ -396,6 +397,13 @@ class SchemeEditWidget(QWidget):
             triggered=self.__toggleLinkEnabled, checkable=True,
         )
 
+        self.__linkTriggerAction = QAction(
+            self.tr("Trigger"), self,
+            objectName="link-trigger-action",
+            triggered=self.__linkTrigger,
+            toolTip=self.tr("Trigger again the scan if any in memory."),
+        )
+
         self.__linkRemoveAction = QAction(
             self.tr("Remove"), self,
             objectName="link-remove-action",
@@ -447,6 +455,7 @@ class SchemeEditWidget(QWidget):
             self.__newTextAnnotationAction,
             self.__newArrowAnnotationAction,
             self.__linkEnableAction,
+            self.__linkTriggerAction,
             self.__linkRemoveAction,
             self.__nodeInsertAction,
             self.__linkResetAction,
@@ -2008,6 +2017,17 @@ class SchemeEditWidget(QWidget):
                 link, "enabled", enabled, name=self.tr("Set enabled"),
             )
             self.__undoStack.push(command)
+
+    def __linkTrigger(self):
+        """
+        Trigger the signal
+        """
+        if not self.__contextMenuTarget:
+            return
+
+        original_link = self.__contextMenuTarget
+        self.removeLink(original_link)
+        self.addLink(original_link)
 
     def __linkRemove(self):
         # type: () -> None
