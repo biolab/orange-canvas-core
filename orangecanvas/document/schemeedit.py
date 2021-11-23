@@ -5,6 +5,7 @@ Scheme Editor Widget
 
 
 """
+import enum
 import io
 import logging
 import itertools
@@ -148,6 +149,15 @@ class SchemeEditWidget(QWidget):
      SpaceKey,
      AnyKey) = [0, 1, 2, 4, 8]
 
+    class OpenAnchors(enum.Enum):
+        """Interactions with individual anchors"""
+        #: Channel anchors never separate
+        Never = "Never"
+        #: Channel anchors separate on hover
+        Always = "Always"
+        #: Channel anchors separate on hover on Shift key
+        OnShift = "OnShift"
+
     def __init__(self, parent=None, ):
         super().__init__(parent)
 
@@ -160,6 +170,7 @@ class SchemeEditWidget(QWidget):
 
         self.__quickMenuTriggers = SchemeEditWidget.SpaceKey | \
                                    SchemeEditWidget.DoubleClicked
+        self.__openAnchorsMode = SchemeEditWidget.OpenAnchors.OnShift
         self.__emptyClickButtons = Qt.NoButton
         self.__channelNamesVisible = True
         self.__nodeAnimationEnabled = True
@@ -532,6 +543,8 @@ class SchemeEditWidget(QWidget):
         scene.set_node_animation_enabled(
             self.__nodeAnimationEnabled
         )
+        if self.__openAnchorsMode == SchemeEditWidget.OpenAnchors.Always:
+            scene.set_widget_anchors_open(True)
 
         scene.setFont(self.font())
         scene.setPalette(self.palette())
@@ -760,6 +773,15 @@ class SchemeEditWidget(QWidget):
         Return the node item animation enabled state.
         """
         return self.__nodeAnimationEnabled
+
+    def setOpenAnchorsMode(self, state: OpenAnchors):
+        self.__openAnchorsMode = state
+        self.__scene.set_widget_anchors_open(
+            state == SchemeEditWidget.OpenAnchors.Always
+        )
+
+    def openAnchorsMode(self) -> OpenAnchors:
+        return self.__openAnchorsMode
 
     def undoStack(self):
         # type: () -> QUndoStack
@@ -1596,13 +1618,21 @@ class SchemeEditWidget(QWidget):
         return False
 
     def __updateOpenWidgetAnchors(self, event=None):
+        if self.__openAnchorsMode == SchemeEditWidget.OpenAnchors.Never:
+            return
         scene = self.__scene
+        mode = self.__openAnchorsMode
         # Open widget anchors on shift. New link action should work during this
         if event:
-            open = event.modifiers() == Qt.ShiftModifier
+            shift_down = event.modifiers() == Qt.ShiftModifier
         else:
-            open = QApplication.keyboardModifiers() == Qt.ShiftModifier
-        scene.set_widget_anchors_open(open)
+            shift_down = QApplication.keyboardModifiers() == Qt.ShiftModifier
+        if mode == SchemeEditWidget.OpenAnchors.Never:
+            scene.set_widget_anchors_open(False)
+        elif mode ==  SchemeEditWidget.OpenAnchors.OnShift:
+            scene.set_widget_anchors_open(shift_down)
+        else:
+            scene.set_widget_anchors_open(True)
 
     def sceneContextMenuEvent(self, event):
         # type: (QGraphicsSceneContextMenuEvent) -> bool

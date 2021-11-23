@@ -340,6 +340,8 @@ class CanvasScene(QGraphicsScene):
         item.setTitle(node.title)
         item.setProcessingState(node.processing_state)
         item.setProgress(node.progress)
+        item.inputAnchorItem.setAnchorOpen(self.__anchors_opened)
+        item.outputAnchorItem.setAnchorOpen(self.__anchors_opened)
 
         for message in node.state_messages():
             item.setStateMessage(message)
@@ -760,7 +762,7 @@ class CanvasScene(QGraphicsScene):
                              self.node_output_links(node_item)))
         return neighbors
 
-    def set_widget_anchors_open(self, enabled):
+    def set_widget_anchors_open(self, enabled: bool):
         if self.__anchors_opened == enabled:
             return
         self.__anchors_opened = enabled
