@@ -1377,6 +1377,7 @@ class SchemeEditWidget(QWidget):
                     else:
                         statistics.begin_action(UsageStatistics.ToolboxDrag)
                         self.createNewNode(desc, position=(pos.x(), pos.y()))
+                        self.view().setFocus(Qt.OtherFocusReason)
                     return True
 
             if etype == QEvent.GraphicsSceneDragEnter:

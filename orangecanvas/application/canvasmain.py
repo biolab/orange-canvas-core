@@ -913,6 +913,7 @@ class CanvasMainWindow(QMainWindow):
                 statistics = scheme_widget.usageStatistics()
                 statistics.begin_action(UsageStatistics.ToolboxClick)
                 scheme_widget.createNewNode(widget_desc)
+                scheme_widget.view().setFocus(Qt.OtherFocusReason)
 
     def on_quick_category_action(self, action):
         """The quick category menu action triggered.
