@@ -2483,7 +2483,14 @@ class CanvasMainWindow(QMainWindow):
                                             defaultValue=True,
                                             type=bool)
         self.scheme_widget.setChannelNamesVisible(show_channel_names)
-
+        open_anchors_ = settings.value(
+            "open-anchors-on-hover", defaultValue=False, type=bool
+        )
+        if open_anchors_:
+            open_anchors = SchemeEditWidget.OpenAnchors.Always
+        else:
+            open_anchors = SchemeEditWidget.OpenAnchors.OnShift
+        self.scheme_widget.setOpenAnchorsMode(open_anchors)
         node_animations = settings.value("enable-node-animations",
                                          defaultValue=False,
                                          type=bool)
