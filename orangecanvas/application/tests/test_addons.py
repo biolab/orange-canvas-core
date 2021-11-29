@@ -17,7 +17,7 @@ from orangecanvas.utils.qinvoke import qinvoke
 
 from ..addons import (
     Available, Installed, Installable, Distribution, Requirement, is_updatable,
-    Install, Upgrade, Uninstall,
+    Install, Upgrade, Uninstall, prettify_name,
     installable_items, installable_from_json_response,
     AddonManagerDialog)
 
@@ -76,6 +76,29 @@ class TestUtils(unittest.TestCase):
         })
         self.assertTrue(inst.name, "foo")
         self.assertEqual(inst.version, "1.0")
+
+    def test_prettify_name(self):
+        names = [
+            'AFooBar', 'FooBar', 'Foo-Bar', 'Foo-Bar-FOOBAR',
+            'Foo-bar-foobar', 'Foo', 'FOOBar', 'A4FooBar',
+            '4Foo', 'Foo3Bar'
+        ]
+        pretty_names = [
+            'A Foo Bar', 'Foo Bar', 'Foo Bar', 'Foo Bar FOOBAR',
+            'Foo bar foobar', 'Foo', 'FOO Bar', 'A4Foo Bar',
+            '4Foo', 'Foo3Bar'
+        ]
+
+        for name, pretty_name in zip(names, pretty_names):
+            self.assertEqual(pretty_name, prettify_name(name))
+
+        # test if orange prefix is handled
+        self.assertEqual('Orange', prettify_name('Orange'))
+        self.assertEqual('Orange3', prettify_name('Orange3'))
+        self.assertEqual('Some Addon', prettify_name('Orange-SomeAddon'))
+        self.assertEqual('Text', prettify_name('Orange3-Text'))
+        self.assertEqual('Image Analytics', prettify_name('Orange3-ImageAnalytics'))
+        self.assertEqual('Survival Analysis', prettify_name('Orange3-Survival-Analysis'))
 
 
 @contextmanager
