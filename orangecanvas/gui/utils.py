@@ -211,7 +211,7 @@ def macos_set_nswindow_tabbing(enable=False):
     if ver < (10, 12):
         return
 
-    c_char_p, c_void_p = ctypes.c_char_p, ctypes.c_void_p
+    c_char_p, c_void_p, c_bool = ctypes.c_char_p, ctypes.c_void_p, ctypes.c_bool
     id = Sel = Class = c_void_p
 
     def annotate(func, restype, argtypes):
@@ -225,8 +225,10 @@ def macos_set_nswindow_tabbing(enable=False):
         AppKit = ctypes.cdll.LoadLibrary(ctypes.util.find_library("AppKit"))
         objc_getClass = annotate(
             libobjc.objc_getClass, Class, [c_char_p])
-        objc_msgSend = annotate(
-            libobjc.objc_msgSend, id, [id, Sel])
+        # A prototype for objc_msgSend for selector with a bool argument.
+        # `(void *)(*)(void *, void *, bool)`
+        objc_msgSend_bool = annotate(
+            libobjc.objc_msgSend, id, [id, Sel, c_bool])
         sel_registerName = annotate(
             libobjc.sel_registerName, Sel, [c_char_p])
         class_getClassMethod = annotate(
@@ -243,10 +245,10 @@ def macos_set_nswindow_tabbing(enable=False):
     # class_respondsToSelector does not work (for class methods)
     if class_getClassMethod(NSWindow, setAllowsAutomaticWindowTabbing):
         # [NSWindow setAllowsAutomaticWindowTabbing: NO]
-        objc_msgSend(
+        objc_msgSend_bool(
             NSWindow,
             setAllowsAutomaticWindowTabbing,
-            ctypes.c_bool(enable),
+            c_bool(enable),
         )
 
 
