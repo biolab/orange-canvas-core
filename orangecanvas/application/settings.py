@@ -284,9 +284,18 @@ class UserSettingsDialog(QMainWindow):
             toolTip=self.tr("Enable shadow and ping animations for nodes "
                             "in the workflow.")
         )
+        cb_anchors = QCheckBox(
+            self.tr("Open anchors on hover"),
+            objectName="open-anchors-on-hover",
+            toolTip=self.tr(
+                "Open/expand node anchors on mouse hover (if unchecked the "
+                "anchors are expanded when Shift key is pressed)."
+            ),
+        )
         self.bind(cb_anim, "checked", "schemeedit/enable-node-animations")
+        self.bind(cb_anchors, "checked", "schemeedit/open-anchors-on-hover")
         nodes.layout().addWidget(cb_anim)
-
+        nodes.layout().addWidget(cb_anchors)
         form.addRow(self.tr("Nodes"), nodes)
 
         links = QWidget(self, objectName="links")

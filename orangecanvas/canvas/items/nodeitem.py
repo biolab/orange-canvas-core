@@ -790,9 +790,6 @@ class NodeAnchorItem(GraphicsPathObject):
         """
         return QPainterPath(self.__anchorPath)
 
-    def anchorOpen(self):
-        return self.__anchorOpen
-
     @Property(float)
     def anchorDashInterpFactor(self):
         return self.__dashInterpFactor
@@ -1060,9 +1057,17 @@ class NodeAnchorItem(GraphicsPathObject):
         else:
             self.shadow.setBlurRadius(radius)
 
-    def setAnchorOpen(self, anchorOpen):
+    def setAnchorOpen(self, anchorOpen: bool):
+        """
+        Should the anchors expand to expose individual channel connections.
+        """
         self.__anchorOpen = anchorOpen
         self.__updatePositions()
+
+    def anchorOpen(self) -> bool:
+        return self.__anchorOpen
+
+    anchorOpen_ = Property(bool, anchorOpen, setAnchorOpen)
 
     def setCompatibleSignals(self, compatibleSignals):
         self.__compatibleSignals = compatibleSignals
@@ -1080,7 +1085,6 @@ class NodeAnchorItem(GraphicsPathObject):
             label.setOpacity(opacity)
 
     def __initializeAnimation(self, targetPoss, endDash, showSignals):
-        anchorOpen = self.__anchorOpen
         # TODO if animation currently running, set start value/time accordingly
         for a, t in zip(self.__points, targetPoss):
             currPos = a.pos()
