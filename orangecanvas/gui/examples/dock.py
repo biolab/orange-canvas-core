@@ -28,7 +28,7 @@ def main(argv):
 
     a = QAction(
         "Expand", mw, checkable=True,
-        shortcut=QKeySequence(Qt.ControlModifier | Qt.Key_D)
+        shortcut=QKeySequence("Ctrl+D")
     )
     a.triggered[bool].connect(dock.setExpanded)
     mw.addAction(a)

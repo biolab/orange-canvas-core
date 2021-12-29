@@ -49,7 +49,7 @@ class CanvasView(QGraphicsView):
         self.__zoomResetAction = QAction(
             self.tr("Reset Zoom"), self, objectName="action-zoom-reset",
             triggered=self.zoomReset,
-            shortcut=QKeySequence(Qt.ControlModifier | Qt.Key_0)
+            shortcut=QKeySequence("Ctrl+0")
         )
 
     def setScene(self, scene):

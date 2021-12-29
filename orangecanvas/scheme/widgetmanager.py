@@ -267,15 +267,14 @@ class WidgetManager(QObject):
             self.tr("Raise Canvas to Front"), w,
             objectName="action-canvas-raise-canvas",
             toolTip=self.tr("Raise containing canvas workflow window"),
-            shortcut=QKeySequence(Qt.ControlModifier | Qt.Key_Up)
+            shortcut=QKeySequence("Ctrl+Up")
         )
         raise_canvas.triggered.connect(self.__on_activate_parent)
         raise_descendants = QAction(
             self.tr("Raise Descendants"), w,
             objectName="action-canvas-raise-descendants",
             toolTip=self.tr("Raise all immediate descendants of this node"),
-            shortcut=QKeySequence(
-                Qt.ControlModifier | Qt.ShiftModifier | Qt.Key_Right)
+            shortcut=QKeySequence("Ctrl+Shift+Right")
         )
         raise_descendants.triggered.connect(
             partial(self.__on_raise_descendants, node)
@@ -284,8 +283,7 @@ class WidgetManager(QObject):
             self.tr("Raise Ancestors"), w,
             objectName="action-canvas-raise-ancestors",
             toolTip=self.tr("Raise all immediate ancestors of this node"),
-            shortcut=QKeySequence(
-                Qt.ControlModifier | Qt.ShiftModifier | Qt.Key_Left)
+            shortcut=QKeySequence("Ctrl+Shift+Left")
         )
         raise_ancestors.triggered.connect(
             partial(self.__on_raise_ancestors, node)

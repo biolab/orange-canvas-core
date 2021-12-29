@@ -420,7 +420,7 @@ class CanvasMainWindow(QMainWindow):
             triggered=self.open_and_freeze_scheme
         )
         self.open_and_freeze_action.setShortcut(
-            QKeySequence(Qt.ControlModifier | Qt.AltModifier | Qt.Key_O)
+            QKeySequence("Ctrl+Alt+O")
         )
         self.close_window_action = QAction(
             self.tr("Close Window"), self,
@@ -526,8 +526,7 @@ class CanvasMainWindow(QMainWindow):
             objectName="recent-action",
             toolTip=self.tr("Browse and open a recent workflow."),
             triggered=self.recent_scheme,
-            shortcut=QKeySequence(Qt.ControlModifier | Qt.ShiftModifier |
-                                  Qt.Key_R),
+            shortcut=QKeySequence("Ctrl+Shift+R"),
             icon=canvas_icons("Recent.svg")
         )
         self.reload_last_action = QAction(
@@ -535,7 +534,7 @@ class CanvasMainWindow(QMainWindow):
             objectName="reload-last-action",
             toolTip=self.tr("Reload last open workflow."),
             triggered=self.reload_last,
-            shortcut=QKeySequence(Qt.ControlModifier | Qt.Key_R)
+            shortcut=QKeySequence("Ctrl+R")
         )
         self.clear_recent_action = QAction(
             self.tr("Clear Menu"), self,
@@ -548,7 +547,7 @@ class CanvasMainWindow(QMainWindow):
             objectName="show-properties-action",
             toolTip=self.tr("Show workflow properties."),
             triggered=self.show_scheme_properties,
-            shortcut=QKeySequence(Qt.ControlModifier | Qt.Key_I),
+            shortcut=QKeySequence("Ctrl+I"),
             icon=canvas_icons("Document Info.svg")
         )
 
@@ -578,7 +577,7 @@ class CanvasMainWindow(QMainWindow):
             self.minimize_action = QAction(
                 self.tr("Minimize"), self,
                 triggered=self.showMinimized,
-                shortcut=QKeySequence(Qt.ControlModifier | Qt.Key_M)
+                shortcut=QKeySequence("Ctrl+M")
             )
             self.zoom_action = QAction(
                 self.tr("Zoom"), self,
@@ -599,8 +598,7 @@ class CanvasMainWindow(QMainWindow):
             self.tr("Expand Tool Dock"), self,
             objectName="toggle-tool-dock-expand",
             checkable=True,
-            shortcut=QKeySequence(Qt.ControlModifier | Qt.ShiftModifier |
-                                  Qt.Key_D),
+            shortcut=QKeySequence("Ctrl+Shift+D"),
             triggered=self.set_tool_dock_expanded
         )
         self.toggle_tool_dock_expand.setChecked(True)
@@ -1925,8 +1923,7 @@ class CanvasMainWindow(QMainWindow):
             objectName="welcome-recent-action",
             toolTip=self.tr("Browse and open a recent workflow."),
             triggered=open_recent,
-            shortcut=QKeySequence(Qt.ControlModifier | Qt.ShiftModifier |
-                                  Qt.Key_R),
+            shortcut=QKeySequence("Ctrl+Shift+R"),
             icon=canvas_icons("Recent.svg")
         )
 
