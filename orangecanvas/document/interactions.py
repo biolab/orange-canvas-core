@@ -569,6 +569,7 @@ class NewLinkAction(UserInteraction):
                 self.set_link_target_anchor(self.cursor_anchor_point)
                 self.current_target_item = item
         else:
+            self.showing_incompatible_widget = item is not None
             self.set_link_target_anchor(self.cursor_anchor_point)
 
         self.cursor_anchor_point.setPos(event.scenePos())
