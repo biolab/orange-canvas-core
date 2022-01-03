@@ -330,7 +330,7 @@ class NewLinkAction(UserInteraction):
         self.macro = None  # type: Optional[UndoCommand]
 
         # Cache viable signals of currently hovered node
-        self.__target_compatible_signals = None
+        self.__target_compatible_signals: Sequence[Tuple[OutputSignal, InputSignal]] = []
 
         self.cancelOnEsc = True
 
@@ -378,29 +378,33 @@ class NewLinkAction(UserInteraction):
                                         self.__target_compatible_signals)
             self.tmp_anchor_point = item.newOutputAnchor(signal)
 
-    def can_connect(self, target_item):
-        # type: (items.NodeItem) -> bool
+    def __possible_connection_signal_pairs(
+            self, target_item: items.NodeItem
+    ) -> Sequence[Tuple[OutputSignal, InputSignal]]:
         """
-        Is the connection between `self.from_item` (item where the drag
-        started) and `target_item` possible.
-
-        If possible, initialize the variables regarding the node.
+        Return possible connection signal pairs between current
+        `self.from_item` and `target_item`.
         """
         if self.from_item is None:
-            return False
+            return []
         node1 = self.scene.node_for_item(self.from_item)
         node2 = self.scene.node_for_item(target_item)
 
         if self.direction == self.FROM_SOURCE:
             links = self.scheme.propose_links(node1, node2,
                                               source_signal=self.from_signal)
-            self.__target_compatible_signals = [l[1] for l in links]
         else:
             links = self.scheme.propose_links(node2, node1,
                                               sink_signal=self.from_signal)
-            self.__target_compatible_signals = [l[0] for l in links]
+        return [(s1, s2) for s1, s2, _ in links]
 
-        return bool(links)
+    def can_connect(self, target_item):
+        # type: (items.NodeItem) -> bool
+        """
+        Is the connection between `self.from_item` (item where the drag
+        started) and `target_item` possible.
+        """
+        return bool(self.__possible_connection_signal_pairs(target_item))
 
     def set_link_target_anchor(self, anchor):
         # type: (items.AnchorPoint) -> None
@@ -538,12 +542,15 @@ class NewLinkAction(UserInteraction):
                     self.set_link_target_anchor(self.cursor_anchor_point)
             elif self.can_connect(item):
                 # Mouse is over a new item
+                links = self.__possible_connection_signal_pairs(item)
                 log.info("%r is the new target.", item)
                 if self.direction == self.FROM_SOURCE:
+                    self.__target_compatible_signals = [s2 for s1, s2 in links]
                     item.inputAnchorItem.setCompatibleSignals(
                         self.__target_compatible_signals)
                     item.inputAnchorItem.setHovered(True)
                 else:
+                    self.__target_compatible_signals = [s1 for s1, s2 in links]
                     item.outputAnchorItem.setCompatibleSignals(
                         self.__target_compatible_signals)
                     item.outputAnchorItem.setHovered(True)
@@ -570,6 +577,7 @@ class NewLinkAction(UserInteraction):
                 self.current_target_item = item
         else:
             self.showing_incompatible_widget = item is not None
+            self.__target_compatible_signals = []
             self.set_link_target_anchor(self.cursor_anchor_point)
 
         self.cursor_anchor_point.setPos(event.scenePos())
