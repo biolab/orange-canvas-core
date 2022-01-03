@@ -361,7 +361,7 @@ class NewLinkAction(UserInteraction):
                                                        self.__target_compatible_signals)
         self.tmp_anchor_point.setSignal(signal)
 
-    def create_tmp_anchor(self, item, scenePos, viableLinks=None):
+    def create_tmp_anchor(self, item, scenePos):
         # type: (items.NodeItem, QPointF) -> None
         """
         Create a new tmp anchor at the `item` (:class:`NodeItem`).
