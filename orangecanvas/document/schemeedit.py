@@ -363,7 +363,7 @@ class SchemeEditWidget(QWidget):
 
         shortcuts = [QKeySequence(Qt.Key_Backspace),
                      QKeySequence(Qt.Key_Delete),
-                     QKeySequence(Qt.ControlModifier | Qt.Key_Backspace)]
+                     QKeySequence("Ctrl+Backspace")]
 
         self.__removeSelectedAction.setShortcuts(shortcuts)
 
@@ -419,7 +419,7 @@ class SchemeEditWidget(QWidget):
             self.tr("Duplicate"), self,
             objectName="duplicate-action",
             enabled=False,
-            shortcut=QKeySequence(Qt.ControlModifier | Qt.Key_D),
+            shortcut=QKeySequence("Ctrl+D"),
             triggered=self.__duplicateSelected,
         )
 
@@ -427,7 +427,7 @@ class SchemeEditWidget(QWidget):
             self.tr("Copy"), self,
             objectName="copy-action",
             enabled=False,
-            shortcut=QKeySequence(Qt.ControlModifier | Qt.Key_C),
+            shortcut=QKeySequence("Ctrl+C"),
             triggered=self.__copyToClipboard,
         )
 
@@ -435,7 +435,7 @@ class SchemeEditWidget(QWidget):
             self.tr("Paste"), self,
             objectName="paste-action",
             enabled=clipboard_has_format(MimeTypeWorkflowFragment),
-            shortcut=QKeySequence(Qt.ControlModifier | Qt.Key_V),
+            shortcut=QKeySequence("Ctrl+V"),
             triggered=self.__pasteFromClipboard,
         )
         QApplication.clipboard().dataChanged.connect(
@@ -506,7 +506,7 @@ class SchemeEditWidget(QWidget):
         self.__raiseWidgetsAction = QAction(
             self.tr("Bring Widgets to Front"), self,
             objectName="bring-widgets-to-front-action",
-            shortcut=QKeySequence(Qt.ControlModifier | Qt.Key_Down),
+            shortcut=QKeySequence("Ctrl+Down"),
             shortcutContext=Qt.WindowShortcut,
         )
         self.__raiseWidgetsAction.triggered.connect(self.__raiseToFont)
