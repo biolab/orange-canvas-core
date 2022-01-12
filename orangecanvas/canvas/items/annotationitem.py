@@ -9,7 +9,7 @@ from AnyQt.QtWidgets import (
 )
 from AnyQt.QtGui import (
     QPainterPath, QPainterPathStroker, QPolygonF, QColor, QPen, QBrush,
-    QPalette, QPainter, QTextDocument, QTextCursor
+    QPalette, QPainter, QTextDocument, QTextCursor, QFontMetricsF
 )
 from AnyQt.QtCore import (
     Qt, QPointF, QSizeF, QRectF, QLineF, QEvent, QMetaObject, QObject
@@ -74,13 +74,15 @@ class GraphicsTextEdit(GraphicsTextEdit):
         # Draw placeholder text if necessary
         if not (self.toPlainText() and self.toHtml()) and \
                 self.__placeholderText and \
-                not (self.hasFocus() and \
+                not (self.hasFocus() and
                      self.textInteractionFlags() & Qt.TextEditable):
             brect = self.boundingRect()
-            painter.setFont(self.font())
-            metrics = painter.fontMetrics()
-            text = metrics.elidedText(self.__placeholderText, Qt.ElideRight,
-                                      brect.width())
+            font = self.font()
+            painter.setFont(font)
+            metrics = QFontMetricsF(font)
+            text = metrics.elidedText(
+                self.__placeholderText, Qt.ElideRight, brect.width()
+            )
             color = self.defaultTextColor()
             color.setAlpha(min(color.alpha(), 150))
             painter.setPen(QPen(color))
