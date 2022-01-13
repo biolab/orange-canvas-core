@@ -147,18 +147,14 @@ CanvasToolDock QToolBar {
     height: 28;
     spacing: 1;
     border: none;
-    /*
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 0, y2: 1,
-        stop: 0 #808080, stop: 1.0 #666
-    );
-    */
+    color: white;
     background-color: #898989;
 
 }
 
 CanvasToolDock QToolBar QToolButton {
     border: none;
+    color: white;
     background: qlineargradient(
         x1: 0, y1: 0, x2: 0, y2: 1,
         stop: 0 #808080, stop: 1.0 #666
@@ -184,18 +180,13 @@ CanvasToolDock QToolBar QToolButton:pressed {
 CollapsibleDockWidget QWidget#canvas-quick-dock QToolBar {
     spacing: 1;
     border: none;
-    /*
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 0, y2: 1,
-        stop: 0 #808080, stop: 1.0 #666
-    );
-    */
     background-color: #898989;
 }
 
 
 CollapsibleDockWidget QWidget#canvas-quick-dock QToolBar QToolButton {
     border: none;
+    color: white;
     background: qlineargradient(
         x1: 0, y1: 0, x2: 1, y2: 0,
         stop: 0 #808080, stop: 1.0 #666
@@ -220,13 +211,6 @@ CollapsibleDockWidget QWidget#canvas-quick-dock QToolBar QToolButton:pressed {
 
 CanvasToolDock QSplitter::handle {
     border: 1px solid #B5B8B8;
-
-/*    border-top: 1px solid #B5B8B8;
- *   border-bottom: 1px solid #B5B8B8;
- *   border-left: 1px solid #B6B6B6;
- *   border-right: 1px solid #B6B6B6;
- */
-
     background:  qlineargradient(
         x1: 0, y1: 0, x2: 0, y2: 1,
         stop: 0 #D4D4D4, stop: 0.05 #EDEDED,

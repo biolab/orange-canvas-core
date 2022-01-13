@@ -2,8 +2,11 @@
 @canvas_icons: orange;
 
 CanvasToolDock QToolBar QToolButton:menu-indicator {
-    image: url(canvas_icons:/Dropdown.svg);
-    subcontrol-position: top right;
+    height: 8px;
+    width: 8px;
+}
+
+CollapsibleDockWidget QWidget#canvas-quick-dock QToolBar QToolButton:menu-indicator {
     height: 8px;
     width: 8px;
 }
