@@ -3,7 +3,14 @@
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
 	 width="48px" height="48px" viewBox="0 0 48 48" enable-background="new 0 0 48 48" xml:space="preserve">
-<g>
+<defs>
+<style type="text/css" id="current-color-scheme">
+* { color: #333; }
+.ColorScheme-Text { color: #333; }
+.ColorScheme-Background { color: #fff; }
+</style>
+</defs>
+<g style="fill:currentColor">
 	<path d="M27.999,6H13.001H11v2v32v2h2.001h22.002H37v-2V16v-2.002L27.999,6z M13.001,40V8h11.998c2.001,0,3,4.001,2.001,8
 		c0,0,8.003-3.124,8.003,0.998V40H13.001z"/>
 	<g>
