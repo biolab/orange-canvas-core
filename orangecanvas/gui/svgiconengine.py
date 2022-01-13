@@ -23,12 +23,12 @@ class SvgIconEngine(QIconEngine):
         # type: (bytes) -> None
         super().__init__()
         self.__contents = contents
-        self.__generator = QSvgRenderer(contents)
+        self.__renderer = QSvgRenderer(contents)
         self.__cache_id = next(_cache_id_gen)
 
     def paint(self, painter, rect, mode, state):
         # type: (QPainter, QRect, QIcon.Mode, QIcon.State) -> None
-        if self.__generator.isValid():
+        if self.__renderer.isValid():
             size = rect.size()
             dpr = 1.0
             try:
@@ -41,10 +41,10 @@ class SvgIconEngine(QIconEngine):
 
     def pixmap(self, size, mode, state):
         # type: (QSize, QIcon.Mode, QIcon.State) -> QPixmap
-        if not self.__generator.isValid():
+        if not self.__renderer.isValid():
             return QPixmap()
 
-        dsize = self.__generator.defaultSize()  # type: QSize
+        dsize = self.__renderer.defaultSize()  # type: QSize
         if not dsize.isNull():
             dsize.scale(size, Qt.KeepAspectRatio)
             size = dsize
@@ -57,7 +57,7 @@ class SvgIconEngine(QIconEngine):
             pm.fill(Qt.transparent)
             painter = QPainter(pm)
             try:
-                self.__generator.render(
+                self.__renderer.render(
                     painter, QRectF(0, 0, size.width(), size.height()))
             finally:
                 painter.end()
