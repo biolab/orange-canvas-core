@@ -4,10 +4,14 @@ Orange Canvas Resource Loader
 """
 import os
 import glob
+import pkgutil
 
 from typing import Tuple, Dict, Optional, List, IO
 
+from AnyQt.QtCore import QObject
 from AnyQt.QtGui import QIcon
+
+from orangecanvas.gui.svgiconengine import StyledSvgIconEngine
 
 
 def package_dirname(package):
@@ -207,3 +211,18 @@ class icon_loader(resource_loader):
     def load(self, name):
         # type: (str) -> QIcon
         return self.get(name)
+
+
+def load_styled_svg_icon(
+        name: str, styleobject: Optional[QObject] = None
+) -> QIcon:
+    """
+    Load a styled svg icon from the `icons` resource directory.
+
+    .. seealso:: StyledSvgIconEngine
+    """
+    try:
+        c = pkgutil.get_data(__name__, f"icons/{name}")
+    except Exception:
+        return QIcon()
+    return QIcon(StyledSvgIconEngine(c, styleObject=styleobject))
