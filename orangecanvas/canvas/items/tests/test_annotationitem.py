@@ -2,7 +2,7 @@ import math
 import time
 
 from AnyQt.QtGui import QColor
-from AnyQt.QtCore import Qt, QRectF, QLineF, QTimer
+from AnyQt.QtCore import Qt, QRectF, QLineF, QTimer, QPointF
 
 from ..annotationitem import TextAnnotation, ArrowAnnotation, ArrowItem
 
@@ -32,8 +32,10 @@ class TestAnnotationItem(TestItems):
         annot.setPos(400, 100)
         annot.adjustSize()
         annot._TextAnnotation__textItem.setFocus()
+        annot3 = TextAnnotation(pos=QPointF(100, 100))
         self.scene.addItem(annot)
         self.scene.addItem(annot2)
+        self.scene.addItem(annot3)
         self.qWait()
 
     def test_arrowannotation(self):
