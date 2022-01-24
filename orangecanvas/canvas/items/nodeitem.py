@@ -37,6 +37,8 @@ from .graphicstextitem import GraphicsTextItem, GraphicsTextEdit
 from .utils import (
     saturated, radial_gradient, linspace, qpainterpath_sub_path, clip
 )
+from ... import styles
+from ...gui.iconengine import StyledIconEngine
 from ...gui.utils import disconnected
 
 from ...scheme.node import UserMessage
@@ -1152,7 +1154,10 @@ class GraphicsIconItem(QGraphicsWidget):
                 QPainter.SmoothPixmapTransform,
                 self.__transformationMode == Qt.SmoothTransformation
             )
-            self.__icon.paint(painter, target, Qt.AlignCenter, mode)
+            palette = self.palette()
+            # assuming light-ish background color
+            with StyledIconEngine.setOverridePalette(palette):
+                self.__icon.paint(painter, target, Qt.AlignCenter, mode)
 
 
 class NodeItem(QGraphicsWidget):
@@ -1335,6 +1340,8 @@ class NodeItem(QGraphicsWidget):
         self.icon_item = GraphicsIconItem(
             self.shapeItem, icon=icon, iconSize=QSize(36, 36)
         )
+        # assuming light-ish color background
+        self.icon_item.setPalette(styles.breeze_light())
         self.icon_item.setPos(-18, -18)
 
     def setColor(self, color, selectedColor=None):
