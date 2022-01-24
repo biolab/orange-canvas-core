@@ -146,6 +146,7 @@ def category_from_package_globals(package):
     return CategoryDescription(
         name=name,
         qualified_name=qualified_name,
+        package=qualified_name,
         description=description,
         long_description=long_description,
         help=help,
