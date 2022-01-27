@@ -308,6 +308,17 @@ def create_gradient(base_color: QColor, stop=QPointF(0, 0),
     return grad
 
 
+def create_gradient_brush(color: QColor, stop=QPointF(0, 0),
+                          finalStop=QPointF(0, 1)) -> QBrush:
+    """
+    Create a linear gradient brush using `color` as a base.
+    """
+    grad = create_gradient(color, stop, finalStop)
+    brush = QBrush(grad)
+    brush.setColor(color)  # also record the base color
+    return brush
+
+
 def create_css_gradient(base_color: QColor, stop=QPointF(0, 0),
                         finalStop=QPointF(0, 1)) -> str:
     """
