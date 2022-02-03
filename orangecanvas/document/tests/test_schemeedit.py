@@ -8,7 +8,9 @@ from typing import Iterable
 
 from AnyQt.QtCore import Qt, QPoint, QMimeData
 from AnyQt.QtGui import QPainterPath
-from AnyQt.QtWidgets import QGraphicsWidget, QAction, QApplication, QMenu
+from AnyQt.QtWidgets import (
+    QGraphicsWidget, QAction, QApplication, QMenu, QWidget
+)
 from AnyQt.QtTest import QSignalSpy, QTest
 
 from .. import commands
@@ -634,12 +636,15 @@ class TestSchemeEdit(QAppTestCase):
         w.setDropHandlers([handler])
         mime = QMimeData()
         mime.setData(TestNodeFromMimeData.format_, b'abc')
-        spy = QSignalSpy(wm.widget_for_node_added)
+        record = []
+        wm.widget_for_node_added.connect(
+            lambda obj, widget: record.append((obj, widget))
+        )
         dragDrop(viewport, mime, QPoint(10, 10))
-        self.assertEqual(len(spy), 1)
+        self.assertEqual(len(record), 1)
         self.assertGreaterEqual(handler.shouldActivateNode_called, 1)
         self.assertGreaterEqual(handler.activateNode_called, 1)
-        _, widget = spy[0]
+        _, widget = record[0]
         self.assertTrue(widget.didActivate)
         workflow.clear()
 
