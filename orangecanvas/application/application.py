@@ -90,6 +90,19 @@ def fix_qt_plugins_path():
         QApplication.addLibraryPath(newpath)
 
 
+if hasattr(QApplication, "setHighDpiScaleFactorRoundingPolicy"):
+    HighDpiScaleFactorRoundingPolicyLookup = {
+        "Round": Qt.HighDpiScaleFactorRoundingPolicy.Round,
+        "Ceil": Qt.HighDpiScaleFactorRoundingPolicy.Ceil,
+        "Floor": Qt.HighDpiScaleFactorRoundingPolicy.Floor,
+        "RoundPreferFloor": Qt.HighDpiScaleFactorRoundingPolicy.RoundPreferFloor,
+        "PassThrough": Qt.HighDpiScaleFactorRoundingPolicy.PassThrough,
+        "Unset": None
+    }
+else:
+    HighDpiScaleFactorRoundingPolicyLookup = {}
+
+
 class CanvasApplication(QApplication):
     fileOpenRequest = Signal(QUrl)
 
@@ -109,6 +122,12 @@ class CanvasApplication(QApplication):
         if ns.use_high_dpi_pixmaps \
                 and hasattr(Qt, "AA_UseHighDpiPixmaps"):
             QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
+
+        if hasattr(QApplication, "setHighDpiScaleFactorRoundingPolicy") \
+                and ns.scale_factor_rounding_policy is not None:
+            QApplication.setHighDpiScaleFactorRoundingPolicy(
+                ns.scale_factor_rounding_policy
+            )
 
         if ns.style:
             argv_ = argv_ + ["-style", self.__args.style]
@@ -155,6 +174,17 @@ class CanvasApplication(QApplication):
         parser.add_argument("-style", type=str, default=None)
         parser.add_argument("-colortheme", type=str, default=None)
         parser.add_argument("-enable-high-dpi-scaling", type=bool, default=True)
+        if hasattr(QApplication, "setHighDpiScaleFactorRoundingPolicy"):
+            default = HighDpiScaleFactorRoundingPolicyLookup.get(
+                os.environ.get("QT_SCALE_FACTOR_ROUNDING_POLICY"),
+                Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
+            )
+            parser.add_argument(
+                "-scale-factor-rounding-policy",
+                type=HighDpiScaleFactorRoundingPolicyLookup.get,
+                choices=[*HighDpiScaleFactorRoundingPolicyLookup.values(), None],
+                default=default,
+            )
         parser.add_argument("-use-high-dpi-pixmaps", type=bool, default=True)
         return parser
 
