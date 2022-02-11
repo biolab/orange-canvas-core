@@ -73,18 +73,19 @@ class TestHtmlIndexProvider(QCoreAppTestCase):
             b' <header>\n'
             b'   <meta charset=cp1252" />\n'
             b' </header>\n'
-            b' <body><div id="widgets">\n'
+            b' <body><%s id="widgets">\n'
             b'  <ul>\n'
             b'   <li><a href="a.html">aa</li>\n'
             b'  </ul>\n'
             b'  </div>\n'
             b'</html>'
         )
-        with temp_named_file(contents.decode("ascii"),) as fname:
-            url = QUrl.fromLocalFile(fname)
-            p = HtmlIndexProvider(url)
-            loop = get_event_loop()
-            desc = WidgetDescription(name="aa", id="aa", qualified_name="aa")
-            res = loop.run_until_complete(p.search_async(desc))
-            self.assertEqual(res, url.resolved(QUrl("a.html")))
-            self.assertEqual(p.items, {"aa": "a.html"})
+        for tag in (b"section", b"div"):
+            with temp_named_file((contents % tag).decode("ascii"),) as fname:
+                url = QUrl.fromLocalFile(fname)
+                p = HtmlIndexProvider(url)
+                loop = get_event_loop()
+                desc = WidgetDescription(name="aa", id="aa", qualified_name="aa")
+                res = loop.run_until_complete(p.search_async(desc))
+                self.assertEqual(res, url.resolved(QUrl("a.html")))
+                self.assertEqual(p.items, {"aa": "a.html"})

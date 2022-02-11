@@ -268,7 +268,9 @@ class HtmlIndexProvider(BaseInventoryProvider):
         parser.feed(stream)
         self.root = parser.builder.close()
 
-        path = self.xpathquery or ".//div[@id='widgets']//li/a"
+        # docutils < 0.17 use div tag, docutils >= 0.17 use section tags
+        # use * instead of explicit tag
+        path = self.xpathquery or ".//*[@id='widgets']//li/a"
 
         items = {}  # type: Dict[str, str]
         for el in self.root.findall(path):
