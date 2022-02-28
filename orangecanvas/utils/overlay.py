@@ -555,7 +555,7 @@ class DismissButton(QAbstractButton):
             self.__focusframe = QFocusFrame(self)
             self.__focusframe.setWidget(self)
             palette = self.palette()
-            palette.setColor(QPalette.Foreground,
+            palette.setColor(QPalette.WindowText,
                              palette.color(QPalette.Highlight))
             self.__focusframe.setPalette(palette)
 

@@ -298,7 +298,7 @@ class LinksEditWidget(QGraphicsWidget):
                 eventPos = event.pos()
                 line.setLine(start.x(), start.y(), eventPos.x(), eventPos.y())
 
-                pen = QPen(self.palette().color(QPalette.Foreground), 4)
+                pen = QPen(self.palette().color(QPalette.WindowText), 4)
                 pen.setCapStyle(Qt.RoundCap)
                 line.setPen(pen)
                 line.show()
