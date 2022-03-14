@@ -353,7 +353,7 @@ class ToolBox(QFrame):
         )
         self.__tabActionGroup.setExclusive(self.__exclusive)
         self.__actionMapper = QSignalMapper(self)
-        self.__actionMapper.mapped[QObject].connect(self.__onTabActionToggled)
+        self.__actionMapper.mappedObject.connect(self.__onTabActionToggled)
 
     def setTabButtonHeight(self, height):
         # type: (int) -> None

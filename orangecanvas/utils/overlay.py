@@ -11,6 +11,7 @@ from AnyQt.QtWidgets import QAbstractButton, QHBoxLayout, QPushButton, QStyle, Q
     QVBoxLayout, QLabel, QSizePolicy, QStyleOption, QFocusFrame, QStylePainter, QStyleOptionButton
 
 from orangecanvas.gui.stackedwidget import StackLayout
+from orangecanvas.utils import qsizepolicy_is_expanding
 
 log = logging.getLogger(__name__)
 
@@ -190,7 +191,7 @@ class OverlayWidget(QWidget):
         def getsize(hint, minimum, maximum, policy):
             if policy == QSizePolicy.Ignored:
                 return maximum
-            elif policy & QSizePolicy.ExpandFlag:
+            elif qsizepolicy_is_expanding(policy):
                 return maximum
             else:
                 return max(hint, minimum)
@@ -555,7 +556,7 @@ class DismissButton(QAbstractButton):
             self.__focusframe = QFocusFrame(self)
             self.__focusframe.setWidget(self)
             palette = self.palette()
-            palette.setColor(QPalette.Foreground,
+            palette.setColor(QPalette.WindowText,
                              palette.color(QPalette.Highlight))
             self.__focusframe.setPalette(palette)
 

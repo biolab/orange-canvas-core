@@ -38,15 +38,15 @@ class TextLabel(QWidget):
         """Return the text elide mode."""
         return self.__elideMode
 
-    def setAlignment(self, align):  # type: (Qt.Alignment) -> None
+    def setAlignment(self, align):  # type: (Qt.AlignmentFlag) -> None
         """Set text alignment (`Qt.Alignment`)."""
         if self.__alignment != align:
             self.__alignment = align
             self.__update()
 
-    def alignment(self):  # type: () -> Qt.Alignment
+    def alignment(self):  # type: () -> Qt.AlignmentFlag
         """Return text alignment."""
-        return Qt.Alignment(self.__alignment)
+        return Qt.AlignmentFlag(self.__alignment)
 
     def sizeHint(self):  # type: () -> QSize
         """Reimplemented."""

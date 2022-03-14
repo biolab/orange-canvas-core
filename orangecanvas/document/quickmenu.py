@@ -1802,7 +1802,7 @@ class ItemViewKeyNavigator(QObject):
             row_count = model.rowCount(root)
             for _ in range(row_count):
                 row = (row + sign) % row_count
-                index = root.child(row, 0) if root.isValid() else model.index(row, 0)
+                index = model.index(row, 0, root)
                 if index.flags() & Qt.ItemIsEnabled:
                     view.selectionModel().setCurrentIndex(
                         index,
@@ -1832,7 +1832,7 @@ class ItemViewKeyNavigator(QObject):
             if not curr.isValid():
                 root = self.__view.rootIndex()
                 for i in range(model.rowCount(root)):
-                    index = root.child(i, 0) if root.isValid() else model.index(i, 0)
+                    index = model.index(i, 0, root)
                     if index.flags() & Qt.ItemIsEnabled:
                         self.__view.setCurrentIndex(index)
                         break

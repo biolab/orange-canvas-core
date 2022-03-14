@@ -125,19 +125,19 @@ class CanvasScene(QGraphicsScene):
         self.user_interaction_handler = None  # type: Optional[UserInteraction]
 
         self.activated_mapper = QSignalMapper(self)
-        self.activated_mapper.mapped[QObject].connect(
+        self.activated_mapper.mappedObject.connect(
             lambda node: self.node_item_activated.emit(node)
         )
         self.hovered_mapper = QSignalMapper(self)
-        self.hovered_mapper.mapped[QObject].connect(
+        self.hovered_mapper.mappedObject.connect(
             lambda node: self.node_item_hovered.emit(node)
         )
         self.position_change_mapper = QSignalMapper(self)
-        self.position_change_mapper.mapped[QObject].connect(
+        self.position_change_mapper.mappedObject.connect(
             self._on_position_change
         )
         self.link_activated_mapper = QSignalMapper(self)
-        self.link_activated_mapper.mapped[QObject].connect(
+        self.link_activated_mapper.mappedObject.connect(
             lambda node: self.link_item_activated.emit(node)
         )
 

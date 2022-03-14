@@ -526,7 +526,7 @@ def innerGlowBackgroundPixmap(color, size, radius=5):
     outPainter.setPen(Qt.NoPen)
     outPainter.drawPixmapFragments(frags,
                                    gradientPixmap,
-                                   QPainter.PixmapFragmentHints(QPainter.OpaqueHint))
+                                   QPainter.OpaqueHint)
     outPainter.end()
 
     QPixmapCache.insert(key, outPix)

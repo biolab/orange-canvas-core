@@ -118,7 +118,7 @@ class TextAnnotation(Annotation):
 
         self.__textMargins = (2, 2, 2, 2)
         self.__textInteractionFlags = Qt.NoTextInteraction
-        self.__defaultInteractionFlags = Qt.TextInteractionFlags(
+        self.__defaultInteractionFlags = (
             Qt.LinksAccessibleByMouse | Qt.LinksAccessibleByKeyboard
         )
         rect = self.geometry().translated(-self.pos())
@@ -286,12 +286,12 @@ class TextAnnotation(Annotation):
         return self.__textItem.textCursor()
 
     def setTextInteractionFlags(self, flags):
-        # type: (Union[Qt.TextInteractionFlags, Qt.TextInteractionFlag]) -> None
-        self.__textInteractionFlags = Qt.TextInteractionFlags(flags)
+        # type: (Qt.TextInteractionFlag) -> None
+        self.__textInteractionFlags = Qt.TextInteractionFlag(flags)
 
     def textInteractionFlags(self):
-        # type: () -> Qt.TextInteractionFlags
-        return Qt.TextInteractionFlags(self.__textInteractionFlags)
+        # type: () -> Qt.TextInteractionFlag
+        return self.__textInteractionFlags
 
     def setDefaultStyleSheet(self, stylesheet):
         # type: (str) -> None

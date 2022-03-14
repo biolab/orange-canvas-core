@@ -12,6 +12,8 @@ from AnyQt.QtCore import (
 )
 from AnyQt.QtCore import Property, pyqtSignal as Signal
 
+from orangecanvas.utils import is_event_source_mouse
+
 log = logging.getLogger(__name__)
 
 
@@ -89,7 +91,7 @@ class CanvasView(QGraphicsView):
         return super().mouseReleaseEvent(event)
 
     def __should_scroll_horizontally(self, event: QWheelEvent):
-        if event.source() != Qt.MouseEventNotSynthesized:
+        if not is_event_source_mouse(event):
             return False
         if (event.modifiers() & Qt.ShiftModifier and sys.platform == 'darwin' or
             event.modifiers() & Qt.AltModifier and sys.platform != 'darwin'):
@@ -122,9 +124,9 @@ class CanvasView(QGraphicsView):
             new_pixel_delta = QPoint(0, 0)
             new_modifiers = event.modifiers() & ~(Qt.ShiftModifier | Qt.AltModifier)
             new_event = QWheelEvent(
-                event.pos(), event.globalPos(), new_pixel_delta,
+                event.position(), event.globalPosition(), new_pixel_delta,
                 new_angle_delta, event.buttons(), new_modifiers,
-                event.phase(), event.inverted(), event.source()
+                event.phase(), event.inverted()
             )
             event.accept()
             super().wheelEvent(new_event)
