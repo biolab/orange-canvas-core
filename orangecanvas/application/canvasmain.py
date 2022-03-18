@@ -151,7 +151,7 @@ class DockWidget(QDockWidget):
 
 
 class CanvasMainWindow(QMainWindow):
-    SETTINGS_VERSION = 2
+    SETTINGS_VERSION = 3
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -372,8 +372,9 @@ class CanvasMainWindow(QMainWindow):
 
         self.help_dock = DockWidget(
             self.tr("Help"), self, objectName="help-dock",
-            allowedAreas=Qt.RightDockWidgetArea | Qt.BottomDockWidgetArea,
-            visible=False
+            allowedAreas=Qt.NoDockWidgetArea,
+            visible=False,
+            floating=True,
         )
         if QWebEngineView is not None:
             self.help_view = QWebEngineView()
@@ -389,8 +390,6 @@ class CanvasMainWindow(QMainWindow):
             manager.setCache(cache)
 
         self.help_dock.setWidget(self.help_view)
-        self.addDockWidget(Qt.RightDockWidgetArea, self.help_dock)
-
         self.setMinimumSize(600, 500)
 
     def setup_actions(self):
@@ -2299,7 +2298,7 @@ class CanvasMainWindow(QMainWindow):
                     self.restoreGeometry(geom_data)
 
             state = settings.value("state", QByteArray(), type=QByteArray)
-            # Restore dock/toolbar state is not already done so
+            # Restore dock/toolbar state if not already done so
             if state and not self.__did_restore:
                 self.restoreState(state, version=self.SETTINGS_VERSION)
 
