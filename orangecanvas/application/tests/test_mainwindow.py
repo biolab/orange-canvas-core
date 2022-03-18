@@ -1,5 +1,6 @@
 import os
 import tempfile
+from contextlib import contextmanager
 from unittest.mock import patch
 
 from AnyQt.QtGui import QWhatsThisClickedEvent
@@ -7,7 +8,7 @@ from AnyQt.QtWidgets import QToolButton, QDialog, QMessageBox, QApplication
 
 from .. import addons
 from ..outputview import TextStream
-from ...scheme import SchemeTextAnnotation, SchemeLink
+from ...scheme import SchemeTextAnnotation, SchemeLink, SchemeNode, Scheme
 from ...gui.quickhelp import QuickHelpTipEvent, QuickHelp
 from ...utils.shtools import temp_named_file
 from ...utils.pickle import swp_name
@@ -176,6 +177,68 @@ class TestMainWindowLoad(TestMainWindowBase):
                    return_value=(self.filename, "")) as f:
             w.save_scheme()
             self.assertEqual(w.current_document().path(), self.filename)
+
+    @contextmanager
+    def patch_messagebox_exec(self, return_value):
+        with patch("AnyQt.QtWidgets.QMessageBox.exec",
+                   return_value=return_value) as f:
+            with patch("AnyQt.QtWidgets.QMessageBox.exec_",
+                       f):
+                yield f
+
+    def test_save_unsafe_warn(self):
+        w = self.w
+        doc = w.current_document()
+        doc.setPath(self.filename)
+        node = SchemeNode(self.registry.widget("one"))
+        node.properties = {"a": object()}
+        doc.addNode(node)
+
+        def contents():
+            with open(self.filename, "r", encoding="utf-8") as f:
+                return f.read()
+        with self.patch_messagebox_exec(QMessageBox.Abort) as f:
+            w.save_scheme()
+            f.assert_called_with()
+            self.assertEqual(contents(), "")
+        with self.patch_messagebox_exec(QMessageBox.Discard) as f:
+            w.save_scheme()
+            f.assert_called_with()
+            self.assertNotIn("pickle", contents())
+
+        with self.patch_messagebox_exec(QMessageBox.Ignore) as f:
+            w.save_scheme()
+            f.assert_called_with()
+            self.assertIn("pickle", contents())
+
+    def test_load_unsafe_ask(self):
+        w = self.w
+        workflow = Scheme()
+        node = SchemeNode(self.registry.widget("one"))
+        node.properties = {"a": object()}
+        workflow.add_node(node)
+        with open(self.filename, "wb") as f:
+            workflow.save_to(f, pickle_fallback=True)
+
+        with self.patch_messagebox_exec(QMessageBox.Abort) as f:
+            w.load_scheme(self.filename)
+            f.assert_called_with()
+            self.assertEqual(len(w.current_document().scheme().nodes), 0)
+            self.assertTrue(w.is_transient())
+
+        with self.patch_messagebox_exec(return_value=QMessageBox.No) as f:
+            w.load_scheme(self.filename)
+            f.assert_called_with()
+            workflow = w.current_document().scheme()
+            self.assertEqual(len(workflow.nodes), 1)
+            self.assertEqual(workflow.nodes[0].properties, {})
+
+        with self.patch_messagebox_exec(QMessageBox.Yes) as f:
+            w.load_scheme(self.filename)
+            f.assert_called_with()
+            workflow = w.current_document().scheme()
+            self.assertEqual(len(workflow.nodes), 1)
+            self.assertEqual(workflow.nodes[0].properties["a"].__class__, object)
 
     def test_save_swp(self):
         w = self.w
