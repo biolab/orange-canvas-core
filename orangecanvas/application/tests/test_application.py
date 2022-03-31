@@ -23,6 +23,12 @@ class TestApplication(unittest.TestCase):
         ])
         self.assertEqual(res.returncode, 0)
 
+    def test_application_help(self):
+        res = sh.python_run([
+            "-m", "orangecanvas", "--help"
+        ])
+        self.assertEqual(res.returncode, 0)
+
 
 def remove_after_exit(fname):
     appmod.run_after_exit([

@@ -183,9 +183,13 @@ class CanvasApplication(QApplication):
                 os.environ.get("QT_SCALE_FACTOR_ROUNDING_POLICY"),
                 Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
             )
+
+            def converter(value):
+                # dict.get wrapper due to https://bugs.python.org/issue16516
+                return HighDpiScaleFactorRoundingPolicyLookup.get(value)
             parser.add_argument(
                 "-scale-factor-rounding-policy",
-                type=HighDpiScaleFactorRoundingPolicyLookup.get,
+                type=converter,
                 choices=[*HighDpiScaleFactorRoundingPolicyLookup.values(), None],
                 default=default,
             )
