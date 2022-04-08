@@ -452,7 +452,7 @@ def make_stream_handler(level, fileobj=None, fmt=None):
 
 
 def make_file_handler(level, filename, mode="w", fmt=None):
-    handler = logging.FileHandler(filename, mode=mode)
+    handler = logging.FileHandler(filename, mode=mode, encoding="utf-8")
     handler.setLevel(level)
     if fmt:
         handler.setFormatter(logging.Formatter(fmt))
