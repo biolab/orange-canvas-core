@@ -8,9 +8,11 @@ from typing import Optional, Any
 
 from AnyQt.QtWidgets import (
     QWidget, QSplitter, QVBoxLayout, QAction, QSizePolicy, QApplication,
-    QToolButton, QTreeView)
-from AnyQt.QtGui import QPalette, QBrush, QDrag, QResizeEvent, QHideEvent
-
+    QToolButton, QTreeView
+)
+from AnyQt.QtGui import (
+    QPalette, QBrush, QDrag, QResizeEvent, QHideEvent, QPaintEvent
+)
 from AnyQt.QtCore import (
     Qt, QSize, QObject, QPropertyAnimation, QEvent, QRect, QPoint,
     QAbstractItemModel, QModelIndex, QPersistentModelIndex, QEventLoop,
@@ -18,7 +20,9 @@ from AnyQt.QtCore import (
 )
 from AnyQt.QtCore import pyqtProperty as Property, pyqtSignal as Signal
 
-from ..gui.toolgrid import ToolGrid
+from .. import styles
+from ..gui.iconengine import StyledIconEngine
+from ..gui.toolgrid import ToolGrid, ToolGridButton
 from ..gui.toolbar import DynamicResizeToolBar
 from ..gui.quickhelp import QuickHelp
 from ..gui.framelesswindow import FramelessWindow
@@ -299,6 +303,12 @@ class CanvasToolDock(QWidget):
         return self.toggleQuickHelpAction()
 
 
+class _ToolGridButton(ToolGridButton):
+    def paintEvent(self, event: QPaintEvent) -> None:
+        with StyledIconEngine.setOverridePalette(styles.breeze_light()):
+            super().paintEvent(event)
+
+
 class QuickCategoryToolbar(ToolGrid):
     """A toolbar with category buttons."""
     def __init__(self, parent=None, buttonSize=QSize(), iconSize=QSize(),
@@ -355,8 +365,14 @@ class QuickCategoryToolbar(ToolGrid):
         """
         Create a button for the action.
         """
-        button = super().createButtonForAction(action)
-
+        button = _ToolGridButton(
+            self,
+            toolButtonStyle=self.toolButtonStyle(),
+            iconSize=self.iconSize(),
+        )
+        button.setDefaultAction(action)
+        if self.buttonSize().isValid():
+            button.setFixedSize(self.buttonSize())
         item = action.data()  # QPersistentModelIndex
         assert isinstance(item, QPersistentModelIndex)
 
