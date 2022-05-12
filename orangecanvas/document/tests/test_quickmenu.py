@@ -1,6 +1,5 @@
 from AnyQt.QtWidgets import QAction
 from AnyQt.QtCore import QPoint, QStringListModel
-from AnyQt.QtTest import QTest
 
 from ..quickmenu import QuickMenu, SuggestMenuPage, FlattenedTreeItemModel, \
                         MenuPage
@@ -64,17 +63,13 @@ class TestMenu(QAppTestCase):
 
     def test_search(self):
         registry = QtWidgetRegistry(small_testing_registry())
-
         menu = SuggestMenuPage()
-
         menu.setModel(registry.model())
-        menu.show()
+        menu.grab()
         menu.setFilterFixedString("o")
-        QTest.qWait(10)
         menu.setFilterFixedString("z")
-        QTest.qWait(10)
         menu.setFilterFixedString("m")
-        QTest.qWait(10)
+        menu.grab()
 
     def test_flattened_model(self):
         model = QStringListModel(["0", "1", "2", "3"])
