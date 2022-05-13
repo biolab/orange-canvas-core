@@ -83,6 +83,23 @@ class SvgIconEngine(QIconEngine):
         return SvgIconEngine(self.__contents)
 
 
+_QPalette_Text = QPalette.Text
+_QPalette_HighlightedText = QPalette.HighlightedText
+_QPalette_WindowText = QPalette.WindowText
+_QPalette_Window = QPalette.Window
+
+_QPalette_Active = QPalette.Active
+_QPalette_Disabled = QPalette.Disabled
+
+_QIcon_Active = QIcon.Active
+_QIcon_Selected = QIcon.Selected
+_QIcon_Disabled = QIcon.Disabled
+
+_QIcon_Active_Modes = (QIcon.Active, QIcon.Selected)
+
+_Qt_KeepAspectRatio = Qt.KeepAspectRatio
+
+
 class StyledSvgIconEngine(QIconEngine):
     """
     A basic styled icon engine based on a QPalette colors.
@@ -182,13 +199,12 @@ class StyledSvgIconEngine(QIconEngine):
             self, size: QSize, mode: QIcon.Mode, state: QIcon.State,
             palette: QPalette
     ) -> QPixmap:
-        active = mode in (QIcon.Active, QIcon.Selected)
-        disabled = mode == QIcon.Disabled
-        cg = QPalette.Disabled if disabled else QPalette.Active
-        role = QPalette.HighlightedText if active else QPalette.WindowText
-        namespace = "{}:{}/{}/".format(
-            __name__, __class__.__name__, self.__cache_key)
-        style_key = "{}-{}-{}".format(hex(palette.cacheKey()), cg, role)
+        active = mode in _QIcon_Active_Modes
+        disabled = mode == _QIcon_Disabled
+        cg = _QPalette_Disabled if disabled else _QPalette_Active
+        role = _QPalette_HighlightedText if active else _QPalette_WindowText
+        namespace = f"{__name__}:{__class__.__name__}/{self.__cache_key}/"
+        style_key = f"{hex(palette.cacheKey())}-{cg}-{role}"
         renderer = self.__styled_contents_cache.get(style_key)
         if renderer is None:
             css = render_svg_color_scheme_css(palette, state)
@@ -202,11 +218,9 @@ class StyledSvgIconEngine(QIconEngine):
         dsize = renderer.defaultSize()  # type: QSize
 
         if not dsize.isNull():
-            dsize.scale(size, Qt.KeepAspectRatio)
+            dsize.scale(size, _Qt_KeepAspectRatio)
             size = dsize
-
-        pmcachekey = namespace + style_key + \
-                     "/{}x{}".format(size.width(), size.height())
+        pmcachekey = f"{namespace}{style_key}/{size.width()}x{size.height()}"
         pm = QPixmapCache.find(pmcachekey)
         if pm is None or pm.isNull():
             pm = QPixmap(size)
@@ -216,7 +230,7 @@ class StyledSvgIconEngine(QIconEngine):
             painter.end()
             QPixmapCache.insert(pmcachekey, pm)
 
-        style = QApplication.style()
+        self.__style = style = QApplication.style()
         if style is not None:
             opt = QStyleOption()
             opt.palette = palette
