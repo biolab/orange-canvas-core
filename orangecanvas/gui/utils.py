@@ -332,6 +332,30 @@ def css_gradient(gradient: QLinearGradient) -> str:
             "{stops})").format(x1=x1, y1=y1, x2=x2, y2=y2, stops=stops)
 
 
+def luminance(color: QColor) -> float:
+    """
+    Return the relative luminance of `color`
+
+    https://en.wikipedia.org/wiki/Relative_luminance
+    """
+    return (0.2126 * color.redF() +
+            0.7152 * color.greenF() +
+            0.0722 * color.blueF())
+
+
+def merged_color(a: QColor, b: QColor, factor=0.5) -> QColor:
+    """
+    Return a merge of colors `a` and `b`
+    """
+    r = QColor()
+    r.setRgbF(
+        factor * a.redF() + (1. - factor) * b.redF(),
+        factor * a.greenF() + (1. - factor) * b.greenF(),
+        factor * a.blueF() + (1. - factor) * b.blueF()
+    )
+    return r
+
+
 def message_critical(text, title=None, informative_text=None, details=None,
                      buttons=None, default_button=None, exc_info=False,
                      parent=None):

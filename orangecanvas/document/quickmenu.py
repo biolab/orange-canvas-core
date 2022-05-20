@@ -41,7 +41,7 @@ from ..gui.tooltree import ToolTree, FlattenedTreeItemModel
 from ..gui.utils import StyledWidget_paintEvent, innerGlowBackgroundPixmap, innerShadowPixmap
 from ..registry.qt import QtWidgetRegistry
 
-from ..resources import icon_loader
+from ..resources import icon_loader, load_styled_svg_icon
 
 log = logging.getLogger(__name__)
 
@@ -572,8 +572,8 @@ class SearchWidget(LineEdit):
         self.__setupUi()
 
     def __setupUi(self):
-        icon = icon_loader().get("icons/Search.svg")
-        action = QAction(icon, "Search", self)
+        icon = QIcon(load_styled_svg_icon("Search.svg"))
+        action = QAction(icon, self.tr("Search"), self)
         self.setAction(action, LineEdit.LeftPosition)
 
         button = self.button(SearchWidget.LeftPosition)

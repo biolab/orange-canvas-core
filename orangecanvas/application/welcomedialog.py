@@ -10,7 +10,7 @@ from AnyQt.QtWidgets import (
     QHBoxLayout, QVBoxLayout, QSizePolicy, QLabel, QApplication
 )
 from AnyQt.QtGui import (
-    QFont, QIcon, QPixmap, QPainter, QColor, QBrush, QActionEvent
+    QFont, QIcon, QPixmap, QPainter, QColor, QBrush, QActionEvent, QIconEngine,
 )
 
 from AnyQt.QtCore import Qt, QRect, QSize, QPoint
@@ -18,35 +18,63 @@ from AnyQt.QtCore import pyqtSignal as Signal
 
 from ..canvas.items.utils import radial_gradient
 from ..registry import NAMED_COLORS
+from ..gui.svgiconengine import StyledSvgIconEngine
+from .. import styles
+
+
+class DecoratedIconEngine(QIconEngine):
+    def __init__(self, base: QIcon, background: QColor):
+        super().__init__()
+        self.__base = base
+        self.__background = background
+        self.__gradient = radial_gradient(background)
+
+    def paint(
+            self, painter: 'QPainter', rect: QRect, mode: QIcon.Mode,
+            state: QIcon.State
+    ) -> None:
+        size = rect.size()
+        dpr = painter.device().devicePixelRatioF()
+        size = size * dpr
+        pm = self.pixmap(size, mode, state)
+        painter.drawPixmap(rect, pm)
+        return
+
+    def pixmap(
+            self, size: QSize, mode: QIcon.Mode, state: QIcon.State
+    ) -> QPixmap:
+        pixmap = QPixmap(size)
+        pixmap.fill(Qt.transparent)
+        p = QPainter(pixmap)
+        p.setRenderHint(QPainter.Antialiasing, True)
+        p.setBrush(QBrush(self.__gradient))
+        p.setPen(Qt.NoPen)
+        icon_size = QSize(5 * size.width() // 8, 5 * size.height() // 8)
+        icon_rect = QRect(QPoint(0, 0), icon_size)
+        ellipse_rect = QRect(QPoint(0, 0), size)
+        p.drawEllipse(ellipse_rect)
+        icon_rect.moveCenter(ellipse_rect.center())
+        palette = styles.breeze_light()
+        # Special case for StyledSvgIconEngine. This is drawn on a
+        # light-ish color background and should not render with a dark palette
+        # (this is bad, and I feel bad).
+        with StyledSvgIconEngine.setOverridePalette(palette):
+            self.__base.paint(p, icon_rect, Qt.AlignCenter)
+        p.end()
+        return pixmap
+
+    def clone(self) -> 'QIconEngine':
+        return DecoratedIconEngine(
+            self.__base, self.__background
+        )
 
 
 def decorate_welcome_icon(icon, background_color):
     # type: (QIcon, Union[QColor, str]) -> QIcon
     """Return a `QIcon` with a circle shaped background.
     """
-    welcome_icon = QIcon()
-    sizes = [32, 48, 64, 80, 128, 256]
     background_color = NAMED_COLORS.get(background_color, background_color)
-    background_color = QColor(background_color)
-    grad = radial_gradient(background_color)
-    for size in sizes:
-        icon_size = QSize(int(5 * size / 8), int(5 * size / 8))
-        icon_rect = QRect(QPoint(0, 0), icon_size)
-        pixmap = QPixmap(size, size)
-        pixmap.fill(Qt.transparent)
-        p = QPainter(pixmap)
-        p.setRenderHint(QPainter.Antialiasing, True)
-        p.setBrush(QBrush(grad))
-        p.setPen(Qt.NoPen)
-        ellipse_rect = QRect(0, 0, size, size)
-        p.drawEllipse(ellipse_rect)
-        icon_rect.moveCenter(ellipse_rect.center())
-        icon.paint(p, icon_rect, Qt.AlignCenter, )
-        p.end()
-
-        welcome_icon.addPixmap(pixmap)
-
-    return welcome_icon
+    return QIcon(DecoratedIconEngine(icon, QColor(background_color)))
 
 
 WELCOME_WIDGET_BUTTON_STYLE = """

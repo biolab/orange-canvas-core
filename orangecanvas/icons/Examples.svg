@@ -3,11 +3,15 @@
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
 	 width="48px" height="48px" viewBox="0 0 48 48" enable-background="new 0 0 48 48" xml:space="preserve">
-<g id="zXDtGm_1_">
-</g>
-<g id="Xawsld_1_">
-</g>
-<circle fill="#FFFFFF" stroke="#333333" stroke-width="2" stroke-miterlimit="10" cx="30.666" cy="10.176" r="4.875"/>
+<defs>
+<style type="text/css" id="current-color-scheme">
+* { color: #333; }
+.ColorScheme-Text { color: #333; }
+.ColorScheme-Background { color: #fff; }
+</style>
+</defs>
+<circle class="ColorScheme-Background" fill="currentColor" stroke="none" stroke-width="2" stroke-miterlimit="10" cx="30.666" cy="10.176" r="4.875"/>
+<circle class="ColorScheme-Text" fill="none" stroke="currentColor" stroke-width="2" stroke-miterlimit="10" cx="30.666" cy="10.176" r="4.875"/>
 <path fill="none" stroke="#333333" stroke-width="1.5" stroke-miterlimit="10" d="M11.75,20.438c0,0,5.438,0.625,6.438-5.188
 	c0.812-6.5,7.625-5.625,7.625-5.625"/>
 <path fill="none" stroke="#333333" stroke-width="1.8" stroke-linecap="round" stroke-miterlimit="10" d="M11.5,23.688
@@ -21,7 +25,10 @@
 <path fill="none" stroke="#333333" stroke-width="1.5" stroke-linecap="round" stroke-miterlimit="10" d="M36.62,40.141"/>
 <path fill="none" stroke="#333333" stroke-width="1.5" stroke-linecap="round" stroke-miterlimit="10" d="M11.718,25.543"/>
 <path fill="none" stroke="#333333" stroke-width="1.5" stroke-linecap="round" stroke-miterlimit="10" d="M11.609,17.416"/>
-<circle fill="#FFFFFF" stroke="#333333" stroke-width="2" stroke-miterlimit="10" cx="41.416" cy="36.051" r="4.875"/>
-<circle fill="#FFFFFF" stroke="#333333" stroke-width="2" stroke-miterlimit="10" cx="25.416" cy="36.051" r="4.875"/>
-<circle fill="#FFFFFF" stroke="#333333" stroke-width="2" stroke-miterlimit="10" cx="6.666" cy="21.676" r="4.875"/>
+<circle class="ColorScheme-Background" fill="currentColor" stroke="none" stroke-width="2" stroke-miterlimit="10" cx="41.416" cy="36.051" r="4.875"/>
+<circle class="ColorScheme-Text" fill="none" stroke="currentColor" stroke-width="2" stroke-miterlimit="10" cx="41.416" cy="36.051" r="4.875"/>
+<circle class="ColorScheme-Background" fill="currentColor" stroke="none" stroke-width="2" stroke-miterlimit="10" cx="25.416" cy="36.051" r="4.875"/>
+<circle class="ColorScheme-Text" fill="none" stroke="currentColor" stroke-width="2" stroke-miterlimit="10" cx="25.416" cy="36.051" r="4.875"/>
+<circle class="ColorScheme-Background" fill="currentColor" stroke="none" stroke-width="2" stroke-miterlimit="10" cx="6.666" cy="21.676" r="4.875"/>
+<circle class="ColorScheme-Text" fill="none" stroke="currentColor" stroke-width="2" stroke-miterlimit="10" cx="6.666" cy="21.676" r="4.875"/>
 </svg>

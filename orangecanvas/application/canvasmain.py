@@ -3,6 +3,7 @@ Orange Canvas Main Window
 
 """
 import os
+import pkgutil
 import sys
 import logging
 import operator
@@ -18,15 +19,13 @@ from typing import (
     Tuple, TypeVar, Awaitable,
 )
 
-import pkg_resources
-
 from AnyQt.QtWidgets import (
     QMainWindow, QWidget, QAction, QActionGroup, QMenu, QMenuBar, QDialog,
     QFileDialog, QMessageBox, QVBoxLayout, QSizePolicy, QToolBar, QToolButton,
     QDockWidget, QApplication, QShortcut, QFileIconProvider
 )
 from AnyQt.QtGui import (
-    QColor, QIcon, QDesktopServices, QKeySequence,
+    QColor, QDesktopServices, QKeySequence,
     QWhatsThisClickedEvent, QShowEvent, QCloseEvent
 )
 from AnyQt.QtCore import (
@@ -80,36 +79,14 @@ from ..utils.pickle import Pickler, Unpickler, glob_scratch_swps, swp_name, \
 from ..utils import unique, group_by_all, set_flag, findf
 from ..utils.asyncutils import get_event_loop
 from ..utils.qobjref import qobjref
-
 from . import welcomedialog
 from . import addons
-
 from ..preview import previewdialog, previewmodel
-
 from .. import config
-
 from . import examples
+from ..resources import load_styled_svg_icon
 
 log = logging.getLogger(__name__)
-
-
-def resource_filename(path):
-    """
-    Return the resource filename path relative to the top level package.
-    """
-    return pkg_resources.resource_filename(config.__name__, path)
-
-
-def canvas_icons(name):
-    # type: (str) -> QIcon
-    """
-    Return the named canvas icon.
-    """
-    icon_file = QFile("canvas_icons:" + name)
-    if icon_file.exists():
-        return QIcon("canvas_icons:" + name)
-    else:
-        return QIcon(resource_filename(os.path.join("icons", name)))
 
 
 def user_documents_path():
@@ -290,7 +267,7 @@ class CanvasMainWindow(QMainWindow):
         )
         self.dock_help_action = canvas_tool_dock.toggleQuickHelpAction()
         self.dock_help_action.setText(self.tr("Show Help"))
-        self.dock_help_action.setIcon(canvas_icons("Info.svg"))
+        self.dock_help_action.setIcon(load_styled_svg_icon("Info.svg", self.canvas_toolbar))
 
         self.canvas_tool_dock = canvas_tool_dock
 
@@ -314,9 +291,11 @@ class CanvasMainWindow(QMainWindow):
          self.canvas_align_to_grid_action,
          self.canvas_text_action, self.canvas_arrow_action,) = tool_actions
 
-        self.canvas_align_to_grid_action.setIcon(canvas_icons("Grid.svg"))
-        self.canvas_text_action.setIcon(canvas_icons("Text Size.svg"))
-        self.canvas_arrow_action.setIcon(canvas_icons("Arrow.svg"))
+        self.canvas_align_to_grid_action.setIcon(load_styled_svg_icon("Grid.svg", self.canvas_toolbar))
+        self.canvas_text_action.setIcon(load_styled_svg_icon("Text Size.svg", self.canvas_toolbar))
+        self.canvas_arrow_action.setIcon(load_styled_svg_icon("Arrow.svg", self.canvas_toolbar))
+        self.freeze_action.setIcon(load_styled_svg_icon('Pause.svg', self.canvas_toolbar))
+        self.show_properties_action.setIcon(load_styled_svg_icon("Document Info.svg", self.canvas_toolbar))
 
         dock_actions = [
             self.show_properties_action,
@@ -401,7 +380,7 @@ class CanvasMainWindow(QMainWindow):
             toolTip=self.tr("Open a new workflow."),
             triggered=self.new_workflow_window,
             shortcut=QKeySequence.New,
-            icon=canvas_icons("New.svg")
+            icon=load_styled_svg_icon("New.svg")
         )
         self.open_action = QAction(
             self.tr("Open"), self,
@@ -409,7 +388,7 @@ class CanvasMainWindow(QMainWindow):
             toolTip=self.tr("Open a workflow."),
             triggered=self.open_scheme,
             shortcut=QKeySequence.Open,
-            icon=canvas_icons("Open.svg")
+            icon=load_styled_svg_icon("Open.svg")
         )
         self.open_and_freeze_action = QAction(
             self.tr("Open and Freeze"), self,
@@ -478,7 +457,7 @@ class CanvasMainWindow(QMainWindow):
             self.tr("Get Started"), self,
             objectName="get-started-action",
             toolTip=self.tr("View a 'Get Started' introduction."),
-            icon=canvas_icons("Documentation.svg")
+            icon=load_styled_svg_icon("Documentation.svg")
         )
         config_url_action(self.get_started_action, "Quick Start")
 
@@ -486,7 +465,7 @@ class CanvasMainWindow(QMainWindow):
             self.tr("Video Tutorials"), self,
             objectName="screencasts-action",
             toolTip=self.tr("View video tutorials"),
-            icon=canvas_icons("YouTube.svg"),
+            icon=load_styled_svg_icon("YouTube.svg"),
         )
         config_url_action(self.get_started_screencasts_action, "Screencasts")
 
@@ -494,7 +473,7 @@ class CanvasMainWindow(QMainWindow):
             self.tr("Documentation"), self,
             objectName="documentation-action",
             toolTip=self.tr("View reference documentation."),
-            icon=canvas_icons("Documentation.svg"),
+            icon=load_styled_svg_icon("Documentation.svg"),
         )
         config_url_action(self.documentation_action, "Documentation")
 
@@ -503,7 +482,7 @@ class CanvasMainWindow(QMainWindow):
             objectName="examples-action",
             toolTip=self.tr("Browse example workflows."),
             triggered=self.examples_dialog,
-            icon=canvas_icons("Examples.svg")
+            icon=load_styled_svg_icon("Examples.svg")
         )
 
         self.about_action = QAction(
@@ -526,7 +505,7 @@ class CanvasMainWindow(QMainWindow):
             toolTip=self.tr("Browse and open a recent workflow."),
             triggered=self.recent_scheme,
             shortcut=QKeySequence("Ctrl+Shift+R"),
-            icon=canvas_icons("Recent.svg")
+            icon=load_styled_svg_icon("Recent.svg")
         )
         self.reload_last_action = QAction(
             self.tr("Reload Last Workflow"), self,
@@ -547,7 +526,7 @@ class CanvasMainWindow(QMainWindow):
             toolTip=self.tr("Show workflow properties."),
             triggered=self.show_scheme_properties,
             shortcut=QKeySequence("Ctrl+I"),
-            icon=canvas_icons("Document Info.svg")
+            icon=load_styled_svg_icon("Document Info.svg")
         )
 
         self.canvas_settings_action = QAction(
@@ -590,7 +569,7 @@ class CanvasMainWindow(QMainWindow):
             checkable=True,
             toolTip=self.tr("Freeze signal propagation (Shift+F)"),
             toggled=self.set_signal_freeze,
-            icon=canvas_icons("Pause.svg")
+            icon=load_styled_svg_icon("Pause.svg")
         )
 
         self.toggle_tool_dock_expand = QAction(
@@ -1899,13 +1878,12 @@ class CanvasMainWindow(QMainWindow):
         def browse_examples():
             if self.examples_dialog() == QDialog.Accepted:
                 dialog.accept()
-
         new_action = QAction(
             self.tr("New"), dialog,
             toolTip=self.tr("Open a new workflow."),
             triggered=new_scheme,
             shortcut=QKeySequence.New,
-            icon=canvas_icons("New.svg")
+            icon=load_styled_svg_icon("New.svg")
         )
 
         open_action = QAction(
@@ -1914,7 +1892,7 @@ class CanvasMainWindow(QMainWindow):
             toolTip=self.tr("Open a workflow."),
             triggered=open_scheme,
             shortcut=QKeySequence.Open,
-            icon=canvas_icons("Open.svg")
+            icon=load_styled_svg_icon("Open.svg")
         )
 
         recent_action = QAction(
@@ -1923,7 +1901,7 @@ class CanvasMainWindow(QMainWindow):
             toolTip=self.tr("Browse and open a recent workflow."),
             triggered=open_recent,
             shortcut=QKeySequence("Ctrl+Shift+R"),
-            icon=canvas_icons("Recent.svg")
+            icon=load_styled_svg_icon("Recent.svg")
         )
 
         examples_action = QAction(
@@ -1931,7 +1909,7 @@ class CanvasMainWindow(QMainWindow):
             objectName="welcome-examples-action",
             toolTip=self.tr("Browse example workflows."),
             triggered=browse_examples,
-            icon=canvas_icons("Examples.svg")
+            icon=load_styled_svg_icon("Examples.svg")
         )
 
         bottom_row = [self.get_started_action, examples_action,
