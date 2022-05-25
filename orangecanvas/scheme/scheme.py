@@ -654,8 +654,7 @@ class Scheme(QObject):
         def weight(out_c, in_c):
             # type: (OutputSignal, InputSignal) -> int
             if out_c.explicit or in_c.explicit:
-                # Zero weight for explicit links
-                weight = 0
+                weight = -1  # Negative weight for explicit links
             else:
                 check = [in_c not in already_connected_sinks,
                          bool(in_c.default),

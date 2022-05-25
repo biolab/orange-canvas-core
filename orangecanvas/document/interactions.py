@@ -755,9 +755,11 @@ class NewLinkAction(UserInteraction):
                     show_link_dialog = True
 
                 # Check for destructive action (i.e. would the new link
-                # replace a previous link)
-                if sink.single and self.scheme.find_links(sink_node=sink_node,
-                                                          sink_channel=sink):
+                # replace a previous link) except for explicit only link
+                # candidates
+                if sink.single and w2 > 0 and \
+                        self.scheme.find_links(sink_node=sink_node,
+                                               sink_channel=sink):
                     show_link_dialog = True
 
             if show_link_dialog:
