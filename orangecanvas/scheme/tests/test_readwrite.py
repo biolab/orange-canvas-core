@@ -117,6 +117,9 @@ class TestReadWrite(test.QAppTestCase):
         with self.assertRaises(TypeError):
             readwrite.literal_dumps(self)
 
+        with self.assertRaises(TypeError):
+            readwrite.literal_dumps(float("nan"))
+
     def test_resolve_replaced(self):
         tree = ET.parse(io.BytesIO(FOOBAR_v20.encode()))
         parsed = readwrite.parse_ows_etree_v_2_0(tree)

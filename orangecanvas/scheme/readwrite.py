@@ -9,6 +9,7 @@ import warnings
 import base64
 import binascii
 import itertools
+import math
 
 from xml.etree.ElementTree import TreeBuilder, Element, ElementTree, parse
 
@@ -768,8 +769,8 @@ def literal_dumps(obj, indent=None, relaxed_types=True):
     indent : Optional[int]
         If not None then it is the indent for the pretty printer.
     relaxed_types : bool
-        Relaxed type checking. In addition to exact builtin numberic types,
-        the numbers.Integer, numbers.Real are checked and alowed if their
+        Relaxed type checking. In addition to exact builtin numeric types,
+        the numbers.Integer, numbers.Real are checked and allowed if their
         repr matches that of the builtin.
 
         .. warning:: The exact type of the values will be lost.
@@ -801,6 +802,10 @@ def literal_dumps(obj, indent=None, relaxed_types=True):
     builtins_mapping = {dict}
 
     def check(obj):
+        if type(obj) == float and not math.isfinite(obj):
+            raise TypeError("Non-finite values can not be "
+                            "serialized as a python literal")
+
         if type(obj) in builtins:
             return True
 
@@ -818,6 +823,10 @@ def literal_dumps(obj, indent=None, relaxed_types=True):
                             "literal".format(type(obj)))
 
     def check_relaxed(obj):
+        if isinstance(obj, numbers.Real) and not math.isfinite(obj):
+            raise TypeError("Non-finite values can not be "
+                            "serialized as a python literal")
+
         if type(obj) in builtins:
             return True
 
