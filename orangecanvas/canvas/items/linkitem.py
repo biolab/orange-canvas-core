@@ -8,7 +8,7 @@ import math
 from xml.sax.saxutils import escape
 
 import typing
-from typing import List, Tuple, Optional, Any
+from typing import Optional, Any
 
 from AnyQt.QtWidgets import (
     QGraphicsItem, QGraphicsPathItem, QGraphicsWidget,
@@ -22,7 +22,7 @@ from AnyQt.QtCore import Qt, QPointF, QRectF, QLineF, QEvent, QPropertyAnimation
 
 from .nodeitem import AnchorPoint, SHADOW_COLOR
 from .graphicstextitem import GraphicsTextItem
-from .utils import stroke_path
+from .utils import stroke_path, qpainterpath_simple_split
 from ...registry import InputSignal, OutputSignal
 
 from ...scheme import SchemeLink
@@ -160,97 +160,6 @@ class LinkCurveItem(QGraphicsPathItem):
     def __on_finished(self):
         if self.shadow.blurRadius() == 0:
             self.shadow.setEnabled(False)
-
-
-def bezier_subdivide(cp, t):
-    # type: (List[QPointF], float) -> Tuple[List[QPointF], List[QPointF]]
-    """
-    Subdivide a cubic bezier curve defined by the control points `cp`.
-
-    Parameters
-    ----------
-    cp : List[QPointF]
-        The control points for a cubic bezier curve.
-    t : float
-        The cut point; a value between 0 and 1.
-
-    Returns
-    -------
-    cp : Tuple[List[QPointF], List[QPointF]]
-        Two lists of new control points for the new left and right part
-        respectively.
-    """
-    # http://www.cs.mtu.edu/~shene/COURSES/cs3621/NOTES/spline/Bezier/bezier-sub.html
-    c00, c01, c02, c03 = cp
-
-    c10 = c00 * (1 - t) + c01 * t
-    c11 = c01 * (1 - t) + c02 * t
-    c12 = c02 * (1 - t) + c03 * t
-
-    c20 = c10 * (1 - t) + c11 * t
-    c21 = c11 * (1 - t) + c12 * t
-
-    c30 = c20 * (1 - t) + c21 * t
-
-    first = [c00, c10, c20, c30]
-    second = [c30, c21, c12, c03]
-    return first, second
-
-
-def qpainterpath_simple_split(path, t):
-    # type: (QPainterPath, float) -> Tuple[QPainterPath, QPainterPath]
-    """
-    Split a QPainterPath defined simple curve.
-
-    The path must be either empty or composed of a single LineToElement or
-    CurveToElement.
-
-    Parameters
-    ----------
-    path : QPainterPath
-
-    t : float
-        Point where to split specified as a percentage along the path
-
-    Returns
-    -------
-    splitpath: Tuple[QPainterPath, QPainterPath]
-        A pair of QPainterPaths
-    """
-    assert path.elementCount() > 0
-    el0 = path.elementAt(0)
-    assert el0.type == QPainterPath.MoveToElement
-    if path.elementCount() == 1:
-        p1 = QPainterPath()
-        p1.moveTo(el0.x, el0.y)
-        return p1, QPainterPath(p1)
-
-    el1 = path.elementAt(1)
-    if el1.type == QPainterPath.LineToElement:
-        pointat = path.pointAtPercent(t)
-        l1 = QLineF(el0.x, el0.y, pointat.x(), pointat.y())
-        l2 = QLineF(pointat.x(), pointat.y(), el1.x, el1.y)
-        p1 = QPainterPath()
-        p2 = QPainterPath()
-        p1.moveTo(l1.p1())
-        p1.lineTo(l1.p2())
-        p2.moveTo(l2.p1())
-        p2.lineTo(l2.p2())
-        return p1, p2
-    elif el1.type == QPainterPath.CurveToElement:
-        c0, c1, c2, c3 = el0, el1, path.elementAt(2), path.elementAt(3)
-        assert all(el.type == QPainterPath.CurveToDataElement
-                   for el in [c2, c3])
-        cp = [QPointF(el.x, el.y) for el in [c0, c1, c2, c3]]
-        first, second = bezier_subdivide(cp, t)
-        p1, p2 = QPainterPath(), QPainterPath()
-        p1.moveTo(first[0])
-        p1.cubicTo(*first[1:])
-        p2.moveTo(second[0])
-        p2.cubicTo(*second[1:])
-        return p1, p2
-    else:
-        assert False
 
 
 def path_link_disabled(basepath):
