@@ -1,4 +1,5 @@
 import sys
+import math
 from itertools import islice, count
 from operator import itemgetter
 
@@ -213,57 +214,133 @@ def bezier_subdivide(cp, t):
     return first, second
 
 
-def qpainterpath_simple_split(path, t):
-    # type: (QPainterPath, float) -> Tuple[QPainterPath, QPainterPath]
+class _Section(typing.NamedTuple):
+    #: Single section path (single cubicTo, lineTo, moveTo path)
+    p: QPainterPath
+    #: The path section type
+    type: QPainterPath.ElementType
+    #: The approximate original start distance
+    start: float
+    #: The approximate original end distance
+    end: float
+
+
+def _qpainterpath_sections(path: QPainterPath) -> Iterable[_Section]:
     """
-    Split a QPainterPath defined simple curve.
-
-    The path must be either empty or composed of a single LineToElement or
-    CurveToElement.
-
-    Parameters
-    ----------
-    path : QPainterPath
-
-    t : float
-        Point where to split specified as a percentage along the path
-
-    Returns
-    -------
-    splitpath: Tuple[QPainterPath, QPainterPath]
-        A pair of QPainterPaths
+    Return `path` elementary *sections* (single line, single bezier or
+    move elements).
     """
-    assert path.elementCount() > 0
+    if path.isEmpty():
+        return
+    el0 = path.elementAt(0)
+    assert el0.type == QPainterPath.MoveToElement
+    i = 1
+    section_start = section_end = 0
+    while i < path.elementCount():
+        el1 = path.elementAt(i)
+        if el1.type == QPainterPath.LineToElement:
+            p = QPainterPath()
+            p.moveTo(el0.x, el0.y)
+            p.lineTo(el1.x, el1.y)
+            section_end += p.length()
+            yield _Section(p, QPainterPath.LineToElement, section_start, section_end)
+            i += 1
+            el0 = el1
+            section_start = section_end
+        elif el1.type == QPainterPath.CurveToElement:
+            c0, c1, c2, c3 = el0, el1, path.elementAt(i + 1), path.elementAt(i + 2)
+            assert all(el.type == QPainterPath.CurveToDataElement
+                       for el in [c2, c3])
+            p0, p1, p2, p3 = [QPointF(el.x, el.y) for el in [c0, c1, c2, c3]]
+
+            p = QPainterPath()
+            p.moveTo(p0)
+            p.cubicTo(p1, p2, p3)
+            section_end += p.length()
+            yield _Section(p, QPainterPath.CurveToElement, section_start, section_end)
+            i += 3
+            el0 = c3
+            section_start = section_end
+        elif el1.type == QPainterPath.MoveToElement:
+            p = QPainterPath()
+            p.moveTo(el1.x, el1.y)
+            i += 1
+            el0 = el1
+            yield _Section(p, QPainterPath.MoveToElement, section_start, section_end)
+            section_start = section_end
+
+
+def _qpainterpath_simple_cut(path: QPainterPath, start: float, end: float):
+    """
+    Cut a sub path from a simple `path` (single lineTo or cubicTo).
+    """
+    assert 0. <= start <= end <= 1.0
+    if path.elementCount() == 0:
+        return QPainterPath()
     el0 = path.elementAt(0)
     assert el0.type == QPainterPath.MoveToElement
     if path.elementCount() == 1:
-        p1 = QPainterPath()
-        p1.moveTo(el0.x, el0.y)
-        return p1, QPainterPath(p1)
-
+        return QPainterPath(path)
     el1 = path.elementAt(1)
     if el1.type == QPainterPath.LineToElement:
-        pointat = path.pointAtPercent(t)
-        l1 = QLineF(el0.x, el0.y, pointat.x(), pointat.y())
-        l2 = QLineF(pointat.x(), pointat.y(), el1.x, el1.y)
-        p1 = QPainterPath()
-        p2 = QPainterPath()
-        p1.moveTo(l1.p1())
-        p1.lineTo(l1.p2())
-        p2.moveTo(l2.p1())
-        p2.lineTo(l2.p2())
-        return p1, p2
+        segment = QLineF(el0.x, el0.y, el1.x, el1.y)
+        p1 = segment.pointAt(start)
+        p2 = segment.pointAt(end)
+        p = QPainterPath()
+        p.moveTo(p1)
+        p.lineTo(p2)
+        return p
     elif el1.type == QPainterPath.CurveToElement:
         c0, c1, c2, c3 = el0, el1, path.elementAt(2), path.elementAt(3)
         assert all(el.type == QPainterPath.CurveToDataElement
                    for el in [c2, c3])
         cp = [QPointF(el.x, el.y) for el in [c0, c1, c2, c3]]
-        first, second = bezier_subdivide(cp, t)
-        p1, p2 = QPainterPath(), QPainterPath()
-        p1.moveTo(first[0])
-        p1.cubicTo(*first[1:])
-        p2.moveTo(second[0])
-        p2.cubicTo(*second[1:])
-        return p1, p2
+        # adjust the end
+        # |---------+---------+-----|
+        # |--------start-----end----|
+        end_ = (end - start) / (1 - start)
+        assert 0 <= end_ <= 1.0
+        _, cp = bezier_subdivide(cp, start)
+        cp, _ = bezier_subdivide(cp, end_)
+        p = QPainterPath()
+        p.moveTo(cp[0])
+        p.cubicTo(*cp[1:])
+        return p
     else:
         assert False
+
+
+def qpainterpath_sub_path(
+        path: QPainterPath, start: float, end: float
+) -> QPainterPath:
+    """
+    Cut and return a sub path from `path`.
+
+    Parameters
+    ----------
+    path: QPainterPath
+        The source path.
+    start: float
+        The starting position for the cut as a number between `0.0` and `1.0`
+    end: float
+        The end position for the cut as a number between `0.0` and `1.0`
+    """
+    assert 0.0 <= start <= 1.0 and 0.0 <= end <= 1.0
+    length = path.length()
+    startlen = length * start
+    endlen = length * end
+    res = QPainterPath()
+    for section in list(_qpainterpath_sections(path)):
+        if startlen <= section.start <= endlen \
+                or startlen <= section.end <= endlen \
+                or (section.start <= startlen and section.end >= endlen):
+            if math.isclose(section.p.length(), 0):
+                res.addPath(section.p)
+            else:
+                start_ = (startlen - section.start) / section.p.length()
+                end_ = (endlen - section.start) / section.p.length()
+                p = _qpainterpath_simple_cut(
+                    section.p, max(start_, 0.), min(end_, 1.0)
+                )
+                res.addPath(p)
+    return res

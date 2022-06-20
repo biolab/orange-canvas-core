@@ -22,7 +22,7 @@ from AnyQt.QtCore import Qt, QPointF, QRectF, QLineF, QEvent, QPropertyAnimation
 
 from .nodeitem import AnchorPoint, SHADOW_COLOR
 from .graphicstextitem import GraphicsTextItem
-from .utils import stroke_path, qpainterpath_simple_split
+from .utils import stroke_path, qpainterpath_sub_path
 from ...registry import InputSignal, OutputSignal
 
 from ...scheme import SchemeLink
@@ -187,8 +187,8 @@ def path_link_disabled(basepath):
         return QPainterPath(basepath)
 
     t = (px / 2) / segmentlen
-    p1, _ = qpainterpath_simple_split(basepath, 0.50 - t)
-    _, p2 = qpainterpath_simple_split(basepath, 0.50 + t)
+    p1 = qpainterpath_sub_path(basepath, 0.0, 0.50 - t)
+    p2 = qpainterpath_sub_path(basepath, 0.50 + t, 1.0)
 
     angle = -basepath.angleAtPercent(0.5) + 90
     angler = math.radians(angle)

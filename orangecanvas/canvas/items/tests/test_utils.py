@@ -1,6 +1,11 @@
-import unittest
+import math
 
-from ..utils import linspace, linspace_trunc, argsort, composition
+import unittest
+from AnyQt.QtGui import QPainterPath
+
+from ..utils import (
+    linspace, linspace_trunc, argsort, composition, qpainterpath_sub_path
+)
 
 
 class TestUtils(unittest.TestCase):
@@ -59,3 +64,59 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(idt("a"), "a")
         next = composition(composition(ord, lambda a: a + 1), chr)
         self.assertEqual(next("a"), "b")
+
+    def test_qpainterpath_sub_path(self):
+        path = QPainterPath()
+        p = qpainterpath_sub_path(path, 0, 0.5)
+        self.assertTrue(p.isEmpty())
+
+        path = QPainterPath()
+        path.moveTo(0., 0.)
+        path.quadTo(0.5, 0.0, 1.0, 0.0)
+
+        p = qpainterpath_sub_path(path, 0, 0.5)
+        els = p.elementAt(0)
+        ele = p.elementAt(p.elementCount() - 1)
+        self.assertEqual((els.x, els.y), (0.0, 0.0))
+        self.assertTrue(math.isclose(ele.x, 0.5))
+        self.assertEqual(ele.y, 0.0)
+
+        p = qpainterpath_sub_path(path, 0.5, 1.0)
+        els = p.elementAt(0)
+        ele = p.elementAt(p.elementCount() - 1)
+        self.assertTrue(math.isclose(els.x, 0.5))
+        self.assertEqual(els.y, 0.0)
+        self.assertEqual((ele.x, ele.y), (1.0, 0.0))
+
+        path = QPainterPath()
+        path.moveTo(0., 0.)
+        path.lineTo(0.5, 0.0)
+        path.lineTo(1.0, 0.0)
+
+        p = qpainterpath_sub_path(path, 0.25, 0.75)
+        els = p.elementAt(0)
+        ele = p.elementAt(p.elementCount() - 1)
+        self.assertTrue(math.isclose(els.x, 0.25))
+        self.assertEqual(els.y, 0.0)
+        self.assertTrue(math.isclose(ele.x, 0.75))
+        self.assertEqual(ele.y, 0.0)
+
+        path = QPainterPath()
+        path.moveTo(0., 0.)
+        path.lineTo(0.25, 0.)
+        path.moveTo(0.75, 0.)
+        path.lineTo(1.0, 0.)
+
+        p = qpainterpath_sub_path(path, 0.0, 0.5)
+        els = p.elementAt(0)
+        ele = p.elementAt(p.elementCount() - 1)
+        self.assertEqual((els.x, els.y), (0.0, 0.0))
+        self.assertTrue(math.isclose(ele.x, 0.25))
+        self.assertEqual(ele.y, 0.0)
+
+        p = qpainterpath_sub_path(path, 0.5, 1.0)
+        els = p.elementAt(0)
+        ele = p.elementAt(p.elementCount() - 1)
+        self.assertTrue(math.isclose(els.x, 0.75))
+        self.assertEqual(els.y, 0.0)
+        self.assertEqual((ele.x, ele.y), (1.0, 0.0))

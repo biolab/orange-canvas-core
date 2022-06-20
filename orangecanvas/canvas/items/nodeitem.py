@@ -4,12 +4,13 @@ Node Item
 =========
 
 """
-import math
 import typing
 import string
 
 from operator import attrgetter
 from itertools import groupby
+
+from functools import reduce
 from xml.sax.saxutils import escape
 
 from typing import Dict, Any, Optional, List, Iterable, Tuple, Union
@@ -33,7 +34,7 @@ from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
 from .graphicspathobject import GraphicsPathObject
 from .graphicstextitem import GraphicsTextItem, GraphicsTextEdit
-from .utils import saturated, radial_gradient
+from .utils import saturated, radial_gradient, linspace, qpainterpath_sub_path
 from ...gui.utils import disconnected
 
 from ...scheme.node import UserMessage
@@ -42,11 +43,9 @@ from ...registry import NAMED_COLORS, WidgetDescription, CategoryDescription, \
 from ...resources import icon_loader
 from .utils import uniform_linear_layout_trunc
 from ...utils import set_flag
-from ...utils.mathutils import interp1d
 
 if typing.TYPE_CHECKING:
     from ...registry import WidgetDescription
-    # from . import LinkItem
 
 
 def create_palette(light_color, color):
@@ -493,105 +492,32 @@ class AnchorPoint(QGraphicsObject):
         self.indicator.setLinkState(state)
 
 
-def drawDashPattern(dashNum, spaceLen=2, lineLen=16):
-    dashLen = (lineLen - spaceLen * (dashNum - 1)) / dashNum
-    line = []
-    for _ in range(dashNum - 1):
-        line += [dashLen, spaceLen]
-    line += [dashLen]
-    return line
-
-
-def matchDashPattern(l1, l2, spaceLen=2):
-    if not l1 or not l2 or len(l1) == len(l2):
-        return l1, l2
-
-    if len(l2) < len(l1):
-        l1, l2 = l2, l1
-        reverse = True
-    else:
-        reverse = False
-
-    l1d = len(l1) // 2 + 1
-    l2d = len(l2) // 2 + 1
-
-    if l1d == 1:  # base case
-        dLen = l1[0]
-        l1 = drawDashPattern(l2d, spaceLen=0, lineLen=dLen)
-        return (l2, l1) if reverse else (l1, l2)
-
-    d = math.gcd(l1d, l2d)
-    if d > 1:  # split
-        l1step = (l1d // d) * 2
-        l2step = (l2d // d) * 2
-        l1range = l1step - 1
-        l2range = l2step - 1
-        l1splits, l2splits = [], []
-        for l1i, l2i in zip(range(0, len(l1), l1step), range(0, len(l2), l2step)):
-            l1s = l1[l1i:(l1i+l1range)]
-            l2s = l2[l2i:(l2i+l2range)]
-            l1splits += [l1s]
-            l2splits += [l2s]
-
-    elif l1d % 2 == 0 and l2d % 2 != 0:  # split middle 2 lines into 3
-        l11 = l1[:l1d-2]
-        l1l = l1[l1d]
-        l12 = l1[l1d+1:]
-
-        l21 = l2[:l2d-3]
-        l2l = l2[l2d-1]
-        l22 = l2[l2d+2:]
-
-        new_l11, new_l21 = matchDashPattern(l11, l21)
-        new_l12, new_l22 = matchDashPattern(l12, l22)
-        for new_l in (new_l11, new_l21):
-            if new_l:
-                new_l += [spaceLen]
-        for new_l in (new_l12, new_l22):
-            if new_l:
-                new_l.insert(0, spaceLen)
-
-        l1 = new_l11 + [l1l*2/3, 0, l1l/3, spaceLen, l1l/3, 0, l1l*2/3] + new_l12
-        l2 = new_l21 + [l2l, spaceLen, l2l/2, 0, l2l/2, spaceLen, l2l] + new_l22
-        return (l2, l1) if reverse else (l1, l2)
-
-    elif l1d % 2 != 0 and l2d % 2 == 0:  # split line
-        l11 = l1[:l1d - 2]
-        mid = l1[l1d-1]
-        l1m = [mid/2, 0, mid/2]
-        l12 = l1[l1d+1:]
-
-        l21 = l2[:l2d-3]
-        l2m = l2[l2d-2:l2d+1]
-        l22 = l2[l2d+2:]
-
-        l1splits = [l11, l1m, l12]
-        l2splits = [l21, l2m, l22]
-    else:  # if l1d % 2 != 0 and l2d % 2 != 0
-        l11 = l1[:l1d - 1]
-        l1m = l1[l1d]
-        l12 = l1[l1d + 2:]
-
-        l21 = l2[:l2d - 1]
-        l2m = l2[l2d]
-        l22 = l2[l2d + 2:]
-
-        l1splits = [l11, l1m, l12]
-        l2splits = [l21, l2m, l22]
-
-    l1 = []
-    l2 = []
-    for l1s, l2s in zip(l1splits, l2splits):
-        new_l1, new_l2 = matchDashPattern(l1s, l2s)
-        l1 += new_l1 + [spaceLen]
-        l2 += new_l2 + [spaceLen]
-    # drop trailing space
-    l1 = l1[:-1]
-    l2 = l2[:-1]
-    return (l2, l1) if reverse else (l1, l2)
-
-
 ANCHOR_TEXT_MARGIN = 4
+
+
+def make_channel_anchors_path(
+        path: QPainterPath,  #: The full uninterrupted anchor path
+        anchors: int,        #: Number of anchors
+        spacing=2.           #: Spacing
+) -> QPainterPath:
+    """Create a subdivided channel anchors path."""
+    if path.isEmpty() or anchors <= 1:
+        return QPainterPath(path)
+    pathlen = path.length()
+    spacing = min(spacing, pathlen / anchors)
+    delta = (spacing / 2) / pathlen  # half of inner spacing
+    splits = list(linspace(anchors + 1))
+    # adjust linspace splits to give all sub paths equal length (inner
+    # paths get `delta` subtracted twice while edge paths only once)
+    splits = [(1 + 2 * delta) * x - delta for x in splits]
+    splits = splits[1:-1]
+    start = 0.0
+    subpaths = []
+    for p in splits:
+        subpaths.append(qpainterpath_sub_path(path, start, p - delta))
+        start = p + delta
+    subpaths.append(qpainterpath_sub_path(path, start, 1.0))
+    return reduce(QPainterPath.united, subpaths, QPainterPath())
 
 
 class NodeAnchorItem(GraphicsPathObject):
@@ -656,20 +582,7 @@ class NodeAnchorItem(GraphicsPathObject):
                                                   self)
         self.__blurAnimation.setDuration(50)
         self.__blurAnimation.finished.connect(self.__on_finished)
-
-        stroke_path = QPainterPathStroker()
-        stroke_path.setCapStyle(Qt.RoundCap)
-        stroke_path.setWidth(3)
-        self.__pathStroker = stroke_path
-        self.__interpDash = None
-        self.__dashInterpFactor = 0
-        self.__anchorPathAnim = QPropertyAnimation(self,
-                                                   b"anchorDashInterpFactor",
-                                                   self)
-        self.__anchorPathAnim.setDuration(50)
-
         self.animGroup = QParallelAnimationGroup()
-        self.animGroup.addAnimation(self.__anchorPathAnim)
 
     def setSignals(self, signals):
         self.__signals = signals
@@ -745,39 +658,30 @@ class NodeAnchorItem(GraphicsPathObject):
         stroke_path.setWidth(25)
         self.prepareGeometryChange()
         self.__shape = stroke_path.createStroke(path)
-        stroke_path.setWidth(3)
-
-        # Match up dash patterns for animations
-        dash6 = drawDashPattern(6)
-        channelAnchor = drawDashPattern(len(self.__signals) or 1)
-        fullAnchor = drawDashPattern(1)
-        dash6, channelAnchor = matchDashPattern(dash6, channelAnchor)
-        channelAnchor, fullAnchor = matchDashPattern(channelAnchor, fullAnchor)
-        self.__unanchoredDash = dash6
-        self.__channelDash = channelAnchor
-        self.__anchoredDash = fullAnchor
+        stroke_width = 3
+        stroke_path.setWidth(stroke_width)
 
         # The full stroke
-        stroke_path.setDashPattern(fullAnchor)
         self.__fullStroke = stroke_path.createStroke(path)
 
         # The dotted stroke (when not connected to anything)
-        stroke_path.setDashPattern(dash6)
-        self.__dottedStroke = stroke_path.createStroke(path)
+        self.__dottedStroke = stroke_path.createStroke(
+            make_channel_anchors_path(path, 6, spacing=stroke_width + 4)
+        )
 
         # The channel stroke (when channels are open)
-        stroke_path.setDashPattern(channelAnchor)
-        self.__channelStroke = stroke_path.createStroke(path)
+        self.__channelStroke = stroke_path.createStroke(
+            make_channel_anchors_path(
+                path, len(self.__signals), spacing=stroke_width + 4
+        ))
 
         if self.anchored:
             self.setPath(self.__fullStroke)
-            self.__pathStroker.setDashPattern(self.__anchoredDash)
             self.__shadow.setPath(self.__fullStroke)
             brush = self.connectedHoverBrush if self.__hover else self.connectedBrush
             self.setBrush(brush)
         else:
             self.setPath(self.__dottedStroke)
-            self.__pathStroker.setDashPattern(self.__unanchoredDash)
             self.__shadow.setPath(self.__dottedStroke)
             brush = self.normalHoverBrush if self.__hover else self.normalBrush
             self.setBrush(brush)
@@ -789,22 +693,6 @@ class NodeAnchorItem(GraphicsPathObject):
         which the anchor points lie.
         """
         return QPainterPath(self.__anchorPath)
-
-    @Property(float)
-    def anchorDashInterpFactor(self):
-        return self.__dashInterpFactor
-
-    @anchorDashInterpFactor.setter
-    def anchorDashInterpFactor(self, value):
-        self.__dashInterpFactor = value
-        stroke_path = self.__pathStroker
-        path = self.__anchorPath
-
-        pattern = self.__interpDash(value)
-        stroke_path.setDashPattern(pattern)
-        stroke = stroke_path.createStroke(path)
-        self.setPath(stroke)
-        self.__shadow.setPath(stroke)
 
     def setAnchored(self, anchored):
         # type: (bool) -> None
@@ -1084,7 +972,7 @@ class NodeAnchorItem(GraphicsPathObject):
                 opacity = 1
             label.setOpacity(opacity)
 
-    def __initializeAnimation(self, targetPoss, endDash, showSignals):
+    def __initializeAnimation(self, targetPoss, showSignals):
         # TODO if animation currently running, set start value/time accordingly
         for a, t in zip(self.__points, targetPoss):
             currPos = a.pos()
@@ -1096,27 +984,19 @@ class NodeAnchorItem(GraphicsPathObject):
             lblAnim.setStartValue(lbl.opacity())
             lblAnim.setEndValue(1 if sig in showSignals else 0)
 
-        startDash = self.__pathStroker.dashPattern()
-        self.__interpDash = interp1d(startDash, endDash)
-        self.__anchorPathAnim.setStartValue(0)
-        self.__anchorPathAnim.setEndValue(1)
-
     def __updatePositions(self):
         # type: () -> None
         """Update anchor points positions.
         """
         if self.__keepSignalsOpen or self.__anchorOpen and self.__hover:
-            dashPattern = self.__channelDash
             stroke = self.__channelStroke
             targetPoss = self.__channelPointPositions
             showSignals = self.__keepSignalsOpen or self.__signals
         elif self.anchored:
-            dashPattern = self.__anchoredDash
             stroke = self.__fullStroke
             targetPoss = self.__uniformPointPositions
             showSignals = self.__signals if self.__incompatible else []
         else:
-            dashPattern = self.__unanchoredDash
             stroke = self.__dottedStroke
             targetPoss = self.__uniformPointPositions
             showSignals = self.__signals if self.__incompatible else []
@@ -1124,14 +1004,16 @@ class NodeAnchorItem(GraphicsPathObject):
         if self.animGroup.state() == QPropertyAnimation.Running:
             self.animGroup.stop()
         if self.__animationEnabled:
-            self.__initializeAnimation(targetPoss, dashPattern, showSignals)
+            self.__initializeAnimation(targetPoss, showSignals)
             self.animGroup.start()
+            self.setPath(stroke)
+            self.__shadow.setPath(stroke)
+
         else:
             for point, t in zip(self.__points, targetPoss):
                 pos = self.__anchorPath.pointAtPercent(t)
                 point.setPos(pos)
             self.__updateLabels(showSignals)
-            self.__pathStroker.setDashPattern(dashPattern)
             self.setPath(stroke)
             self.__shadow.setPath(stroke)
 
