@@ -34,7 +34,9 @@ from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
 from .graphicspathobject import GraphicsPathObject
 from .graphicstextitem import GraphicsTextItem, GraphicsTextEdit
-from .utils import saturated, radial_gradient, linspace, qpainterpath_sub_path
+from .utils import (
+    saturated, radial_gradient, linspace, qpainterpath_sub_path, clip
+)
 from ...gui.utils import disconnected
 
 from ...scheme.node import UserMessage
@@ -926,7 +928,7 @@ class NodeAnchorItem(GraphicsPathObject):
         ci = signals.index(signal)
         gap_perc = 1 / 8
         seg_perc = (1 - (gap_perc * (len(signals) - 1))) / len(signals)
-        return (ci * (gap_perc + seg_perc)) + seg_perc / 2
+        return clip((ci * (gap_perc + seg_perc)) + seg_perc / 2, 0.0, 1.0)
 
     def __updateShadowState(self):
         # type: () -> None
@@ -1475,7 +1477,7 @@ class NodeItem(QGraphicsWidget):
         if progress is None or progress < 0 or not self.__processingState:
             progress = -1.
 
-        progress = max(min(progress, 100.), -1.)
+        progress = clip(progress, -1, 100.)
         if self.__progress != progress:
             self.__progress = progress
             self.shapeItem.setProgress(progress)

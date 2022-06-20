@@ -94,6 +94,11 @@ def sample_path(path, num=10):
     return [path.pointAtPercent(p) for p in linspace(num)]
 
 
+def clip(a, amin, amax):
+    """Clip (limit) the value `a` between `amin` and `amax`"""
+    return max(min(a, amax), amin)
+
+
 def saturated(color, factor=150):
     # type: (QColor, int) -> QColor
     """Return a saturated color.
@@ -103,7 +108,7 @@ def saturated(color, factor=150):
     v = color.valueF()
     a = color.alphaF()
     s = factor * s / 100.0
-    s = max(min(1.0, s), 0.0)
+    s = clip(s, 0.0, 1.0)
     return QColor.fromHsvF(h, s, v, a).convertTo(color.spec())
 
 
