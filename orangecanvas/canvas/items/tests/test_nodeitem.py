@@ -194,18 +194,13 @@ class TestNodeItem(TestItems):
             p.scenePos() for p in anchoritem.anchorPoints()
         ])
 
-        anchoritem = NodeAnchorItem(None)
-
-        anchoritem.setSignals([
-            InputSignal("first", "object", "set_first"),
-            InputSignal("second", "object", "set_second")
-        ])
-        self.assertListEqual(anchoritem._NodeAnchorItem__pathStroker.dashPattern(),
-                             list(anchoritem._NodeAnchorItem__unanchoredDash))
-        anchoritem.setAnchorOpen(True)
-        anchoritem.setHovered(True)
-        self.assertListEqual(anchoritem._NodeAnchorItem__pathStroker.dashPattern(),
-                             list(anchoritem._NodeAnchorItem__channelDash))
+        path = anchoritem.anchorPath()
+        anchoritem.setAnchored(True)
+        anchoritem.setAnchorPath(path)
+        self.assertEqual(path, anchoritem.anchorPath())
+        anchoritem.setAnchored(False)
+        anchoritem.setAnchorPath(path)
+        self.assertEqual(path, anchoritem.anchorPath())
 
     def test_title_edit(self):
         item = NodeItem()

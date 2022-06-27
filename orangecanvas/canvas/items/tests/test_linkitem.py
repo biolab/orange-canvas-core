@@ -123,3 +123,17 @@ class TestLinkItem(TestItems):
         timer.start()
         self.qWait()
         timer.stop()
+
+    def test_link_enabled(self):
+        link = LinkItem()
+        anchor1 = AnchorPoint()
+        anchor2 = AnchorPoint()
+        anchor2.setPos(100, 100)
+
+        link.setSourceItem(None, anchor=anchor1)
+        link.setSinkItem(None, anchor=anchor2)
+
+        link.setEnabled(False)
+        self.assertFalse(link.isEnabled())
+        link.setEnabled(True)
+        self.assertTrue(link.isEnabled())
