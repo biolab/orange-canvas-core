@@ -112,6 +112,15 @@ class _OutputState:
     __str__ = __repr__
 
 
+class _LinkExtra:
+    """Extra data tracked for a SchemeLink"""
+    __slots__ = ("flags",)
+    DidScheduleNew = 1
+
+    def __init__(self, flags=0):
+        self.flags = flags
+
+
 class SignalManager(QObject):
     """
     SignalManager handles the runtime signal propagation for a :class:`.Scheme`
@@ -196,6 +205,8 @@ class SignalManager(QObject):
         # mapping a node to its current outputs
         self.__node_outputs = {}  # type: Dict[SchemeNode, DefaultDict[OutputSignal, _OutputState]]
 
+        #: Extra link state
+        self.__link_extra = defaultdict(_LinkExtra)  # type: DefaultDict[SchemeLink, _LinkExtra]
         self.__state = SignalManager.Running
         self.__runtime_state = SignalManager.Waiting
 
@@ -406,6 +417,7 @@ class SignalManager(QObject):
     def __on_link_removed(self, link):
         # type: (SchemeLink) -> None
         link.enabled_changed.disconnect(self.__on_link_enabled_changed)
+        self.__link_extra.pop(link, None)
 
     def eventFilter(self, recv: QObject, event: QEvent) -> bool:
         etype = event.type()
@@ -519,15 +531,21 @@ class SignalManager(QObject):
                       node.title, channel.name)
             state.flags &= ~_OutputState.Invalidated
 
-        links = filter(
-            is_enabled,
-            scheme.find_links(source_node=node, source_channel=channel)
-        )
+        links = scheme.find_links(source_node=node, source_channel=channel)
         signals = []
         for link in links:
+            extra = self.__link_extra[link]
             links_in = scheme.find_links(sink_node=link.sink_node)
             index = links_in.index(link)
-            signals.append(sigtype(link, value, id, index=index))
+            if not link.is_enabled() and not extra.flags & _LinkExtra.DidScheduleNew:
+                # Send Signal.New with None value. Proper update will be done
+                # when/if the link is re-enabled.
+                signal = Signal.New(link, None, id, index=index)
+            elif link.is_enabled():
+                signal = sigtype(link, value, id, index=index)
+            else:
+                continue
+            signals.append(signal)
             link.set_runtime_state_flag(SchemeLink.Invalidated, False)
 
         self._schedule(signals)
@@ -583,6 +601,11 @@ class SignalManager(QObject):
         Schedule a list of :class:`Signal` for delivery.
         """
         self.__input_queue.extend(signals)
+
+        for sig in signals:
+            if isinstance(sig, Signal.New):
+                extra = self.__link_extra[sig.link]
+                extra.flags |= _LinkExtra.DidScheduleNew
 
         for link in {sig.link for sig in signals}:
             # update the SchemeLink's runtime state flags

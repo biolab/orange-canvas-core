@@ -1,9 +1,6 @@
-import unittest
-
 from AnyQt.QtTest import QSignalSpy
 
 from orangecanvas.scheme import Scheme, SchemeNode, SchemeLink
-from orangecanvas.scheme import signalmanager
 from orangecanvas.scheme.signalmanager import (
     SignalManager, Signal, compress_signals, compress_single
 )
@@ -34,8 +31,12 @@ class TestSignalManager(QCoreAppTestCase):
         add = scheme.new_node(reg.widget("add"))
         scheme.new_link(zero, "value", add, "left")
         scheme.new_link(one, "value", add, "right")
+        sm = TestingSignalManager()
+        sm.set_workflow(scheme)
+        sm.start()
         self.reg = reg
         self.scheme = scheme
+        self.signal_manager = sm
 
     def test(self):
         workflow = self.scheme
@@ -73,9 +74,7 @@ class TestSignalManager(QCoreAppTestCase):
 
     def test_add_link_disabled(self):
         workflow = self.scheme
-        sm = TestingSignalManager()
-        sm.set_workflow(workflow)
-        sm.start()
+        sm = self.signal_manager
         n0, n1, n2 = workflow.nodes
         l0, l1 = workflow.links
         workflow.remove_link(l0)
@@ -98,12 +97,27 @@ class TestSignalManager(QCoreAppTestCase):
             ]
         )
 
+    def test_link_new_dispatch_after_enable(self):
+        workflow = self.scheme
+        sm = self.signal_manager
+        n0, n1, n2 = workflow.nodes
+        l0, l1 = workflow.links
+        l0.set_enabled(False)
+        sm.send(n0, n0.description.outputs[0], -42)
+        sm.send(n0, n0.description.outputs[0], 42)
+        self.assertSequenceEqual(
+            sm.pending_input_signals(n2), [Signal.New(l0, None, None, 0)]
+        )
+        sm.process_queued()
+        l0.set_enabled(True)
+        self.assertSequenceEqual(
+            sm.pending_input_signals(n2), [Signal.Update(l0, 42, None, 0)]
+        )
+        sm.process_queued()
+
     def test_invalidated_flags(self):
         workflow = self.scheme
-        sm = TestingSignalManager()
-        sm.set_workflow(workflow)
-        sm.start()
-
+        sm = self.signal_manager
         n0, n1, n2 = workflow.nodes[:3]
         l0, l1 = workflow.links[:2]
 
@@ -149,9 +163,7 @@ class TestSignalManager(QCoreAppTestCase):
 
     def test_pending_flags(self):
         workflow = self.scheme
-        sm = TestingSignalManager()
-        sm.set_workflow(workflow)
-        sm.start()
+        sm = self.signal_manager
         n0, n1, n3 = workflow.nodes[:3]
         l0, l1 = workflow.links[:2]
 
@@ -169,10 +181,7 @@ class TestSignalManager(QCoreAppTestCase):
 
     def test_ready_flags(self):
         workflow = self.scheme
-        sm = TestingSignalManager()
-        sm.set_workflow(workflow)
-        sm.start()
-
+        sm = self.signal_manager
         n0, n1, n3 = workflow.nodes[:3]
         sm.send(n0, n0.output_channel("value"), 'hello')
         sm.send(n1, n1.output_channel("value"), 'hello')
@@ -187,10 +196,7 @@ class TestSignalManager(QCoreAppTestCase):
 
     def test_start_finished(self):
         workflow = self.scheme
-        sm = TestingSignalManager()
-        sm.set_workflow(workflow)
-        sm.start()
-
+        sm = self.signal_manager
         n0, n1, n3 = workflow.nodes[:3]
         start_spy = QSignalSpy(sm.started)
         fin_spy = QSignalSpy(sm.finished)
