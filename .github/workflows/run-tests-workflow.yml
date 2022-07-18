@@ -50,27 +50,23 @@ jobs:
             test-env: "PyQt6~=6.2.3 PyQt6-Qt6~=6.2.3"
 
           # macOS
-          - os: macos-10.15
-            python-version: 3.6
-            test-env: "PyQt5~=5.9.2 qasync<0.19.0"
-
-          - os: macos-10.15
+          - os: macos-11
             python-version: 3.7
             test-env: "PyQt5~=5.12.0"
 
-          - os: macos-10.15
+          - os: macos-11
             python-version: 3.8
             test-env: "PyQt5~=5.14.0"
 
-          - os: macos-10.15
+          - os: macos-11
             python-version: 3.9
             test-env: "PyQt5~=5.15.0"
 
-          - os: macos-11
+          - os: macos-12
             python-version: "3.10"
             test-env: "PyQt5~=5.15.0"
 
-          - os: macos-11
+          - os: macos-12
             python-version: "3.10"
             test-env: "PyQt6~=6.2.3 PyQt6-Qt6~=6.2.3"
 
@@ -111,7 +107,7 @@ jobs:
         # https://www.riverbankcomputing.com/pipermail/pyqt/2020-June/042949.html
         run: |
           sudo apt-get update 
-          sudo apt-get install -y libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0 libegl1-mesa
+          sudo apt-get install -y libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0 libegl1-mesa libxcb-shape0
 
       - name: Setup Pip Cache
         uses: actions/cache@v2
