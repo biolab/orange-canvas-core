@@ -48,7 +48,6 @@ from ...registry import NAMED_COLORS, WidgetDescription, CategoryDescription, \
 from ...resources import icon_loader
 from .utils import uniform_linear_layout_trunc
 from ...utils import set_flag
-from ...utils.mathutils import interp1d
 try:
     from silx.gui import icons as silxicons
     has_silx = True
