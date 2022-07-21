@@ -31,7 +31,7 @@ class UserMessage(object):
         A dictionary with optional extra data.
     """
     #: Severity flags
-    Info, Warning, Error = 1, 2, 3
+    Processing, Info, Warning, Error = 0, 1, 2, 3
 
     def __init__(self, contents, severity=Info, message_id="", data={}):
         # type: (str, int, str, Dict[str, Any]) -> None

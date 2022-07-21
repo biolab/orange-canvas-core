@@ -6,6 +6,7 @@ Node Item
 """
 import typing
 import string
+import time
 
 from operator import attrgetter
 from itertools import groupby
@@ -28,7 +29,7 @@ from AnyQt.QtGui import (
 from AnyQt.QtCore import (
     Qt, QEvent, QPointF, QRectF, QRect, QSize, QElapsedTimer, QTimer,
     QPropertyAnimation, QEasingCurve, QObject, QVariantAnimation,
-    QParallelAnimationGroup, Slot
+    QParallelAnimationGroup, Slot, QThread
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
@@ -47,6 +48,14 @@ from ...registry import NAMED_COLORS, WidgetDescription, CategoryDescription, \
 from ...resources import icon_loader
 from .utils import uniform_linear_layout_trunc
 from ...utils import set_flag
+from ...utils.mathutils import interp1d
+try:
+    from silx.gui import icons as silxicons
+    has_silx = True
+except ImportError:
+    has_silx = False
+else:
+    import functools
 
 if typing.TYPE_CHECKING:
     from ...registry import WidgetDescription
@@ -1161,6 +1170,17 @@ class GraphicsIconItem(QGraphicsWidget):
                 self.__icon.paint(painter, target, Qt.AlignCenter, mode)
 
 
+class QWaiterThread(QThread):
+    """simple thread wich wait for waitingTime to be finished"""
+
+    def __init__(self, waitingTime):
+        QThread.__init__(self)
+        self.waitingTime = waitingTime
+
+    def run(self):
+        time.sleep(self.waitingTime)
+
+
 class NodeItem(QGraphicsWidget):
     """
     An widget node item in the canvas.
@@ -1210,10 +1230,23 @@ class NodeItem(QGraphicsWidget):
         self.__error = None    # type: Optional[str]
         self.__warning = None  # type: Optional[str]
         self.__info = None     # type: Optional[str]
+        self.__processing = None
         self.__messages = {}  # type: Dict[Any, UserMessage]
         self.__anchorLayout = None
         self.__animationEnabled = False
-
+        # icon for advancement
+        if has_silx:
+            self._advancement_icon = silxicons.getWaitIcon()
+            self.__threadAnimation = QWaiterThread(0.15)
+            self.__threadAnimation.finished.connect(self._updateAnimatedIcon)
+            # remove thread when the widget is about to be delete
+            self.destroyed.connect(
+                functools.partial(self.__threadAnimation.finished.disconnect,
+                                  self._updateAnimatedIcon))
+            self.destroyed.connect(self.__threadAnimation.exit)
+            self.__threadAnimation.start()
+        else:
+            self._advancement_icon = None
         self.setZValue(self.Z_VALUE)
 
         shape_rect = QRectF(-24, -24, 48, 48)
@@ -1265,12 +1298,28 @@ class NodeItem(QGraphicsWidget):
         self.errorItem = iconItem(QStyle.SP_MessageBoxCritical)
         self.warningItem = iconItem(QStyle.SP_MessageBoxWarning)
         self.infoItem = iconItem(QStyle.SP_MessageBoxInformation)
+        if has_silx:
+            self.processingItem = GraphicsIconItem(self,
+                                                   icon=self._advancement_icon.currentIcon(),
+                                                   iconSize=QSize(16, 16))
+            self._advancement_icon.register(self.processingItem)
+
+            self.processingItem.hide()
+        else:
+            self.processingItem = None
 
         self.prepareGeometryChange()
         self.__boundingRect = None
 
         if widget_description is not None:
             self.setWidgetDescription(widget_description)
+
+    def _updateAnimatedIcon(self):
+        """Simple function which manage the waiting icon"""
+        if self.processingItem is not None:
+            self.processingItem.setIcon(self._advancement_icon.currentIcon())
+            # get ready for the next animation
+            self.__threadAnimation.start()
 
     @classmethod
     def from_node(cls, node):
@@ -1546,6 +1595,11 @@ class NodeItem(QGraphicsWidget):
             self.__info = message
             self.__updateMessages()
 
+    def setProcessingMessage(self, message):
+        if self.__processing != message:
+            self.__processing = message
+            self.__updateMessages()
+
     def newInputAnchor(self, signal=None):
         # type: (Optional[InputSignal]) -> AnchorPoint
         """
@@ -1687,6 +1741,8 @@ class NodeItem(QGraphicsWidget):
         Update message items (position, visibility and tool tips).
         """
         items = [self.errorItem, self.warningItem, self.infoItem]
+        if has_silx:
+            items.append(self.processingItem)
 
         messages = list(self.__messages.values()) + [
             UserMessage(self.__error or "", UserMessage.Error,
@@ -1696,16 +1752,20 @@ class NodeItem(QGraphicsWidget):
             UserMessage(self.__info or "", UserMessage.Info,
                         message_id="_info"),
         ]
+        if has_silx:
+            messages.append(
+                UserMessage(self.__processing or "", UserMessage.Processing,
+                            message_id="_processing")
+            )
         key = attrgetter("severity")
         messages = groupby(sorted(messages, key=key, reverse=True), key=key)
 
         for (_, message_g), item in zip(messages, items):
             message = "<br/>".join(m.contents for m in message_g if m.contents)
             item.setVisible(bool(message))
-            if bool(message):
+            if bool(message) and item is not self.processingItem:
                 item.anim.start(QPropertyAnimation.KeepWhenStopped)
             item.setToolTip(message or "")
-
         shown = [item for item in items if item.isVisible()]
         count = len(shown)
         if count:
