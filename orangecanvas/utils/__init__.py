@@ -6,7 +6,7 @@ from functools import reduce
 import typing
 from typing import (
     Iterable, Set, Any, Optional, Union, Tuple, Callable, Mapping, List, Dict,
-    SupportsInt
+    SupportsInt, cast, overload
 )
 
 from AnyQt.QtCore import Qt
@@ -161,27 +161,40 @@ def check_arg(pred, value):
         raise ValueError(value)
 
 
-def unique(iterable):
-    # type: (Iterable[H]) -> Iterable[H]
+@overload
+def unique(iterable: Iterable['H']) -> Iterable['H']: ...
+
+
+@overload
+def unique(iterable: Iterable['A'], key: Callable[['A'], 'H']) -> Iterable['A']: ...
+
+
+def unique(iterable, key=None):
+    # type: (Iterable[A], Optional[Callable[[A], H]]) -> Iterable[A]
     """
     Return unique elements of `iterable` while preserving their order.
 
+    If `key` is supplied it is used as a substitute for determining
+    'uniqueness' of elements.
+
     Parameters
     ----------
-    iterable : Iterable[Hashable]
+    iterable : Iterable[A]
+    key : Callable[[A], Hashable]
 
     Returns
     -------
-    unique : Iterable
+    unique : Iterable[A]
         Unique elements from `iterable`.
     """
-    seen = set()  # type: Set[H]
-
-    def observed(el):  # type: (H) -> bool
-        observed = el in seen
-        seen.add(el)
-        return observed
-    return (el for el in iterable if not observed(el))
+    seen = set()  # type: Set[Union[H, A]]
+    if key is None:
+        key = cast('Callable[[A], H]', lambda t: t)
+    for el in iterable:
+        el_key = key(el)
+        if el_key not in seen:
+            seen.add(el_key)
+            yield el
 
 
 def assocv(seq, key, eq=operator.eq):

@@ -45,6 +45,7 @@ from ..canvas.items import controlpoints
 from ..gui.quickhelp import QuickHelpTipEvent
 from . import commands
 from .editlinksdialog import EditLinksDialog
+from ..utils import unique
 
 if typing.TYPE_CHECKING:
     from .schemeedit import SchemeEditWidget
@@ -2020,7 +2021,11 @@ class PluginDropHandler(DropHandler):
         """
         Return an iterator over all entry points.
         """
-        return entry_points().get(self.__group, [])
+        eps = entry_points().get(self.__group, [])
+        # Can have duplicated entries here if a distribution is *found* via
+        # different `sys.meta_path` handlers and/or on different `sys.path`
+        # entries.
+        return unique(eps, key=lambda ep: ep.value)
 
     __entryPoints = None
 
