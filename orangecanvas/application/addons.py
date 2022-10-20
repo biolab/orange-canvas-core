@@ -1501,11 +1501,12 @@ class PipInstaller:
 
     def install(self, pkg):
         # type: (Installable) -> None
-        cmd = ["python", "-m", "pip",  "install"] + self.arguments
+        cmd = [
+            "python", "-m", "pip", "install", "--upgrade",
+            "--upgrade-strategy=only-if-needed",
+        ] + self.arguments
         if pkg.package_url.startswith(("http://", "https://")):
-            version = (
-                "=={}".format(pkg.version) if pkg.version is not None else ""
-            )
+            version = "=={}".format(pkg.version) if pkg.version is not None else ""
             cmd.append(pkg.name + version)
         else:
             # Package url is path to the (local) wheel
