@@ -81,7 +81,7 @@ jobs:
 
           - os: windows-2019
             python-version: 3.9
-            test-env: "PyQt5~=5.14.0"
+            test-env: "PyQt5~=5.15.0"
 
           - os: windows-2019
             python-version: "3.10"
