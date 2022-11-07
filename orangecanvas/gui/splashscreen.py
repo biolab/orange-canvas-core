@@ -154,6 +154,7 @@ class SplashScreen(QSplashScreen):
         if event.type() == QEvent.Paint:
             pixmap = self.__pixmap
             painter = QPainter(self)
+            painter.setRenderHints(QPainter.SmoothPixmapTransform)
             if not pixmap.isNull():
                 painter.drawPixmap(0, 0, pixmap)
             self.drawContents(painter)
