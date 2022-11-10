@@ -1618,14 +1618,20 @@ class CanvasMainWindow(QMainWindow):
         document = self.current_document()
         path = document.path()
 
+        def remove(filename: str) -> None:
+            try:
+                os.remove(filename)
+            except FileNotFoundError:
+                pass
+            except OSError as e:
+                log.warning("Could not delete swp file: %s", e)
+
         if path or self in canvas_scratch_name_memo:
-            swpname = swp_name(self)
-            if os.path.exists(swpname):
-                os.remove(swpname)
+            remove(swp_name(self))
         else:
             swpnames = glob_scratch_swps()
             for swpname in swpnames:
-                os.remove(swpname)
+                remove(swpname)
 
     def ask_load_swp_if_exists(self):
         """
