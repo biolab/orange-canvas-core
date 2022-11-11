@@ -1,5 +1,6 @@
 import enum
 import itertools
+import weakref
 from functools import partial
 
 import logging
@@ -19,6 +20,8 @@ from orangecanvas.resources import icon_loader
 from orangecanvas.scheme import SchemeNode, Scheme, NodeEvent, LinkEvent
 from orangecanvas.scheme.events import WorkflowEvent
 from orangecanvas.scheme.node import UserMessage
+from orangecanvas.gui.windowlistmanager import WindowListManager
+from orangecanvas.utils.qinvoke import connect_with_context
 
 log = logging.getLogger(__name__)
 
@@ -115,6 +118,10 @@ class WidgetManager(QObject):
         self.__activation_monitor = ActivationMonitor(self)
         self.__activation_counter = itertools.count()
         self.__activation_monitor.activated.connect(self.__mark_activated)
+        self.__windows_list_head = QAction(
+            None, objectName="action-canvas-windows-list-head",
+        )
+        self.__windows_list_head.setSeparator(True)
 
     def set_workflow(self, workflow):
         # type: (Scheme) -> None
@@ -289,7 +296,28 @@ class WidgetManager(QObject):
             partial(self.__on_raise_ancestors, node)
         )
         w.addActions([raise_canvas, raise_descendants, raise_ancestors])
+        w.addAction(self.__windows_list_head)
+        windowmanager = WindowListManager.instance()
+        windowmanager.addWindow(w)
+        w.addActions(windowmanager.actions())
+        w_ref = weakref.ref(w)  # avoid ref cycles in connection closures
 
+        def addWindowAction(_, a: QAction):
+            w = w_ref()
+            if w is not None:
+                w.addAction(a)
+
+        def removeWindowAction(_, a: QAction):
+            w = w_ref()
+            if w is not None:
+                w.removeAction(a)
+
+        connect_with_context(
+            windowmanager.windowAdded, w, addWindowAction,
+        )
+        connect_with_context(
+            windowmanager.windowRemoved, w, removeWindowAction,
+        )
         # send all the post creation notification events
         workflow = self.__workflow
         assert workflow is not None
@@ -352,6 +380,8 @@ class WidgetManager(QObject):
             assert widget in self.__item_for_widget
             del self.__item_for_widget[widget]
             widget.removeEventFilter(self.__activation_monitor)
+            windowmanager = WindowListManager.instance()
+            windowmanager.removeWindow(widget)
             item.widget = None
             self.widget_for_node_removed.emit(node, widget)
             self.delete_widget_for_node(node, widget)

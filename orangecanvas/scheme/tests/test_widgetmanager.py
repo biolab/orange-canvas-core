@@ -5,6 +5,7 @@ from AnyQt.QtCore import QEvent
 from AnyQt.QtWidgets import QWidget, QApplication, QAction
 from AnyQt.QtTest import QSignalSpy
 
+from orangecanvas.gui.windowlistmanager import WindowListManager
 from orangecanvas.scheme import (
     Scheme, NodeEvent, SchemeLink, LinkEvent, WorkflowEvent
 )
@@ -40,6 +41,7 @@ class TestWidgetManager(unittest.TestCase):
         cls.app = None
 
     def setUp(self):
+        super().setUp()
         reg = registry_tests.small_testing_registry()
         scheme = Scheme()
         zero = scheme.new_node(reg.widget("zero"))
@@ -49,6 +51,11 @@ class TestWidgetManager(unittest.TestCase):
         scheme.new_link(one, "value", add, "right")
 
         self.scheme = scheme
+
+    def tearDown(self) -> None:
+        self.scheme.clear()
+        del self.scheme
+        super().tearDown()
 
     def test_create_immediate(self):
         wm = TestingWidgetManager()
@@ -243,3 +250,23 @@ class TestWidgetManager(unittest.TestCase):
         if not espy.events():
             self.assertTrue(espy.wait(1000))
         self.assertTrue(w.isVisible())
+
+    def test_window_list_actions(self):
+        workflow = self.scheme
+        nodes = workflow.nodes
+        wm = TestingWidgetManager()
+        wm.set_creation_policy(WidgetManager.Immediate)
+        windowlist = WindowListManager.instance()
+        wm.set_workflow(workflow)
+        w1 = wm.widget_for_node(nodes[0])
+        w2 = wm.widget_for_node(nodes[1])
+        ac1 = windowlist.actionForWindow(w1)
+        self.assertTrue(all(ac in w1.actions() for ac in windowlist.actions()))
+        self.assertIn(ac1, w2.actions())
+
+        spy = EventSpy(w1, QEvent.Show)
+        ac1.setChecked(True)
+        self.assertIn(QEvent.Show, spy.events())
+
+        workflow.remove_node(nodes[0])
+        self.assertNotIn(ac1, w2.actions())
