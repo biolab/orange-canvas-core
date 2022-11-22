@@ -555,18 +555,19 @@ class CanvasMainWindow(QMainWindow):
             triggered=lambda checked: self.output_dock.setVisible(
                 checked),
         )
-        if sys.platform == "darwin":
-            # Actions for native Mac OSX look and feel.
-            self.minimize_action = QAction(
-                self.tr("Minimize"), self,
-                triggered=self.showMinimized,
-                shortcut=QKeySequence("Ctrl+M")
-            )
-            self.zoom_action = QAction(
-                self.tr("Zoom"), self,
-                objectName="application-zoom",
-                triggered=self.toggleMaximized,
-            )
+        # Actions for native Mac OSX look and feel.
+        self.minimize_action = QAction(
+            self.tr("Minimize"), self,
+            triggered=self.showMinimized,
+            shortcut=QKeySequence("Ctrl+M"),
+            visible=sys.platform == "darwin",
+        )
+        self.zoom_action = QAction(
+            self.tr("Zoom"), self,
+            objectName="application-zoom",
+            triggered=self.toggleMaximized,
+            visible=sys.platform == "darwin",
+        )
         self.freeze_action = QAction(
             self.tr("Freeze"), self,
             shortcut=QKeySequence("Shift+F"),
@@ -730,15 +731,13 @@ class CanvasMainWindow(QMainWindow):
         # Widget menu
         menu_bar.addMenu(self.widget_menu)
 
-        if sys.platform == "darwin":
-            # Mac OS X native look and feel.
-            self.window_menu = QMenu(
-                self.tr("Window"), menu_bar, objectName="window-menu"
-            )
-            self.window_menu.addAction(self.minimize_action)
-            self.window_menu.addAction(self.zoom_action)
-            menu_bar.addMenu(self.window_menu)
-
+        # Mac OS X native look and feel.
+        self.window_menu = QMenu(
+            self.tr("Window"), menu_bar, objectName="window-menu"
+        )
+        self.window_menu.addAction(self.minimize_action)
+        self.window_menu.addAction(self.zoom_action)
+        menu_bar.addMenu(self.window_menu)
         menu_bar.addMenu(self.options_menu)
 
         # Help menu.
@@ -2380,20 +2379,15 @@ class CanvasMainWindow(QMainWindow):
             self.help_dock.show()
             self.help_dock.raise_()
 
-    # Mac OS X
-    if sys.platform == "darwin":
-        def toggleMaximized(self):
-            # type: () -> None
-            """Toggle normal/maximized window state.
-            """
-            if self.isMinimized():
-                # Do nothing if window is minimized
-                return
-
-            if self.isMaximized():
-                self.showNormal()
-            else:
-                self.showMaximized()
+    def toggleMaximized(self) -> None:
+        """Toggle normal/maximized window state.
+        """
+        if self.isMinimized():  # Do nothing if window is minimized
+            return
+        if self.isMaximized():
+            self.showNormal()
+        else:
+            self.showMaximized()
 
     def sizeHint(self):
         # type: () -> QSize
