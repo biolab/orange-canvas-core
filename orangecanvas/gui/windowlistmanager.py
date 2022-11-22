@@ -83,6 +83,10 @@ class WindowListManager(QObject):
         )
         action.setData(window)
         handle = window.windowHandle()
+        if not handle:
+            # TODO: need better visible, title notify bypassing QWindow
+            window.create()
+            handle = window.windowHandle()
         action.setChecked(handle.isActive())
         handle.visibleChanged.connect(action.setVisible)
         handle.windowTitleChanged.connect(action.setText)
