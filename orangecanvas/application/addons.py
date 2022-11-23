@@ -705,8 +705,7 @@ class AddonManagerDialog(QDialog):
         if self.__progress is not None:
             self.__progress.hide()
 
-        if f.exception() is not None:
-            exc = typing.cast(BaseException, f.exception())
+        def network_warning(exc):
             etype, tb = type(exc), exc.__traceback__
             log.error(
                 "Error fetching package list",
@@ -723,11 +722,16 @@ class AddonManagerDialog(QDialog):
                     "".join(traceback.format_exception(etype, exc, tb)),
                 parent=self
             )
+
+        if f.exception() is not None:
+            exc = typing.cast(BaseException, f.exception())
+            network_warning(exc)
             self.__f_pypi_addons = None
-            self.__addon_items = None
             return
 
-        config, packages = f.result()
+        config, (packages, exc) = f.result()
+        if len(exc):
+            network_warning(exc[0])
         assert all(isinstance(p, Installable) for p in packages)
         AddonManagerDialog.__packages = packages
         installed = [ep.dist for ep in config.addon_entry_points()
@@ -1276,11 +1280,16 @@ def query_pypi(names: List[str]) -> List[_QueryResult]:
 
 
 def list_available_versions(config, session=None):
-    # type: (config.Config, Optional[requests.Session]) -> List[Installable]
+    # type: (config.Config, Optional[requests.Session]) -> (List[Installable], List[Exception])
     if session is None:
         session = _session()
 
-    defaults = config.addon_defaults_list()
+    exceptions = []
+
+    try:
+        defaults = config.addon_defaults_list()
+    except requests.exceptions.RequestException as e:
+        exceptions.append(e)
 
     def getname(item):
         # type: (Dict[str, Any]) -> str
@@ -1302,19 +1311,22 @@ def list_available_versions(config, session=None):
 
     distributions = []
     for p in missing:
-        response = session.get(PYPI_API_JSON.format(name=p))
-        if response.status_code != 200:
-            continue
-        distributions.append(response.json())
+        try:
+            response = session.get(PYPI_API_JSON.format(name=p))
+            if response.status_code != 200:
+                continue
+            distributions.append(response.json())
+        except requests.exceptions.RequestException as e:
+            exceptions.append(e)
 
     packages = []
     for addon in distributions + defaults:
         try:
             packages.append(installable_from_json_response(addon))
-        except (TypeError, KeyError):
-            continue  # skip invalid packages
+        except (TypeError, KeyError) as e:
+            exceptions.append(e)
 
-    return packages
+    return packages, exceptions
 
 
 def installable_items(pypipackages, installed=[]):
