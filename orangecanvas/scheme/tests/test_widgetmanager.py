@@ -1,4 +1,5 @@
 import unittest
+import weakref
 from collections import Counter
 
 from AnyQt.QtCore import QEvent
@@ -228,6 +229,23 @@ class TestWidgetManager(unittest.TestCase):
             n2, WorkflowEvent(WorkflowEvent.NodeActivateRequest))
         self.assertEqual(len(spy), 1)
         self.assertIs(spy[0][0], n2)
+
+    def test_garbage_collect_widgets(self):
+        workflow = self.scheme
+        nodes = workflow.nodes
+        wm = TestingWidgetManager()
+        wm.set_creation_policy(WidgetManager.Immediate)
+        wm.set_workflow(workflow)
+        w1 = wm.widget_for_node(nodes[0])
+        w2 = wm.widget_for_node(nodes[1])
+        w1_ref = weakref.ref(w1)
+        w2_ref = weakref.ref(w2)
+        workflow.remove_node(nodes[0])
+        del w1
+        self.assertIsNone(w1_ref())
+        workflow.remove_node(nodes[1])
+        del w2
+        self.assertIsNone(w2_ref())
 
     def test_actions(self):
         workflow = self.scheme
