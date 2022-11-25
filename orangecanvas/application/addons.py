@@ -1289,6 +1289,7 @@ def list_available_versions(config, session=None):
     try:
         defaults = config.addon_defaults_list()
     except requests.exceptions.RequestException as e:
+        defaults = []
         exceptions.append(e)
 
     def getname(item):
