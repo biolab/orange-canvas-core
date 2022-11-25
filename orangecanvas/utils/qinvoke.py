@@ -1,7 +1,9 @@
-from typing import TypeVar, Callable, overload, Optional
-from AnyQt.QtCore import Qt, QObject, Signal, pyqtBoundSignal as BoundSignal
-
+from typing import TypeVar, Callable, overload
 from functools import wraps
+
+from AnyQt.QtCore import Qt, QObject, Signal, BoundSignal
+
+from orangecanvas.utils.qobjref import qobjref_weak
 
 
 class _InvokeEmitter(QObject):
@@ -105,19 +107,23 @@ def qinvoke(func: Callable = None, context: QObject = None, type=Qt.QueuedConnec
         # caller (child objects are deleted before parents). This is used to
         # achieve (of fake) connection auto-disconnect.
         caller = _InvokeCaller(context)
+        caller_ref = qobjref_weak(caller)
+        context_ref = qobjref_weak(context)
 
         def call_in_context(args, kwargs):
-            func(*args, *kwargs)
+            context = context_ref()
+            if context is not None:
+                func(*args, *kwargs)
 
         # connection from emitter -(queued)-> caller -(direct)-> func
         emitter.sig.connect(caller.sig, type)
         caller.sig.connect(call_in_context, Qt.DirectConnection)
 
         def disconnect():
-            # caller is captured in this closure. This should be the only
-            # reference to it.
-            caller.sig.disconnect(call_in_context)
-            caller.setParent(None)  # this should delete the caller
+            caller = caller_ref()
+            if caller is not None:
+                caller.sig.disconnect(call_in_context)
+                caller.setParent(None)  # this should delete the caller
 
         @wraps(func)
         def wrapped(*args, **kwargs):
