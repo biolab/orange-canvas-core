@@ -140,7 +140,7 @@ def style_sheet(stylesheet: str) -> Tuple[str, List[Tuple[str, str]]]:
     """
     def process_qss(content: str, base: str):
         pattern = re.compile(
-            r"^\s@([a-zA-Z0-9_]+?)\s*:\s*([a-zA-Z0-9_/]+?);\s*$",
+            r"^\s*@([a-zA-Z0-9_]+?)\s*:\s*([a-zA-Z0-9_/]+?);\s*$",
             flags=re.MULTILINE
         )
         matches = pattern.findall(content)
