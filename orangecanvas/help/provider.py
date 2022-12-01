@@ -87,9 +87,6 @@ class BaseInventoryProvider(HelpProvider):
                 QNetworkRequest.PreferCache
             )
             req.setAttribute(
-                QNetworkRequest.FollowRedirectsAttribute, True
-            )
-            req.setAttribute(
                 QNetworkRequest.RedirectPolicyAttribute,
                 QNetworkRequest.NoLessSafeRedirectPolicy
             )
