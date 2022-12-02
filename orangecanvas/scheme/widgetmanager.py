@@ -17,7 +17,7 @@ from AnyQt.QtGui import QKeySequence
 from AnyQt.QtWidgets import QWidget, QLabel, QAction
 
 from orangecanvas.resources import icon_loader
-from orangecanvas.scheme import SchemeNode, Scheme, NodeEvent, LinkEvent
+from orangecanvas.scheme import SchemeNode, Scheme, NodeEvent, LinkEvent, Link
 from orangecanvas.scheme.events import WorkflowEvent
 from orangecanvas.scheme.node import UserMessage
 from orangecanvas.gui.windowlistmanager import WindowListManager
@@ -281,7 +281,8 @@ class WidgetManager(QObject):
             self.tr("Raise Descendants"), w,
             objectName="action-canvas-raise-descendants",
             toolTip=self.tr("Raise all immediate descendants of this node"),
-            shortcut=QKeySequence("Ctrl+Shift+Right")
+            shortcut=QKeySequence("Ctrl+Shift+Right"),
+            enabled=False,
         )
         raise_descendants.triggered.connect(
             partial(self.__on_raise_descendants, node)
@@ -290,7 +291,8 @@ class WidgetManager(QObject):
             self.tr("Raise Ancestors"), w,
             objectName="action-canvas-raise-ancestors",
             toolTip=self.tr("Raise all immediate ancestors of this node"),
-            shortcut=QKeySequence("Ctrl+Shift+Left")
+            shortcut=QKeySequence("Ctrl+Shift+Left"),
+            enabled=False,
         )
         raise_ancestors.triggered.connect(
             partial(self.__on_raise_ancestors, node)
@@ -322,10 +324,12 @@ class WidgetManager(QObject):
         workflow = self.__workflow
         assert workflow is not None
         inputs = workflow.find_links(sink_node=node)
+        raise_ancestors.setEnabled(bool(inputs))
         for i, link in enumerate(inputs):
             ev = LinkEvent(LinkEvent.InputLinkAdded, link, i)
             QCoreApplication.sendEvent(w, ev)
         outputs = workflow.find_links(source_node=node)
+        raise_descendants.setEnabled(bool(outputs))
         for i, link in enumerate(outputs):
             ev = LinkEvent(LinkEvent.OutputLinkAdded, link, i)
             QCoreApplication.sendEvent(w, ev)
@@ -586,6 +590,31 @@ class WidgetManager(QObject):
         event = WorkflowEvent(WorkflowEvent.ActivateParentRequest)
         QCoreApplication.sendEvent(self.scheme(), event)
 
+    def __on_link_added_removed(self, link: Link):
+        source = link.source_node
+        sink = link.sink_node
+        item = self.__item_for_node.get(source)
+        if item is not None and item.widget is not None:
+            self.__update_actions_state(item)
+        item = self.__item_for_node.get(sink)
+        if item is not None and item.widget is not None:
+            self.__update_actions_state(item)
+
+    def __update_actions_state(self, item: Item) -> None:
+        widget = item.widget
+        workflow = self.__workflow
+        if widget is None or workflow is None:
+            return
+        node = item.node
+        inputs = workflow.find_links(sink_node=node)
+        outputs = workflow.find_links(source_node=node)
+
+        action = widget.findChild(QAction, "action-canvas-raise-ancestors")
+        action.setEnabled(bool(inputs))
+
+        action = widget.findChild(QAction, "action-canvas-raise-descendants")
+        action.setEnabled(bool(outputs))
+
     def eventFilter(self, recv, event):
         # type: (QObject, QEvent) -> bool
         if isinstance(recv, SchemeNode):
@@ -596,6 +625,8 @@ class WidgetManager(QObject):
                 and recv is self.__workflow:
             for node in self.__item_for_node:
                 self.__dispatch_events(node, event)
+        elif event.type() in (LinkEvent.LinkAdded, LinkEvent.LinkRemoved):
+            self.__on_link_added_removed(event.link())
         return False
 
     def __dispatch_events(self, node: Node, event: QEvent) -> None:
