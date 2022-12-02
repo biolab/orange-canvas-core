@@ -3,7 +3,6 @@ Orange Canvas Main Window
 
 """
 import os
-import pkgutil
 import sys
 import logging
 import operator
@@ -29,7 +28,7 @@ from AnyQt.QtGui import (
     QWhatsThisClickedEvent, QShowEvent, QCloseEvent
 )
 from AnyQt.QtCore import (
-    Qt, QObject, QEvent, QSize, QUrl, QFile, QByteArray, QFileInfo,
+    Qt, QObject, QEvent, QSize, QUrl, QByteArray, QFileInfo,
     QSettings, QStandardPaths, QAbstractItemModel, QMimeData, QT_VERSION)
 
 try:
@@ -70,6 +69,7 @@ from ..document.quickmenu import QuickMenu
 from ..document.commands import UndoCommand
 from ..document import interactions
 from ..gui.itemmodels import FilterProxyModel
+from ..gui.windowlistmanager import WindowListManager
 from ..registry import WidgetRegistry, WidgetDescription, CategoryDescription
 from ..registry.qt import QtWidgetRegistry
 from ..utils.settings import QSettings_readArray, QSettings_writeArray
@@ -167,7 +167,12 @@ class CanvasMainWindow(QMainWindow):
         self.setup_actions()
         self.setup_ui()
         self.setup_menu()
-
+        windowmanager = WindowListManager.instance()
+        windowmanager.addWindow(self)
+        self.window_menu.addSeparator()
+        self.window_menu.addActions(windowmanager.actions())
+        windowmanager.windowAdded.connect(self.__window_added)
+        windowmanager.windowRemoved.connect(self.__window_removed)
         self.restore()
 
     def setup_ui(self):
@@ -550,18 +555,19 @@ class CanvasMainWindow(QMainWindow):
             triggered=lambda checked: self.output_dock.setVisible(
                 checked),
         )
-        if sys.platform == "darwin":
-            # Actions for native Mac OSX look and feel.
-            self.minimize_action = QAction(
-                self.tr("Minimize"), self,
-                triggered=self.showMinimized,
-                shortcut=QKeySequence("Ctrl+M")
-            )
-            self.zoom_action = QAction(
-                self.tr("Zoom"), self,
-                objectName="application-zoom",
-                triggered=self.toggleMaximized,
-            )
+        # Actions for native Mac OSX look and feel.
+        self.minimize_action = QAction(
+            self.tr("Minimize"), self,
+            triggered=self.showMinimized,
+            shortcut=QKeySequence("Ctrl+M"),
+            visible=sys.platform == "darwin",
+        )
+        self.zoom_action = QAction(
+            self.tr("Zoom"), self,
+            objectName="application-zoom",
+            triggered=self.toggleMaximized,
+            visible=sys.platform == "darwin",
+        )
         self.freeze_action = QAction(
             self.tr("Freeze"), self,
             shortcut=QKeySequence("Shift+F"),
@@ -725,15 +731,13 @@ class CanvasMainWindow(QMainWindow):
         # Widget menu
         menu_bar.addMenu(self.widget_menu)
 
-        if sys.platform == "darwin":
-            # Mac OS X native look and feel.
-            self.window_menu = QMenu(
-                self.tr("Window"), menu_bar, objectName="window-menu"
-            )
-            self.window_menu.addAction(self.minimize_action)
-            self.window_menu.addAction(self.zoom_action)
-            menu_bar.addMenu(self.window_menu)
-
+        # Mac OS X native look and feel.
+        self.window_menu = QMenu(
+            self.tr("Window"), menu_bar, objectName="window-menu"
+        )
+        self.window_menu.addAction(self.minimize_action)
+        self.window_menu.addAction(self.zoom_action)
+        menu_bar.addMenu(self.window_menu)
         menu_bar.addMenu(self.options_menu)
 
         # Help menu.
@@ -788,6 +792,12 @@ class CanvasMainWindow(QMainWindow):
         )
 
         self.__update_from_settings()
+
+    def __window_added(self, _, action: QAction) -> None:
+        self.window_menu.addAction(action)
+
+    def __window_removed(self, _, action: QAction) -> None:
+        self.window_menu.removeAction(action)
 
     def __update_window_title(self):
         path = self.current_document().path()
@@ -2258,6 +2268,8 @@ class CanvasMainWindow(QMainWindow):
         self.help_dock.close()
         self.output_dock.close()
         super().closeEvent(event)
+        windowlist = WindowListManager.instance()
+        windowlist.removeWindow(self)
 
     __did_restore = False
 
@@ -2367,20 +2379,15 @@ class CanvasMainWindow(QMainWindow):
             self.help_dock.show()
             self.help_dock.raise_()
 
-    # Mac OS X
-    if sys.platform == "darwin":
-        def toggleMaximized(self):
-            # type: () -> None
-            """Toggle normal/maximized window state.
-            """
-            if self.isMinimized():
-                # Do nothing if window is minimized
-                return
-
-            if self.isMaximized():
-                self.showNormal()
-            else:
-                self.showMaximized()
+    def toggleMaximized(self) -> None:
+        """Toggle normal/maximized window state.
+        """
+        if self.isMinimized():  # Do nothing if window is minimized
+            return
+        if self.isMaximized():
+            self.showNormal()
+        else:
+            self.showMaximized()
 
     def sizeHint(self):
         # type: () -> QSize

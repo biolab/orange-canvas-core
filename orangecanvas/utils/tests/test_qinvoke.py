@@ -1,10 +1,11 @@
 import time
+import gc
+import weakref
 from types import SimpleNamespace
 from typing import List, Optional, Callable
 
 import unittest
-from AnyQt.QtCore import QCoreApplication, QThread, QObject, Slot, Signal, \
-    QEvent
+from AnyQt.QtCore import QCoreApplication, QThread, QObject, Signal, QEvent
 
 from concurrent.futures.thread import ThreadPoolExecutor
 
@@ -162,3 +163,36 @@ class TestConnectWithContext(CoreAppTestCase):
         QTest.qWait(10)
         self.assertIsNone(state.th)
         self.assertIsNone(state.greeting)
+
+    def test_gc_captured_context(self):
+        emitter = QObject()
+        context = QObject()
+        ref = weakref.ref(context)
+        connect_with_context(
+            emitter.objectNameChanged,
+            context,
+            lambda name: context.setObjectName(name)  # captures context
+        )
+        emitter.setObjectName("AA")
+        self.assertEqual(context.objectName(), emitter.objectName())
+        del context  # This needs to clear captured context in connected func
+        self.assertIsNone(ref())
+        emitter.setObjectName("BB")
+
+    def test_gc_captured_context_cycle(self):
+        emitter = QObject()
+        context = QObject()
+        context.cycle = context
+        ref = weakref.ref(context)
+        connect_with_context(
+            emitter.objectNameChanged,
+            context,
+            lambda name: context.setObjectName(name)  # captures context
+        )
+        emitter.setObjectName("AA")
+        self.assertEqual(context.objectName(), emitter.objectName())
+        delete(context)
+        del context  # This needs to clear captured context in connected func
+        gc.collect()
+        self.assertIsNone(ref())
+        emitter.setObjectName("BB")
