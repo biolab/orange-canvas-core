@@ -95,9 +95,12 @@ class WindowListManager(QObject):
             if not state:
                 return
             handle: QWidget = action.data()
-            handle.show()
-            handle.raise_()
-            handle.activateWindow()
+            handle.setVisible(True)
+            if handle != QApplication.activeWindow():
+                # Do not re-activate when called from `focusWindowChanged`;
+                # breaks macOS window cycling (CMD+`) order.
+                handle.raise_()
+                handle.activateWindow()
 
         action.toggled.connect(activate)
         return action
