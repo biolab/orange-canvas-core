@@ -712,13 +712,6 @@ class CanvasMainWindow(QMainWindow):
         sep.setObjectName("view-zoom-actions-separator")
 
         self.view_menu.addAction(self.toogle_margins_action)
-        raise_widgets_action = self.scheme_widget.findChild(
-            QAction, "bring-widgets-to-front-action"
-        )
-        if raise_widgets_action is not None:
-            self.view_menu.addAction(raise_widgets_action)
-
-        self.view_menu.addAction(self.float_widgets_on_top_action)
         menu_bar.addMenu(self.view_menu)
 
         # Options menu
@@ -737,6 +730,14 @@ class CanvasMainWindow(QMainWindow):
         )
         self.window_menu.addAction(self.minimize_action)
         self.window_menu.addAction(self.zoom_action)
+        self.window_menu.addSeparator()
+        raise_widgets_action = self.scheme_widget.findChild(
+            QAction, "bring-widgets-to-front-action"
+        )
+        if raise_widgets_action is not None:
+            self.window_menu.addAction(raise_widgets_action)
+
+        self.window_menu.addAction(self.float_widgets_on_top_action)
         menu_bar.addMenu(self.window_menu)
         menu_bar.addMenu(self.options_menu)
 
