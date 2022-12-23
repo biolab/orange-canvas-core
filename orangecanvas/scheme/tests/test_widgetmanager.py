@@ -248,6 +248,12 @@ class TestWidgetManager(unittest.TestCase):
         self.assertIsNone(w2_ref())
 
     def test_actions(self):
+        def action_ancestors(widget: QWidget) -> QAction:
+            return widget.findChild(QAction, "action-canvas-raise-ancestors")
+
+        def action_descendants(widget: QWidget) -> QAction:
+            return widget.findChild(QAction, "action-canvas-raise-descendants")
+
         workflow = self.scheme
         nodes = workflow.nodes
         wm = TestingWidgetManager()
@@ -256,18 +262,35 @@ class TestWidgetManager(unittest.TestCase):
         w = wm.widget_for_node(nodes[0])
         w2 = wm.widget_for_node(nodes[2])
         espy = EventSpy(w2, QEvent.WindowActivate)
-        ac = w.findChild(QAction, "action-canvas-raise-descendants")
+        ac = action_ancestors(w)
+        self.assertFalse(ac.isEnabled())
+        ac = action_descendants(w)
+        self.assertTrue(ac.isEnabled())
         ac.trigger()
         if not espy.events():
             self.assertTrue(espy.wait(1000))
         self.assertTrue(w2.isActiveWindow())
 
-        ac = w2.findChild(QAction, "action-canvas-raise-ancestors")
+        ac = action_descendants(w2)
+        self.assertFalse(ac.isEnabled())
+        ac = action_ancestors(w2)
+        self.assertTrue(ac.isEnabled())
         espy = EventSpy(w, QEvent.Show)
         ac.trigger()
         if not espy.events():
             self.assertTrue(espy.wait(1000))
         self.assertTrue(w.isVisible())
+
+        workflow.remove_link(
+            workflow.find_links(source_node=nodes[0], sink_node=nodes[2])[0]
+        )
+        self.assertFalse(action_descendants(w).isEnabled())
+        self.assertTrue(action_ancestors(w2).isEnabled())
+
+        workflow.remove_link(
+            workflow.find_links(source_node=nodes[1], sink_node=nodes[2])[0]
+        )
+        self.assertFalse(action_ancestors(w2).isEnabled())
 
     def test_window_list_actions(self):
         workflow = self.scheme
