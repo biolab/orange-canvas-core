@@ -411,7 +411,6 @@ class UsageStatistics:
         if not self.is_enabled():
             return
 
-        statistics_path = self.filename()
         statistics = {
             "Date": str(datetime.now().date()),
             "Application Version": QCoreApplication.applicationVersion(),
@@ -420,16 +419,9 @@ class UsageStatistics:
             "Session": self._actions
         }
 
-        if os.path.isfile(statistics_path):
-            with open(statistics_path) as f:
-                data = json.load(f)
-        else:
-            data = []
-
+        data = self.load()
         data.append(statistics)
-
-        with open(statistics_path, 'w') as f:
-            json.dump(data, f)
+        self.store(data)
 
         self.drop_statistics()
 
@@ -472,10 +464,6 @@ class UsageStatistics:
     def load() -> 'List[dict]':
         """
         Load and return the usage statistics data.
-
-        Returns
-        -------
-        data : dict
         """
         if not UsageStatistics.is_enabled():
             return []
@@ -485,3 +473,16 @@ class UsageStatistics:
         except (FileNotFoundError, PermissionError, IsADirectoryError,
                 UnicodeDecodeError, json.JSONDecodeError):
             return []
+
+    @staticmethod
+    def store(data: List[dict]) -> None:
+        """
+        Store the usage statistics data.
+        """
+        if not UsageStatistics.is_enabled():
+            return
+        try:
+            with open(UsageStatistics.filename(), "w", encoding="utf-8") as f:
+                json.dump(data, f)
+        except (OSError, UnicodeEncodeError):
+            return
