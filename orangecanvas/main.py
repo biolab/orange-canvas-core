@@ -175,6 +175,7 @@ class Main:
     def setup_application(self):
         # sys.argv[0] must be in QApplication's argv list.
         self.application = CanvasApplication(sys.argv[:1] + self.arguments)
+        self.application.setWindowIcon(self.config.application_icon())
         # Update the arguments
         self.arguments = self.application.arguments()[1:]
         fix_set_proxy_env()
