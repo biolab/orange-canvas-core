@@ -810,8 +810,21 @@ class CanvasMainWindow(QMainWindow):
             self.setWindowTitle(self.tr("Untitled [*]"))
 
     def setWindowFilePath(self, filePath):  # type: (str) -> None
+        def icon_for_path(path: str) -> 'QIcon':
+            iconprovider = QFileIconProvider()
+            finfo = QFileInfo(path)
+            if finfo.exists():
+                return iconprovider.icon(finfo)
+            else:
+                return iconprovider.icon(QFileIconProvider.File)
+
         if sys.platform == "darwin":
             super().setWindowFilePath(filePath)
+            # If QApplication.windowIcon() is not null then it is used instead
+            # of the file type specific one. This is wrong so we set it
+            # explicitly.
+            if not QApplication.windowIcon().isNull() and filePath:
+                self.setWindowIcon(icon_for_path(filePath))
         else:
             # use non-empty path to 'force' Qt to add '[*]' modified marker
             # in the displayed title.
