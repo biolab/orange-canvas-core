@@ -39,10 +39,13 @@ class CanvasView(QGraphicsView):
 
         self.__zoomInAction = QAction(
             self.tr("Zoom in"), self, objectName="action-zoom-in",
-            shortcut=QKeySequence.ZoomIn,
             triggered=self.zoomIn,
         )
-
+        ctrl = "Cmd" if sys.platform == "darwin" else "Ctrl"
+        self.__zoomInAction.setShortcuts([
+            QKeySequence.ZoomIn,
+            QKeySequence(ctrl + "+=")]  # if users forget to press Shift on us keyboards
+        )
         self.__zoomOutAction = QAction(
             self.tr("Zoom out"), self, objectName="action-zoom-out",
             shortcut=QKeySequence.ZoomOut,
