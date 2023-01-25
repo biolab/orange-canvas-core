@@ -552,8 +552,11 @@ def scheme_to_etree(scheme, data_format="literal", pickle_fallback=False):
         attrs = {"id": str(link_ids[link]),
                  "source_node_id": str(source_id),
                  "sink_node_id": str(sink_id),
-                 "source_channel": link.source_channel.name,
-                 "sink_channel": link.sink_channel.name,
+                 # Use channel ids; fallback to name for backward compatibility
+                 "source_channel":
+                     link.source_channel.id or link.source_channel.name,
+                 "sink_channel":
+                     link.sink_channel.id or link.sink_channel.name,
                  "enabled": "true" if link.enabled else "false",
                  }
         builder.start("link", attrs)
