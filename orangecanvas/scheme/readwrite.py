@@ -35,6 +35,7 @@ from .errors import IncompatibleChannelTypeError
 
 from ..registry import global_registry, WidgetRegistry
 from ..registry import WidgetDescription, InputSignal, OutputSignal
+from ..utils import findf
 
 log = logging.getLogger(__name__)
 
@@ -162,7 +163,9 @@ _link = NamedTuple(
         ("source_node_id", str),
         ("sink_node_id", str),
         ("source_channel", str),
+        ("source_channel_id", str),
         ("sink_channel", str),
+        ("sink_channel_id", str),
         ("enabled", bool),
     ]
 )
@@ -249,7 +252,9 @@ def parse_ows_etree_v_2_0(tree):
             source_node_id=link.get("source_node_id"),
             sink_node_id=link.get("sink_node_id"),
             source_channel=link.get("source_channel"),
+            source_channel_id=link.get("source_channel_id", ""),
             sink_channel=link.get("sink_channel"),
+            sink_channel_id=link.get("sink_channel_id", ""),
             enabled=link.get("enabled") == "true",
         )
         links.append(params)
@@ -464,8 +469,10 @@ def scheme_load(scheme, stream, registry=None, error_handler=None):
         source = nodes_by_id[source_id]
         sink = nodes_by_id[sink_id]
         try:
-            link = SchemeLink(source, link_d.source_channel,
-                              sink, link_d.sink_channel,
+            source_channel = _find_source_channel(source, link_d)
+            sink_channel = _find_sink_channel(sink, link_d)
+            link = SchemeLink(source, source_channel,
+                              sink, sink_channel,
                               enabled=link_d.enabled)
         except (ValueError, IncompatibleChannelTypeError) as ex:
             error_handler(ex)
@@ -507,6 +514,48 @@ def scheme_load(scheme, stream, registry=None, error_handler=None):
             groups.append(Scheme.WindowGroup(g.name, g.default, state))
         scheme.set_window_group_presets(groups)
     return scheme
+
+
+def _find_source_channel(node: SchemeNode, link: _link) -> OutputSignal:
+    source_channel: Optional[OutputSignal] = None
+    if link.source_channel_id:
+        source_channel = findf(
+            node.output_channels(),
+            lambda c: c.id == link.source_channel_id,
+        )
+    if source_channel is not None:
+        return source_channel
+    source_channel = findf(
+        node.output_channels(),
+        lambda c: c.name == link.source_channel,
+    )
+    if source_channel is not None:
+        return source_channel
+    raise ValueError(
+        f"{link.source_channel!r} is not a valid output channel "
+        f"for {node.description.name!r}."
+    )
+
+
+def _find_sink_channel(node: SchemeNode, link: _link) -> InputSignal:
+    sink_channel: Optional[InputSignal] = None
+    if link.sink_channel_id:
+        sink_channel = findf(
+            node.input_channels(),
+            lambda c: c.id == link.sink_channel_id,
+        )
+    if sink_channel is not None:
+        return sink_channel
+    sink_channel = findf(
+        node.input_channels(),
+        lambda c: c.name == link.sink_channel,
+    )
+    if sink_channel is not None:
+        return sink_channel
+    raise ValueError(
+        f"{link.sink_channel!r} is not a valid input channel "
+        f"for {node.description.name!r}."
+    )
 
 
 def scheme_to_etree(scheme, data_format="literal", pickle_fallback=False):
@@ -552,13 +601,14 @@ def scheme_to_etree(scheme, data_format="literal", pickle_fallback=False):
         attrs = {"id": str(link_ids[link]),
                  "source_node_id": str(source_id),
                  "sink_node_id": str(sink_id),
-                 # Use channel ids; fallback to name for backward compatibility
-                 "source_channel":
-                     link.source_channel.id or link.source_channel.name,
-                 "sink_channel":
-                     link.sink_channel.id or link.sink_channel.name,
+                 "source_channel": link.source_channel.name,
+                 "sink_channel": link.sink_channel.name,
                  "enabled": "true" if link.enabled else "false",
                  }
+        if link.source_channel.id:
+            attrs["source_channel_id"] = link.source_channel.id
+        if link.sink_channel.id:
+            attrs["sink_channel_id"] = link.sink_channel.id
         builder.start("link", attrs)
         builder.end("link")
 
