@@ -32,3 +32,18 @@ class TestScheme(test.QAppTestCase):
             self.assertIsInstance(channel, OutputSignal)
             self.assertTrue(channel in outputs)
         self.assertRaises(ValueError, node.output_channel, "%%&&&$$()[()[")
+
+    def test_channels_by_name_or_id(self):
+        reg = small_testing_registry()
+
+        zero_desc = reg.widget("zero")
+        node = SchemeNode(zero_desc)
+        self.assertIs(node.output_channel("value"), zero_desc.outputs[0])
+        self.assertIs(node.output_channel("val"), zero_desc.outputs[0])
+
+        add_desc = reg.widget("add")
+        node = SchemeNode(add_desc)
+        self.assertIs(node.input_channel("left"), add_desc.inputs[0])
+        self.assertIs(node.input_channel("right"), add_desc.inputs[1])
+        self.assertIs(node.input_channel("droite"), add_desc.inputs[1])
+        self.assertRaises(ValueError, node.input_channel, "gauche")

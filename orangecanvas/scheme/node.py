@@ -134,9 +134,13 @@ class SchemeNode(QObject):
         if not found.
         """
         for channel in self.input_channels():
+            if channel.id == name:
+                return channel
+        # Fallback to channel names for backward compatibility
+        for channel in self.input_channels():
             if channel.name == name:
                 return channel
-        raise ValueError("%r is not a valid input channel name for %r." % \
+        raise ValueError("%r is not a valid input channel for %r." % \
                          (name, self.description.name))
 
     def output_channel(self, name):
@@ -146,9 +150,13 @@ class SchemeNode(QObject):
         if not found.
         """
         for channel in self.output_channels():
+            if channel.id == name:
+                return channel
+        # Fallback to channel names for backward compatibility
+        for channel in self.output_channels():
             if channel.name == name:
                 return channel
-        raise ValueError("%r is not a valid output channel name for %r." % \
+        raise ValueError("%r is not a valid output channel for %r." % \
                          (name, self.description.name))
 
     #: The title of the node has changed

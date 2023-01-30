@@ -135,7 +135,7 @@ def small_testing_registry():
         "zero", "zero", "Constants",
         qualified_name="zero",
         package=__package__,
-        outputs=[OutputSignal("value", "int")])
+        outputs=[OutputSignal("value", "int", id="val")])
 
     one = WidgetDescription(
         "one", "one", "Constants",
@@ -157,7 +157,7 @@ def small_testing_registry():
         qualified_name="add",
         package=__package__,
         inputs=[InputSignal("left", "int", "set_left"),
-                InputSignal("right", "int", "set_right")],
+                InputSignal("right", "int", "set_right", id="droite")],
         outputs=[OutputSignal("result", "int")]
     )
     sub = WidgetDescription(
