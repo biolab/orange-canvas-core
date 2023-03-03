@@ -64,6 +64,7 @@ from .aboutdialog import AboutDialog
 from .schemeinfo import SchemeInfoDialog
 from .outputview import OutputView, TextStream
 from .settings import UserSettingsDialog, category_state
+from .utils.addons import normalize_name, is_requirement_available
 from ..document.schemeedit import SchemeEditWidget
 from ..document.quickmenu import QuickMenu
 from ..document.commands import UndoCommand
@@ -1292,8 +1293,7 @@ class CanvasMainWindow(QMainWindow):
 
     def check_requires(self, fileobj: IO) -> bool:
         requires = scheme_requires(fileobj, self.widget_registry)
-        requires = [req for req in requires
-                    if not addons.is_requirement_available(req)]
+        requires = [req for req in requires if not is_requirement_available(req)]
         if requires:
             details_ = [
                 "<h4>Required packages:</h4><ul>",
@@ -1355,7 +1355,7 @@ class CanvasMainWindow(QMainWindow):
         dlg.setConfig(config.default)
         req = addons.Requirement
         names = [req.parse(r).project_name for r in requires]
-        normalized_names = {addons.normalize_name(r) for r in names}
+        normalized_names = {normalize_name(r) for r in names}
 
         def set_state(*args):
             # select all query items for installation
@@ -2076,7 +2076,7 @@ class CanvasMainWindow(QMainWindow):
         """Open the add-on manager dialog.
         """
         name = QApplication.applicationName() or "Orange"
-        from .addons import have_install_permissions
+        from orangecanvas.application.utils.addons import have_install_permissions
         if not have_install_permissions():
             QMessageBox(QMessageBox.Warning,
                         "Add-ons: insufficient permissions",

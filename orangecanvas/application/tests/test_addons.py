@@ -5,100 +5,27 @@ from contextlib import contextmanager
 from unittest.mock import patch
 from zipfile import ZipFile
 
-from AnyQt.QtWidgets import QMessageBox, QDialogButtonBox
-from AnyQt.QtCore import QEventLoop, QUrl, QMimeData, QPointF, Qt
-from AnyQt.QtTest import QTest
+from AnyQt.QtCore import QEventLoop, QMimeData, QPointF, Qt, QUrl
 from AnyQt.QtGui import QDropEvent
-from pkg_resources import EntryPoint
+from AnyQt.QtTest import QTest
+from AnyQt.QtWidgets import QDialogButtonBox, QMessageBox
+from pkg_resources import Distribution, EntryPoint
 
 from orangecanvas.application import addons
+from orangecanvas.application.addons import AddonManagerDialog
+from orangecanvas.application.utils.addons import (
+    Available,
+    CondaInstaller,
+    Install,
+    Installable,
+    Installed,
+    PipInstaller,
+    Uninstall,
+    Upgrade,
+    _QueryResult,
+)
 from orangecanvas.gui.test import QAppTestCase
 from orangecanvas.utils.qinvoke import qinvoke
-
-from ..addons import (
-    Available, Installed, Installable, Distribution, Requirement, is_updatable,
-    Install, Upgrade, Uninstall, prettify_name,
-    installable_items, installable_from_json_response,
-    AddonManagerDialog)
-
-
-class TestUtils(unittest.TestCase):
-    def test_items_1(self):
-        inst = Installable("foo", "1.0", "a foo", "", "", [])
-        dist = Distribution(project_name="foo", version="1.0")
-        item = Available(inst)
-        self.assertFalse(is_updatable(item))
-
-        item = Installed(None, dist)
-        self.assertFalse(is_updatable(item))
-        item = Installed(inst, dist)
-        self.assertFalse(is_updatable(item))
-
-        item = Installed(inst._replace(version="0.9"), dist)
-        self.assertFalse(is_updatable(item))
-
-        item = Installed(inst._replace(version="1.1"), dist)
-        self.assertTrue(is_updatable(item))
-
-        item = Installed(inst._replace(version="2.0"), dist,
-                         constraint=Requirement.parse("foo<1.99"))
-        self.assertFalse(is_updatable(item))
-        item = Installed(inst._replace(version="2.0"), dist,
-                         constraint=Requirement.parse("foo<2.99"))
-        self.assertTrue(is_updatable(item))
-
-    def test_items_2(self):
-        inst1 = Installable("foo", "1.0", "a foo", "", "", [])
-        inst2 = Installable("bar", "1.0", "a bar", "", "", [])
-        dist2 = Distribution(project_name="bar", version="0.9")
-        dist3 = Distribution(project_name="quack", version="1.0")
-        items = installable_items([inst1, inst2], [dist2, dist3])
-        self.assertIn(Available(inst1), items)
-        self.assertIn(Installed(inst2, dist2), items)
-        self.assertIn(Installed(None, dist3), items)
-
-    def test_installable_from_json_response(self):
-        inst = installable_from_json_response({
-            "info": {
-                "name": "foo",
-                "version": "1.0",
-            },
-            "releases": {
-                "1.0": [
-                    {
-                        "filename": "aa.tar.gz",
-                        "url": "https://examples.com",
-                        "size": 100,
-                        "packagetype": "sdist",
-                    }
-                ]
-            },
-        })
-        self.assertTrue(inst.name, "foo")
-        self.assertEqual(inst.version, "1.0")
-
-    def test_prettify_name(self):
-        names = [
-            'AFooBar', 'FooBar', 'Foo-Bar', 'Foo-Bar-FOOBAR',
-            'Foo-bar-foobar', 'Foo', 'FOOBar', 'A4FooBar',
-            '4Foo', 'Foo3Bar'
-        ]
-        pretty_names = [
-            'A Foo Bar', 'Foo Bar', 'Foo Bar', 'Foo Bar FOOBAR',
-            'Foo bar foobar', 'Foo', 'FOO Bar', 'A4Foo Bar',
-            '4Foo', 'Foo3Bar'
-        ]
-
-        for name, pretty_name in zip(names, pretty_names):
-            self.assertEqual(pretty_name, prettify_name(name))
-
-        # test if orange prefix is handled
-        self.assertEqual('Orange', prettify_name('Orange'))
-        self.assertEqual('Orange3', prettify_name('Orange3'))
-        self.assertEqual('Some Addon', prettify_name('Orange-SomeAddon'))
-        self.assertEqual('Text', prettify_name('Orange3-Text'))
-        self.assertEqual('Image Analytics', prettify_name('Orange3-ImageAnalytics'))
-        self.assertEqual('Survival Analysis', prettify_name('Orange3-Survival-Analysis'))
 
 
 @contextmanager
@@ -198,9 +125,8 @@ class TestAddonManagerDialog(QAppTestCase):
         w = AddonManagerDialog()
 
         query_res = [
-            addons._QueryResult("uber-pkg", None),
-            addons._QueryResult(
-                "unter-pkg", Installable("unter-pkg", "0.0.0", "", "", "", []))
+            _QueryResult("uber-pkg", None),
+            _QueryResult("unter-pkg", Installable("unter-pkg", "0.0.0", "", "", "", []))
         ]
 
         def query(names):
@@ -222,10 +148,8 @@ class TestAddonManagerDialog(QAppTestCase):
         foo = Available(Installable("foo", "1.1", "", "", "", []))
         w.setItems([foo])
         w.setItemState([(Install, foo)])
-        with patch.object(addons.PipInstaller, "install",
-                          lambda self, pkg: None), \
-             patch.object(addons.CondaInstaller, "install",
-                          lambda self, pkg, raise_on_fail: None), \
+        with patch.object(PipInstaller, "install", lambda self, pkg: None), \
+             patch.object(CondaInstaller, "install", lambda self, pkg: None), \
              patch.object(QMessageBox, "exec", return_value=QMessageBox.Cancel):
             b = w.findChild(QDialogButtonBox)
             b.accepted.emit()
@@ -234,3 +158,7 @@ class TestAddonManagerDialog(QAppTestCase):
             QTest.qWait(1)
 
         w.deleteLater()
+
+
+if __name__ == "__main__":
+    unittest.main()
