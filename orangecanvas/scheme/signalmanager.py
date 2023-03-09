@@ -11,6 +11,7 @@ import os
 import logging
 import warnings
 import enum
+import functools
 
 from collections import defaultdict
 from operator import attrgetter
@@ -19,7 +20,7 @@ from itertools import chain
 
 import typing
 from typing import (
-    Any, Optional, List, NamedTuple, Set, Dict,
+    Any, Optional, List, NamedTuple, Set, Dict, Callable,
     Sequence, Union, DefaultDict, Type
 )
 
@@ -93,6 +94,138 @@ Signal.Close = Close
 
 
 is_enabled = attrgetter("enabled")
+
+
+class _LazyValueType:
+    """
+    LazyValue is an abstract type for wrapper for lazy evaluation of signals.
+
+    LazyValue is intended for situations in which computation of outputs is
+    reasonably fast, but we won't to compute it only if the output is connected
+    to some input, in order to save memory.
+
+    Assume the widget has a method `commit` that outputs the sum of two objects,
+    `self.a` and `self.b`. The output signal is names `signal_name` and its
+    type is `SomeType`.
+
+    ```
+    def commit(self):
+        self.send(self.Outputs.signal_name, self.a + self.b)
+    ```
+
+    To use lazy values, we modify the method as follows.
+
+    ```
+    def commit(self):
+        def f():
+            return self.a + self.b
+
+        self.send(self.Outputs.signal_name, LazySignal[SomeType](f))
+    ```
+
+    The lazy function receives no arguments, so `commit` will often prepare
+    some data accessible through closure or default arguments. After calling
+    the function, LazyValue will release the reference to function, which in
+    turn releases references to any data from closure or arguments.
+
+    LazyValue is a singleton, used in similar way as generic classes from
+    typing. "Indexing" returns an instance of (internal) class `LazyValue_`.
+    Indexing is cached; `LazyValue[SomeType]` always returns the same object.
+
+    LazySignal[SomeType] (that is: LazyValue_) has a constructor that expects
+    the following arguments.
+
+    - A function that computes the actual value. This function must expect
+      no arguments, but will usually get data (for instance `self`, in the
+      above example) from closure.
+    - An optional function that can be called to interrupt the computation.
+      This function is called when the signal is deleted.
+    - Optional extra arguments that are stored as LazyValue's attributes.
+      These are not accessible by the above function and are primarily
+      intended to be used in output summaries.
+
+    Properties:
+
+        - `is_cached()`, which returns `True` if the value is already computed.
+          Functions for output summaries can use this to show more information
+          if the value is available, and avoid computing it when not.
+
+    Methods:
+
+        - `get_value()` returns the actual value by calling the function, if
+           the value has not been computed yet, or providing the cached value.
+        - `type()` returns the type of the lazy signal (e.g. `SomeType`, in
+           above case.
+    """
+
+    class LazyValueMeta(type):
+        def __repr__(cls):
+            """
+            Pretty-prints the LazyValue[SomeType] as "LazyValue[SomeType]"
+            instead of generic `LazyValue_`.
+            """
+            return f"LazyValue[{cls.type().__name__}]"
+
+    @classmethod
+    def is_lazy(cls, value):
+        """
+        Tells whether the given value is lazy.
+
+        ```
+        >>> def f():
+        ...    return 12
+        ...
+        >>> lazy = LazyValue[int](f)
+        >>> eager = f()
+        >>> LazyValue.is_lazy(lazy)
+        True
+        >>> LazyValue.is_lazy(eager)
+        False
+        ```
+        """
+        return isinstance(type(value), cls.LazyValueMeta)
+
+    @classmethod
+    @functools.lru_cache(maxsize=None)
+    def __getitem__(cls, type_):
+        # This is cached, so that it always returns the same class for the
+        # same type.
+        # >>> t1 = LazyValue[int]
+        # >>> t2 = LazyValue[int]
+        # >>> t1 is t2
+        # True
+        class LazyValue_(metaclass=cls.LazyValueMeta):
+            __type = type_
+
+            def __init__(self, func: Callable, interrupt=None, **extra_attrs):
+                self.__func = func
+                self.__cached = None
+                self.interrupt = interrupt
+                self.__dict__.update(extra_attrs)
+
+            def __del__(self):
+                if self.interrupt is not None:
+                    self.interrupt()
+
+            @property
+            def is_cached(self):
+                return self.__func is None
+
+            @classmethod
+            def type(cls):
+                return cls.__type
+
+            def get_value(self):
+                if self.__func is not None:
+                    self.__cached = self.__func()
+                    # This frees any references to closure and arguments
+                    self.__func = None
+                return self.__cached
+
+        return LazyValue_
+
+
+LazyValue = _LazyValueType()
 
 
 class _OutputState:

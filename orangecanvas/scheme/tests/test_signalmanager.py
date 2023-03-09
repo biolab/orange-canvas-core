@@ -1,11 +1,77 @@
+import sys
+import unittest
+from unittest.mock import Mock
+
 from AnyQt.QtTest import QSignalSpy
 
 from orangecanvas.scheme import Scheme, SchemeNode, SchemeLink
 from orangecanvas.scheme.signalmanager import (
-    SignalManager, Signal, compress_signals, compress_single
+    SignalManager, Signal, compress_signals, compress_single, LazyValue
 )
 from orangecanvas.registry import tests as registry_tests
 from orangecanvas.gui.test import QCoreAppTestCase
+
+
+class TestLazyValue(unittest.TestCase):
+    def test_singletonnes(self):
+        i1 = LazyValue[int]
+        i2 = LazyValue[int]
+        f1 = LazyValue[float]
+        self.assertIs(i1, i2)
+        self.assertIsNot(i1, f1)
+        self.assertIsNot(i2, f1)
+
+    def test_repr(self):
+        self.assertEqual(repr(LazyValue[int]), "LazyValue[int]")
+
+    def test_get_value_and_cached(self):
+        f = Mock(return_value=42)
+
+        lazy = LazyValue[int](f)
+        f.assert_not_called()
+        self.assertFalse(lazy.is_cached)
+
+        self.assertEqual(lazy.get_value(), 42)
+        f.assert_called_once()
+        self.assertTrue(lazy.is_cached)
+
+        self.assertEqual(lazy.get_value(), 42)
+        f.assert_called_once()
+        self.assertTrue(lazy.is_cached)
+
+    def test_type(self):
+        self.assertIs(LazyValue[int].type(), int)
+        self.assertIs(LazyValue[float].type(), float)
+
+    def test_release_closure(self):
+        deleted = Mock()
+
+        def commit():
+            class S:
+                def __del__(self):
+                    deleted()
+
+            s = S()
+
+            def f():
+                return 42 + bool(s)
+            return LazyValue[int](f)
+
+        lazy = commit()
+        deleted.assert_not_called()
+        lazy.get_value()
+        deleted.assert_called_once()
+
+    def test_interrupt(self):
+        interrupt = Mock()
+        lazy = LazyValue[int](Mock(), interrupt)
+        del lazy
+        interrupt.assert_called_once()
+
+    def test_extra_args(self):
+        lazy = LazyValue[int](Mock(), a=1, b=2)
+        self.assertEqual(lazy.a, 1)
+        self.assertEqual(lazy.b, 2)
 
 
 class TestingSignalManager(SignalManager):
