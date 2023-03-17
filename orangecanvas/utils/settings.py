@@ -37,13 +37,13 @@ class SettingChangedEvent(QEvent):
     a key has changed.
 
     """
-    SettingChanged = QEvent.registerEventType()
+    SettingChanged = QEvent.Type(QEvent.registerEventType())
     """Setting was changed"""
 
-    SettingAdded = QEvent.registerEventType()
+    SettingAdded = QEvent.Type(QEvent.registerEventType())
     """A setting was added"""
 
-    SettingRemoved = QEvent.registerEventType()
+    SettingRemoved = QEvent.Type(QEvent.registerEventType())
     """A setting was removed"""
 
     def __init__(self, etype, key, value=None, oldValue=None):
