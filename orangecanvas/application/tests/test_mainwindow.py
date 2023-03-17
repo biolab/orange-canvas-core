@@ -7,6 +7,7 @@ from AnyQt.QtWidgets import QToolButton, QDialog, QMessageBox, QApplication
 
 from .. import addons
 from ..outputview import TextStream
+from ..utils.addons import _QueryResult, Installable
 from ...scheme import SchemeTextAnnotation, SchemeLink
 from ...gui.quickhelp import QuickHelpTipEvent, QuickHelp
 from ...utils.shtools import temp_named_file
@@ -298,9 +299,11 @@ class TestMainWindowLoad(TestMainWindowBase):
 
     def test_install_requirements_dialog(self):
         def query(names):
-            return [addons._QueryResult(
-                        name, addons.Installable(name, "0.0", "", "", "", []))
-                    for name in names]
+            return [
+                _QueryResult(name, Installable(name, "0.0", "", "", "", []))
+                for name in names
+            ]
+
         w = self.w
         with patch.object(addons, "query_pypi", query), \
              patch.object(addons.AddonManagerDialog, "exec",
