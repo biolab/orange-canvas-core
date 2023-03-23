@@ -45,7 +45,7 @@ from orangecanvas.application.utils.addons import (
     get_meta_from_archive,
     Installer,
 )
-from orangecanvas.utils import name_lookup, markup, qualified_name
+from orangecanvas.utils import name_lookup, markup, qualified_name, enum_as_int
 from ..utils.pkgmeta import get_dist_meta
 from ..utils.qinvoke import qinvoke
 from ..gui.utils import message_warning, message_critical as message_error
@@ -329,7 +329,7 @@ class TristateCheckItemDelegate(QStyledItemDelegate):
         if flags & Qt.ItemIsUserTristate and constraint:
             return Qt.PartiallyChecked if state == Qt.Checked else Qt.Checked
         elif flags & Qt.ItemIsUserTristate:
-            return Qt.CheckState((state + 1) % 3)
+            return Qt.CheckState((enum_as_int(state) + 1) % 3)
         else:
             return Qt.Unchecked if state == Qt.Checked else Qt.Checked
 

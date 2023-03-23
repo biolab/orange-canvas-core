@@ -8,7 +8,7 @@ from zipfile import ZipFile
 from AnyQt.QtCore import QEventLoop, QMimeData, QPointF, Qt, QUrl
 from AnyQt.QtGui import QDropEvent
 from AnyQt.QtTest import QTest
-from AnyQt.QtWidgets import QDialogButtonBox, QMessageBox
+from AnyQt.QtWidgets import QDialogButtonBox, QMessageBox, QTreeView, QStyle
 from pkg_resources import Distribution, EntryPoint
 
 from orangecanvas.application import addons
@@ -73,6 +73,29 @@ class TestAddonManagerDialog(QAppTestCase):
         updateTopLayout = w._AddonManagerDialog__updateTopLayout
         updateTopLayout(False)
         updateTopLayout(True)
+        w.setItemState([])
+
+        # toggle install state
+        view = w.findChild(QTreeView, "add-ons-view")
+        index = view.model().index(0, 0)
+        delegate = view.itemDelegateForColumn(0)
+        style = view.style()
+        opt = view.viewOptions()
+        opt.rect = view.visualRect(index)
+        delegate.initStyleOption(opt, index)
+
+        rect = style.subElementRect(
+            QStyle.SE_ItemViewItemCheckIndicator, opt, view
+        )
+
+        def check_state_equal(left, right):
+            self.assertEqual(Qt.CheckState(left), Qt.CheckState(right))
+
+        check_state_equal(index.data(Qt.CheckStateRole), Qt.PartiallyChecked)
+        QTest.mouseClick(view.viewport(), Qt.LeftButton, pos=rect.center())
+        check_state_equal(index.data(Qt.CheckStateRole), Qt.Checked)
+        QTest.mouseClick(view.viewport(), Qt.LeftButton, pos=rect.center())
+        check_state_equal(index.data(Qt.CheckStateRole), Qt.Unchecked)
 
     @patch("orangecanvas.config.default.addon_entry_points",
            return_value=[EntryPoint(
