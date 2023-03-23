@@ -25,74 +25,74 @@ _EType = Union[int, QEvent.Type]
 
 class WorkflowEvent(QEvent):
     #: Delivered to Scheme when a node has been added (:class:`NodeEvent`)
-    NodeAdded = QEvent.registerEventType()
+    NodeAdded = QEvent.Type(QEvent.registerEventType())
 
     #: Delivered to Scheme when a node has been removed (:class:`NodeEvent`)
-    NodeRemoved = QEvent.registerEventType()
+    NodeRemoved = QEvent.Type(QEvent.registerEventType())
 
     #: A Link has been added to the scheme (:class:`LinkEvent`)
-    LinkAdded = QEvent.registerEventType()
+    LinkAdded = QEvent.Type(QEvent.registerEventType())
 
     #: A Link has been removed from the scheme (:class:`LinkEvent`)
-    LinkRemoved = QEvent.registerEventType()
+    LinkRemoved = QEvent.Type(QEvent.registerEventType())
 
     #: An input Link has been added to a node (:class:`LinkEvent`)
-    InputLinkAdded = QEvent.registerEventType()
+    InputLinkAdded = QEvent.Type(QEvent.registerEventType())
 
     #: An output Link has been added to a node (:class:`LinkEvent`)
-    OutputLinkAdded = QEvent.registerEventType()
+    OutputLinkAdded = QEvent.Type(QEvent.registerEventType())
 
     #: An input Link has been removed from a node (:class:`LinkEvent`)
-    InputLinkRemoved = QEvent.registerEventType()
+    InputLinkRemoved = QEvent.Type(QEvent.registerEventType())
 
     #: An output Link has been removed from a node (:class:`LinkEvent`)
-    OutputLinkRemoved = QEvent.registerEventType()
+    OutputLinkRemoved = QEvent.Type(QEvent.registerEventType())
 
     #: Node's (runtime) state has changed (:class:`NodeEvent`)
-    NodeStateChange = QEvent.registerEventType()
+    NodeStateChange = QEvent.Type(QEvent.registerEventType())
 
     #: Link's (runtime) state has changed (:class:`LinkEvent`)
-    LinkStateChange = QEvent.registerEventType()
+    LinkStateChange = QEvent.Type(QEvent.registerEventType())
 
     #: Input link's (runtime) state has changed (:class:`LinkEvent`)
-    InputLinkStateChange = QEvent.registerEventType()
+    InputLinkStateChange = QEvent.Type(QEvent.registerEventType())
 
     #: Output link's (runtime) state has changed (:class:`LinkEvent`)
-    OutputLinkStateChange = QEvent.registerEventType()
+    OutputLinkStateChange = QEvent.Type(QEvent.registerEventType())
 
     #: Request for Node's runtime initialization (e.g.
     #: load required data, establish connection, ...)
-    NodeInitialize = QEvent.registerEventType()
+    NodeInitialize = QEvent.Type(QEvent.registerEventType())
 
     #: Restore the node from serialized state
-    NodeRestore = QEvent.registerEventType()
-    NodeSaveStateRequest = QEvent.registerEventType()
+    NodeRestore = QEvent.Type(QEvent.registerEventType())
+    NodeSaveStateRequest = QEvent.Type(QEvent.registerEventType())
 
     #: Node user activate request (e.g. on double click in the
     #: canvas GUI)
-    NodeActivateRequest = QEvent.registerEventType()
+    NodeActivateRequest = QEvent.Type(QEvent.registerEventType())
 
     # Workflow runtime changed (Running/Paused/Stopped, ...)
-    RuntimeStateChange = QEvent.registerEventType()
+    RuntimeStateChange = QEvent.Type(QEvent.registerEventType())
 
     #: Workflow resource changed (e.g. work directory, env variable)
-    WorkflowEnvironmentChange = QEvent.registerEventType()
+    WorkflowEnvironmentChange = QEvent.Type(QEvent.registerEventType())
     WorkflowResourceChange = WorkflowEnvironmentChange
     #: Workflow is about to close.
-    WorkflowAboutToClose = QEvent.registerEventType()
-    WorkflowClose = QEvent.registerEventType()
+    WorkflowAboutToClose = QEvent.Type(QEvent.registerEventType())
+    WorkflowClose = QEvent.Type(QEvent.registerEventType())
 
-    AnnotationAdded = QEvent.registerEventType()
-    AnnotationRemoved = QEvent.registerEventType()
-    AnnotationChange = QEvent.registerEventType()
+    AnnotationAdded = QEvent.Type(QEvent.registerEventType())
+    AnnotationRemoved = QEvent.Type(QEvent.registerEventType())
+    AnnotationChange = QEvent.Type(QEvent.registerEventType())
 
     #: Request activation (show and raise) of the window containing
     #: the workflow view
-    ActivateParentRequest = QEvent.registerEventType()
+    ActivateParentRequest = QEvent.Type(QEvent.registerEventType())
 
     def __init__(self, etype):
         # type: (_EType) -> None
-        super().__init__(cast(QEvent.Type, etype))
+        super().__init__(QEvent.Type(etype))
 
 
 class NodeEvent(WorkflowEvent):
