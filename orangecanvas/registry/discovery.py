@@ -46,6 +46,16 @@ _CacheEntry = \
     )
 
 
+def default_category_name_for_module(module):
+    if isinstance(module, str):
+        module = __import__(module, fromlist=[""])
+    path = module.__name__.split(".")
+    name = path[-1]
+    if name == "widgets" and len(path) > 1:
+        name = path[-2].capitalize()
+    return name
+
+
 def default_category_for_module(module):
     """
     Return a default constructed :class:`CategoryDescription`
@@ -54,7 +64,7 @@ def default_category_for_module(module):
     """
     if isinstance(module, str):
         module = __import__(module, fromlist=[""])
-    name = module.__name__.rsplit(".", 1)[-1]
+    name = default_category_name_for_module(module)
     qualified_name = module.__name__
     return CategoryDescription(name=name, qualified_name=qualified_name)
 
@@ -202,8 +212,11 @@ class WidgetDiscovery(object):
                          exc_info=True)
                 cat_desc = default_category_for_module(category)
 
-        if name is not None:
-            cat_desc.name = name
+        if cat_desc.name is None:
+            if name is not None:
+                cat_desc.name = name
+            else:
+                cat_desc.name = default_category_name_for_module(category)
 
         if distribution is not None:
             cat_desc.project_name = distribution.project_name

@@ -122,9 +122,8 @@ def category_from_package_globals(package):
 
     package_name = package.__name__
     qualified_name = package_name
-    default_name = package_name.rsplit(".", 1)[-1]
 
-    name = getattr(package, "NAME", default_name)
+    name = getattr(package, "NAME", None)
     description = getattr(package, "DESCRIPTION", None)
     long_description = getattr(package, "LONG_DESCRIPTION", None)
     author = getattr(package, "AUTHOR", None)
@@ -140,7 +139,8 @@ def category_from_package_globals(package):
     background = getattr(package, "BACKGROUND", None)
     hidden = getattr(package, "HIDDEN", None)
 
-    if priority == sys.maxsize - 1 and name.lower() == "prototypes":
+    if priority == sys.maxsize - 1 \
+            and name is not None and name.lower() == "prototypes":
         priority = sys.maxsize
 
     return CategoryDescription(
