@@ -49,6 +49,10 @@ jobs:
             python-version: "3.11"
             test-env: "PyQt6~=6.2.3 PyQt6-Qt6~=6.2.3"
 
+          - os: ubuntu-20.04
+            python-version: "3.11"
+            test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0"
+
           # macOS
           - os: macos-11
             python-version: 3.8
@@ -69,6 +73,10 @@ jobs:
           - os: macos-12
             python-version: "3.11"
             test-env: "PyQt6~=6.2.3 PyQt6-Qt6~=6.2.3"
+
+          - os: macos-12
+            python-version: "3.11"
+            test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0"
 
           # Windows
           - os: windows-2019
@@ -95,6 +103,10 @@ jobs:
             python-version: "3.11"
             test-env: "PyQt6~=6.2.3 PyQt6-Qt6~=6.2.3"
 
+          - os: windows-2019
+            python-version: "3.11"
+            test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0"
+
     steps:
       - uses: actions/checkout@v3
       - name: Setup Python
@@ -107,7 +119,7 @@ jobs:
         # https://www.riverbankcomputing.com/pipermail/pyqt/2020-June/042949.html
         run: |
           sudo apt-get update 
-          sudo apt-get install -y libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0 libegl1-mesa libxcb-shape0
+          sudo apt-get install -y libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0 libegl1-mesa libxcb-shape0 libxcb-cursor0
 
       - name: Setup Pip Cache
         uses: actions/cache@v3
