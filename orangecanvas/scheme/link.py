@@ -7,7 +7,7 @@ Scheme Link
 import enum
 import warnings
 import typing
-from traceback import format_exception_only
+from traceback import format_exception_only, format_exception
 from typing import List, Tuple, Union, Optional, Iterable
 
 from AnyQt.QtCore import QObject, QCoreApplication
@@ -47,10 +47,10 @@ def resolve_types(types):
     for t in types:
         try:
             rt.append(type_lookup(t))
-        except (TypeError, ImportError, AttributeError) as err:
+        except Exception as err:
             warnings.warn(
-                "Failed to resolve name {!r} to a type: {!s}"
-                    .format(t, "\n".join(format_exception_only(type(err), err))),
+                "An unexpected error while resolving type {!r}:\n{}".format(
+                    t, "".join(format_exception_only(type(err), err))),
                 RuntimeWarning, stacklevel=2
             )
             rt.append(None)
