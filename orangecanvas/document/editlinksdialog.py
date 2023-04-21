@@ -480,8 +480,6 @@ class LinksEditWidget(QGraphicsWidget):
         self.sourceNodeTitle = left_title
         self.sinkNodeTitle = right_title
 
-        self.__resetAnchorStates()
-
         # AnchorHover hover over anchor before hovering over line
         class AnchorHover(QGraphicsRectItem):
             def __init__(self, anchor, parent=None):
@@ -507,8 +505,10 @@ class LinksEditWidget(QGraphicsWidget):
                     event.ignore()
 
         for anchor in left_node.channelAnchors + right_node.channelAnchors:
-            anchor_hover = AnchorHover(anchor, parent=self)
-            anchor_hover.setZValue(2.0)
+            anchor.overlay = AnchorHover(anchor, parent=self)
+            anchor.overlay.setZValue(2.0)
+
+        self.__resetAnchorStates()
 
     def __resetAnchorStates(self):
         source_anchors = self.sourceNodeWidget.channelAnchors
@@ -748,6 +748,9 @@ class ChannelAnchor(QGraphicsRectItem):
     """
     A rectangular Channel Anchor indicator.
     """
+    #: Used/filled by EditLinksWidget to track overlays
+    overlay: QGraphicsRectItem = None
+
     def __init__(self, parent=None, channel=None, rect=None, **kwargs):
         super().__init__(**kwargs)
         self.setAcceptedMouseButtons(Qt.NoButton)
@@ -791,6 +794,11 @@ class ChannelAnchor(QGraphicsRectItem):
             self.setBrush(self.enabledBrush)
         else:
             self.setBrush(self.disabledBrush)
+
+    def setToolTip(self, toolTip: str) -> None:
+        super().setToolTip(toolTip)
+        if self.overlay is not None:
+            self.overlay.setToolTip(toolTip)
 
     def paint(self, painter, option, widget=None):
         super().paint(painter, option, widget)
