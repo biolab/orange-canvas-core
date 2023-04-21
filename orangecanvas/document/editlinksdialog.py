@@ -18,7 +18,7 @@ from AnyQt.QtWidgets import (
     QGraphicsLineItem, QGraphicsTextItem, QGraphicsLayoutItem,
     QGraphicsLinearLayout, QGraphicsGridLayout, QGraphicsPixmapItem,
     QGraphicsDropShadowEffect, QSizePolicy, QGraphicsItem, QWidget,
-    QWIDGETSIZE_MAX
+    QWIDGETSIZE_MAX, QStyle
 )
 from AnyQt.QtGui import (
     QPalette, QPen, QPainter, QIcon, QColor, QPainterPathStroker
@@ -385,7 +385,7 @@ class LinksEditWidget(QGraphicsWidget):
                     self.removeLink(s1, s2)
 
         line = LinkLineItem(self)
-
+        line.setToolTip(self.tr("Click to remove the link."))
         source_anchor = self.sourceNodeWidget.anchor(output)
         sink_anchor = self.sinkNodeWidget.anchor(input)
 
@@ -918,6 +918,10 @@ class LinkLineItem(QGraphicsLineItem):
             return super().shape()
         return self.__shape
 
+    def boundingRect(self) -> QRectF:
+        rect = super().boundingRect()
+        return rect.adjusted(5, -5, 5, 5)
+
     def hoverEnterEvent(self, event):
         self.prepareGeometryChange()
         self.__shadow.setEnabled(True)
@@ -931,3 +935,16 @@ class LinkLineItem(QGraphicsLineItem):
         self.setPen(self.__default_pen)
         self.setZValue(0.0)
         super().hoverLeaveEvent(event)
+
+    def paint(self, painter, option, widget=None):
+        super().paint(painter, option, widget)
+        if option.state & QStyle.State_MouseOver:
+            line = self.line()
+            center = line.center()
+            painter.translate(center)
+            painter.rotate(-line.angle())
+            pen = painter.pen()
+            pen.setWidthF(3)
+            painter.setPen(pen)
+            painter.drawLine(-5, -5, 5, 5)
+            painter.drawLine(-5, 5, 5, -5)
