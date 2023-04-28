@@ -18,7 +18,7 @@ from AnyQt.QtWidgets import (
     QGraphicsLineItem, QGraphicsTextItem, QGraphicsLayoutItem,
     QGraphicsLinearLayout, QGraphicsGridLayout, QGraphicsPixmapItem,
     QGraphicsDropShadowEffect, QSizePolicy, QGraphicsItem, QWidget,
-    QWIDGETSIZE_MAX
+    QWIDGETSIZE_MAX, QStyle
 )
 from AnyQt.QtGui import (
     QPalette, QPen, QPainter, QIcon, QColor, QPainterPathStroker
@@ -385,7 +385,7 @@ class LinksEditWidget(QGraphicsWidget):
                     self.removeLink(s1, s2)
 
         line = LinkLineItem(self)
-
+        line.setToolTip(self.tr("Click to remove the link."))
         source_anchor = self.sourceNodeWidget.anchor(output)
         sink_anchor = self.sinkNodeWidget.anchor(input)
 
@@ -480,8 +480,6 @@ class LinksEditWidget(QGraphicsWidget):
         self.sourceNodeTitle = left_title
         self.sinkNodeTitle = right_title
 
-        self.__resetAnchorStates()
-
         # AnchorHover hover over anchor before hovering over line
         class AnchorHover(QGraphicsRectItem):
             def __init__(self, anchor, parent=None):
@@ -507,8 +505,10 @@ class LinksEditWidget(QGraphicsWidget):
                     event.ignore()
 
         for anchor in left_node.channelAnchors + right_node.channelAnchors:
-            anchor_hover = AnchorHover(anchor, parent=self)
-            anchor_hover.setZValue(2.0)
+            anchor.overlay = AnchorHover(anchor, parent=self)
+            anchor.overlay.setZValue(2.0)
+
+        self.__resetAnchorStates()
 
     def __resetAnchorStates(self):
         source_anchors = self.sourceNodeWidget.channelAnchors
@@ -748,6 +748,9 @@ class ChannelAnchor(QGraphicsRectItem):
     """
     A rectangular Channel Anchor indicator.
     """
+    #: Used/filled by EditLinksWidget to track overlays
+    overlay: QGraphicsRectItem = None
+
     def __init__(self, parent=None, channel=None, rect=None, **kwargs):
         super().__init__(**kwargs)
         self.setAcceptedMouseButtons(Qt.NoButton)
@@ -791,6 +794,11 @@ class ChannelAnchor(QGraphicsRectItem):
             self.setBrush(self.enabledBrush)
         else:
             self.setBrush(self.disabledBrush)
+
+    def setToolTip(self, toolTip: str) -> None:
+        super().setToolTip(toolTip)
+        if self.overlay is not None:
+            self.overlay.setToolTip(toolTip)
 
     def paint(self, painter, option, widget=None):
         super().paint(painter, option, widget)
@@ -918,6 +926,10 @@ class LinkLineItem(QGraphicsLineItem):
             return super().shape()
         return self.__shape
 
+    def boundingRect(self) -> QRectF:
+        rect = super().boundingRect()
+        return rect.adjusted(5, -5, 5, 5)
+
     def hoverEnterEvent(self, event):
         self.prepareGeometryChange()
         self.__shadow.setEnabled(True)
@@ -931,3 +943,16 @@ class LinkLineItem(QGraphicsLineItem):
         self.setPen(self.__default_pen)
         self.setZValue(0.0)
         super().hoverLeaveEvent(event)
+
+    def paint(self, painter, option, widget=None):
+        super().paint(painter, option, widget)
+        if option.state & QStyle.State_MouseOver:
+            line = self.line()
+            center = line.center()
+            painter.translate(center)
+            painter.rotate(-line.angle())
+            pen = painter.pen()
+            pen.setWidthF(3)
+            painter.setPen(pen)
+            painter.drawLine(-5, -5, 5, 5)
+            painter.drawLine(-5, 5, 5, -5)
