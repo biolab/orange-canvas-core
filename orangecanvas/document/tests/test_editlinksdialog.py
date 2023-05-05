@@ -1,3 +1,4 @@
+from AnyQt.QtGui import QPalette
 from AnyQt.QtWidgets import QGraphicsScene, QGraphicsView
 from AnyQt.QtCore import Qt, QPoint
 
@@ -5,7 +6,7 @@ from ...utils import findf
 from ...registry.tests import small_testing_registry
 from ...gui import test
 from ..editlinksdialog import EditLinksDialog, EditLinksNode, \
-    GraphicsTextWidget, LinksEditWidget, LinkLineItem
+    GraphicsTextWidget, LinksEditWidget, LinkLineItem, ChannelAnchor
 from ...scheme import SchemeNode
 
 
@@ -83,6 +84,22 @@ class TestLinksEditDialog(test.QAppTestCase):
         test.mouseMove(view.viewport(), Qt.NoButton, pos=pos)  # hover over line
         view.grab()  # paint in hovered state
         test.mouseMove(view.viewport(), Qt.NoButton, pos=QPoint(0, 0)) # hover leave
+
+        palette = QPalette()
+        palette.setColor(QPalette.Text, Qt.red)
+        widget.setPalette(palette)
+        view.grab()
+
+        anchor = findf(widget.sourceNodeWidget.childItems(),
+                       lambda item: isinstance(item, ChannelAnchor))
+        pos = view.mapFromScene(anchor.mapToScene(anchor.rect().center()))
+
+        test.mouseMove(view.viewport(), Qt.NoButton, pos=pos)  # hover over anchor
+        view.grab()  # paint in hovered state
+        test.mouseMove(view.viewport(), Qt.NoButton, pos=QPoint(0, 0))  # hover leave
+
+        anchor.setEnabled(False)
+        view.grab()  # paint in disabled state
 
 
 class TestGraphicsTextWidget(test.QAppTestCase):

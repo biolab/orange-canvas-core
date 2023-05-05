@@ -21,10 +21,10 @@ from AnyQt.QtWidgets import (
     QWIDGETSIZE_MAX, QStyle
 )
 from AnyQt.QtGui import (
-    QPalette, QPen, QPainter, QIcon, QColor, QPainterPathStroker
+    QPalette, QPen, QPainter, QIcon, QPainterPathStroker
 )
 from AnyQt.QtCore import (
-    Qt, QObject, QSize, QSizeF, QPointF, QRectF
+    Qt, QObject, QSize, QSizeF, QPointF, QRectF, QEvent
 )
 
 from ..scheme import compatible_channels
@@ -294,15 +294,8 @@ class LinksEditWidget(QGraphicsWidget):
                 line = LinkLineItem(self)
                 start = self.__dragStartItem.boundingRect().center()
                 start = self.mapFromItem(self.__dragStartItem, start)
-
                 eventPos = event.pos()
                 line.setLine(start.x(), start.y(), eventPos.x(), eventPos.y())
-
-                pen = QPen(self.palette().color(QPalette.WindowText), 4)
-                pen.setCapStyle(Qt.RoundCap)
-                line.setPen(pen)
-                line.show()
-
                 self.__tmpLine = line
 
                 if self.__dragStartItem in self.sourceNodeWidget.channelAnchors:
@@ -535,6 +528,13 @@ class LinksEditWidget(QGraphicsWidget):
             anchor.setToolTip("No compatible output channel.")
         anchor.setEnabled(False)
 
+    def changeEvent(self, event: QEvent) -> None:
+        if event.type() == QEvent.PaletteChange:
+            palette = self.palette()
+            for _, _, link in self.__links:
+                link.setPalette(palette)
+        super().changeEvent(event)
+
 
 class EditLinksNode(QGraphicsWidget):
     """
@@ -568,7 +568,7 @@ class EditLinksNode(QGraphicsWidget):
         self.__iconLayoutItem = GraphicsItemLayoutItem(item=self.__iconItem)
 
         self.__channelLayout = QGraphicsGridLayout()
-        self.channelAnchors = []
+        self.channelAnchors: List[ChannelAnchor] = []
 
         if self.__direction == Qt.LeftToRight:
             self.layout().addItem(self.__iconLayoutItem)
@@ -705,6 +705,13 @@ class EditLinksNode(QGraphicsWidget):
         painter.drawRoundedRect(brect, 4, 4)
         painter.restore()
 
+    def changeEvent(self, event: QEvent) -> None:
+        if event.type() == QEvent.PaletteChange:
+            palette = self.palette()
+            for anc in self.channelAnchors:
+                anc.setPalette(palette)
+        super().changeEvent(event)
+
 
 class GraphicsItemLayoutItem(QGraphicsLayoutItem):
     """
@@ -752,12 +759,14 @@ class ChannelAnchor(QGraphicsRectItem):
     overlay: QGraphicsRectItem = None
 
     def __init__(self, parent=None, channel=None, rect=None, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(parent, **kwargs)
         self.setAcceptedMouseButtons(Qt.NoButton)
         self.__channel = None
-
-        # AnchorHover handles hover events
-        # self.setAcceptHoverEvents(True)
+        if isinstance(parent, QGraphicsWidget):
+            palette = parent.palette()
+        else:
+            palette = QPalette()
+        self.__palette = palette
 
         if rect is None:
             rect = QRectF(0, 0, 20, 20)
@@ -767,13 +776,9 @@ class ChannelAnchor(QGraphicsRectItem):
         if channel:
             self.setChannel(channel)
 
-        self.__default_pen = QPen(QColor('#000000'), 1)
-        self.__hover_pen = QPen(QColor('#000000'), 2)
+        self.__default_pen = QPen(palette.color(QPalette.Text), 1)
+        self.__hover_pen = QPen(palette.color(QPalette.Text), 2)
         self.setPen(self.__default_pen)
-
-        self.enabledBrush = QColor('#FFFFFF')
-        self.disabledBrush = QColor('#BBBBBB')
-        self.setBrush(self.enabledBrush)
 
     def setChannel(self, channel):
         """
@@ -790,22 +795,39 @@ class ChannelAnchor(QGraphicsRectItem):
 
     def setEnabled(self, enabled):
         super().setEnabled(enabled)
-        if enabled:
-            self.setBrush(self.enabledBrush)
-        else:
-            self.setBrush(self.disabledBrush)
+        self.update()
 
     def setToolTip(self, toolTip: str) -> None:
         super().setToolTip(toolTip)
         if self.overlay is not None:
             self.overlay.setToolTip(toolTip)
 
+    def setPalette(self, palette: QPalette) -> None:
+        self.__palette = palette
+        self.__default_pen.setColor(palette.color(QPalette.Text))
+        self.__hover_pen.setColor(palette.color(QPalette.Text))
+        pen = self.__hover_pen if self.isUnderMouse() else self.__default_pen
+        self.setPen(pen)
+
+    def palette(self) -> QPalette:
+        return QPalette(self.__palette)
+
     def paint(self, painter, option, widget=None):
-        super().paint(painter, option, widget)
+        rect = self.rect()
+        palette = self.palette()
+        pen = self.pen()
+        if option.state & QStyle.State_Enabled:
+            brush = palette.brush(QPalette.Base)
+        else:
+            brush = palette.brush(QPalette.Disabled, QPalette.Window)
+        painter.setPen(pen)
+        painter.setBrush(brush)
+        painter.drawRect(rect)
         # if disabled, draw X over box
-        if not self.isEnabled():
-            painter.drawLine(self.rect().topLeft(), self.rect().bottomRight())
-            painter.drawLine(self.rect().topRight(), self.rect().bottomLeft())
+        if not option.state & QStyle.State_Enabled:
+            painter.setClipRect(rect, Qt.ReplaceClip)
+            painter.drawLine(rect.topLeft(), rect.bottomRight())
+            painter.drawLine(rect.topRight(), rect.bottomLeft())
 
     def hoverEnterEvent(self, event):
         self.setPen(self.__hover_pen)
@@ -884,6 +906,12 @@ class GraphicsTextWidget(QGraphicsWidget):
         """The doc size has changed"""
         self.updateGeometry()
 
+    def changeEvent(self, event: QEvent) -> None:
+        if event.type() == QEvent.PaletteChange:
+            palette = self.palette()
+            self.__textItem.setDefaultTextColor(palette.color(QPalette.Text))
+        super().changeEvent(event)
+
 
 class LinkLineItem(QGraphicsLineItem):
     """
@@ -893,23 +921,38 @@ class LinkLineItem(QGraphicsLineItem):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAcceptHoverEvents(True)
-
         self.__shape = None
-
-        self.__default_pen = QPen(QColor('#383838'), 4)
+        if isinstance(parent, QGraphicsWidget):
+            palette = parent.palette()
+        else:
+            palette = QPalette()
+        self.__palette = palette
+        self.__default_pen = QPen(palette.color(QPalette.Text), 4)
         self.__default_pen.setCapStyle(Qt.RoundCap)
-        self.__hover_pen = QPen(QColor('#000000'), 4)
+        self.__hover_pen = QPen(palette.color(QPalette.Text), 4)
         self.__hover_pen.setCapStyle(Qt.RoundCap)
         self.setPen(self.__default_pen)
 
         self.__shadow = QGraphicsDropShadowEffect(
-            blurRadius=10, color=QColor('#9CACB4'),
+            blurRadius=10,
+            color=palette.color(QPalette.Shadow),
             offset=QPointF(0, 0)
         )
 
         self.setGraphicsEffect(self.__shadow)
         self.prepareGeometryChange()
         self.__shadow.setEnabled(False)
+
+    def setPalette(self, palette: QPalette) -> None:
+        self.__palette = palette
+        self.__default_pen.setColor(palette.color(QPalette.Text))
+        self.__hover_pen.setColor(palette.color(QPalette.Text))
+        self.setPen(
+            self.__hover_pen if self.isUnderMouse() else self.__default_pen
+        )
+
+    def palette(self) -> QPalette:
+        return QPalette(self.__palette)
 
     def setLine(self, *args, **kwargs):
         super().setLine(*args, **kwargs)
