@@ -232,7 +232,7 @@ TEMPLATE = """
 """
 
 
-def _hexrgb_solid(color: QColor) -> str:
+def _hexrgb_solid(color: QColor, contrast: QColor = None) -> str:
     """
     Return a #RRGGBB color string from color. If color has alpha component
     multipy the color components with alpha to get a solid color.
@@ -242,7 +242,8 @@ def _hexrgb_solid(color: QColor) -> str:
     # (in hex or rgba syntax) so we pre-multiply with alpha to get solid
     # gray scale.
     if color.alpha() != 255:
-        contrast = QColor(Qt.black) if luminance(color) > 0.5 else QColor(Qt.white)
+        if contrast is None:
+            contrast = QColor(Qt.black) if luminance(color) > 0.5 else QColor(Qt.white)
         color = merged_color(color, contrast, color.alphaF())
     return color.name(QColor.HexRgb)
 
@@ -256,10 +257,11 @@ def render_svg_color_scheme_css(palette: QPalette, state: QIcon.State) -> str:
     complement = QColor(Qt.white) if lum > 0.5 else QColor(Qt.black)
     contrast = QColor(Qt.black) if lum > 0.5 else QColor(Qt.white)
     return TEMPLATE.format(
-        text=_hexrgb_solid(palette.color(text)),
+        text=_hexrgb_solid(palette.color(text), palette.color(background)),
         background=_hexrgb_solid(palette.color(background)),
         highlight=_hexrgb_solid(palette.color(hligh)),
-        disabled_text=_hexrgb_solid(palette.color(QPalette.Disabled, text)),
+        disabled_text=_hexrgb_solid(palette.color(QPalette.Disabled, text),
+                                    palette.color(QPalette.Disabled, background)),
         contrast=_hexrgb_solid(contrast),
         complement=_hexrgb_solid(complement),
     )
