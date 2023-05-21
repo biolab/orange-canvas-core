@@ -13,14 +13,14 @@ from typing import Optional, Any
 from AnyQt.QtWidgets import (
     QGraphicsItem, QGraphicsPathItem, QGraphicsWidget,
     QGraphicsDropShadowEffect, QGraphicsSceneHoverEvent, QStyle,
-    QGraphicsSceneMouseEvent
-)
+    QGraphicsSceneMouseEvent,
+    QApplication)
 from AnyQt.QtGui import (
     QPen, QBrush, QColor, QPainterPath, QTransform, QPalette, QFont,
 )
 from AnyQt.QtCore import Qt, QPointF, QRectF, QLineF, QEvent, QPropertyAnimation, Signal, QTimer
 
-from .nodeitem import AnchorPoint, SHADOW_COLOR
+from .nodeitem import AnchorPoint, DEFAULT_SHADOW_COLOR
 from .graphicstextitem import GraphicsTextItem
 from .utils import stroke_path, qpainterpath_sub_path
 from ...registry import InputSignal, OutputSignal
@@ -52,7 +52,7 @@ class LinkCurveItem(QGraphicsPathItem):
         self.setPen(QPen(QBrush(QColor("#9CACB4")), 2.0))
 
         self.shadow = QGraphicsDropShadowEffect(
-            blurRadius=5, color=QColor(SHADOW_COLOR),
+            blurRadius=5, color=QColor(DEFAULT_SHADOW_COLOR),
             offset=QPointF(0, 0)
         )
         self.setGraphicsEffect(self.shadow)
@@ -718,27 +718,46 @@ class LinkItem(QGraphicsWidget):
         # type: () -> None
         self.prepareGeometryChange()
         self.__boundingRect = None
+
+        app = QApplication.instance()
+        darkMode = app.property('darkMode')
+
         if self.__dynamic:
-            if self.__dynamicEnabled:
-                color = QColor(0, 150, 0, 150)
-            else:
-                color = QColor(150, 0, 0, 150)
-
-            normal = QPen(QBrush(color), 2.0)
-            hover = QPen(QBrush(color.darker(120)), 2.0)
-        else:
-            normal = QPen(QBrush(QColor("#9CACB4")), 2.0)
-            hover = QPen(QBrush(QColor("#959595")), 2.0)
-
+            # TODO
+            pass
+            # if self.__dynamicEnabled:
+            #     color = QColor(0, 150, 0, 150)
+            # else:
+            #     color = QColor(150, 0, 0, 150)
+            #
+            # normal = QPen(QBrush(color), 2.0)
+            # hover = QPen(QBrush(color.darker(120)), 2.0)
         if self.__state & LinkItem.Empty:
             pen_style = Qt.DashLine
         else:
             pen_style = Qt.SolidLine
 
+        if darkMode:
+            brush = QBrush(QColor('#EEEEEE'))
+            hover = QPen(
+                QBrush(QColor('#FFFFFF')),
+                3.0 if pen_style == Qt.SolidLine else 2.0
+            )
+        else:
+            brush = QBrush(QColor('#878787'))
+            hover = QPen(
+                brush.color().darker(105),
+                3.0 if pen_style == Qt.SolidLine else 2.0
+            )
+        normal = QPen(
+            brush,
+            3.0 if pen_style == Qt.SolidLine and self.__state else 2.0
+        )
+
         normal.setStyle(pen_style)
         hover.setStyle(pen_style)
 
-        if self.hover or self.isSelected():
+        if self.hover or self.isSelected() or self.__isSelectedImplicit():
             pen = hover
         else:
             pen = normal

@@ -15,12 +15,13 @@ from contextlib import contextmanager
 from typing import Optional, Union
 
 from AnyQt.QtWidgets import (
-    QWidget, QMessageBox, QStyleOption, QStyle, QTextEdit, QScrollBar
+    QWidget, QMessageBox, QStyleOption, QStyle, QTextEdit, QScrollBar,
+    QApplication
 )
 from AnyQt.QtGui import (
     QGradient, QLinearGradient, QRadialGradient, QBrush, QPainter,
     QPaintEvent, QColor, QPixmap, QPixmapCache, QTextOption, QGuiApplication,
-    QTextCharFormat, QFont
+    QTextCharFormat, QFont, QPalette
 )
 from AnyQt.QtCore import Qt, QPointF, QPoint, QRect, QRectF, Signal, QEvent
 from AnyQt import sip
@@ -293,6 +294,64 @@ def brush_darker(brush: QBrush, factor: bool) -> QBrush:
         return brush
 
 
+def relative_luminance(color: QColor):
+    vR = color.redF()
+    vG = color.greenF()
+    vB = color.blueF()
+
+    def sRGBtoLin(c):
+        if c <= 0.04045:
+            return c / 12.92
+        else:
+            return pow(((c + 0.055) / 1.055), 2.4)
+
+    Y = (0.2126 * sRGBtoLin(vR) +
+         0.7152 * sRGBtoLin(vG) +
+         0.0722 * sRGBtoLin(vB))
+
+    return Y
+
+
+def lstar(color):
+    Y = relative_luminance(color)
+    if Y <= 216 / 24389:
+        Lstar = Y * (24389 / 27)
+    else:
+        Lstar = pow(Y, (1 / 3)) * 116 - 16
+
+    return Lstar
+
+
+def contrast_ratio(c1, c2):
+    v1 = relative_luminance(c1)
+    v2 = relative_luminance(c2)
+    if v1 < v2:
+        _ = v2
+        v2 = v1
+        v1 = _
+    return (v1 + 0.05) / (v2 + 0.05)
+
+
+def foreground_for_background(bg: QColor):
+    if lstar(bg) < 50:
+        return QColor(Qt.white)
+    else:
+        return QColor(Qt.black)
+
+
+def saturated(color, factor=150):
+    # type: (QColor, int) -> QColor
+    """Return a saturated color.
+    """
+    h = color.hsvHueF()
+    s = color.hsvSaturationF()
+    v = color.valueF()
+    a = color.alphaF()
+    s = factor * s / 100.0
+    s = max(min(1.0, s), 0.0)
+    return QColor.fromHsvF(h, s, v, a).convertTo(color.spec())
+
+
 def create_gradient(base_color: QColor, stop=QPointF(0, 0),
                     finalStop=QPointF(0, 1)) -> QLinearGradient:
     """
@@ -447,27 +506,24 @@ def message(icon, text, title=None, informative_text=None, details=None,
     return mbox.exec()
 
 
-def innerGlowBackgroundPixmap(color, size, radius=5):
+def innerGlowBackgroundPixmap(light_color, dark_color, size, radius=10):
     """ Draws radial gradient pixmap, then uses that to draw
     a rounded-corner gradient rectangle pixmap.
 
     Args:
-        color (QColor): used as outer color (lightness 245 used for inner)
+        light_color (QColor): used as inner color
+        dark_color (QColor): used as outer color
         size (QSize): size of output pixmap
         radius (int): radius of inner glow rounded corners
     """
     key = "InnerGlowBackground " + \
-          color.name() + " " + \
+          light_color.name() + " " + \
+          dark_color.name() + " " + \
           str(radius)
 
     bg = QPixmapCache.find(key)
     if bg:
         return bg
-
-    # set background colors for gradient
-    color = color.toHsl()
-    light_color = color.fromHsl(color.hslHue(), color.hslSaturation(), 245)
-    dark_color = color
 
     # initialize radial gradient
     center = QPoint(radius, radius)

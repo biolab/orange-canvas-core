@@ -62,14 +62,12 @@ class _MenuItemDelegate(QStyledItemDelegate):
         """ Draw icon background """
 
         # get category color
-        brush = as_qbrush(index.data(QtWidgetRegistry.BACKGROUND_ROLE))
-        if brush is not None:
-            color = brush.color()
-        else:
-            color = QColor("FFA840")  # orange!
+        palette: QPalette = index.data(QtWidgetRegistry.BACKGROUND_ROLE)
+        light_color = palette.color(QPalette.Light)
+        dark_color = palette.color(QPalette.Midlight)
 
         # (get) cache(d) pixmap
-        bg = innerGlowBackgroundPixmap(color,
+        bg = innerGlowBackgroundPixmap(light_color, dark_color,
                                        QSize(rect.height(), rect.height()))
 
         # draw background
@@ -1228,7 +1226,10 @@ class PagedMenu(QWidget):
 
 def as_qbrush(value):
     # type: (Any) -> Optional[QBrush]
-    if isinstance(value, QBrush):
+    app = QApplication.instance()
+    if isinstance(value, QPalette):
+        return value.button()
+    elif isinstance(value, QBrush):
         return value
     else:
         return None
@@ -1464,18 +1465,20 @@ class QuickMenu(FramelessWindow):
                 # Note: the tab buttons are offest by 1 (to accommodate
                 # the Suggest Page).
                 button = self.__pages.tabButton(row + 1)
-                brush = as_qbrush(index.data(QtWidgetRegistry.BACKGROUND_ROLE))
-                if brush is not None:
-                    base_color = brush.color()
-                    shadow_color = base_color.fromHsv(base_color.hsvHue(),
-                                                      base_color.hsvSaturation(),
-                                                      100)
-                    button.setStyleSheet(
-                        TAB_BUTTON_STYLE_TEMPLATE.format
-                        (base_color.darker(110).name(),
-                         base_color.name(),
-                         shadow_color.name())
-                    )
+
+                palette = index.data(QtWidgetRegistry.BACKGROUND_ROLE)
+                base_color = palette.color(QPalette.Midlight)
+                off_color = palette.color(QPalette.Button)
+                shadow_color = base_color.fromHsv(base_color.hsvHue(),
+                                                  base_color.hsvSaturation(),
+                                                  100)
+
+                button.setStyleSheet(
+                    TAB_BUTTON_STYLE_TEMPLATE.format
+                    (off_color.name(),
+                     base_color.name(),
+                     shadow_color.name())
+                )
 
     def __on_rowsInserted(self, parent, start, end):
         # type: (QModelIndex, int, int) -> None
@@ -1500,19 +1503,20 @@ class QuickMenu(FramelessWindow):
 
         i = self.insertPage(row, page.title(), page)
 
-        brush = as_qbrush(index.data(QtWidgetRegistry.BACKGROUND_ROLE))
-        if brush is not None:
-            base_color = brush.color()
-            shadow_color = base_color.fromHsv(base_color.hsvHue(),
-                                              base_color.hsvSaturation(),
-                                              100)
-            button = self.__pages.tabButton(i)
-            button.setStyleSheet(
-                TAB_BUTTON_STYLE_TEMPLATE.format
-                (base_color.darker(110).name(),
-                 base_color.name(),
-                 shadow_color.name())
-            )
+        palette = index.data(QtWidgetRegistry.BACKGROUND_ROLE)
+        base_color = palette.color(QPalette.Midlight)
+        off_color = palette.color(QPalette.Button)
+        shadow_color = base_color.fromHsv(base_color.hsvHue(),
+                                          base_color.hsvSaturation(),
+                                          100)
+
+        button = self.__pages.tabButton(i)
+        button.setStyleSheet(
+            TAB_BUTTON_STYLE_TEMPLATE.format
+            (off_color.name(),
+             base_color.name(),
+             shadow_color.name())
+        )
 
     def __removePage(self, row):
         # type: (int) -> None

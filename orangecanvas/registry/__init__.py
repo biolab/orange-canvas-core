@@ -41,7 +41,7 @@ NAMED_COLORS = \
 
 
 # default color when the category does not provide it
-DEFAULT_COLOR = "light-yellow"
+DEFAULT_COLOR = "blue"
 
 
 from .description import (

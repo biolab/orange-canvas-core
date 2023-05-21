@@ -25,7 +25,6 @@ from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 from ..gui.toolbox import ToolBox
 from ..gui.toolgrid import ToolGrid
 from ..gui.quickhelp import StatusTipPromoter
-from ..gui.utils import create_gradient
 from ..registry.qt import QtWidgetRegistry
 
 
@@ -415,26 +414,7 @@ class WidgetToolBox(ToolBox):
         self.insertItem(index, grid, text, icon, tooltip)
         button = self.tabButton(index)
 
-        # Set the 'highlight' color if applicable
-        highlight_foreground = None
-        highlight = item_background(item)
-        if highlight is None \
-                and item.data(QtWidgetRegistry.BACKGROUND_ROLE) is not None:
-            highlight = item.data(QtWidgetRegistry.BACKGROUND_ROLE)
-
-        if isinstance(highlight, QBrush) and highlight.style() != Qt.NoBrush:
-            if not highlight.gradient():
-                value = highlight.color().value()
-                gradient = create_gradient(highlight.color())
-                highlight = QBrush(gradient)
-                highlight_foreground = Qt.black if value > 128 else Qt.white
-
-        palette = button.palette()
-
-        if highlight is not None:
-            palette.setBrush(QPalette.Highlight, highlight)
-        if highlight_foreground is not None:
-            palette.setBrush(QPalette.HighlightedText, highlight_foreground)
+        palette = item.data(QtWidgetRegistry.BACKGROUND_ROLE)
         button.setPalette(palette)
 
     def __on_dataChanged(self, topLeft, bottomRight):

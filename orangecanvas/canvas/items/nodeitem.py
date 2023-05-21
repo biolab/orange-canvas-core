@@ -35,52 +35,19 @@ from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 from .graphicspathobject import GraphicsPathObject
 from .graphicstextitem import GraphicsTextItem, GraphicsTextEdit
 from .utils import (
-    saturated, radial_gradient, linspace, qpainterpath_sub_path, clip
+    radial_gradient, linspace, qpainterpath_sub_path, clip
 )
 from ...gui.utils import disconnected
-
+from ...gui.palette_utils import create_palette, default_palette
 from ...scheme.node import UserMessage
-from ...registry import NAMED_COLORS, WidgetDescription, CategoryDescription, \
-    InputSignal, OutputSignal
+from ...registry import WidgetDescription, CategoryDescription, InputSignal, \
+    OutputSignal
 from ...resources import icon_loader
 from .utils import uniform_linear_layout_trunc
 from ...utils import set_flag
 
 if typing.TYPE_CHECKING:
     from ...registry import WidgetDescription
-
-
-def create_palette(light_color, color):
-    # type: (QColor, QColor) -> QPalette
-    """
-    Return a new :class:`QPalette` from for the :class:`NodeBodyItem`.
-    """
-    palette = QPalette()
-
-    palette.setColor(QPalette.Inactive, QPalette.Light,
-                     saturated(light_color, 50))
-    palette.setColor(QPalette.Inactive, QPalette.Midlight,
-                     saturated(light_color, 90))
-    palette.setColor(QPalette.Inactive, QPalette.Button,
-                     light_color)
-
-    palette.setColor(QPalette.Active, QPalette.Light,
-                     saturated(color, 50))
-    palette.setColor(QPalette.Active, QPalette.Midlight,
-                     saturated(color, 90))
-    palette.setColor(QPalette.Active, QPalette.Button,
-                     color)
-    palette.setColor(QPalette.ButtonText, QColor("#515151"))
-    return palette
-
-
-def default_palette():
-    # type: () -> QPalette
-    """
-    Create and return a default palette for a node.
-    """
-    return create_palette(QColor(NAMED_COLORS["light-yellow"]),
-                          QColor(NAMED_COLORS["yellow"]))
 
 
 def animation_restart(animation):
@@ -90,8 +57,7 @@ def animation_restart(animation):
     animation.start()
 
 
-SHADOW_COLOR = "#9CACB4"
-SELECTED_SHADOW_COLOR = "#609ED7"
+DEFAULT_SHADOW_COLOR = "#9CACB4"
 
 
 class NodeBodyItem(GraphicsPathObject):
@@ -118,11 +84,9 @@ class NodeBodyItem(GraphicsPathObject):
 
         self.setPen(QPen(Qt.NoPen))
 
-        self.setPalette(default_palette())
-
         self.shadow = QGraphicsDropShadowEffect(
             blurRadius=0,
-            color=QColor(SHADOW_COLOR),
+            color=QColor(DEFAULT_SHADOW_COLOR),
             offset=QPointF(0, 0),
         )
         self.shadow.setEnabled(False)
@@ -133,7 +97,7 @@ class NodeBodyItem(GraphicsPathObject):
         # non devicePixelRatio aware.
         shadowitem = GraphicsPathObject(self, objectName="shadow-shape-item")
         shadowitem.setPen(Qt.NoPen)
-        shadowitem.setBrush(QBrush(QColor(SHADOW_COLOR).lighter()))
+        shadowitem.setBrush(QBrush(QColor(DEFAULT_SHADOW_COLOR).lighter()))
         shadowitem.setGraphicsEffect(self.shadow)
         shadowitem.setFlag(QGraphicsItem.ItemStacksBehindParent)
         self.__shadow = shadowitem
@@ -156,6 +120,16 @@ class NodeBodyItem(GraphicsPathObject):
             timeout=self.__progressTimeout
         )
 
+        self.__bgAnimation = QPropertyAnimation(self, b"bgAnimPhase",
+                                                duration=250, loopCount=1)
+        self.__bgAnimation.setEasingCurve(QEasingCurve.InOutCubic)
+        self.__bgAnimPhase = 1
+        self.__bgStart = (0.5, 0.5, 0.5)
+        self.__bgEnd = (0.5, 0.5, 0.5)
+        self.__grad = None
+
+        self.setPalette(default_palette())
+
     # TODO: The body item should allow the setting of arbitrary painter
     # paths (for instance rounded rect, ...)
     def setShapeRect(self, rect):
@@ -176,7 +150,7 @@ class NodeBodyItem(GraphicsPathObject):
         Set the body color palette (:class:`QPalette`).
         """
         self.palette = QPalette(palette)
-        self.__updateBrush()
+        self.__updateBrush(animate=False)
 
     def setAnimationEnabled(self, enabled):
         # type: (bool) -> None
@@ -220,6 +194,7 @@ class NodeBodyItem(GraphicsPathObject):
         Trigger a 'ping' animation.
         """
         animation_restart(self.__pingAnimation)
+        self.__updateBrush()
 
     def startSpinner(self):
         self.__spinnerAnimation.start()
@@ -287,11 +262,7 @@ class NodeBodyItem(GraphicsPathObject):
         if enabled and not self.shadow.isEnabled():
             self.shadow.setEnabled(enabled)
 
-        if self.__isSelected:
-            color = QColor(SELECTED_SHADOW_COLOR)
-        else:
-            color = QColor(SHADOW_COLOR)
-
+        color = self.palette.color(QPalette.Shadow)
         self.shadow.setColor(color)
 
         if self.__animationEnabled:
@@ -304,8 +275,8 @@ class NodeBodyItem(GraphicsPathObject):
         else:
             self.shadow.setBlurRadius(radius)
 
-    def __updateBrush(self):
-        # type: () -> None
+    def __updateBrush(self, animate=True):
+        # type: (bool) -> None
         palette = self.palette
         if self.__isSelected:
             cg = QPalette.Active
@@ -314,9 +285,54 @@ class NodeBodyItem(GraphicsPathObject):
 
         palette.setCurrentColorGroup(cg)
         c1 = palette.color(QPalette.Light)
-        c2 = palette.color(QPalette.Button)
-        grad = radial_gradient(c2, c1)
-        self.setBrush(QBrush(grad))
+        c2 = palette.color(QPalette.Midlight)
+        c3 = palette.color(QPalette.Button)
+        grad = radial_gradient(c3, c2, c1)
+
+        # randomize position of gradient centre
+        def get_rand_factor(shift=0, scaling=5):
+            from random import random
+            return (random() - 0.5) / scaling + shift
+
+        w = 0.5 + get_rand_factor()
+        h = 0.5 + get_rand_factor()
+        r = 0.5 + get_rand_factor()
+
+        if not animate or not self.__animationEnabled:
+            grad.setFocalPoint(w, h)
+            grad.setCenter(w, h)
+            grad.setCenterRadius(r)
+            self.setBrush(QBrush(grad))
+            return
+
+        if self.__bgAnimation.state() == QPropertyAnimation.Running:
+            return
+        self.__grad = grad
+        self.__bgStart = self.__bgEnd
+        self.__bgEnd = (w, h, r)
+        self.__bgAnimation.setStartValue(0)
+        self.__bgAnimation.setEndValue(1)
+        self.__bgAnimation.start()
+
+    @Property('float')
+    def bgAnimPhase(self):
+        if not hasattr(self, '_NodeBodyItem__bgAnimPhase'):
+            return 1
+        return self.__bgAnimPhase
+
+    @bgAnimPhase.setter
+    def bgAnimPhase(self, p):
+        sw, sh, sr = self.__bgStart
+        ew, eh, er = self.__bgEnd
+
+        dw = sw + (ew - sw) * p
+        dh = sh + (eh - sh) * p
+        dr = sr + (er - sr) * p
+        self.__grad.setFocalPoint(dw, dh)
+        self.__grad.setCenter(dw, dh)
+        self.__grad.setCenterRadius(dr)
+        self.setBrush(QBrush(self.__grad))
+        self.__bgAnimPhase = p
 
     # TODO: The selected state should be set using the
     # QStyle flags (State_Selected. State_HasFocus)
@@ -332,7 +348,8 @@ class NodeBodyItem(GraphicsPathObject):
         """
         self.__isSelected = selected
         self.__updateShadowState()
-        self.__updateBrush()
+        if selected:
+            self.__updateBrush()
 
     def __on_finished(self):
         # type: () -> None
@@ -354,8 +371,10 @@ class LinkAnchorIndicator(QGraphicsEllipseItem):
         self.setAcceptedMouseButtons(Qt.NoButton)
         self.setRect(-3.5, -3.5, 7., 7.)
         self.setPen(QPen(Qt.NoPen))
-        self.setBrush(QBrush(QColor("#9CACB4")))
-        self.hoverBrush = QBrush(QColor("#959595"))
+
+        color = QColor("#9CACB4")
+        self.brush = QBrush(color)
+        self.hover_brush = QBrush(color.darker(115))
 
         self.__hover = False
 
@@ -380,7 +399,7 @@ class LinkAnchorIndicator(QGraphicsEllipseItem):
     def paint(self, painter, option, widget=None):
         # type: (QPainter, QStyleOptionGraphicsItem, Optional[QWidget]) -> None
         hover = self.__styleState & (QStyle.State_Selected | QStyle.State_MouseOver)
-        brush = self.hoverBrush if hover else self.brush()
+        brush = self.hover_brush if hover else self.brush
         if self.__linkState & (LinkItem.Pending | LinkItem.Invalidated):
             brush = QBrush(Qt.red)
 
@@ -568,7 +587,7 @@ class NodeAnchorItem(GraphicsPathObject):
 
         self.shadow = QGraphicsDropShadowEffect(
             blurRadius=0,
-            color=QColor(SHADOW_COLOR),
+            # color=QColor(DEFAULT_SHADOW_COLOR),
             offset=QPointF(0, 0),
         )
         # self.setGraphicsEffect(self.shadow)
@@ -576,7 +595,7 @@ class NodeAnchorItem(GraphicsPathObject):
 
         shadowitem = GraphicsPathObject(self, objectName="shadow-shape-item")
         shadowitem.setPen(Qt.NoPen)
-        shadowitem.setBrush(QBrush(QColor(SHADOW_COLOR)))
+        # shadowitem.setBrush(QBrush(QColor(DEFAULT_SHADOW_COLOR)))
         shadowitem.setGraphicsEffect(self.shadow)
         shadowitem.setFlag(QGraphicsItem.ItemStacksBehindParent)
         self.__shadow = shadowitem
@@ -1234,6 +1253,9 @@ class NodeItem(QGraphicsWidget):
         self.outputAnchorItem.setAnchorPath(output_path)
         self.outputAnchorItem.setAnimationEnabled(self.__animationEnabled)
 
+        self.widget_palette = None
+        self.__updateAnchorBrushes()
+
         self.inputAnchorItem.hide()
         self.outputAnchorItem.hide()
 
@@ -1321,11 +1343,37 @@ class NodeItem(QGraphicsWidget):
         Set the widget category.
         """
         self.category_description = desc
-        if desc and desc.background:
-            background = NAMED_COLORS.get(desc.background, desc.background)
-            color = QColor(background)
-            if color.isValid():
-                self.setColor(color)
+
+        background = desc.background
+        if desc.background:
+            palette = create_palette(background)
+        else:
+            palette = default_palette()
+        self.widget_palette = palette
+        self.setPalette(palette)
+
+    def __updateAnchorBrushes(self):
+        app = QApplication.instance()
+        darkMode = app.property('darkMode')
+
+        deactivated_brush = QBrush(QColor('#878787'))
+        if darkMode:
+            connected_brush = QBrush(QColor('#EEEEEE'))
+            connected_hover_brush = QBrush(QColor('#FFFFFF'))
+        else:
+            connected_brush = QBrush(QColor('#878787'))
+            connected_hover_brush = QBrush(connected_brush.color().darker(105))
+        hover_brush = connected_brush
+
+        for anchor in (self.outputAnchorItem, self.inputAnchorItem):
+            anchor.connectedBrush = connected_brush
+            anchor.normalBrush = deactivated_brush
+            anchor.connectedHoverBrush = connected_hover_brush
+            anchor.normalHoverBrush = hover_brush
+            for point in anchor.anchorPoints():
+                point.indicator.brush = connected_brush
+                point.indicator.hover_brush = hover_brush
+            anchor.update()
 
     def setIcon(self, icon):
         # type: (QIcon) -> None
@@ -1337,18 +1385,8 @@ class NodeItem(QGraphicsWidget):
         )
         self.icon_item.setPos(-18, -18)
 
-    def setColor(self, color, selectedColor=None):
-        # type: (QColor, Optional[QColor]) -> None
-        """
-        Set the widget color.
-        """
-        if selectedColor is None:
-            selectedColor = saturated(color, 150)
-        palette = create_palette(color, selectedColor)
-        self.shapeItem.setPalette(palette)
-
     def setTitle(self, title):
-        # type: (str) -> None
+        # type: (str) -> Nne
         """
         Set the node title. The title text is displayed at the bottom of the
         node.
@@ -1546,8 +1584,11 @@ class NodeItem(QGraphicsWidget):
         if not (self.widget_description and self.widget_description.inputs):
             raise ValueError("Widget has no inputs.")
 
+        palette = self.palette()
+
         anchor = AnchorPoint(self, signal=signal)
         self.inputAnchorItem.addAnchor(anchor)
+        self.__updateAnchorBrushes()
 
         return anchor
 
@@ -1566,8 +1607,11 @@ class NodeItem(QGraphicsWidget):
         if not (self.widget_description and self.widget_description.outputs):
             raise ValueError("Widget has no outputs.")
 
+        palette = self.palette()
+
         anchor = AnchorPoint(self, signal=signal)
         self.outputAnchorItem.addAnchor(anchor)
+        self.__updateAnchorBrushes()
 
         return anchor
 
@@ -1760,8 +1804,14 @@ class NodeItem(QGraphicsWidget):
 
     def __updatePalette(self):
         # type: () -> None
-        palette = self.palette()
+        if self.widget_palette:
+            palette = self.widget_palette
+        else:
+            palette = self.palette()
+
+        self.shapeItem.setPalette(palette)
         self.captionTextItem.setPalette(palette)
+        self.__updateAnchorBrushes()
 
     def __updateFont(self):
         # type: () -> None

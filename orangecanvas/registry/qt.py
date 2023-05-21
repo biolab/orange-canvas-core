@@ -15,6 +15,7 @@ from AnyQt.QtGui import QStandardItemModel, QStandardItem, QColor, QBrush
 from AnyQt.QtCore import QObject, Qt
 from AnyQt.QtCore import pyqtSignal as Signal
 
+from ..gui.palette_utils import create_palette, default_palette
 from ..utils import type_str
 from .discovery import WidgetDiscovery
 from .description import WidgetDescription, CategoryDescription
@@ -234,14 +235,11 @@ class QtWidgetRegistry(QObject, WidgetRegistry):
         item.setIcon(icon)
 
         if desc.background:
-            background = desc.background
+            palette = create_palette(desc.background)
         else:
-            background = DEFAULT_COLOR
+            palette = default_palette()
 
-        background = NAMED_COLORS.get(background, background)
-
-        brush = QBrush(QColor(background))
-        item.setData(brush, self.BACKGROUND_ROLE)
+        item.setData(palette, self.BACKGROUND_ROLE)
 
         tooltip = desc.description if desc.description else desc.name
 
@@ -267,18 +265,15 @@ class QtWidgetRegistry(QObject, WidgetRegistry):
         item.setIcon(icon)
 
         # This should be inherited from the category.
-        background = None
         if desc.background:
             background = desc.background
+            palette = create_palette(background)
         elif category.background:
             background = category.background
+            palette = create_palette(background)
         else:
-            background = DEFAULT_COLOR
-
-        if background is not None:
-            background = NAMED_COLORS.get(background, background)
-            brush = QBrush(QColor(background))
-            item.setData(brush, self.BACKGROUND_ROLE)
+            palette = default_palette()
+        item.setData(palette, self.BACKGROUND_ROLE)
 
         tooltip = tooltip_helper(desc)
         style = "ul { margin-top: 1px; margin-bottom: 1px; }"

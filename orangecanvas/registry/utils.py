@@ -73,6 +73,7 @@ def widget_from_module_globals(module):
     priority = getattr(module, "PRIORITY", sys.maxsize)
     keywords = getattr(module, "KEYWORDS", None)
     background = getattr(module, "BACKGROUND", None)
+    dark_background = getattr(module, "DARK_BACKGROUND", None)
     replaces = getattr(module, "REPLACES", None)
 
     inputs = list(map(input_channel_from_args, inputs))
@@ -100,6 +101,7 @@ def widget_from_module_globals(module):
         priority=priority,
         icon=icon,
         background=background,
+        dark_background=dark_background,
         replaces=replaces)
 
 
@@ -137,6 +139,7 @@ def category_from_package_globals(package):
     priority = getattr(package, "PRIORITY", sys.maxsize - 1)
     icon = getattr(package, "ICON", None)
     background = getattr(package, "BACKGROUND", None)
+    dark_background = getattr(package, "DARK_BACKGROUND", None)
     hidden = getattr(package, "HIDDEN", None)
 
     if priority == sys.maxsize - 1 \
@@ -159,4 +162,5 @@ def category_from_package_globals(package):
         priority=priority,
         icon=icon,
         background=background,
+        dark_background=dark_background,
         hidden=hidden)
