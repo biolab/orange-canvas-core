@@ -7,11 +7,14 @@ import shlex
 import sys
 import sysconfig
 from collections import deque
+from datetime import timedelta
 from enum import Enum
 from types import SimpleNamespace
 from typing import AnyStr, Callable, List, NamedTuple, Optional, Tuple, TypeVar, Union
 
 import requests
+import requests_cache
+
 from AnyQt.QtCore import QObject, QSettings, QStandardPaths, QTimer, Signal, Slot
 from pkg_resources import (
     Requirement,
@@ -290,13 +293,15 @@ def _session(cachedir=None):
     -------
     session : requests.Session
     """
-    import cachecontrol.caches
     if cachedir is None:
         cachedir = QStandardPaths.writableLocation(QStandardPaths.CacheLocation)
-        cachedir = os.path.join(cachedir, "networkcache", "requests")
-    session = requests.Session()
-    session = cachecontrol.CacheControl(
-        session, cache=cachecontrol.caches.FileCache(directory=cachedir)
+        cachedir = os.path.join(cachedir, "networkcache")
+    session = requests_cache.CachedSession(
+        os.path.join(cachedir, "requests.sqlite"),
+        backend=requests_cache.SQLiteCache,
+        cache_control=True,
+        expire_after=timedelta(days=1),
+        stale_if_error=True,
     )
     return session
 

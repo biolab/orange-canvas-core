@@ -27,7 +27,7 @@ INSTALL_REQUIRES = (
     "docutils",
     "commonmark>=0.8.1",
     "requests",
-    "cachecontrol[filecache]",
+    "requests-cache",
     "pip>=18.0",
     "dictdiffer",
     "qasync",
