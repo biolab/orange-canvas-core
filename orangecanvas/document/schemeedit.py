@@ -1630,7 +1630,7 @@ class SchemeEditWidget(QWidget):
             shift_down = QApplication.keyboardModifiers() == Qt.ShiftModifier
         if mode == SchemeEditWidget.OpenAnchors.Never:
             scene.set_widget_anchors_open(False)
-        elif mode ==  SchemeEditWidget.OpenAnchors.OnShift:
+        elif mode == SchemeEditWidget.OpenAnchors.OnShift:
             scene.set_widget_anchors_open(shift_down)
         else:
             scene.set_widget_anchors_open(True)

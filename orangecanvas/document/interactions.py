@@ -637,7 +637,7 @@ class NewLinkAction(UserInteraction):
                 self.suggestions.set_direction(self.direction)
                 self.connect_nodes(source_node, sink_node,
                                    source_signal, sink_signal)
-
+                self.reset_open_anchor()
                 if not self.isCanceled() or not self.isFinished() and \
                         self.macro is not None:
                     # Push (commit) the add link/node action on the stack.
