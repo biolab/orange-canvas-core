@@ -512,3 +512,23 @@ class ToolGrid(QFrame):
             return True
         else:
             return False
+
+    def sizeHint(self) -> QSize:
+        sh = super().sizeHint()
+        if self.__buttonSize.isValid():
+            width = self.__buttonSize.width()
+        else:
+            option = QStyleOptionToolButton()
+            option.initFrom(self)
+            option.iconSize = self.iconSize()
+            option.toolButtonStyle = self.toolButtonStyle()
+            csize = QSize(option.iconSize)
+            csize.setWidth(csize.width() * 3 // 2)  # see ToolGridButton
+            size = self.style().sizeFromContents(QStyle.CT_ToolButton, option, csize, None)
+            width = size.width()
+        layout = self.layout()
+        spacing = layout.horizontalSpacing()
+        columns = self.__columns
+        width = width * columns + (max(columns - 1, 0) * spacing)
+        sh.setWidth(max(sh.width(), width))
+        return sh
