@@ -298,7 +298,7 @@ def _session(cachedir=None):
         cachedir = os.path.join(cachedir, "networkcache")
     session = requests_cache.CachedSession(
         os.path.join(cachedir, "requests.sqlite"),
-        backend=requests_cache.SQLiteCache,
+        backend="sqlite",
         cache_control=True,
         expire_after=timedelta(days=1),
         stale_if_error=True,
