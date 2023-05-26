@@ -420,14 +420,14 @@ class ToolGrid(QFrame):
         """
         layout = self.layout()
         assert isinstance(layout, QGridLayout)
-        button_count = layout.count()
+        cell_count = layout.rowCount() * layout.columnCount()
         columns = self.__columns
 
         direction = 1 if count >= 0 else -1
         if direction == 1:
-            start, end = button_count - 1, start - 1
+            start, end = cell_count - 1, start - 1
         else:
-            start, end = start, button_count
+            start, end = start, cell_count
 
         for index in range(start, end, -direction):
             item = layout.itemAtPosition(
