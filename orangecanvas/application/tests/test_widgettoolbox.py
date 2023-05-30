@@ -2,8 +2,12 @@
 Tests for WidgetsToolBox.
 
 """
+from typing import cast
+
 from AnyQt.QtWidgets import QWidget, QHBoxLayout
+from AnyQt.QtGui import QStandardItemModel
 from AnyQt.QtCore import QSize
+from AnyQt.QtTest import QTest
 
 from ...registry import tests as registry_tests
 from ...registry.qt import QtWidgetRegistry
@@ -15,22 +19,23 @@ from ...gui import test
 
 
 class TestWidgetToolBox(test.QAppTestCase):
+    def setUp(self):
+        super().setUp()
+        reg = registry_tests.small_testing_registry()
+        self.reg = QtWidgetRegistry(reg)
+
     def test_widgettoolgrid(self):
         w = QWidget()
         layout = QHBoxLayout()
-        reg = registry_tests.small_testing_registry()
-
-        qt_reg = QtWidgetRegistry(reg)
 
         triggered_actions1 = []
         triggered_actions2 = []
 
-        model = qt_reg.model()
-        data_descriptions = qt_reg.widgets("Constants")
+        model = self.reg.model()
+        data_descriptions = self.reg.widgets("Constants")
+        one_action = self.reg.action_for_widget("one")
 
-        one_action = qt_reg.action_for_widget("one")
-
-        actions = list(map(qt_reg.action_for_widget, data_descriptions))
+        actions = list(map(self.reg.action_for_widget, data_descriptions))
 
         grid = ToolGrid(w)
         grid.setActions(actions)
@@ -60,18 +65,12 @@ class TestWidgetToolBox(test.QAppTestCase):
         self.qWait()
 
     def test_toolbox(self):
-
         w = QWidget()
         layout = QHBoxLayout()
-
-        reg = registry_tests.small_testing_registry()
-        qt_reg = QtWidgetRegistry(reg)
-
         triggered_actions = []
 
-        model = qt_reg.model()
-
-        one_action = qt_reg.action_for_widget("one")
+        model = self.reg.model()
+        one_action = self.reg.action_for_widget("one")
 
         box = WidgetToolBox()
         box.setModel(model)
@@ -90,4 +89,19 @@ class TestWidgetToolBox(test.QAppTestCase):
         box.setTabButtonHeight(40)
         box.setTabIconSize(QSize(30, 30))
 
+        box.setModel(QStandardItemModel())
+        self.assertEqual(box.count(), 0)
+        box.setModel(model)
+        self.assertEqual(box.count(), model.rowCount())
         self.qWait()
+
+    def test_filter(self):
+        w = WidgetToolBox()
+        w.setModel(self.reg.model())
+        edit = w.filterLineEdit()
+        g0 = cast(WidgetToolGrid, w.widget(0))
+        self.assertEqual(g0.model().rowCount(g0.rootIndex()), 3)
+        QTest.keyClicks(edit, "zero")
+        self.assertEqual(g0.model().rowCount(g0.rootIndex()), 1)
+        QTest.keyClicks(edit, "\b\b\b\b")
+        self.assertEqual(g0.model().rowCount(g0.rootIndex()), 3)
