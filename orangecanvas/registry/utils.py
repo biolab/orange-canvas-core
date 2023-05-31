@@ -161,3 +161,24 @@ def category_from_package_globals(package):
         icon=icon,
         background=background,
         hidden=hidden)
+
+
+def search_filter_query_helper(desc: WidgetDescription, query: str) -> bool:
+    """
+    Does the `desc` match a user supplied text `query`.
+
+    This is a helper function to implement consistent search/filter GUI.
+    """
+    query = query.lstrip().lower()
+    name = desc.name.lower()
+    keywords = [k.lower() for k in desc.keywords]
+    for k in keywords[:]:
+        if '-' in k:
+            keywords.append(k.replace('-', ''))
+            keywords.append(k.replace('-', ' '))
+
+    # match name and keywords
+    return (not query or
+            query in name or
+            query in name.replace(' ', '') or
+            any(k.startswith(query) for k in keywords))

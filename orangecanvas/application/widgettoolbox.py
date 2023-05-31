@@ -29,6 +29,7 @@ from ..gui.quickhelp import StatusTipPromoter
 from ..gui.utils import create_gradient_brush
 from ..registry import WidgetDescription
 from ..registry.qt import QtWidgetRegistry
+from ..registry.utils import search_filter_query_helper
 from ..resources import load_styled_svg_icon
 
 
@@ -492,7 +493,7 @@ class WidgetToolBox(ToolBox):
     def __on_filterTextChanged(self, text: str) -> None:
         def acceptable(desc: Optional[WidgetDescription]) -> bool:
             if desc is not None:
-                return text.lower() in desc.name.lower()
+                return search_filter_query_helper(desc, text.strip().lower())
             else:
                 return True  # accept other (category, ...)
 
