@@ -2,7 +2,7 @@ from itertools import count
 from contextlib import contextmanager
 from typing import Optional
 
-from AnyQt.QtCore import QObject, QSize, QRect
+from AnyQt.QtCore import Qt, QObject, QSize, QRect, QT_VERSION_INFO
 from AnyQt.QtGui import (
     QIconEngine, QPalette, QIcon, QPixmap, QPixmapCache, QImage, QPainter
 )
@@ -130,7 +130,7 @@ class SymbolIconEngine(StyledIconEngine):
         pm = QPixmapCache.find(pmcachekey)
         if pm is None or pm.isNull():
             color = palette.color(QPalette.Text)
-            src = self.__base.pixmap(size, mode, state)
+            src = qicon_pixmap(self.__base, size, 1.0, mode, state)
             src = src.toImage().convertToFormat(QImage.Format_ARGB32_Premultiplied)
             if luminance(color) > 0.5:
                 dest = grayscale_invert(
@@ -152,3 +152,27 @@ class SymbolIconEngine(StyledIconEngine):
 
     def clone(self) -> 'QIconEngine':
         return SymbolIconEngine(self.__base)
+
+
+def qicon_pixmap(
+        base: QIcon, size: QSize, scale: float, mode: QIcon.Mode,
+        state: QIcon.State
+) -> QPixmap:
+    """
+    Like QIcon.pixmap(size: QSize, scale: float, ...) overload in Qt6.
+
+    On Qt 6 this directly calls the corresponding overload.
+    On Qt 5 this is emulated by painting on a suitable constructed pixmap.
+    """
+    size = base.actualSize(size * scale, mode, state)
+    pm = QPixmap(size)
+    pm.setDevicePixelRatio(scale)
+    pm.fill(Qt.transparent)
+    p = QPainter(pm)
+    base.paint(p, 0, 0, size.width(), size.height(), Qt.AlignCenter, mode, state)
+    p.end()
+    return pm
+
+
+if QT_VERSION_INFO >= (6, 0):
+    qicon_pixmap = QIcon.pixmap
