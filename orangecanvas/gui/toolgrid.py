@@ -489,6 +489,11 @@ class ToolGrid(QFrame):
             self.__onButtonEnter(obj)
         return super().eventFilter(obj, event)
 
+    def focusNextPrevChild(self, next: bool) -> bool:
+        return self.__focusMove(
+            self.focusWidget(), Qt.Key_Right if next else Qt.Key_Left
+        )
+
     def __focusMove(self, focus, key):
         # type: (QWidget, Qt.Key) -> bool
         assert focus is self.focusWidget()
