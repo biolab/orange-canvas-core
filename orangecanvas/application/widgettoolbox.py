@@ -25,7 +25,7 @@ from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 from ..gui.toolbox import ToolBox
 from ..gui.toolgrid import ToolGrid
 from ..gui.quickhelp import StatusTipPromoter
-from ..gui.utils import create_gradient
+from ..gui.utils import create_gradient_brush
 from ..registry.qt import QtWidgetRegistry
 
 
@@ -425,8 +425,7 @@ class WidgetToolBox(ToolBox):
         if isinstance(highlight, QBrush) and highlight.style() != Qt.NoBrush:
             if not highlight.gradient():
                 value = highlight.color().value()
-                gradient = create_gradient(highlight.color())
-                highlight = QBrush(gradient)
+                highlight = create_gradient_brush(highlight.color())
                 highlight_foreground = Qt.black if value > 128 else Qt.white
 
         palette = button.palette()

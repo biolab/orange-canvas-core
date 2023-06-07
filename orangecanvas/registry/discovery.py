@@ -66,7 +66,9 @@ def default_category_for_module(module):
         module = __import__(module, fromlist=[""])
     name = default_category_name_for_module(module)
     qualified_name = module.__name__
-    return CategoryDescription(name=name, qualified_name=qualified_name)
+    return CategoryDescription(
+        name=name, qualified_name=qualified_name, package=module.__package__
+    )
 
 
 class WidgetDiscovery(object):

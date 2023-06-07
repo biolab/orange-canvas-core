@@ -5,12 +5,12 @@ Orange Canvas Resource Loader
 import os
 import glob
 import pkgutil
-
 from typing import Tuple, Dict, Optional, List, IO
 
 from AnyQt.QtCore import QObject
 from AnyQt.QtGui import QIcon
 
+from orangecanvas.gui.iconengine import SymbolIconEngine
 from orangecanvas.gui.svgiconengine import StyledSvgIconEngine
 
 
@@ -83,6 +83,8 @@ def search_paths_from_description(desc):
 
 
 class resource_loader(object):
+    package = None
+
     def __init__(self, search_paths=[]):
         self._search_paths = []
         self.add_search_paths(search_paths)
@@ -92,7 +94,9 @@ class resource_loader(object):
         """Construct an resource from a Widget or Category description.
         """
         paths = search_paths_from_description(desc)
-        return icon_loader(search_paths=paths)
+        loader = icon_loader(search_paths=paths)
+        loader.package = desc.package
+        return loader
 
     def add_search_paths(self, paths):
         """Add `paths` to the list of search paths.
@@ -196,10 +200,25 @@ class icon_loader(resource_loader):
 
         cache_key = tuple(icons)
         icon = QIcon()
+        if cache_key in self._icon_cache:
+            return QIcon(self._icon_cache[cache_key])
+
+        if len(icons) == 1 and icons[0].lower().endswith(".svg"):
+            if self.package is not None:
+                try:
+                    contents = pkgutil.get_data(self.package, name)
+                except FileNotFoundError:
+                    pass
+                else:
+                    if b'current-color-scheme' in contents:
+                        icon = QIcon(StyledSvgIconEngine(contents))
+                        self._icon_cache[cache_key] = icon
+                        return icon
         if icons:
             if cache_key not in self._icon_cache:
                 for path in icons:
                     icon.addFile(path)
+                icon = QIcon(SymbolIconEngine(icon))
                 self._icon_cache[cache_key] = icon
             else:
                 icon = self._icon_cache[cache_key]

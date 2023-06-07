@@ -1,6 +1,4 @@
 import io
-from contextlib import contextmanager
-
 from typing import IO, Optional
 
 from itertools import count
@@ -9,10 +7,10 @@ from xml.sax import make_parser, handler, saxutils
 from AnyQt.QtCore import Qt, QSize, QRect, QRectF, QObject
 from AnyQt.QtGui import (
     QIconEngine, QIcon, QPixmap, QPainter, QPixmapCache, QPalette, QColor,
-    QPaintDevice
 )
 from AnyQt.QtSvg import QSvgRenderer
 from AnyQt.QtWidgets import QStyleOption, QApplication
+from .iconengine import StyledIconEngine
 
 from .utils import luminance, merged_color
 
@@ -21,7 +19,7 @@ _cache_id_gen = count()
 
 class SvgIconEngine(QIconEngine):
     """
-    An svg icon engine reimplementation drawing from in-memory svg contents.
+    A svg icon engine reimplementation drawing from in-memory svg contents.
 
     Arguments
     ---------
@@ -83,11 +81,28 @@ class SvgIconEngine(QIconEngine):
         return SvgIconEngine(self.__contents)
 
 
-class StyledSvgIconEngine(QIconEngine):
+_QPalette_Text = QPalette.Text
+_QPalette_HighlightedText = QPalette.HighlightedText
+_QPalette_WindowText = QPalette.WindowText
+_QPalette_Window = QPalette.Window
+
+_QPalette_Active = QPalette.Active
+_QPalette_Disabled = QPalette.Disabled
+
+_QIcon_Active = QIcon.Active
+_QIcon_Selected = QIcon.Selected
+_QIcon_Disabled = QIcon.Disabled
+
+_QIcon_Active_Modes = (QIcon.Active, QIcon.Selected)
+
+_Qt_KeepAspectRatio = Qt.KeepAspectRatio
+
+
+class StyledSvgIconEngine(StyledIconEngine):
     """
     A basic styled icon engine based on a QPalette colors.
 
-    This engine can draw css styled svg icons of specific format so as to
+    This engine can draw css styled svg icons of specific format to
     conform to the current color scheme based on effective `QPalette`.
 
     (Loosely based on KDE's KIconLoader)
@@ -106,8 +121,8 @@ class StyledSvgIconEngine(QIconEngine):
     `QApplication.palette` is used.
     """
     __slots__ = (
-        "__contents", "__styled_contents_cache", "__palette", "__renderer",
-        "__cache_key", "__style_object",
+        "__contents", "__styled_contents_cache", "__renderer",
+        "__cache_key",
     )
 
     def __init__(
@@ -117,7 +132,7 @@ class StyledSvgIconEngine(QIconEngine):
             palette: Optional[QPalette] = None,
             styleObject: Optional[QObject] = None,
     ) -> None:
-        super().__init__()
+        super().__init__(palette=palette, styleObject=styleObject)
         self.__contents = contents
         self.__styled_contents_cache = {}
         if palette is not None and styleObject is not None:
@@ -127,68 +142,30 @@ class StyledSvgIconEngine(QIconEngine):
         self.__cache_key = next(_cache_id_gen)
         self.__style_object = styleObject
 
-    @staticmethod
-    def __paletteFromPaintDevice(dev: QPaintDevice) -> Optional[QPalette]:
-        if isinstance(dev, QObject):
-            palette_ = dev.property("palette")
-            if isinstance(palette_, QPalette):
-                return palette_
-        return None
-
-    @staticmethod
-    def __paletteFromStyleObject(obj: QObject) -> Optional[QPalette]:
-        palette = obj.property("palette")
-        if isinstance(palette, QPalette):
-            return palette
-        else:
-            return None
-
     def paint(self, painter, rect, mode, state):
         # type: (QPainter, QRect, QIcon.Mode, QIcon.State) -> None
         if self.__renderer.isValid():
-            if self.__paletteOverride is not None:
-                palette = self.__paletteOverride
-            elif self.__palette is None:
-                palette = self.__paletteFromPaintDevice(painter.device())
-                if palette is None:
-                    palette = self._palette()
-            else:
-                palette = self._palette()
+            palette = self.effectivePalette()
             size = rect.size()
             dpr = painter.device().devicePixelRatioF()
             size = size * dpr
             pm = self.__renderStyledPixmap(size, mode, state, palette)
             painter.drawPixmap(rect, pm)
 
-    def _palette(self) -> QPalette:
-        if self.__paletteOverride is not None:
-            return self.__paletteOverride
-        if self.__palette is not None:
-            return self.__palette
-        elif self.__style_object is not None:
-            palette = self.__paletteFromStyleObject(self.__style_object)
-            if palette is not None:
-                return palette
-
-        if self.__paletteOverride is not None:
-            return QPalette(self.__paletteOverride)
-        return QApplication.palette()
-
     def pixmap(self, size, mode, state):
         # type: (QSize, QIcon.Mode, QIcon.State) -> QPixmap
-        return self.__renderStyledPixmap(size, mode, state, self._palette())
+        return self.__renderStyledPixmap(size, mode, state, self.effectivePalette())
 
     def __renderStyledPixmap(
             self, size: QSize, mode: QIcon.Mode, state: QIcon.State,
             palette: QPalette
     ) -> QPixmap:
-        active = mode in (QIcon.Active, QIcon.Selected)
-        disabled = mode == QIcon.Disabled
-        cg = QPalette.Disabled if disabled else QPalette.Active
-        role = QPalette.HighlightedText if active else QPalette.WindowText
-        namespace = "{}:{}/{}/".format(
-            __name__, __class__.__name__, self.__cache_key)
-        style_key = "{}-{}-{}".format(hex(palette.cacheKey()), cg, role)
+        active = mode in _QIcon_Active_Modes
+        disabled = mode == _QIcon_Disabled
+        cg = _QPalette_Disabled if disabled else _QPalette_Active
+        role = _QPalette_HighlightedText if active else _QPalette_WindowText
+        namespace = f"{__name__}:{__class__.__name__}/{self.__cache_key}"
+        style_key = f"{hex(palette.cacheKey())}-{cg}-{role}"
         renderer = self.__styled_contents_cache.get(style_key)
         if renderer is None:
             css = render_svg_color_scheme_css(palette, state)
@@ -202,11 +179,9 @@ class StyledSvgIconEngine(QIconEngine):
         dsize = renderer.defaultSize()  # type: QSize
 
         if not dsize.isNull():
-            dsize.scale(size, Qt.KeepAspectRatio)
+            dsize.scale(size, _Qt_KeepAspectRatio)
             size = dsize
-
-        pmcachekey = namespace + style_key + \
-                     "/{}x{}".format(size.width(), size.height())
+        pmcachekey = f"{namespace}/{style_key}/{size.width()}x{size.height()}"
         pm = QPixmapCache.find(pmcachekey)
         if pm is None or pm.isNull():
             pm = QPixmap(size)
@@ -216,7 +191,7 @@ class StyledSvgIconEngine(QIconEngine):
             painter.end()
             QPixmapCache.insert(pmcachekey, pm)
 
-        style = QApplication.style()
+        self.__style = style = QApplication.style()
         if style is not None:
             opt = QStyleOption()
             opt.palette = palette
@@ -229,25 +204,6 @@ class StyledSvgIconEngine(QIconEngine):
             palette=self.__palette,
             styleObject=self.__style_object
         )
-
-    __paletteOverride = None
-
-    @classmethod
-    @contextmanager
-    def setOverridePalette(cls, palette: QPalette):
-        """
-        Temporarily override used QApplication.palette() with this class.
-
-        This can be used when the icon is drawn on a non default background
-        and as such might not contrast with it when using the default palette,
-        and neither paint device nor styleObject can be used for this.
-        """
-        old = StyledSvgIconEngine.__paletteOverride
-        try:
-            StyledSvgIconEngine.__paletteOverride = palette
-            yield
-        finally:
-            StyledSvgIconEngine.__paletteOverride = old
 
 
 #: Like KDE's KIconLoader
@@ -276,7 +232,7 @@ TEMPLATE = """
 """
 
 
-def _hexrgb_solid(color: QColor) -> str:
+def _hexrgb_solid(color: QColor, contrast: QColor = None) -> str:
     """
     Return a #RRGGBB color string from color. If color has alpha component
     multipy the color components with alpha to get a solid color.
@@ -286,7 +242,8 @@ def _hexrgb_solid(color: QColor) -> str:
     # (in hex or rgba syntax) so we pre-multiply with alpha to get solid
     # gray scale.
     if color.alpha() != 255:
-        contrast = QColor(Qt.black) if luminance(color) else QColor(Qt.white)
+        if contrast is None:
+            contrast = QColor(Qt.black) if luminance(color) > 0.5 else QColor(Qt.white)
         color = merged_color(color, contrast, color.alphaF())
     return color.name(QColor.HexRgb)
 
@@ -300,10 +257,11 @@ def render_svg_color_scheme_css(palette: QPalette, state: QIcon.State) -> str:
     complement = QColor(Qt.white) if lum > 0.5 else QColor(Qt.black)
     contrast = QColor(Qt.black) if lum > 0.5 else QColor(Qt.white)
     return TEMPLATE.format(
-        text=_hexrgb_solid(palette.color(text)),
+        text=_hexrgb_solid(palette.color(text), palette.color(background)),
         background=_hexrgb_solid(palette.color(background)),
         highlight=_hexrgb_solid(palette.color(hligh)),
-        disabled_text=_hexrgb_solid(palette.color(QPalette.Disabled, text)),
+        disabled_text=_hexrgb_solid(palette.color(QPalette.Disabled, text),
+                                    palette.color(QPalette.Disabled, background)),
         contrast=_hexrgb_solid(contrast),
         complement=_hexrgb_solid(complement),
     )

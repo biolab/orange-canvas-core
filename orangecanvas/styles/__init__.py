@@ -2,11 +2,14 @@
 """
 import os
 import re
-from typing import Mapping, Callable, Tuple, List
+from functools import wraps
+from typing import Mapping, Callable, Tuple, List, TypeVar
 
 import pkg_resources
 from AnyQt.QtCore import Qt
 from AnyQt.QtGui import QPalette, QColor
+
+_T = TypeVar("_T")
 
 
 def _make_palette(
@@ -42,6 +45,19 @@ def _make_palette(
     return palette
 
 
+def _once(f: _T) -> _T:
+    palette = None
+
+    @wraps(f)
+    def wrapper():
+        nonlocal palette
+        if palette is None:
+            palette = f()
+        return QPalette(palette)
+    return wrapper
+
+
+@_once
 def breeze_light() -> QPalette:
     # 'Breeze-Light' color scheme from KDE.
     return _make_palette(
@@ -59,6 +75,7 @@ def breeze_light() -> QPalette:
     )
 
 
+@_once
 def breeze_dark() -> QPalette:
     # 'Breeze Dark' color scheme from KDE.
     return _make_palette(
@@ -76,6 +93,7 @@ def breeze_dark() -> QPalette:
     )
 
 
+@_once
 def zion_reversed() -> QPalette:
     # 'Zion Reversed' color scheme from KDE.
     window = QColor(16, 16, 16)
@@ -94,6 +112,7 @@ def zion_reversed() -> QPalette:
     )
 
 
+@_once
 def dark():
     window = QColor(0x30, 0x30, 0x30)
     return _make_palette(

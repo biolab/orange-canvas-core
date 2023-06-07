@@ -9,6 +9,7 @@ from typing import Optional, List, Sequence
 
 import AnyQt
 from AnyQt.QtWidgets import QApplication
+from AnyQt.QtGui import QPixmapCache
 from AnyQt.QtCore import (
     Qt, QUrl, QEvent, QSettings, QLibraryInfo, pyqtSignal as Signal,
     QT_VERSION_INFO
@@ -231,6 +232,7 @@ class CanvasApplication(QApplication):
         if theme and theme in styles.colorthemes:
             palette = styles.colorthemes[theme]()
             QApplication.setPalette(palette)
+        QPixmapCache.setCacheLimit(64 * (2 ** 10))
 
 
 __restart_command: Optional[List[str]] = None

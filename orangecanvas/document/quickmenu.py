@@ -35,8 +35,10 @@ from AnyQt.QtCore import (
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
 from .usagestatistics import UsageStatistics
+from .. import styles
 from ..gui.framelesswindow import FramelessWindow
 from ..gui.lineedit import LineEdit
+from ..gui.iconengine import StyledIconEngine
 from ..gui.tooltree import ToolTree, FlattenedTreeItemModel
 from ..gui.utils import StyledWidget_paintEvent, innerGlowBackgroundPixmap, innerShadowPixmap
 from ..registry.qt import QtWidgetRegistry
@@ -90,7 +92,8 @@ class _MenuItemDelegate(QStyledItemDelegate):
         decRect = QRectF(decTl, decBr)
 
         # draw icon pixmap
-        dec.paint(painter, decRect.toAlignedRect())
+        with StyledIconEngine.setOverridePalette(styles.breeze_light()):
+            dec.paint(painter, decRect.toAlignedRect())
 
         # draw display
         rect = QRect(opt.rect)
@@ -697,15 +700,16 @@ class TabButton(QToolButton):
         self.initStyleOption(opt)
         if self.__showMenuIndicator and self.isChecked():
             opt.features |= QStyleOptionToolButton.HasMenu
-        if self.__flat:
-            # Use default widget background/border styling.
-            StyledWidget_paintEvent(self, event)
+        with StyledIconEngine.setOverridePalette(styles.breeze_light()):
+            if self.__flat:
+                # Use default widget background/border styling.
+                StyledWidget_paintEvent(self, event)
 
-            p = QStylePainter(self)
-            p.drawControl(QStyle.CE_ToolButtonLabel, opt)
-        else:
-            p = QStylePainter(self)
-            p.drawComplexControl(QStyle.CC_ToolButton, opt)
+                p = QStylePainter(self)
+                p.drawControl(QStyle.CE_ToolButtonLabel, opt)
+            else:
+                p = QStylePainter(self)
+                p.drawComplexControl(QStyle.CC_ToolButton, opt)
 
         # if checked, no shadow
         if self.isChecked():
