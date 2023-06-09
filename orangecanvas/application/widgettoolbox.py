@@ -300,6 +300,8 @@ class WidgetToolBox(ToolBox):
 
         self.__iconSize = QSize(25, 25)
         self.__buttonSize = QSize(50, 50)
+        self.__filterText = ""
+        self.__filteredSavedState = {}
         self.setSizePolicy(QSizePolicy.Fixed,
                            QSizePolicy.Expanding)
         action = QAction(
@@ -501,3 +503,25 @@ class WidgetToolBox(ToolBox):
             FilterProxyModel.Filter(0, QtWidgetRegistry.WIDGET_DESC_ROLE,
                                     acceptable),
         ])
+        if not self.__filterText and text:
+            self.__filterText = text
+            self.__openAllTabsForFilter()
+        elif self.__filterText and not text:
+            self.__filterText = ""
+            self.__restoreAllTabsForFilter()
+
+    def __openAllTabsForFilter(self):
+        """Open all tabs for displaying filter/search results."""
+        self.__filteredSavedState = {"!__exclusive": self.exclusive()}
+        self.setExclusive(False)
+        for i in range(self.count()):
+            b = self.tabButton(i)
+            self.__filteredSavedState[b.text()] = b.isChecked()
+            b.setChecked(True)
+
+    def __restoreAllTabsForFilter(self):
+        """Restore open tabs after filter/search."""
+        self.setExclusive(self.__filteredSavedState.get("!__exclusive", False))
+        for i in range(self.count()):
+            b = self.tabButton(i)
+            b.setChecked(self.__filteredSavedState.get(b.text(), b.isChecked()))
