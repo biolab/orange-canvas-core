@@ -2435,7 +2435,7 @@ class CanvasMainWindow(QMainWindow):
         self.dock_widget.setFeatures(features)
 
         toolbox_exclusive = settings.value("toolbox-dock-exclusive",
-                                           defaultValue=True,
+                                           defaultValue=False,
                                            type=bool)
         self.widgets_tool_box.setExclusive(toolbox_exclusive)
 
