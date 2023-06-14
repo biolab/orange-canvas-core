@@ -319,6 +319,13 @@ class WidgetToolBox(ToolBox):
         layout.setSpacing(1)
         layout.insertWidget(0, self.__filterEdit)
 
+        open_all = QAction(self.tr("Open all"), self)
+        open_all.triggered.connect(self.openAllTabs)
+        close_all = QAction(self.tr("Close all"), self)
+        close_all.triggered.connect(self.closeAllTabs)
+        self.addActions([open_all, close_all])
+        self.setContextMenuPolicy(Qt.ActionsContextMenu)
+
     def filterLineEdit(self) -> QLineEdit:
         return self.__filterEdit
 
@@ -525,3 +532,15 @@ class WidgetToolBox(ToolBox):
         for i in range(self.count()):
             b = self.tabButton(i)
             b.setChecked(self.__filteredSavedState.get(b.text(), b.isChecked()))
+
+    def openAllTabs(self):
+        """Open all tabs."""
+        self.setExclusive(False)
+        for i in range(self.count()):
+            self.tabButton(i).setChecked(True)
+
+    def closeAllTabs(self):
+        """Close all tabs."""
+        self.setExclusive(False)
+        for i in range(self.count()):
+            self.tabButton(i).setChecked(False)
