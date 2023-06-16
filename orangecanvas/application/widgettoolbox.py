@@ -311,6 +311,7 @@ class WidgetToolBox(ToolBox):
             objectName="filter-edit-line",
             placeholderText=self.tr("Filter..."),
             toolTip=self.tr("Filter/search the list of available widgets."),
+            clearButtonEnabled=True,
         )
         self.__filterEdit.setAttribute(Qt.WA_MacShowFocusRect, False)
         self.__filterEdit.addAction(action, QLineEdit.LeadingPosition)
