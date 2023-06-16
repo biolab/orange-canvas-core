@@ -7,8 +7,6 @@ import os
 import sys
 import logging
 import warnings
-
-from distutils.version import LooseVersion
 import typing
 
 from typing import Dict, Optional, Tuple, List, Union, Iterable, Any
@@ -246,7 +244,7 @@ class Default(Config):
 
         version = QCoreApplication.applicationVersion()
         if version:
-            version_parsed = LooseVersion(version)
+            version_parsed = pkg_resources.parse_version(version)
             version_comp = version_parsed.version
             version = ".".join(map(str, version_comp[:2]))
         size = 21 if len(version) < 5 else 16

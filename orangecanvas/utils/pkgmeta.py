@@ -2,11 +2,10 @@ import os
 import sys
 import email
 from operator import itemgetter
-from distutils.version import StrictVersion
-
 from typing import TYPE_CHECKING, List, Dict, Optional, Union
 
 import pkg_resources
+
 
 if TYPE_CHECKING:
     Distribution = pkg_resources.Distribution
@@ -93,9 +92,8 @@ def parse_meta(contents):
                 value = trim(value)
             meta[key] = value
 
-    version = StrictVersion(meta["Metadata-Version"])  # type: ignore
-
-    if version >= StrictVersion("1.3") and "Description" not in meta:
+    version = pkg_resources.parse_version(meta["Metadata-Version"])
+    if version >= pkg_resources.parse_version("1.3") and "Description" not in meta:
         desc = message.get_payload()
         if isinstance(desc, str):
             meta["Description"] = desc
