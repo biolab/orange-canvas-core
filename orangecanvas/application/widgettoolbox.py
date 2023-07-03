@@ -525,23 +525,23 @@ class WidgetToolBox(ToolBox):
         for i in range(self.count()):
             b = self.tabButton(i)
             self.__filteredSavedState[b.text()] = b.isChecked()
-            b.setChecked(True)
+            b.defaultAction().setChecked(True)
 
     def __restoreAllTabsForFilter(self):
         """Restore open tabs after filter/search."""
         self.setExclusive(self.__filteredSavedState.get("!__exclusive", False))
         for i in range(self.count()):
             b = self.tabButton(i)
-            b.setChecked(self.__filteredSavedState.get(b.text(), b.isChecked()))
+            b.defaultAction().setChecked(self.__filteredSavedState.get(b.text(), b.isChecked()))
 
     def openAllTabs(self):
         """Open all tabs."""
         self.setExclusive(False)
         for i in range(self.count()):
-            self.tabButton(i).setChecked(True)
+            self.tabButton(i).defaultAction().setChecked(True)
 
     def closeAllTabs(self):
         """Close all tabs."""
         self.setExclusive(False)
         for i in range(self.count()):
-            self.tabButton(i).setChecked(False)
+            self.tabButton(i).defaultAction().setChecked(False)
