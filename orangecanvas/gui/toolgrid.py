@@ -4,7 +4,7 @@ A widget containing a grid of clickable actions/buttons.
 import sys
 from collections import deque
 
-from typing import NamedTuple, List, Iterable, Optional, Any, Union
+from typing import NamedTuple, List, Iterable, Optional, Any, Union, cast
 
 from AnyQt.QtWidgets import (
     QFrame, QAction, QToolButton, QGridLayout, QSizePolicy,
@@ -194,6 +194,7 @@ class ToolGrid(QFrame):
         layout = QGridLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
+        layout.setColumnStretch(columns - 1, 1000)
         self.setLayout(layout)
         if sizePolicy is None:
             self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.MinimumExpanding)
@@ -280,6 +281,9 @@ class ToolGrid(QFrame):
         Set the number of button/action columns.
         """
         if self.__columns != columns:
+            layout = cast(QGridLayout, self.layout())
+            layout.setColumnStretch(self.__columns - 1, 0)
+            layout.setColumnStretch(columns - 1, 1000)
             self.__columns = columns
             self.__relayout()
 
@@ -386,9 +390,8 @@ class ToolGrid(QFrame):
         row = index // self.__columns
         column = index % self.__columns
 
-        layout = self.layout()
-        assert isinstance(layout, QGridLayout)
-        layout.addWidget(button, row, column)
+        layout = cast(QGridLayout, self.layout())
+        layout.addWidget(button, row, column, alignment=Qt.AlignTop | Qt.AlignLeft)
 
         self.__gridSlots.insert(
             index, _ToolGridSlot(button, action, row, column)
@@ -418,16 +421,15 @@ class ToolGrid(QFrame):
         # type: (int, int) -> None
         """Shift all buttons starting at index `start` by `count` cells.
         """
-        layout = self.layout()
-        assert isinstance(layout, QGridLayout)
-        button_count = layout.count()
+        layout = cast(QGridLayout, self.layout())
+        cell_count = layout.rowCount() * layout.columnCount()
         columns = self.__columns
 
         direction = 1 if count >= 0 else -1
         if direction == 1:
-            start, end = button_count - 1, start - 1
+            start, end = cell_count - 1, start - 1
         else:
-            start, end = start, button_count
+            start, end = start, cell_count
 
         for index in range(start, end, -direction):
             item = layout.itemAtPosition(
@@ -437,16 +439,14 @@ class ToolGrid(QFrame):
                 button = item.widget()
                 new_index = index + count
                 layout.addWidget(
-                    button, new_index // columns, new_index % columns,
+                    button, new_index // columns, new_index % columns, Qt.AlignLeft | Qt.AlignTop
                 )
 
     def __relayout(self):
         # type: () -> None
         """Relayout the buttons.
         """
-        layout = self.layout()
-        assert isinstance(layout, QGridLayout)
-
+        layout = cast(QGridLayout, self.layout())
         for i in reversed(range(layout.count())):
             layout.takeAt(i)
 
@@ -489,6 +489,11 @@ class ToolGrid(QFrame):
             self.__onButtonEnter(obj)
         return super().eventFilter(obj, event)
 
+    def focusNextPrevChild(self, next: bool) -> bool:
+        return self.__focusMove(
+            self.focusWidget(), Qt.Key_Right if next else Qt.Key_Left
+        )
+
     def __focusMove(self, focus, key):
         # type: (QWidget, Qt.Key) -> bool
         assert focus is self.focusWidget()
@@ -512,3 +517,23 @@ class ToolGrid(QFrame):
             return True
         else:
             return False
+
+    def sizeHint(self) -> QSize:
+        sh = super().sizeHint()
+        if self.__buttonSize.isValid():
+            width = self.__buttonSize.width()
+        else:
+            option = QStyleOptionToolButton()
+            option.initFrom(self)
+            option.iconSize = self.iconSize()
+            option.toolButtonStyle = self.toolButtonStyle()
+            csize = QSize(option.iconSize)
+            csize.setWidth(csize.width() * 3 // 2)  # see ToolGridButton
+            size = self.style().sizeFromContents(QStyle.CT_ToolButton, option, csize, None)
+            width = size.width()
+        layout = self.layout()
+        spacing = layout.horizontalSpacing()
+        columns = self.__columns
+        width = width * columns + (max(columns - 1, 0) * spacing)
+        sh.setWidth(max(sh.width(), width))
+        return sh

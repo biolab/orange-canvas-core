@@ -42,6 +42,7 @@ from ..gui.iconengine import StyledIconEngine
 from ..gui.tooltree import ToolTree, FlattenedTreeItemModel
 from ..gui.utils import StyledWidget_paintEvent, innerGlowBackgroundPixmap, innerShadowPixmap
 from ..registry.qt import QtWidgetRegistry
+from ..registry.utils import search_filter_query_helper
 
 from ..resources import icon_loader, load_styled_svg_icon
 
@@ -488,19 +489,7 @@ class SortFilterProxyModel(QSortFilterProxyModel):
         if description is None:
             return False
 
-        name = description.name.lower()
-        keywords = [k.lower() for k in description.keywords]
-        for k in keywords[:]:
-            if '-' in k:
-                keywords.append(k.replace('-', ''))
-                keywords.append(k.replace('-', ' '))
-
-        query = self.__query
-        # match name and keywords
-        accepted = (not query or
-                    query in name or
-                    query in name.replace(' ', '') or
-                    any(k.startswith(query) for k in keywords))
+        accepted = search_filter_query_helper(description, self.__query)
 
         # if matches query, apply filter function (compatibility with paired widget)
         if accepted and self.__filterFunc is not None:

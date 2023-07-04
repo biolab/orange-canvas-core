@@ -68,7 +68,6 @@ WidgetToolBox QToolButton#toolbox-tab-button:focus {
 
 WidgetToolBox ToolGrid {
     background-color: #F2F2F2;
-    padding-bottom: 8px;
 }
 
 WidgetToolBox QWidget#toolbox-contents {

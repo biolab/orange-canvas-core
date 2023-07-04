@@ -10,7 +10,7 @@ from typing import Optional, Iterable, Any
 
 from AnyQt.QtWidgets import (
     QAbstractButton, QSizePolicy, QAction, QApplication, QToolButton,
-    QWidget
+    QWidget, QLineEdit
 )
 from AnyQt.QtGui import (
     QDrag, QPalette, QBrush, QIcon, QColor, QGradient, QActionEvent,
@@ -18,15 +18,19 @@ from AnyQt.QtGui import (
 )
 from AnyQt.QtCore import (
     Qt, QObject, QAbstractItemModel, QModelIndex, QSize, QEvent, QMimeData,
-    QByteArray, QDataStream, QIODevice, QPoint
+    QByteArray, QDataStream, QIODevice, QPoint, QPersistentModelIndex
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
+from ..gui.itemmodels import FilterProxyModel
 from ..gui.toolbox import ToolBox
 from ..gui.toolgrid import ToolGrid
 from ..gui.quickhelp import StatusTipPromoter
 from ..gui.utils import create_gradient_brush
+from ..registry import WidgetDescription
 from ..registry.qt import QtWidgetRegistry
+from ..registry.utils import search_filter_query_helper
+from ..resources import load_styled_svg_icon
 
 
 def iter_index(model, index):
@@ -74,7 +78,7 @@ def item_background(index):  # type: (QModelIndex) -> Optional[QBrush]
 class WidgetToolGrid(ToolGrid):
     """
     A Tool Grid with widget buttons. Populates the widget buttons
-    from a item model. Also adds support for drag operations.
+    from an item model. Also adds support for drag operations.
 
     """
     def __init__(self, *args, **kwargs):
@@ -82,7 +86,7 @@ class WidgetToolGrid(ToolGrid):
         super().__init__(*args, **kwargs)
 
         self.__model = None               # type: Optional[QAbstractItemModel]
-        self.__rootIndex = QModelIndex()  # type: QModelIndex
+        self.__rootIndex = QPersistentModelIndex()  # type: QPersistentModelIndex
         self.__actionRole = QtWidgetRegistry.WIDGET_ACTION_ROLE  # type: int
 
         self.__dragListener = DragStartEventListener(self)
@@ -107,7 +111,7 @@ class WidgetToolGrid(ToolGrid):
             self.__model = None
 
         self.__model = model
-        self.__rootIndex = rootIndex
+        self.__rootIndex = QPersistentModelIndex(rootIndex)
 
         if self.__model is not None:
             self.__model.rowsInserted.connect(self.__on_rowsInserted)
@@ -125,7 +129,7 @@ class WidgetToolGrid(ToolGrid):
         """
         Return the root index of the model.
         """
-        return self.__rootIndex
+        return QModelIndex(self.__rootIndex)
 
     def setActionRole(self, role):
         # type: (int) -> None
@@ -190,16 +194,16 @@ class WidgetToolGrid(ToolGrid):
     def __update(self):  # type: () -> None
         self.clear()
         if self.__model is not None:
-            self.__initFromModel(self.__model, self.__rootIndex)
+            self.__initFromModel(self.__model, QModelIndex(self.__rootIndex))
 
     def __on_rowsInserted(self, parent, start, end):
         # type: (QModelIndex, int, int) -> None
         """
         Insert items from range start:end into the grid.
         """
-        if parent == self.__rootIndex:
+        if parent == QModelIndex(self.__rootIndex):
             for i in range(start, end + 1):
-                item = self.__model.index(i, 0, self.__rootIndex)
+                item = self.__model.index(i, 0, parent)
                 self.__insertItem(i, item)
 
     def __on_rowsRemoved(self, parent, start, end):
@@ -207,9 +211,10 @@ class WidgetToolGrid(ToolGrid):
         """
         Remove items from range start:end from the grid.
         """
-        if parent == self.__rootIndex:
-            for i in reversed(range(start - 1, end)):
-                action = self.actions()[i]
+        if parent == QModelIndex(self.__rootIndex):
+            actions = self.actions()
+            actions = actions[start: end + 1]
+            for action in actions:
                 self.removeAction(action)
 
     def __startDrag(self, button):
@@ -288,10 +293,42 @@ class WidgetToolBox(ToolBox):
         # type: (Optional[QWidget]) -> None
         super().__init__(parent)
         self.__model = None  # type: Optional[QAbstractItemModel]
+        self.__proxyModel = FilterProxyModel()
+        self.__proxyModel.dataChanged.connect(self.__on_dataChanged)
+        self.__proxyModel.rowsInserted.connect(self.__on_rowsInserted)
+        self.__proxyModel.rowsRemoved.connect(self.__on_rowsRemoved)
+
         self.__iconSize = QSize(25, 25)
         self.__buttonSize = QSize(50, 50)
+        self.__filterText = ""
+        self.__filteredSavedState = {}
         self.setSizePolicy(QSizePolicy.Fixed,
                            QSizePolicy.Expanding)
+        action = QAction(
+            load_styled_svg_icon("Search.svg"), self.tr("Search"), self
+        )
+        self.__filterEdit = QLineEdit(
+            objectName="filter-edit-line",
+            placeholderText=self.tr("Filter..."),
+            toolTip=self.tr("Filter/search the list of available widgets."),
+            clearButtonEnabled=True,
+        )
+        self.__filterEdit.setAttribute(Qt.WA_MacShowFocusRect, False)
+        self.__filterEdit.addAction(action, QLineEdit.LeadingPosition)
+        self.__filterEdit.textChanged.connect(self.__on_filterTextChanged)
+        layout = self.layout()
+        layout.setSpacing(1)
+        layout.insertWidget(0, self.__filterEdit)
+
+        open_all = QAction(self.tr("Open all"), self)
+        open_all.triggered.connect(self.openAllTabs)
+        close_all = QAction(self.tr("Close all"), self)
+        close_all.triggered.connect(self.closeAllTabs)
+        self.addActions([open_all, close_all])
+        self.setContextMenuPolicy(Qt.ActionsContextMenu)
+
+    def filterLineEdit(self) -> QLineEdit:
+        return self.__filterEdit
 
     def setIconSize(self, size):  # type: (QSize) -> None
         """
@@ -372,18 +409,12 @@ class WidgetToolBox(ToolBox):
         Set the widget registry model (:class:`QAbstractItemModel`) for
         this toolbox.
         """
-        if self.__model is not None:
-            self.__model.dataChanged.disconnect(self.__on_dataChanged)
-            self.__model.rowsInserted.disconnect(self.__on_rowsInserted)
-            self.__model.rowsRemoved.disconnect(self.__on_rowsRemoved)
-
         self.__model = model
-        if self.__model is not None:
-            self.__model.dataChanged.connect(self.__on_dataChanged)
-            self.__model.rowsInserted.connect(self.__on_rowsInserted)
-            self.__model.rowsRemoved.connect(self.__on_rowsRemoved)
-
-        self.__initFromModel(self.__model)
+        rows = self.__proxyModel.rowCount()
+        if rows:
+            self.__on_rowsRemoved(QModelIndex(), 0, rows - 1)
+        self.__proxyModel.setSourceModel(model)
+        self.__initFromModel(self.__proxyModel)
 
     def __initFromModel(self, model):
         # type: (QAbstractItemModel) -> None
@@ -456,7 +487,7 @@ class WidgetToolBox(ToolBox):
         assert self.__model is not None
         if not parent.isValid():
             for i in range(start, end + 1):
-                item = self.__model.index(i, 0)
+                item = self.__proxyModel.index(i, 0)
                 self.__insertItem(item, i)
 
     def __on_rowsRemoved(self, parent, start, end):
@@ -466,5 +497,51 @@ class WidgetToolBox(ToolBox):
         """
         # Only the top level items (categories) are handled here.
         if not parent.isValid():
-            for i in range(end, start - 1, -1):
+            for i in reversed(range(start, end + 1)):
                 self.removeItem(i)
+
+    def __on_filterTextChanged(self, text: str) -> None:
+        def acceptable(desc: Optional[WidgetDescription]) -> bool:
+            if desc is not None:
+                return search_filter_query_helper(desc, text.strip().lower())
+            else:
+                return True  # accept other (category, ...)
+
+        self.__proxyModel.setFilters([
+            FilterProxyModel.Filter(0, QtWidgetRegistry.WIDGET_DESC_ROLE,
+                                    acceptable),
+        ])
+        if not self.__filterText and text:
+            self.__filterText = text
+            self.__openAllTabsForFilter()
+        elif self.__filterText and not text:
+            self.__filterText = ""
+            self.__restoreAllTabsForFilter()
+
+    def __openAllTabsForFilter(self):
+        """Open all tabs for displaying filter/search results."""
+        self.__filteredSavedState = {"!__exclusive": self.exclusive()}
+        self.setExclusive(False)
+        for i in range(self.count()):
+            b = self.tabButton(i)
+            self.__filteredSavedState[b.text()] = b.isChecked()
+            b.defaultAction().setChecked(True)
+
+    def __restoreAllTabsForFilter(self):
+        """Restore open tabs after filter/search."""
+        self.setExclusive(self.__filteredSavedState.get("!__exclusive", False))
+        for i in range(self.count()):
+            b = self.tabButton(i)
+            b.defaultAction().setChecked(self.__filteredSavedState.get(b.text(), b.isChecked()))
+
+    def openAllTabs(self):
+        """Open all tabs."""
+        self.setExclusive(False)
+        for i in range(self.count()):
+            self.tabButton(i).defaultAction().setChecked(True)
+
+    def closeAllTabs(self):
+        """Close all tabs."""
+        self.setExclusive(False)
+        for i in range(self.count()):
+            self.tabButton(i).defaultAction().setChecked(False)
