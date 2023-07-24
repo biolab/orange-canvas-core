@@ -11,6 +11,7 @@ import typing
 
 from typing import Dict, Optional, Tuple, List, Union, Iterable, Any
 
+import packaging.version
 import pkg_resources
 
 from AnyQt.QtGui import (
@@ -244,8 +245,8 @@ class Default(Config):
 
         version = QCoreApplication.applicationVersion()
         if version:
-            version_parsed = pkg_resources.parse_version(version)
-            version_comp = version_parsed.version
+            version_parsed = packaging.version.Version(version)
+            version_comp = version_parsed.release
             version = ".".join(map(str, version_comp[:2]))
         size = 21 if len(version) < 5 else 16
         font = QFont()
