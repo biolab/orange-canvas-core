@@ -1279,6 +1279,8 @@ def can_enable_dynamic(link, value):
     """
     Can the a dynamic `link` (:class:`SchemeLink`) be enabled for`value`.
     """
+    if LazyValue.is_lazy(value):
+        value = value.get_value()
     return isinstance(value, link.sink_types())
 
 
