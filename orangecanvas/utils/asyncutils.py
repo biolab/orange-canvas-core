@@ -1,9 +1,9 @@
-import os
 import asyncio
 from concurrent import futures
 from typing import Optional
 
 from AnyQt.QtCore import QCoreApplication, QThread
+import qasync
 
 
 def get_event_loop() -> asyncio.AbstractEventLoop:
@@ -31,13 +31,6 @@ def get_event_loop() -> asyncio.AbstractEventLoop:
     else:
         if loop is not None:
             return loop
-
-    qt_api = os.environ.get("QT_API", "").lower()
-    if qt_api == "pyqt5":
-        os.environ["QT_API"] = "PyQt5"
-    elif qt_api == "pyside2":
-        os.environ["QT_API"] = "PySide2"
-    import qasync
 
     if loop is None:
         loop = qasync.QEventLoop(app)
