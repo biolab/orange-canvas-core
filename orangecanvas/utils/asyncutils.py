@@ -44,4 +44,11 @@ def get_event_loop() -> asyncio.AbstractEventLoop:
         # Do not use qasync.QEventLoop's default executor which uses QThread
         # based pool and exhibits https://github.com/numpy/numpy/issues/11551
         loop.set_default_executor(futures.ThreadPoolExecutor())
+        try:
+            # qasync>=0.24.2 no longer sets the running loop in QEventLoop
+            # constructor
+            get_running_loop()
+        except RuntimeError:
+            asyncio.events._set_running_loop(loop)
+    assert get_running_loop() is not None
     return loop
