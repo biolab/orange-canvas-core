@@ -24,6 +24,11 @@ class TestWidgetToolBox(test.QAppTestCase):
         reg = registry_tests.small_testing_registry()
         self.reg = QtWidgetRegistry(reg)
 
+    def tearDown(self):
+        self.reg.model().clear()
+        del self.reg
+        super().tearDown()
+
     def test_widgettoolgrid(self):
         w = QWidget()
         layout = QHBoxLayout()
