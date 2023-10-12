@@ -639,6 +639,7 @@ class NodeAnchorItem(GraphicsPathObject):
         else:
             self.__keepSignalsOpen = signal
         self.__updateLabels(self.__keepSignalsOpen)
+        self.__updatePositions()
 
     def parentNodeItem(self):
         # type: () -> Optional['NodeItem']
