@@ -5,5 +5,3 @@ python:
    install:
       - requirements: docs/requirements-rtd.txt
       # no - method: pip here, -e . is already in docs/requirements-rtd.txt
-
-   system_packages: true
