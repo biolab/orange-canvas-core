@@ -108,6 +108,7 @@ class WidgetToolGrid(ToolGrid):
         if self.__model is not None:
             self.__model.rowsInserted.disconnect(self.__on_rowsInserted)
             self.__model.rowsRemoved.disconnect(self.__on_rowsRemoved)
+            self.__model.modelReset.disconnect(self.__on_modelReset)
             self.__model = None
 
         self.__model = model
@@ -116,6 +117,7 @@ class WidgetToolGrid(ToolGrid):
         if self.__model is not None:
             self.__model.rowsInserted.connect(self.__on_rowsInserted)
             self.__model.rowsRemoved.connect(self.__on_rowsRemoved)
+            self.__model.modelReset.connect(self.__on_modelReset)
 
         self.__initFromModel(model, rootIndex)
 
@@ -214,8 +216,14 @@ class WidgetToolGrid(ToolGrid):
         if parent == QModelIndex(self.__rootIndex):
             actions = self.actions()
             actions = actions[start: end + 1]
-            for action in actions:
-                self.removeAction(action)
+            self.__removeActions(actions)
+
+    def __on_modelReset(self):
+        self.__removeActions(self.actions())
+
+    def __removeActions(self, actions: Iterable[QAction]):
+        for action in actions:
+            self.removeAction(action)
 
     def __startDrag(self, button):
         # type: (QToolButton) -> None
@@ -297,6 +305,7 @@ class WidgetToolBox(ToolBox):
         self.__proxyModel.dataChanged.connect(self.__on_dataChanged)
         self.__proxyModel.rowsInserted.connect(self.__on_rowsInserted)
         self.__proxyModel.rowsRemoved.connect(self.__on_rowsRemoved)
+        self.__proxyModel.modelReset.connect(self.__on_modelReset)
 
         self.__iconSize = QSize(25, 25)
         self.__buttonSize = QSize(50, 50)
@@ -499,6 +508,10 @@ class WidgetToolBox(ToolBox):
         if not parent.isValid():
             for i in reversed(range(start, end + 1)):
                 self.removeItem(i)
+
+    def __on_modelReset(self):
+        for i in reversed(range(self.count())):
+            self.removeItem(i)
 
     def __on_filterTextChanged(self, text: str) -> None:
         def acceptable(desc: Optional[WidgetDescription]) -> bool:
