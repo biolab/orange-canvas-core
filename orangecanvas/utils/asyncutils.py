@@ -1,9 +1,9 @@
-import os
 import asyncio
 from concurrent import futures
 from typing import Optional
 
 from AnyQt.QtCore import QCoreApplication, QThread
+import qasync
 
 
 def get_event_loop() -> asyncio.AbstractEventLoop:
@@ -32,16 +32,16 @@ def get_event_loop() -> asyncio.AbstractEventLoop:
         if loop is not None:
             return loop
 
-    qt_api = os.environ.get("QT_API", "").lower()
-    if qt_api == "pyqt5":
-        os.environ["QT_API"] = "PyQt5"
-    elif qt_api == "pyside2":
-        os.environ["QT_API"] = "PySide2"
-    import qasync
-
     if loop is None:
         loop = qasync.QEventLoop(app)
         # Do not use qasync.QEventLoop's default executor which uses QThread
         # based pool and exhibits https://github.com/numpy/numpy/issues/11551
         loop.set_default_executor(futures.ThreadPoolExecutor())
+        try:
+            # qasync>=0.24.2 no longer sets the running loop in QEventLoop
+            # constructor
+            get_running_loop()
+        except RuntimeError:
+            asyncio.events._set_running_loop(loop)
+    assert get_running_loop() is not None
     return loop
