@@ -196,7 +196,7 @@ class CanvasView(QGraphicsView):
             if anchor is not None:
                 center = self.viewport().rect().center()
                 diff = self.mapToScene(center) - self.mapToScene(anchor)
-                self.centerOn(anchor + diff)
+                self.centerOn(QPointF(anchor) + diff)
             self.zoomLevelChanged.emit(scale)
 
     zoomLevelChanged = Signal(float)
