@@ -123,7 +123,7 @@ class TestMainGuiCase(QAppTestCase):
         self.assertEqual(res, 42)
 
     @with_patched_main_application
-    def test_run(self):
+    def test_run_with_file(self):
         m = Main()
         with patch.object(self.app, "exec", lambda: 42), \
              patch.object(CanvasMainWindow, "open_scheme_file", Mock()), \
