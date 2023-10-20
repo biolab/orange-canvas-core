@@ -8,14 +8,14 @@ import sys
 import logging
 import warnings
 import typing
+import pkgutil
 
 from typing import Dict, Optional, Tuple, List, Union, Iterable, Any
 
 import packaging.version
-import pkg_resources
 
 from AnyQt.QtGui import (
-    QPainter, QFont, QFontMetrics, QColor, QPixmap, QIcon
+    QPainter, QFont, QFontMetrics, QColor, QPixmap, QImage, QIcon
 )
 
 from AnyQt.QtCore import (
@@ -23,15 +23,15 @@ from AnyQt.QtCore import (
 )
 
 from .gui.utils import windows_set_current_process_app_user_model_id
+from .gui.svgiconengine import SvgIconEngine
 from .utils.settings import Settings, config_slot
+from .utils.pkgmeta import EntryPoint, Distribution, entry_points
 
 if typing.TYPE_CHECKING:
     import requests
     from .scheme import Scheme
     T = typing.TypeVar("T")
 
-EntryPoint = pkg_resources.EntryPoint
-Distribution = pkg_resources.Distribution
 
 log = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ __version__ = "0.0"
 #: Entry point by which widgets are registered.
 WIDGETS_ENTRY = "orangecanvas.widgets"
 
-#: Entry point by which add-ons register with pkg_resources.
+#: Entry point by which add-ons register with importlib.metadata
 ADDONS_ENTRY = "orangecanvas.addon"
 
 #: Parameters for searching add-on packages in PyPi using xmlrpc api.
@@ -218,10 +218,8 @@ class Default(Config):
         """
         Return the main application icon.
         """
-        path = pkg_resources.resource_filename(
-            __name__, "icons/orange-canvas.svg"
-        )
-        return QIcon(path)
+        data = pkgutil.get_data(__name__, "icons/orange-canvas.svg")
+        return QIcon(SvgIconEngine(data))
 
     @staticmethod
     def splash_screen():
@@ -239,10 +237,10 @@ class Default(Config):
         t : Tuple[QPixmap, QRect]
             A QPixmap and a rect area within it.
         """
-        path = pkg_resources.resource_filename(
-            __name__, "icons/orange-canvas-core-splash.svg")
-        pm = QPixmap(path)
 
+        contents = pkgutil.get_data(__name__, "icons/orange-canvas-core-splash.svg")
+        img = QImage.fromData(contents, "svg")
+        pm = QPixmap.fromImage(img)
         version = QCoreApplication.applicationVersion()
         if version:
             version_parsed = packaging.version.Version(version)
@@ -269,18 +267,16 @@ class Default(Config):
         return pm, textarea
 
     @staticmethod
-    def widgets_entry_points():
-        # type: () -> Iterable[EntryPoint]
+    def widgets_entry_points() -> Iterable[EntryPoint]:
         """
         Return an iterator over entry points defining the set of
         'nodes/widgets' available to the workflow model.
         """
-        return pkg_resources.iter_entry_points(WIDGETS_ENTRY)
+        return iter(entry_points(group=WIDGETS_ENTRY))
 
     @staticmethod
-    def addon_entry_points():
-        # type: () -> Iterable[EntryPoint]
-        return pkg_resources.iter_entry_points(ADDONS_ENTRY)
+    def addon_entry_points() -> Iterable[EntryPoint]:
+        return  iter(entry_points(group=ADDONS_ENTRY))
 
     @staticmethod
     def addon_pypi_search_spec():
@@ -323,7 +319,7 @@ class Default(Config):
 
     @staticmethod
     def examples_entry_points():
-        return pkg_resources.iter_entry_points(EXAMPLE_WORKFLOWS_ENTRY)
+        return iter(entry_points(group=EXAMPLE_WORKFLOWS_ENTRY))
 
     @staticmethod
     def widget_discovery(*args, **kwargs):
