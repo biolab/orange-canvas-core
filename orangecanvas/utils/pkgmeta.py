@@ -1,36 +1,46 @@
 import os
 import sys
+import re
 import email
 from operator import itemgetter
-from typing import TYPE_CHECKING, List, Dict, Optional, Union
+from typing import List, Dict, Optional, Union, cast
 
-import pkg_resources
+import packaging.version
+
+try:
+    from importlib.metadata import EntryPoint, Distribution, entry_points
+except ImportError:
+    from importlib_metadata import EntryPoint, Distribution, entry_points
+
+__all__ = [
+    "Distribution", "EntryPoint", "entry_points", "normalize_name", "trim",
+    "trim_leading_lines", "trim_trailing_lines", "parse_meta", "get_dist_meta",
+]
 
 
-if TYPE_CHECKING:
-    Distribution = pkg_resources.Distribution
+def normalize_name(name: str) -> str:
+    """
+    PEP 503 normalization plus dashes as underscores.
+    """
+    return re.sub(r"[-_.]+", "-", name).lower().replace('-', '_')
 
 
-def is_develop_egg(dist):
-    # type: (Distribution) -> bool
+def is_develop_egg(dist: Distribution) -> bool:
     """
     Is the distribution installed in development mode (setup.py develop)
     """
-    meta_provider = dist._provider  # type: ignore
-    egg_info_dir = os.path.dirname(meta_provider.egg_info)
-    egg_name = pkg_resources.to_filename(dist.project_name)
-    return meta_provider.egg_info.endswith(egg_name + ".egg-info") \
-           and os.path.exists(os.path.join(egg_info_dir, "setup.py"))
+    egg_info_dir = dist.locate_file(f"{normalize_name(dist.name)}.egg-info/")
+    setup = dist.locate_file("setup.py")
+    return os.path.isdir(egg_info_dir) and os.path.isfile(setup)
 
 
-def left_trim_lines(lines):
-    # type: (List[str]) -> List[str]
+def left_trim_lines(lines: List[str]) -> List[str]:
     """
     Remove all unnecessary leading space from lines.
     """
     lines_striped = zip(lines[1:], map(str.lstrip, lines[1:]))
     lines_striped = filter(itemgetter(1), lines_striped)
-    indent = min([len(line) - len(striped) \
+    indent = min([len(line) - len(striped)
                   for line, striped in lines_striped] + [sys.maxsize])
 
     if indent < sys.maxsize:
@@ -39,8 +49,7 @@ def left_trim_lines(lines):
         return list(lines)
 
 
-def trim_trailing_lines(lines):
-    # type: (List[str]) -> List[str]
+def trim_trailing_lines(lines: List[str]) -> List[str]:
     """
     Trim trailing blank lines.
     """
@@ -50,8 +59,7 @@ def trim_trailing_lines(lines):
     return lines
 
 
-def trim_leading_lines(lines):
-    # type: (List[str]) -> List[str]
+def trim_leading_lines(lines: List[str]) -> List[str]:
     """
     Trim leading blank lines.
     """
@@ -61,15 +69,12 @@ def trim_leading_lines(lines):
     return lines
 
 
-def trim(string):
-    # type: (str) -> str
+def trim(string: str) -> str:
     """
     Trim a string in PEP-256 compatible way
     """
     lines = string.expandtabs().splitlines()
-
     lines = list(map(str.lstrip, lines[:1])) + left_trim_lines(lines[1:])
-
     return "\n".join(trim_leading_lines(trim_trailing_lines(lines)))
 
 
@@ -79,29 +84,27 @@ MULTIPLE_KEYS = ["Platform", "Supported-Platform", "Classifier",
                  "Project-URL"]
 
 
-def parse_meta(contents):
-    # type: (str) -> Dict[str, Union[str, List[str]]]
+def parse_meta(contents: str) -> Dict[str, Union[str, List[str]]]:
     message = email.message_from_string(contents)
     meta = {}  # type: Dict[str, Union[str, List[str]]]
     for key in set(message.keys()):
         if key in MULTIPLE_KEYS:
-            meta[key] = list(str(m) for m in message.get_all(key))
+            meta[key] = list(str(m) for m in message.get_all(key, []))
         else:
             value = str(message.get(key))
             if key == "Description":
                 value = trim(value)
             meta[key] = value
-
-    version = pkg_resources.parse_version(meta["Metadata-Version"])
-    if version >= pkg_resources.parse_version("1.3") and "Description" not in meta:
+    version_str = cast(str, meta["Metadata-Version"])
+    version = packaging.version.parse(version_str)
+    if version >= packaging.version.parse("1.3") and "Description" not in meta:
         desc = message.get_payload()
         if isinstance(desc, str):
             meta["Description"] = desc
     return meta
 
 
-def get_meta_entry(dist, name):
-    # type: (pkg_resources.Distribution, str) -> Union[List[str], str, None]
+def get_meta_entry(dist: Distribution, name: str) -> Union[List[str], str, None]:
     """
     Get the contents of the named entry from the distributions PKG-INFO file
     """
@@ -109,8 +112,7 @@ def get_meta_entry(dist, name):
     return meta.get(name)
 
 
-def get_dist_url(dist):
-    # type: (pkg_resources.Distribution) -> Optional[str]
+def get_dist_url(dist: Distribution) -> Optional[str]:
     """
     Return the 'url' of the distribution (as passed to setup function)
     """
@@ -119,17 +121,14 @@ def get_dist_url(dist):
     return url
 
 
-def get_dist_meta(dist):
-    # type: (pkg_resources.Distribution) -> Dict[str, Union[str, List[str]]]
-    contents = None  # type: Optional[str]
-    if dist.has_metadata("PKG-INFO"):
-        # egg-info
-        contents = dist.get_metadata("PKG-INFO")
-    elif dist.has_metadata("METADATA"):
-        # dist-info
-        contents = dist.get_metadata("METADATA")
-
-    if contents is not None:
-        return parse_meta(contents)
-    else:
-        return {}
+def get_dist_meta(dist: Distribution) -> Dict[str, Union[str, List[str]]]:
+    metadata = dist.metadata
+    meta: Dict[str, Union[str, List[str]]] = {}
+    for key in metadata:
+        if key == "Description":
+            meta[key] = trim(metadata[key])
+        elif key in MULTIPLE_KEYS:
+            meta[key] = metadata.get_all(key)
+        else:
+            meta[key] = metadata[key]
+    return meta
