@@ -33,8 +33,8 @@ class WindowListManager(QObject):
     def __init__(self, *args, **kwargs):
         if self.__instance is not None:
             raise RuntimeError
-        WindowListManager.__instance = self
         super().__init__(*args, **kwargs)
+        WindowListManager.__instance = self
         self.__group = QActionGroup(
             self, objectName="window-list-manager-action-group"
         )
