@@ -32,6 +32,7 @@ INSTALL_REQUIRES = (
     "dictdiffer",
     "qasync>=0.10.0",
     "importlib_metadata; python_version<'3.8'",
+    "importlib_resources; python_version<'3.9'",
     "packaging",
     "numpy",
 )

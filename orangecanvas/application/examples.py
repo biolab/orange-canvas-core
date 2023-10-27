@@ -3,13 +3,18 @@ Example workflows discovery.
 """
 import os
 import logging
+import pathlib
 import types
 
 from typing import List, Optional, IO
 
-import pkg_resources
-
 from orangecanvas import config as _config
+from orangecanvas.utils.pkgmeta import Distribution
+
+try:
+    from importlib.resources import files as _files
+except ImportError:
+    from importlib_resources import files as _files
 
 log = logging.getLogger(__name__)
 
@@ -24,8 +29,8 @@ def list_workflows(package):
         # type: (str) -> bool
         return filename.endswith(".ows")
 
-    resources = pkg_resources.resource_listdir(package.__name__, ".")
-    return sorted(filter(is_ows, resources))
+    resources = _files(package.__name__).iterdir()
+    return sorted(filter(is_ows, (r.name for r in resources)))
 
 
 def workflows(config=None):
@@ -45,11 +50,7 @@ def workflows(config=None):
         examples_entry_points = config.examples_entry_points
     for ep in examples_entry_points():
         try:
-            examples = ep.resolve()
-        except pkg_resources.DistributionNotFound as ex:
-            log.warning("Could not load examples from %r (%r)",
-                        ep.dist, ex)
-            continue
+            examples = ep.load()
         except Exception:
             log.error("Could not load examples from %r",
                       ep.dist, exc_info=True)
@@ -75,34 +76,33 @@ def workflows(config=None):
 
 class ExampleWorkflow:
     def __init__(self, resource, package=None, distribution=None):
-        # type: (str, Optional[types.ModuleType], Optional[pkg_resources.Distribution]) -> None
+        # type: (str, Optional[types.ModuleType], Optional[Distribution]) -> None
         self.resource = resource
         self.package = package
         self.distribution = distribution
 
-    def abspath(self):
-        # type: () -> str
+    def abspath(self) -> str:
         """
         Return absolute filename for the workflow if possible else
         raise an ValueError.
         """
         if self.package is not None:
-            return pkg_resources.resource_filename(self.package.__name__,
-                                                   self.resource)
+            item = _files(self.package) / self.resource
+            if isinstance(item, pathlib.Path):
+                return str(item)
         elif isinstance(self.resource, str):
             if os.path.isabs(self.resource):
                 return self.resource
 
         raise ValueError("cannot resolve resource to an absolute name")
 
-    def stream(self):
-        # type: () -> IO[bytes]
+    def stream(self) -> IO[bytes]:
         """
         Return the example file as an open stream.
         """
         if self.package is not None:
-            return pkg_resources.resource_stream(self.package.__name__,
-                                                 self.resource)
+            item = _files(self.package) / self.resource
+            return item.open('rb')
         elif isinstance(self.resource, str):
             if os.path.isabs(self.resource) and os.path.exists(self.resource):
                 return open(self.resource, "rb")
