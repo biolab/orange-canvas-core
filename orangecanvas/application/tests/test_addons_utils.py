@@ -1,6 +1,11 @@
+import os
+import stat
 import unittest
+from tempfile import mkdtemp
 
 from pkg_resources import Requirement
+from requests import Session
+from requests_cache import CachedSession
 
 from orangecanvas.application.utils.addons import (
     Available,
@@ -9,7 +14,7 @@ from orangecanvas.application.utils.addons import (
     installable_from_json_response,
     installable_items,
     is_updatable,
-    prettify_name,
+    prettify_name, _session,
 )
 from orangecanvas.config import Distribution
 
@@ -91,6 +96,15 @@ class TestUtils(unittest.TestCase):
         self.assertEqual('Text', prettify_name('Orange3-Text'))
         self.assertEqual('Image Analytics', prettify_name('Orange3-ImageAnalytics'))
         self.assertEqual('Survival Analysis', prettify_name('Orange3-Survival-Analysis'))
+
+    def test_session(self):
+        # when permissions - use CachedSession
+        self.assertIsInstance(_session(), CachedSession)
+
+        # when no permissions - use request's Session
+        temp_dir = mkdtemp()
+        os.chmod(temp_dir, stat.S_IRUSR)
+        self.assertIsInstance(_session(temp_dir), Session)
 
 
 if __name__ == "__main__":

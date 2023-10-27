@@ -9,6 +9,7 @@ import sysconfig
 from collections import deque
 from datetime import timedelta
 from enum import Enum
+from sqlite3 import OperationalError
 from types import SimpleNamespace
 from typing import AnyStr, Callable, List, NamedTuple, Optional, Tuple, TypeVar, Union
 
@@ -296,14 +297,21 @@ def _session(cachedir=None):
     if cachedir is None:
         cachedir = QStandardPaths.writableLocation(QStandardPaths.CacheLocation)
         cachedir = os.path.join(cachedir, "networkcache")
-    session = requests_cache.CachedSession(
-        os.path.join(cachedir, "requests.sqlite"),
-        backend="sqlite",
-        cache_control=True,
-        expire_after=timedelta(days=1),
-        stale_if_error=True,
-    )
-    return session
+    try:
+        return requests_cache.CachedSession(
+            os.path.join(cachedir, "requests.sqlite"),
+            backend="sqlite",
+            cache_control=True,
+            expire_after=timedelta(days=1),
+            stale_if_error=True,
+        )
+    except OperationalError as ex:
+        # if no permission to write in dir or read cache file return uncached session
+        log.info(
+            f"Cache file creation/opening failed with: '{str(ex)}'. "
+            f"Using requests.Session instead of cached session."
+        )
+        return requests.Session()
 
 
 def optional_map(func: Callable[[A], B]) -> Callable[[Optional[A]], Optional[B]]:
