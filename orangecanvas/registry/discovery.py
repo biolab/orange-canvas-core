@@ -10,14 +10,11 @@ This module implements a discovery process
 import abc
 import os
 import sys
-import stat
 import logging
 import types
 import pkgutil
 from collections import namedtuple
 from typing import Union
-
-import pkg_resources
 
 from .description import (
     WidgetDescription, CategoryDescription,
@@ -27,6 +24,7 @@ from .description import (
 from . import VERSION_HEX
 from . import cache, WidgetRegistry
 from . import utils
+from ..utils.pkgmeta import entry_points
 
 log = logging.getLogger(__name__)
 
@@ -119,27 +117,18 @@ class WidgetDiscovery(object):
     def run(self, entry_points_iter):
         """
         Run the widget discovery process from an entry point iterator
-        (yielding :class:`pkg_resources.EntryPoint` instances).
+        (yielding :class:`importlib.metadata.EntryPoint` instances).
 
         As a convenience, if `entry_points_iter` is a string it will be used
-        to retrieve the iterator using `pkg_resources.iter_entry_points`.
+        to retrieve the iterator using `importlib.metadata.entry_points`.
 
         """
         if isinstance(entry_points_iter, str):
-            entry_points_iter = \
-                pkg_resources.iter_entry_points(entry_points_iter)
+            entry_points_iter = entry_points(group=entry_points_iter)
 
         for entry_point in entry_points_iter:
             try:
-                point = entry_point.resolve()
-            except pkg_resources.DistributionNotFound:
-                log.error("Could not load '%s' (unsatisfied dependencies).",
-                          entry_point, exc_info=True)
-                continue
-            except ImportError:
-                log.error("An ImportError occurred while loading "
-                          "entry point '%s'", entry_point, exc_info=True)
-                continue
+                point = entry_point.load()
             except Exception:
                 log.error("An exception occurred while loading "
                           "entry point '%s'", entry_point, exc_info=True)
@@ -221,7 +210,7 @@ class WidgetDiscovery(object):
                 cat_desc.name = default_category_name_for_module(category)
 
         if distribution is not None:
-            cat_desc.project_name = distribution.project_name
+            cat_desc.project_name = distribution.name
 
         self.handle_category(cat_desc)
 
@@ -360,7 +349,7 @@ class WidgetDiscovery(object):
             desc.category = category_name
 
         if distribution is not None:
-            desc.project_name = distribution.project_name
+            desc.project_name = distribution.name
 
         return desc
 
@@ -380,7 +369,7 @@ class WidgetDiscovery(object):
         project_name = project_version = None
 
         if distribution is not None:
-            project_name = distribution.project_name
+            project_name = distribution.name
             project_version = distribution.version
 
         exc_type = exc_val = None
@@ -423,7 +412,7 @@ class WidgetDiscovery(object):
                 return False
 
             if distribution is not None:
-                if entry.project_name != distribution.project_name or \
+                if entry.project_name != distribution.name or \
                         entry.project_version != distribution.version:
                     return False
 
@@ -506,38 +495,6 @@ def widget_descriptions_from_package(package):
         else:
             desciptions.append(desc)
     return desciptions
-
-
-def module_name_split(name):
-    """
-    Split the module name into package name and module name.
-    """
-    if "." in name:
-        package_name, module = name.rsplit(".", 1)
-    else:
-        package_name, module = "", name
-    return package_name, module
-
-
-def module_modified_time(module):
-    """
-    Return the `module`s source filename and modified time as a tuple
-    (source_filename, modified_time). In case the module is from a zipped
-    package the modified time is that of of the archive.
-
-    """
-    module = asmodule(module)
-    name = module.__name__
-    module_filename = module.__file__
-
-    provider = pkg_resources.get_provider(name)
-    if provider.loader:
-        m_time = os.stat(provider.loader.archive)[stat.ST_MTIME]
-    else:
-        basename = os.path.basename(module_filename)
-        path = pkg_resources.resource_filename(name, basename)
-        m_time = os.stat(path)[stat.ST_MTIME]
-    return (module_filename, m_time)
 
 
 def asmodule(module):

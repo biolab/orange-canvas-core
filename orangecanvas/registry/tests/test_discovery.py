@@ -9,6 +9,7 @@ import unittest
 from ..discovery import WidgetDiscovery, widget_descriptions_from_package
 from ..description import CategoryDescription, WidgetDescription
 from ..utils import category_from_package_globals
+from ...utils.pkgmeta import get_distribution
 
 
 class TestDiscovery(unittest.TestCase):
@@ -40,8 +41,9 @@ class TestDiscovery(unittest.TestCase):
 
     def test_process_module(self):
         disc = self.discovery_class()
-        disc.process_category_package(self.operators.__name__)
-        disc.process_widget_module(self.constants.one.__name__)
+        dist = get_distribution("orange-canvas-core")
+        disc.process_category_package(self.operators.__name__, distribution=dist)
+        disc.process_widget_module(self.constants.one.__name__, distribution=dist)
 
     def test_process_loader(self):
         disc = self.discovery_class()
