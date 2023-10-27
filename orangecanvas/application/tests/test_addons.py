@@ -9,7 +9,6 @@ from AnyQt.QtCore import QEventLoop, QMimeData, QPointF, Qt, QUrl
 from AnyQt.QtGui import QDropEvent
 from AnyQt.QtTest import QTest
 from AnyQt.QtWidgets import QDialogButtonBox, QMessageBox, QTreeView, QStyle
-from pkg_resources import Distribution, EntryPoint
 
 from orangecanvas.application import addons
 from orangecanvas.application.addons import AddonManagerDialog
@@ -26,6 +25,7 @@ from orangecanvas.application.utils.addons import (
 )
 from orangecanvas.gui.test import QAppTestCase
 from orangecanvas.utils.qinvoke import qinvoke
+from orangecanvas.utils.pkgmeta import Distribution, EntryPoint
 
 
 @contextmanager
@@ -41,19 +41,46 @@ def addon_archive(pkginfo):
         os.remove(name)
 
 
+class FakeDistribution(Distribution):
+    def locate_file(self, path):
+        pass
+
+    def read_text(self, filename):
+        pass
+
+    def __init__(self, name, version):
+        super().__init__()
+        self._name = name
+        self._version = version
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def version(self):
+        return self._version
+
+
+class FakeEntryPoint(EntryPoint):
+    def for_(self, dist):
+        vars(self).update(dist=dist)
+        return self
+
+
 class TestAddonManagerDialog(QAppTestCase):
     def test_widget(self):
         items = [
             Installed(
                 Installable("foo", "1.1", "", "", "", []),
-                Distribution(project_name="foo", version="1.0"),
+                FakeDistribution(name="foo", version="1.0"),
             ),
             Available(
                 Installable("q", "1.2", "", "", "", [])
             ),
             Installed(
                 None,
-                Distribution(project_name="a", version="0.0")
+                FakeDistribution(name="a", version="0.0")
             ),
         ]
         w = AddonManagerDialog()
@@ -98,13 +125,14 @@ class TestAddonManagerDialog(QAppTestCase):
         check_state_equal(index.data(Qt.CheckStateRole), Qt.Unchecked)
 
     @patch("orangecanvas.config.default.addon_entry_points",
-           return_value=[EntryPoint(
-               "a", "b", dist=Distribution(project_name="foo", version="1.0"))])
+           return_value=[
+               FakeEntryPoint(
+               "a", "b", "g").for_(FakeDistribution(name="foo", version="1.0"))])
     def test_drop(self, p1):
         items = [
             Installed(
                 Installable("foo", "1.1", "", "", "", []),
-                Distribution(project_name="foo", version="1.0"),
+                FakeDistribution(name="foo", version="1.0"),
             ),
         ]
         w = AddonManagerDialog()

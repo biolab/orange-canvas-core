@@ -3,9 +3,9 @@ import stat
 import unittest
 from tempfile import mkdtemp
 
-from pkg_resources import Requirement
 from requests import Session
 from requests_cache import CachedSession
+from packaging.requirements import Requirement
 
 from orangecanvas.application.utils.addons import (
     Available,
@@ -16,20 +16,26 @@ from orangecanvas.application.utils.addons import (
     is_updatable,
     prettify_name, _session,
 )
-from orangecanvas.config import Distribution
+from orangecanvas.application.tests.test_addons import FakeDistribution
 
 
 class TestUtils(unittest.TestCase):
     def test_items_1(self):
         inst = Installable("foo", "1.0", "a foo", "", "", [])
-        dist = Distribution(project_name="foo", version="1.0")
+        dist = FakeDistribution(name="foo", version="1.0")
         item = Available(inst)
         self.assertFalse(is_updatable(item))
+        self.assertEqual(item.name, "foo")
+        self.assertEqual(item.normalized_name, "foo")
 
         item = Installed(None, dist)
         self.assertFalse(is_updatable(item))
+        self.assertEqual(item.name, dist.name)
+        self.assertEqual(item.normalized_name, dist.name)
+
         item = Installed(inst, dist)
         self.assertFalse(is_updatable(item))
+        self.assertEqual(item.name, inst.name)
 
         item = Installed(inst._replace(version="0.9"), dist)
         self.assertFalse(is_updatable(item))
@@ -38,17 +44,17 @@ class TestUtils(unittest.TestCase):
         self.assertTrue(is_updatable(item))
 
         item = Installed(inst._replace(version="2.0"), dist,
-                         constraint=Requirement.parse("foo<1.99"))
+                         constraint=Requirement("foo<1.99"))
         self.assertFalse(is_updatable(item))
         item = Installed(inst._replace(version="2.0"), dist,
-                         constraint=Requirement.parse("foo<2.99"))
+                         constraint=Requirement("foo<2.99"))
         self.assertTrue(is_updatable(item))
 
     def test_items_2(self):
         inst1 = Installable("foo", "1.0", "a foo", "", "", [])
         inst2 = Installable("bar", "1.0", "a bar", "", "", [])
-        dist2 = Distribution(project_name="bar", version="0.9")
-        dist3 = Distribution(project_name="quack", version="1.0")
+        dist2 = FakeDistribution(name="bar", version="0.9")
+        dist3 = FakeDistribution(name="quack", version="1.0")
         items = installable_items([inst1, inst2], [dist2, dist3])
         self.assertIn(Available(inst1), items)
         self.assertIn(Installed(inst2, dist2), items)

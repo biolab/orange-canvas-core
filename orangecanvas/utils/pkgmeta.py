@@ -8,13 +8,14 @@ from typing import List, Dict, Optional, Union, cast
 import packaging.version
 
 try:
-    from importlib.metadata import EntryPoint, Distribution, entry_points
+    from importlib.metadata import EntryPoint, Distribution, entry_points, PackageNotFoundError
 except ImportError:
-    from importlib_metadata import EntryPoint, Distribution, entry_points
+    from importlib_metadata import EntryPoint, Distribution, entry_points, PackageNotFoundError
 
 __all__ = [
     "Distribution", "EntryPoint", "entry_points", "normalize_name", "trim",
     "trim_leading_lines", "trim_trailing_lines", "parse_meta", "get_dist_meta",
+    "get_distribution"
 ]
 
 
@@ -132,3 +133,10 @@ def get_dist_meta(dist: Distribution) -> Dict[str, Union[str, List[str]]]:
         else:
             meta[key] = metadata[key]
     return meta
+
+
+def get_distribution(name: str) -> Optional[Distribution]:
+    try:
+        return Distribution.from_name(name)
+    except PackageNotFoundError:
+        return None
