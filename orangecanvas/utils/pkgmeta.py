@@ -7,10 +7,11 @@ from typing import List, Dict, Optional, Union, cast
 
 import packaging.version
 
-try:
-    from importlib.metadata import EntryPoint, Distribution, entry_points, PackageNotFoundError
-except ImportError:
+if sys.version_info < (3, 10):
     from importlib_metadata import EntryPoint, Distribution, entry_points, PackageNotFoundError
+else:
+    from importlib.metadata import EntryPoint, Distribution, entry_points, PackageNotFoundError
+
 
 __all__ = [
     "Distribution", "EntryPoint", "entry_points", "normalize_name", "trim",
