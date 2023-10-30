@@ -46,6 +46,7 @@ from ..gui.quickhelp import QuickHelpTipEvent
 from . import commands
 from .editlinksdialog import EditLinksDialog
 from ..utils import unique
+from ..utils.pkgmeta import EntryPoint, entry_points
 
 if typing.TYPE_CHECKING:
     from .schemeedit import SchemeEditWidget
@@ -53,12 +54,6 @@ if typing.TYPE_CHECKING:
     A = typing.TypeVar("A")
     #: Output/Input pair of a link
     OIPair = Tuple[OutputSignal, InputSignal]
-
-try:
-    from importlib.metadata import EntryPoint, entry_points
-except ImportError:
-    from importlib_metadata import EntryPoint, entry_points
-
 
 log = logging.getLogger(__name__)
 
@@ -2021,7 +2016,7 @@ class PluginDropHandler(DropHandler):
         """
         Return an iterator over all entry points.
         """
-        eps = entry_points().get(self.__group, [])
+        eps = entry_points(group=self.__group)
         # Can have duplicated entries here if a distribution is *found* via
         # different `sys.meta_path` handlers and/or on different `sys.path`
         # entries.
