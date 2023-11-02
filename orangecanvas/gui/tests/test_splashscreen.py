@@ -1,12 +1,10 @@
 """
 Test for splashscreen
 """
-
+import pkgutil
 from datetime import datetime
 
-import pkg_resources
-
-from AnyQt.QtGui import QPixmap
+from AnyQt.QtGui import QPixmap, QImage
 from AnyQt.QtCore import Qt, QRect, QTimer
 
 from ..splashscreen import SplashScreen
@@ -17,11 +15,12 @@ from ... import config
 
 class TestSplashScreen(QAppTestCase):
     def test_splashscreen(self):
-        splash = pkg_resources.resource_filename(
+        contents = pkgutil.get_data(
             config.__package__, "icons/orange-canvas-core-splash.svg"
         )
+        img = QImage.fromData(contents)
         w = SplashScreen()
-        w.setPixmap(QPixmap(splash))
+        w.setPixmap(QPixmap.fromImage(img))
         w.setTextRect(QRect(100, 100, 400, 50))
         w.show()
 
