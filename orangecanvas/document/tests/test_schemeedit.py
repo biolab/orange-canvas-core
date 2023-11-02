@@ -557,7 +557,6 @@ class TestSchemeEdit(QAppTestCase):
 
     @mock.patch.object(
         PluginDropHandler, "iterEntryPoints",
-        # "pkg_resources.WorkingSet.iter_entry_points",
         lambda _: [
             EntryPoint(
                 "AA", f"{__name__}:TestDropHandler", "aa"
