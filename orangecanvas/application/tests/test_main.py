@@ -7,13 +7,14 @@ from unittest.mock import patch, Mock
 
 from orangecanvas import config
 from orangecanvas.application.canvasmain import CanvasMainWindow
-from orangecanvas.config import Config, EntryPoint
+from orangecanvas.config import Config
 from orangecanvas.gui.test import QAppTestCase
 from orangecanvas.main import Main
 from orangecanvas.registry import WidgetDiscovery
 from orangecanvas.registry.tests import set_up_modules, tear_down_modules
 from orangecanvas.scheme import Scheme
 from orangecanvas.utils.shtools import temp_named_file
+from orangecanvas.utils.pkgmeta import EntryPoint
 
 
 class TestMain(unittest.TestCase):
@@ -76,12 +77,15 @@ class TestConfig(Config):
     def widgets_entry_points(self):  # type: () -> Iterable[EntryPoint]
         pkg = "orangecanvas.registry.tests"
         return (
-            EntryPoint.parse(f"add = {pkg}.operators.add"),
-            EntryPoint.parse(f"sub = {pkg}.operators.sub")
+            EntryPoint("add", f"{pkg}.operators.add", "w"),
+            EntryPoint("sub", f"{pkg}.operators.sub", "w")
         )
 
     def workflow_constructor(self, *args, **kwargs):
         return Scheme(*args, **kwargs)
+
+    def splash_screen(self):
+        return config.Default.splash_screen()
 
 
 class TestMainGuiCase(QAppTestCase):
