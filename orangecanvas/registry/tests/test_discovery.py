@@ -3,8 +3,10 @@ Test widget discovery
 
 """
 import logging
+import types
 
 import unittest
+from unittest.mock import patch
 
 from ..discovery import WidgetDiscovery, widget_descriptions_from_package
 from ..description import CategoryDescription, WidgetDescription
@@ -67,12 +69,24 @@ class TestDiscovery(unittest.TestCase):
         cat_desc = category_from_package_globals(
             self.operators.__name__,
         )
-        # TODO: Fix (the widget_description_package does not iterate
-        # over faked package (no valid operator.__path__)
-        wid_desc = widget_descriptions_from_package(
-            self.operators.__name__,
-        )
-        disc.process_iter([cat_desc] + wid_desc)
+        modules = [
+            (None, self.operators.add.__name__, False)
+        ]
+        with patch("pkgutil.iter_modules", lambda *_, **__: modules):
+            wid_desc = widget_descriptions_from_package(
+                self.operators.__name__,
+            )
+            disc.process_iter([cat_desc] + wid_desc)
+
+    def test_process_category_package(self):
+        disc = self.discovery_class()
+        dist = get_distribution("orange-canvas-core")
+        modules = [
+            (None, self.operators.add.__name__, False)
+        ]
+        self.operators.__path__ = ["aaa"]
+        with patch("pkgutil.iter_modules", lambda *_, **__: modules):
+            disc.process_category_package(self.operators, distribution=dist)
 
     def test_run(self):
         disc = self.discovery_class()
