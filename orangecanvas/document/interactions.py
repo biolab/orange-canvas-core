@@ -22,7 +22,7 @@ from functools import reduce
 from AnyQt.QtWidgets import (
     QApplication, QGraphicsRectItem, QGraphicsSceneMouseEvent,
     QGraphicsSceneContextMenuEvent, QWidget, QGraphicsItem,
-    QGraphicsSceneDragDropEvent, QMenu, QAction
+    QGraphicsSceneDragDropEvent, QMenu, QAction, QWidgetAction, QLabel
 )
 from AnyQt.QtGui import QPen, QBrush, QColor, QFontMetrics, QKeyEvent, QFont
 from AnyQt.QtCore import (
@@ -2089,7 +2089,15 @@ class PluginDropHandler(DropHandler):
         if len(self.__accepts) == 1:
             ep, handler = self.__accepts[0]
         elif len(self.__accepts) > 1:
+            class Title(QWidgetAction):
+                def createWidget(self, parent):
+                    return QLabel("<b>Select a widget</b>", parent, margin=2)
+
             menu = QMenu(event.widget())
+            menu.addAction(Title(menu))
+            separator = QAction()
+            separator.setSeparator(True)
+            menu.addAction(separator)
             for ep_, handler_ in self.__accepts:
                 ac = action_for_handler(handler_, document, event)
                 if ac is None:
