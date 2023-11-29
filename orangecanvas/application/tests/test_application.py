@@ -3,6 +3,9 @@ import sys
 import time
 import unittest
 
+from AnyQt.QtGui import QPalette
+from AnyQt.QtTest import QSignalSpy
+
 from orangecanvas.utils import shtools as sh
 from orangecanvas.application import application as appmod
 from orangecanvas.utils.shtools import temp_named_file
@@ -10,6 +13,11 @@ from orangecanvas.utils.shtools import temp_named_file
 
 def application_test_helper():
     app = appmod.CanvasApplication([])
+    p = app.palette()
+    spy = QSignalSpy(app.applicationPaletteChanged)
+    p.setColor(QPalette.Base, p.color(QPalette.Text))
+    app.setPalette(p)
+    assert list(spy) == [[]]
     app.quit()
     return
 
