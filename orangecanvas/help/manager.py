@@ -12,17 +12,15 @@ from sysconfig import get_path
 import typing
 from typing import Dict, Optional, List, Tuple, Union, Callable, Sequence
 
-import pkg_resources
 
 from AnyQt.QtCore import QObject, QUrl, QDir
 
-from ..utils.pkgmeta import get_dist_url, is_develop_egg
+from ..utils.pkgmeta import get_dist_url, is_develop_egg, get_distribution
 from . import provider
 
 if typing.TYPE_CHECKING:
     from ..registry import WidgetRegistry, WidgetDescription
-    Distribution = pkg_resources.Distribution
-    EntryPoint = pkg_resources.EntryPoint
+    from ..utils.pkgmeta import Distribution, EntryPoint
 
 log = logging.getLogger(__name__)
 
@@ -62,8 +60,8 @@ class HelpManager(QObject):
         provider = self._providers.get(project, None)
         if provider is None:
             try:
-                dist = pkg_resources.get_distribution(project)
-            except pkg_resources.ResolutionError:
+                dist = get_distribution(project)
+            except ImportError:
                 log.exception("Could not get distribution for '%s'", project)
             else:
                 try:
@@ -147,8 +145,8 @@ def qurl_query_items(url: QUrl) -> List[Tuple[str, str]]:
 
 def _replacements_for_dist(dist):
     # type: (Distribution) -> Dict[str, str]
-    replacements = {"PROJECT_NAME": dist.project_name,
-                    "PROJECT_NAME_LOWER": dist.project_name.lower(),
+    replacements = {"PROJECT_NAME": dist.name,
+                    "PROJECT_NAME_LOWER": dist.name.lower(),
                     "PROJECT_VERSION": dist.version,
                     "DATA_DIR": get_path("data")}
     try:
@@ -157,7 +155,7 @@ def _replacements_for_dist(dist):
         pass
 
     if is_develop_egg(dist):
-        replacements["DEVELOP_ROOT"] = dist.location
+        replacements["DEVELOP_ROOT"] = str(dist.locate_file("."))
 
     return replacements
 
@@ -172,7 +170,7 @@ def qurl_from_path(urlpath):
 
 def create_intersphinx_provider(entry_point):
     # type: (EntryPoint) -> Optional[provider.IntersphinxHelpProvider]
-    locations = entry_point.resolve()
+    locations = entry_point.load()
     if entry_point.dist is not None:
         replacements = _replacements_for_dist(entry_point.dist)
     else:
@@ -221,7 +219,7 @@ def create_intersphinx_provider(entry_point):
 
 def create_html_provider(entry_point):
     # type: (EntryPoint) -> Optional[provider.SimpleHelpProvider]
-    locations = entry_point.resolve()
+    locations = entry_point.load()
     if entry_point.dist is not None:
         replacements = _replacements_for_dist(entry_point.dist)
     else:
@@ -256,7 +254,7 @@ def create_html_provider(entry_point):
 
 def create_html_inventory_provider(entry_point):
     # type: (EntryPoint) -> Optional[provider.HtmlIndexProvider]
-    locations = entry_point.resolve()
+    locations = entry_point.load()
     if entry_point.dist is not None:
         replacements = _replacements_for_dist(entry_point.dist)
     else:
@@ -304,8 +302,9 @@ _providers = {
 _providers_cache = {}  # type: Dict[str, provider.HelpProvider]
 
 
-def get_help_provider_for_distribution(dist):
-    # type: (pkg_resources.Distribution) -> Optional[provider.HelpProvider]
+def get_help_provider_for_distribution(
+        dist: "Distribution"
+) -> Optional[provider.HelpProvider]:
     """
     Return a HelpProvider for the distribution.
 
@@ -321,24 +320,20 @@ def get_help_provider_for_distribution(dist):
     -------
     provider: Optional[provider.HelpProvider]
     """
-    if dist.project_name in _providers_cache:
-        return _providers_cache[dist.project_name]
-
-    eps = dist.get_entry_map()
-    entry_points = eps.get("orange.canvas.help", {})
+    if dist.name in _providers_cache:
+        return _providers_cache[dist.name]
+    eps = dist.entry_points
+    entry_points = eps.select(group="orange.canvas.help")
     if not entry_points:
         # alternative name
-        entry_points = eps.get("orangecanvas.help", {})
+        entry_points = eps.select(group="orangecanvas.help")
 
     provider = None
-    for name, entry_point in entry_points.items():
-        create = _providers.get(name, None)
+    for entry_point in entry_points:
+        create = _providers.get(entry_point.name, None)
         if create:
             try:
                 provider = create(entry_point)
-            except pkg_resources.DistributionNotFound as err:
-                log.warning("Unsatisfied dependencies (%r)", err)
-                continue
             except Exception as ex:
                 log.exception("Exception {}".format(ex))
             if provider:
@@ -347,5 +342,5 @@ def get_help_provider_for_distribution(dist):
                 break
 
     if provider is not None:
-        _providers_cache[dist.project_name] = provider
+        _providers_cache[dist.name] = provider
     return provider

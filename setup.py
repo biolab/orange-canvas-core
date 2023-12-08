@@ -2,7 +2,7 @@
 from setuptools import setup, find_packages
 
 NAME = "orange-canvas-core"
-VERSION = "0.1.36.dev0"
+VERSION = "0.2.0a1.dev0"
 DESCRIPTION = "Core component of Orange Canvas"
 
 with open("README.rst", "rt", encoding="utf-8") as f:
@@ -22,7 +22,6 @@ PACKAGE_DATA = {
 }
 
 INSTALL_REQUIRES = (
-    "setuptools",
     "AnyQt>=0.2.0",
     "docutils",
     "commonmark>=0.8.1",
@@ -31,7 +30,8 @@ INSTALL_REQUIRES = (
     "pip>=18.0",
     "dictdiffer",
     "qasync>=0.10.0",
-    "importlib_metadata; python_version<'3.8'",
+    "importlib_metadata; python_version<'3.10'",
+    "importlib_resources; python_version<'3.9'",
     "packaging",
     "numpy",
 )

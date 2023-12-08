@@ -11,23 +11,24 @@ from datetime import timedelta
 from enum import Enum
 from sqlite3 import OperationalError
 from types import SimpleNamespace
-from typing import AnyStr, Callable, List, NamedTuple, Optional, Tuple, TypeVar, Union
+from typing import (
+    AnyStr, Callable, List, NamedTuple, Optional, Tuple, TypeVar, Union, Dict,
+    Any, IO, Iterable
+)
 
 import requests
 import requests_cache
 
-from AnyQt.QtCore import QObject, QSettings, QStandardPaths, QTimer, Signal, Slot
-from pkg_resources import (
-    Requirement,
-    ResolutionError,
-    VersionConflict,
-    WorkingSet,
-    get_distribution,
-    parse_version,
-)
+from packaging.requirements import Requirement
+from packaging.version import Version
 
+from AnyQt.QtCore import QObject, QSettings, QStandardPaths, QTimer, Signal, Slot
+
+from orangecanvas import config
 from orangecanvas.utils import unique
-from orangecanvas.utils.pkgmeta import parse_meta
+from orangecanvas.utils.pkgmeta import (
+    parse_meta, normalize_name, Distribution, get_distribution
+)
 from orangecanvas.utils.shtools import create_process, python_process
 
 log = logging.getLogger(__name__)
@@ -35,10 +36,6 @@ log = logging.getLogger(__name__)
 PYPI_API_JSON = "https://pypi.org/pypi/{name}/json"
 A = TypeVar("A")
 B = TypeVar("B")
-
-
-def normalize_name(name):
-    return re.sub(r"[-_.]+", "-", name).lower()
 
 
 def prettify_name(name):
@@ -114,12 +111,12 @@ class Available(
     installable : Installable
     """
     @property
-    def project_name(self):
+    def name(self):
         return self.installable.name
 
     @property
     def normalized_name(self):
-        return normalize_name(self.project_name)
+        return normalize_name(self.name)
 
 
 class Installed(
@@ -154,23 +151,22 @@ class Installed(
         return super().__new__(cls, installable, local, required, constraint)
 
     @property
-    def project_name(self):
+    def name(self):
         if self.installable is not None:
             return self.installable.name
         else:
-            return self.local.project_name
+            return self.local.name
 
     @property
     def normalized_name(self):
-        return normalize_name(self.project_name)
+        return normalize_name(self.name)
 
 
 #: An installable item/slot
 Item = Union[Available, Installed]
 
 
-def is_updatable(item):
-    # type: (Item) -> bool
+def is_updatable(item: Item) -> bool:
     if isinstance(item, Available):
         return False
     elif item.installable is None:
@@ -178,15 +174,16 @@ def is_updatable(item):
     else:
         inst, dist = item.installable, item.local
         try:
-            v1 = parse_version(dist.version)
-            v2 = parse_version(inst.version)
+            v1 = Version(dist.version)
+            v2 = Version(inst.version)
         except ValueError:
             return False
 
         if inst.force:
             return True
 
-        if item.constraint is not None and str(v2) not in item.constraint:
+        if item.constraint is not None \
+                and not item.constraint.specifier.contains(v2, prereleases=True):
             return False
         else:
             return v1 < v2
@@ -340,8 +337,10 @@ def query_pypi(names: List[str]) -> List[_QueryResult]:
     ]
 
 
-def list_available_versions(config, session=None):
-    # type: (config.Config, Optional[requests.Session]) -> (List[Installable], List[Exception])
+def list_available_versions(
+        config: config.Config,
+        session: Optional[requests.Session] = None
+) -> Tuple[List[Installable], List[Exception]]:
     if session is None:
         session = _session()
 
@@ -368,7 +367,7 @@ def list_available_versions(config, session=None):
     # list
     installed = [ep.dist for ep in config.addon_entry_points()
                  if ep.dist is not None]
-    missing = {dist.project_name.casefold() for dist in installed} - \
+    missing = {dist.name.casefold() for dist in installed} - \
               {name.casefold() for name in defaults_names}
 
     distributions = []
@@ -398,27 +397,19 @@ def installable_items(pypipackages, installed=[]):
 
     Parameters
     ----------
-    pypipackages : list of Installable
-    installed : list of pkg_resources.Distribution
+    pypipackages : List[Installable]
+    installed : List[Distribution]
     """
 
-    dists = {dist.project_name: dist for dist in installed}
+    dists = {dist.name: dist for dist in installed}
     packages = {pkg.name: pkg for pkg in pypipackages}
 
     # For every pypi available distribution not listed by
     # `installed`, check if it is actually already installed.
-    ws = WorkingSet()
     for pkg_name in set(packages.keys()).difference(set(dists.keys())):
-        try:
-            d = ws.find(Requirement.parse(pkg_name))
-        except ResolutionError:
-            pass
-        except ValueError:
-            # Requirements.parse error ?
-            pass
-        else:
-            if d is not None:
-                dists[d.project_name] = d
+        d = get_distribution(pkg_name)
+        if d is not None:
+            dists[d.name] = d
 
     project_names = unique(itertools.chain(packages.keys(), dists.keys()))
 
@@ -436,19 +427,12 @@ def installable_items(pypipackages, installed=[]):
     return items
 
 
-def is_requirement_available(
-        req: Union[Requirement, str], working_set: Optional[WorkingSet] = None
-) -> bool:
+def is_requirement_available(req: Union[Requirement, str]) -> bool:
     if not isinstance(req, Requirement):
-        req = Requirement.parse(req)
+        req = Requirement(req)
     try:
-        if working_set is None:
-            d = get_distribution(req)
-        else:
-            d = working_set.find(req)
-    except VersionConflict:
-        return False
-    except ResolutionError:
+        d = get_distribution(req.name)
+    except Exception:
         return False
     else:
         return d is not None
@@ -543,7 +527,7 @@ class Installer(QObject):
                     self.pip.upgrade(pkg.installable)
             elif command == Uninstall:
                 self.setStatusMessage(
-                    "Uninstalling {}".format(pkg.local.project_name))
+                    "Uninstalling {}".format(pkg.local.name))
                 if self.conda:
                     try:
                         self.conda.uninstall(pkg.local)
@@ -599,7 +583,7 @@ class PipInstaller:
         run_command(cmd)
 
     def uninstall(self, dist):
-        cmd = ["python", "-m", "pip", "uninstall", "--yes", dist.project_name]
+        cmd = ["python", "-m", "pip", "uninstall", "--yes", dist.name]
         run_command(cmd)
 
 
@@ -644,7 +628,7 @@ class CondaInstaller:
 
     def uninstall(self, dist):
         cmd = [self.conda, "uninstall", "--yes",
-               self._normalize(dist.project_name)]
+               self._normalize(dist.name)]
         return run_command(cmd)
 
     def _normalize(self, name):

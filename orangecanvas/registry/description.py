@@ -456,7 +456,7 @@ class CategoryDescription(object):
     priority : int
         Priority (order in the GUI).
     icon : str
-        An icon filename (a resource name retrievable using `pkg_resources`
+        An icon filename (a resource name retrievable using `pkgutil.get_data`
         relative to `qualified_name`).
     background : str
         An background color for widgets in this category.

@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, Future
 
 from typing import List, Any, Optional, Tuple
 
-import pkg_resources
+from packaging.requirements import Requirement
 
 from AnyQt.QtWidgets import (
     QDialog, QLineEdit, QTreeView, QHeaderView,
@@ -52,9 +52,8 @@ from ..gui.utils import message_warning, message_critical as message_error
 
 from .. import config
 from ..config import Config
+from ..utils.pkgmeta import Distribution
 
-Requirement = pkg_resources.Requirement
-Distribution = pkg_resources.Distribution
 
 log = logging.getLogger(__name__)
 
@@ -155,7 +154,7 @@ class PluginsModel(QStandardItemModel):
         if isinstance(item, Installed):
             installed = True
             ins, dist = item.installable, item.local
-            name = prettify_name(dist.project_name)
+            name = prettify_name(dist.name)
             summary = get_dist_meta(dist).get("Summary", "")
             version = dist.version
             item_is_core = item.required
@@ -553,14 +552,14 @@ class AddonManagerDialog(QDialog):
                      if ep.dist is not None]
         items = installable_items(packages, installed)
         core_constraints = {
-            r.project_name.casefold(): r
-            for r in (Requirement.parse(r) for r in config.core_packages())
+            r.name.casefold(): r
+            for r in map(Requirement, config.core_packages())
         }
 
         def constrain(item):  # type: (Item) -> Item
             """Include constraint in Installed when in core_constraint"""
             if isinstance(item, Installed):
-                name = item.local.project_name.casefold()
+                name = item.local.name.casefold()
                 if name in core_constraints:
                     return item._replace(
                         required=True, constraint=core_constraints[name]
@@ -686,7 +685,7 @@ class AddonManagerDialog(QDialog):
             elif item.installable is not None:
                 return item.installable.name == installable.name
             else:
-                return item.local.project_name.lower() == installable.name.lower()
+                return item.local.name.lower() == installable.name.lower()
 
         new = next(filter(match, new_), None)
         assert new is not None
@@ -858,7 +857,7 @@ class AddonManagerDialog(QDialog):
         core_required = {}
         for item in self.items():
             if isinstance(item, Installed) and item.required:
-                core_required[item.local.project_name] = item.local.version
+                core_required[item.local.name] = item.local.version
 
         core_upgrade = set()
         for step in steps:
@@ -867,8 +866,8 @@ class AddonManagerDialog(QDialog):
                 if inst.name in core_required:  # direct upgrade of a core package
                     core_upgrade.add(inst.name)
                 if inst.requirements:  # indirect upgrade of a core package as a requirement
-                    for req in pkg_resources.parse_requirements(inst.requirements):
-                        if req.name in core_required and core_required[req.name] not in req:
+                    for req in map(Requirement, inst.requirements):
+                        if req.name in core_required and not req.specifier.contains(core_required[req.name], prereleases=True):
                             core_upgrade.add(req.name)  # current doesn't meet requirements
 
         if core_upgrade:

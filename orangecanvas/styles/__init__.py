@@ -1,11 +1,11 @@
 """
 """
 import os
+import pkgutil
 import re
 from functools import wraps
 from typing import Mapping, Callable, Tuple, List, TypeVar
 
-import pkg_resources
 from AnyQt.QtCore import Qt
 from AnyQt.QtGui import QPalette, QColor
 
@@ -182,12 +182,11 @@ def style_sheet(stylesheet: str) -> Tuple[str, List[Tuple[str, str]]]:
         # no extension
         stylesheet = os.path.extsep.join([stylesheet, "qss"])
 
-    pkg_name = __package__
     resource = stylesheet
-
-    if pkg_resources.resource_exists(pkg_name, resource):
-        stylesheet_string = \
-            pkg_resources.resource_string(pkg_name, resource).decode("utf-8")
-        base = pkg_resources.resource_filename(pkg_name, "")
-        return process_qss(stylesheet_string, base)
-    return stylesheet_string, []
+    try:
+        stylesheet_string = pkgutil.get_data(__package__, resource)
+    except FileNotFoundError:
+        return stylesheet_string, []
+    else:
+        return process_qss(stylesheet_string.decode("utf-8"),
+                           os.path.basename(__file__))

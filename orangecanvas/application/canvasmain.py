@@ -1354,7 +1354,7 @@ class CanvasMainWindow(QMainWindow):
         dlg.setStyle(QApplication.style())
         dlg.setConfig(config.default)
         req = addons.Requirement
-        names = [req.parse(r).project_name for r in requires]
+        names = [req(r).name for r in requires]
         normalized_names = {normalize_name(r) for r in names}
 
         def set_state(*args):
