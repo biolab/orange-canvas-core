@@ -1,7 +1,6 @@
 """
 """
 import argparse
-
 import os
 import sys
 import gc
@@ -9,7 +8,7 @@ import logging
 import pickle
 import shlex
 import warnings
-from typing import List, Optional, IO, Any
+from typing import List, Optional, IO, Any, Iterable
 
 from urllib.request import getproxies
 from contextlib import ExitStack, closing
@@ -176,6 +175,7 @@ class Main:
         # sys.argv[0] must be in QApplication's argv list.
         self.application = CanvasApplication(sys.argv[:1] + self.arguments)
         self.application.setWindowIcon(self.config.application_icon())
+        self.application.applicationPaletteChanged.connect(self.__reconfigure_stylesheet)
         # Update the arguments
         self.arguments = self.application.arguments()[1:]
         fix_set_proxy_env()
@@ -289,7 +289,7 @@ class Main:
         """Create the (initial) main window."""
         return CanvasMainWindow()
 
-    window: CanvasMainWindow
+    window: Optional[CanvasMainWindow] = None
 
     def setup_main_window(self):
         stylesheet = self.main_window_stylesheet()
@@ -376,6 +376,16 @@ class Main:
             sys.stderr = self.__stderr__
         if self.__stdout__ is not None:
             sys.stdout = self.__stdout__
+
+    def _main_windows(self) -> Iterable[CanvasMainWindow]:
+        first = self.window
+        return (*((first,) if first else ()), *CanvasMainWindow._instances)
+
+    def __reconfigure_stylesheet(self) -> None:
+        ssheet = self.main_window_stylesheet()
+        for inst in self._main_windows():
+            if inst.styleSheet() != ssheet:
+                inst.setStyleSheet(ssheet)
 
 
 def fix_win_pythonw_std_stream():

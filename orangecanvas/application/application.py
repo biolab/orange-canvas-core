@@ -110,6 +110,7 @@ else:
 
 class CanvasApplication(QApplication):
     fileOpenRequest = Signal(QUrl)
+    applicationPaletteChanged = Signal()
 
     __args = None
 
@@ -160,6 +161,8 @@ class CanvasApplication(QApplication):
                 self.fileOpenRequest.emit(event.url())
         elif event.type() == QEvent.PolishRequest:
             self.configureStyle()
+        elif event.type() == QEvent.Type.ApplicationPaletteChange:
+            self.applicationPaletteChanged.emit()
         return super().event(event)
 
     def exec(self) -> int:

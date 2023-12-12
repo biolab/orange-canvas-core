@@ -5,6 +5,9 @@ from functools import wraps
 from typing import Iterable
 from unittest.mock import patch, Mock
 
+from AnyQt.QtCore import Qt
+from AnyQt.QtGui import QPalette
+
 from orangecanvas import config
 from orangecanvas.application.canvasmain import CanvasMainWindow
 from orangecanvas.config import Config
@@ -135,3 +138,19 @@ class TestMainGuiCase(QAppTestCase):
             res = m.run(["-", "--no-welcome", "--no-splash", fname])
             CanvasMainWindow.open_scheme_file.assert_called_with(fname)
         self.assertEqual(res, 42)
+
+    @with_patched_main_application
+    def test_run_stylesheet_reconfigure(self):
+        m = Main()
+        m.parse_arguments(["-", "--config", f"{__name__}.TestConfig"])
+        m.window = m.create_main_window()
+        m.application = self.app
+
+        def setpalette(color):
+            self.app.setPalette(QPalette(color))
+            m._Main__reconfigure_stylesheet()
+
+        setpalette(Qt.white)
+        sheet = m.window.styleSheet()
+        setpalette(Qt.black)
+        self.assertNotEqual(sheet, m.window.styleSheet())
