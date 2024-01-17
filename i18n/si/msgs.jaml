@@ -1,0 +1,3610 @@
+__main__.py:
+    __main__: false
+config.py:
+    T: false
+    0.0: false
+    orangecanvas.widgets: false
+    orangecanvas.addon: false
+    keywords: false
+    orange: false
+    add-on: false
+    orangecanvas.examples: false
+    def `standard_location`:
+        Use QStandardPaths.writableLocation: false
+    class `Config`:
+        def `core_packages`:
+            orange-canvas-core >= 0.1a, < 0.2a: false
+        Bug Report: Poročila o napakah
+        Quick Start: Hiter začetek
+        Documentation: Uporabniška navodila
+        Screencasts: Zaslonski posnetki
+        Feedback: Povratne informacije
+    class `Default`:
+        biolab.si: false
+        Orange Canvas Core: false
+        def `application_icon`:
+            icons/orange-canvas.svg: false
+        def `splash_screen`:
+            icons/orange-canvas-core-splash.svg: false
+            svg: false
+            .: false
+            '#231F20': false
+        def `core_packages`:
+            orange-canvas-core >= 0.0, < 0.1a: false
+    def `init`:
+        Activating configuration for {}: false
+    startup/show-splash-screen: false
+    Show splash screen on startup: false
+    startup/show-welcome-screen: false
+    Show Welcome screen on startup: false
+    startup/load-crashed-workflows: false
+    Load crashed scratch workflows on startup: false
+    stylesheet: false
+    QSS stylesheet to use: false
+    schemeinfo/show-at-new-scheme: false
+    Show Workflow Properties when creating a new Workflow: false
+    mainwindow/scheme-margins-enabled: false
+    Show margins around the workflow view: false
+    mainwindow/show-scheme-shadow: false
+    Show shadow around the workflow view: false
+    mainwindow/toolbox-dock-exclusive: false
+    Should the toolbox show only one expanded category at the time: false
+    mainwindow/toolbox-dock-floatable: false
+    Is the canvas toolbox floatable (detachable from the main window): false
+    mainwindow/toolbox-dock-movable: false
+    Is the canvas toolbox movable (between left and right edge): false
+    mainwindow/toolbox-dock-use-popover-menu: false
+    'Use a popover menu to select a widget when clicking on a category ': false
+    button: false
+    mainwindow/widgets-float-on-top: false
+    Float widgets on top of other windows: false
+    mainwindow/number-of-recent-schemes: false
+    Number of recent workflows to keep in history: false
+    schemeedit/show-channel-names: false
+    Show channel names: false
+    schemeedit/show-link-state: false
+    Show link state hints.: false
+    schemeedit/enable-node-animations: false
+    Enable node animations.: false
+    schemeedit/freeze-on-load: false
+    Freeze signal propagation when loading a workflow.: false
+    quickmenu/trigger-on-double-click: false
+    Show quick menu on double click.: false
+    quickmenu/trigger-on-right-click: false
+    Show quick menu on right click.: false
+    quickmenu/trigger-on-space-key: false
+    Show quick menu on space key press.: false
+    quickmenu/trigger-on-any-key: false
+    quickmenu/show-categories: false
+    Show categories in quick menu.: false
+    logging/level: false
+    Logging level: false
+    logging/show-on-error: false
+    Show log window on error: false
+    logging/dockable: false
+    Allow log window to be docked: false
+    help/open-in-external-browser: false
+    Open help in an external browser: false
+    add-ons/allow-conda: false
+    Install add-ons with conda: false
+    add-ons/pip-install-arguments: false
+    Arguments to pass to "pip install" when installing add-ons.: false
+    network/http-proxy: false
+    HTTP proxy.: false
+    network/https-proxy: false
+    HTTPS proxy.: false
+    def `log_dir`:
+        darwin: false
+        ~/Library/Logs: false
+    def `widget_settings_dir`:
+        "'widget_settings_dir' is deprecated.": false
+        widgets: false
+    def `open_config`:
+        open_config was never used and will be removed in the future: false
+    def `save_config`:
+        save_config was never used and will be removed in the future: false
+main.py:
+    class `Main`:
+        def `parse_arguments`:
+            -style: false
+        def `splash_screen`:
+            startup/show-splash-screen: false
+            Helvetica: false
+            '#FFD39F': false
+        def `run_discovery`:
+            widget-registry.pck: false
+            rb: false
+            wb: false
+        def `run`:
+            'Loading paths from argv: %s': false
+            ' ,': false
+            def `record_path`:
+                'Path from FileOpen event: %s': false
+            def `open_request`:
+                pydevd.py: false
+                run_profiler.py: false
+            Restarting via exit code 96.: false
+        def `setup_logging`:
+            '%(asctime)s:%(levelname)s:%(name)s: %(message)s': false
+            -log-stream: false
+            canvas.log: false
+            w: false
+        def `setup_main_window`:
+            darwin: false
+        def `main_window_stylesheet`:
+            orange.qss: false
+            Switching default stylesheet to darkorange: false
+            darkorange.qss: false
+            Adding search path %r for prefix, %r: false
+        def `show_welcome_screen`:
+            startup/show-welcome-screen: false
+        def `setup_sys_redirections`:
+            -stdout: false
+            -stderr: false
+    def `fix_win_pythonw_std_stream`:
+        win32: false
+        pythonw.exe: false
+        w: false
+        utf-8: false
+        ignore: false
+    def `fix_set_proxy_env`:
+        fix_set_proxy_env is deprecated: false
+        http: false
+        https: false
+        network/: false
+        -proxy: false
+        _proxy: false
+    def `fix_macos_nswindow_tabbing`:
+        "'{__name__}.fix_macos_nswindow_tabbing()' is deprecated. Use ": false
+        "'orangecanvas.gui.utils.macos_set_nswindow_tabbing()' instead": false
+    def `breeze_dark`:
+        {__name__}'.breeze_dark()' has been moved to styles package.: false
+    def `make_file_handler`:
+        w: false
+        utf-8: false
+    def `arg_parser`:
+        def `log_level`:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            Invalid log level {!r}: false
+        'usage: %(prog)s [options] [workflow_file]': false
+        --no-discovery: false
+        store_true: false
+        Don't run widget discovery (use full cache instead): false
+        --force-discovery: false
+        Force full widget discovery (invalidate cache): false
+        --no-welcome: false
+        Don't show welcome dialog.: false
+        --no-splash: false
+        Don't show splash screen.: false
+        -l: false
+        --log-level: false
+        Logging level (0, 1, 2, 3, 4): false
+        --stylesheet: false
+        Application level CSS style sheet to use: false
+        --config: false
+        Configuration namespace: false
+        Deprecated: false
+        --qt: false
+        'Additional arguments for QApplication.\nDeprecated. ': false
+        List all arguments as normally to pass it to QApplication.: false
+        --style: false
+        'QStyle to use (deprecated: use -style)': false
+    __main__: false
+resources.py:
+    def `package`:
+        .: false
+    def `search_paths_from_description`:
+        search_paths: false
+    class `resource_loader`:
+        def `split_prefix`:
+            :: false
+        def `is_valid_prefixed`:
+            :: false
+        def `open`:
+            rb: false
+            Cannot find %r: false
+    class `icon_loader`:
+        icons/default-widget.svg: false
+        def `icon_glob`:
+            _*: false
+        def `is_icon_glob`:
+            _*: false
+        def `get`:
+            .svg: false
+            current-color-scheme: false
+    def `load_styled_svg_icon`:
+        icons/{name}: false
+application/aboutdialog.py:
+    '\
+<center>
+<h4>{name}</h4>
+<p>Version: {version}</p>
+</center>
+': '\
+<center>
+<h4>{name}</h4>
+<p>Različica: {version}</p>
+</center>
+'
+    class `AboutDialog`:
+        def `__init__`:
+            darwin: false
+application/addons.py:
+    def `description_rich_text`:
+        Description: false
+        Summary: false
+        Description-Content-Type: false
+        text/x-rst: false
+        text/plain: false
+    class `ActionItem`:
+        def `data`:
+            Update: Posodobi
+            Install: Namesti
+            Uninstall: Odstrani
+    class `PluginsModel`:
+        def `__init__`:
+            Name: false
+            Version: false
+            Action: false
+        def `createRow`:
+            Summary: false
+            <: false
+            ->: false
+            {} {} {}: false
+    class `AddonManagerDialog`:
+        def `__init__`:
+            top-hbox-layout: false
+            filter-edit: false
+            Filter...: true
+            Add more...: Dodaj druge...
+            Add an add-on not listed below: Namesti dodatke, ki niso našteti spodaj
+            add-ons-view: false
+            description-text-area: false
+        def `start`:
+            Retrieving package list: Prejemam seznam dodatkov
+        def `__on_query_done`:
+            def `network_warning`:
+                Error fetching package list: Napaka pri prejemu seznama dodatkov
+                There's an issue with the internet connection.: Težava z mrežno povezavo.
+                Error: Napaka
+                Please check you are connected to the internet.\n\n: Preverite delovanje omrežne povezave.\n\n
+                'If you are behind a proxy, please set it in Preferences ': Če uporabljate dostop prek proxyja, ga lahko nastavite v Nastavitve
+                - Network.: ' - Povezava'
+        def `itemState`:
+            Action: false
+        def `setItemState`:
+            Action: false
+        def `runQueryAndAddResults`:
+            Future[List[_QueryResult]]: false
+            Running query: Poizvedujem
+        def `__run_add_package_dialog`:
+            Add add-on by name: Dodaj dodatek po imenu
+            Package name: Ime dodatka
+            'Enter a package name as displayed on ': 'Vnesi ime dodatka, kot je '
+            PyPI (capitalization is not important): naveden na PyPI
+            Name:: ime
+            Add: Dodaj
+        def `__show_error_for_query`:
+            Error: Napaka
+        def `__on_add_query_finish`:
+            Query error:: Napak pri izvajanju:
+            Failed to query package index: Napaka pri poizvedovanju za dodatki
+            The following packages were not found:<ul>: Naslednji dodatki niso najdeni:<ul>
+            <li>{}<li/>: false
+            <ul/>: false
+        def `progressDialog`:
+            Retrieving package list: Prejemam seznam dodatkov
+            Progress: Napredek
+        .zip: false
+        .whl: false
+        .tar.gz: false
+        def `dropEvent`:
+            Name: false
+            Version: false
+            Summary: false
+            Description: false
+            Description-Content-Type: false
+            Requires-Dist: false
+        def `__accepted`:
+            Warning: Opozorilo
+            This action will upgrade some core packages:\n: S tem boste posodobili osnovne dele:\n
+            \n: false
+            Do you want to continue?: Želite nadaljevati?
+            ::InstallerThread: false
+            Installing: Nameščam
+        def `__on_installer_error`:
+            An error occurred while running a subprocess: Napaka ob izvajanju opravila
+            Error: Napaka
+            {} exited with non zero status.: Ukaz {} se je končal z napako.
+        def `__on_installer_finished`:
+            Orange: false
+            def `message_restart`:
+                Information: Obvestilo
+                {} needs to be restarted for the changes to take effect.: Za dokončanje se mora {} zagnati znova.
+                Press OK to restart {} now.: Pritisnite OK, da se {} ponovno zažene takoj.
+                Close later: Zapri kasneje
+            def `restart`:
+                Restart Cancelled: Ponovni zagon prekinjen
+                Changes will be applied on {}'s next restart: Spremembe bodo uveljavljene, ko se {} požene naslednjič.
+    def `main`:
+        --config: false
+        CLASSNAME: false
+        orangecanvas.config.default: false
+        The configuration namespace to use: false
+    __main__: false
+application/application.py:
+    def `fix_qt_plugins_path`:
+        :qt/etc/qt.conf: false
+        Paths/Prefix: false
+        pyqt5: false
+        pyqt6: false
+        pyside2: false
+        pyside6: false
+    setHighDpiScaleFactorRoundingPolicy: false
+    Round: false
+    Ceil: false
+    Floor: false
+    RoundPreferFloor: false
+    PassThrough: false
+    Unset: false
+    class `CanvasApplication`:
+        def `__init__`:
+            AA_EnableHighDpiScaling: false
+            AA_UseHighDpiPixmaps: false
+            setHighDpiScaleFactorRoundingPolicy: false
+            -style: false
+            styleHints: false
+            setShowShortcutsInContextMenus: false
+        def `argumentParser`:
+            -style: false
+            -colortheme: false
+            -enable-high-dpi-scaling: false
+            setHighDpiScaleFactorRoundingPolicy: false
+            QT_SCALE_FACTOR_ROUNDING_POLICY: false
+            -scale-factor-rounding-policy: false
+            -use-high-dpi-pixmaps: false
+        def `parseArguments`:
+            :: false
+        def `configureStyle`:
+            application-style: false
+            style-name: false
+            palette: false
+    def `set_restart_command`:
+        Disabling application restart: false
+        'Enabling application restart with: %r': false
+application/canvasmain.py:
+    class `CanvasMainWindow`:
+        def `__init__`:
+            untitled: false
+            mainwindow/recent-items: false
+            title: false
+            path: false
+        def `setup_ui`:
+            __dummy_top_toolbar: false
+            __dummy_bottom_toolbar: false
+            main-area-dock: false
+            canvas-tool-dock: false
+            canvas-toolbox: false
+            'h3, a {color: orange;}': false
+            Select a widget to show its description.: Ob izboru gradnika se pokaže njegov opis.
+            <br/><br/>: false
+            "See <a href='action:examples-action'>workflow examples</a>, ": "Poglejte <a href='action:examples-action'>primere delotokov</a>, "
+            "<a href='action:screencasts-action'>YouTube tutorials</a>, ": "<a href='action:screencasts-action'>vodiče na YouTube</a>, "
+            or open the <a href='action:welcome-action'>welcome screen</a>.: ali odprite <a href='action:welcome-action'>začetno okno.</a>.
+            Show Help: Pokaži pomoč
+            Info.svg: false
+            canvas-quick-dock: false
+            Grid.svg: false
+            Text Size.svg: false
+            Arrow.svg: false
+            Pause.svg: false
+            Document Info.svg: false
+            Log: Seznam sporočil
+            output-dock: false
+            Help: Pomoč
+            help-dock: false
+            help: false
+            help-view-cache: false
+        def `setup_actions`:
+            New: Nov
+            action-new: false
+            Open a new workflow.: Odpri nov delotok.
+            New.svg: false
+            Open: Odpri
+            action-open: false
+            Open a workflow.: Odpri delotok.
+            Open.svg: false
+            Open and Freeze: Odpri in zamrzni
+            action-open-and-freeze: false
+            'Open a new workflow and freeze signal ': Odpri delotok z ustavljenim tokom
+            propagation.: signalov.
+            Ctrl+Alt+O: false
+            Close Window: Zapri okno
+            action-close-window: false
+            Close the window: Zapri okno
+            Save: Shrani
+            action-save: false
+            Save current workflow.: Shrani trenutni delotok.
+            Save As ...: Shrani kot ...
+            action-save-as: false
+            Save current workflow as.: Shrani trenutni delotok z novi imenom
+            Quit: Zapri
+            quit-action: false
+            Welcome: Začetno okno
+            welcome-action: false
+            Show welcome screen.: Pokaži začetno okno
+            Get Started: Začnimo
+            get-started-action: false
+            View a 'Get Started' introduction.: Poglej začetno predstavitev
+            Documentation.svg: false
+            Quick Start: Hitri uvod
+            Video Tutorials: Video vodiči
+            screencasts-action: false
+            View video tutorials: Poglej video posnetke
+            YouTube.svg: false
+            Screencasts: Zaslonski posnetki
+            Documentation: Navodila
+            documentation-action: false
+            View reference documentation.: Poglej navodila
+            Example Workflows: Primeri delotokov
+            examples-action: false
+            Browse example workflows.: Prebrskaj primere delotokov
+            Examples.svg: false
+            About: O programu
+            about-action: false
+            Show about dialog.: Pokaži opis programa
+            recent-action-group: false
+            Browse Recent: Prebrskaj nedavne
+            recent-action: false
+            Browse and open a recent workflow.: Odpri nedavno uporabljeni delotok
+            Ctrl+Shift+R: false
+            Recent.svg: false
+            Reload Last Workflow: Naloži zadnji delotok
+            reload-last-action: false
+            Reload last open workflow.: Ponovno naloži zadnji uporabljeni delotok
+            Ctrl+R: false
+            Clear Menu: Pobriši seznam
+            clear-recent-menu-action: false
+            Clear recent menu.: Pobriši seznam zadnjih delotokov
+            Workflow Info: Podatki o delotoku
+            show-properties-action: false
+            Show workflow properties.: Pokaži podatke o delotoku.
+            Ctrl+I: false
+            Document Info.svg: false
+            Settings: Nastavitve
+            canvas-settings-action: false
+            Set application settings.: Nastavitve programa
+            &Add-ons...: Dodatki...
+            canvas-addons-action: false
+            Manage add-ons.: Upravljaj z dodatki
+            &Log: Dnevnik sporočil
+            Show application standard output.: Pokaži izpise programa
+            Minimize: Pomanjšaj
+            Ctrl+M: false
+            darwin: false
+            Zoom: Povečaj
+            application-zoom: false
+            Freeze: Zamrzni
+            Shift+F: false
+            signal-freeze-action: false
+            Freeze signal propagation (Shift+F): Zamrzni tok signalov (Shift+F)
+            Pause.svg: fals
+            Expand Tool Dock: Razširi polico z gradniki
+            toggle-tool-dock-expand: false
+            Ctrl+Shift+D: false
+            Show Workflow Margins: Rob okrog delotoka
+            Show margins around the workflow view.: Pokaži rob okrog okna z delotokom
+            Display Widgets on Top: Obdrži gradnike na vrhu
+            Widgets are always displayed above other windows.: Gradniki so vedno nad drugimi okni
+        def `setup_menu`:
+            darwin: false
+            &File: Datoteka
+            file-menu: false
+            Open Recent: Odpri nedavne
+            recent-menu: false
+            open-actions-separator: false
+            close-window-actions-separator: false
+            save-actions-separator: false
+            {} ('{}'): false
+            &View: Pogled
+            view-menu: false
+            window-groups-action: false
+            workflow-window-groups-actions-separator: false
+            view-visible-actions-separator: false
+            view-zoom-actions-separator: false
+            &Options: Nastavitve
+            options-menu: false
+            Window: Okna
+            window-menu: false
+            bring-widgets-to-front-action: false
+            &Help: Pomoč
+            help-menu: false
+        def `restore`:
+            mainwindow: false
+            canvasdock/expanded: false
+            toolbox-dock-floatable: false
+            toolbox-dock-exclusive: false
+            scheme-margins-enabled: false
+            output-dock/is-visible: false
+            quick-help/visible: false
+            widgets-float-on-top: false
+        def `__update_window_title`:
+            Untitled [*]: Nepoimenovan [*]
+        def `setWindowFilePath`:
+            def `icon_for_path`:
+                QIcon: false
+            darwin: false
+            ' ': false
+        def `set_document_title`:
+            untitled: nepoimenovan
+            [*]: false
+        def `set_widget_registry`:
+            mainwindow/widgettoolbox/state: false
+        def `on_quick_category_action`:
+            mainwindow/toolbox-dock-use-popover-menu: false
+        def `new_workflow_window`:
+            schemeinfo/show-at-new-scheme: false
+        def `open_scheme_file`:
+            freeze: false
+        def `_open_workflow_dialog`:
+            mainwindow: false
+            last-scheme-dir: false
+            Open Orange Workflow File: Odpri delotok
+            Orange Workflow (*.ows): Orangov delotok (*.ows)
+            def `record_last_dir`:
+                last-scheme-dir: false
+        def `load_scheme`:
+            rb: false
+            Error: Napaka
+            Unsupported format version: Nepodprta različica
+            'The file was saved in a format not supported by this ': 'Datoteka je shranjena v obliki, ki je ta program '
+            application.: ne podpira.
+            "Could not open: '{}'": Ne morem odpreti: '{}'
+            'Error was: {}': Napaka: {}
+            widget_manager: false
+        def `new_scheme_from`:
+            rb: false
+            Error: Napaka
+            "Could not open: '{}'": Ne morem odpreti: '{}'
+            'Error was: {}': Napaka: {}
+        def `new_scheme_from_contents_and_path`:
+            basedir: false
+            Could not load an Orange Workflow file.: Ne morem naložiti datoteke z delotokom.
+            Error: Napaka
+            'An unexpected error occurred ': 'Nepričakovana napaka ob '
+            while loading '%s'.: branju '%s'.
+            Could not load the full workflow.: Ne morem naložiti celotnega delotoka.
+            Workflow Partially Loaded: Delotok je naložen delno.
+            'Some of the nodes/links could not be reconstructed ': 'Nekaterih gradnikov ali povezav ni mogoče postaviti, '
+            and were omitted from the workflow.: zato niso vključene v delotok.
+        def `check_requires`:
+            <h4>Required packages:</h4><ul>: <h4>Potrebni dodatki:</h4><ul>
+            <li>{}</li>: false
+            </ul>: false
+            install-requirements-message-box: false
+            Install Additional Packages: Namesti dodatne pakete
+            'Workflow you are trying to load contains widgets ': 'Delotok vključuje gradnike '
+            from missing add-ons.: iz manjkajočih dodatkov.
+            <br/>: false
+            Would you like to install them now?: Jih namestim?
+            'After installation you will have to restart the ': 'Po namestitvi bo potrebno ponovno '
+            application and reopen the workflow.: zagnati program in odpreti delotok.
+            Install add-ons: Namesti dodatke
+            Ignore missing widgets: Izpusti manjkajoče gradnike
+            Load partial workflow by omitting missing nodes and links.: Naloži del delotoka in izpusti manjkajoče gradnike in povezave.
+            Please Restart: Ponovni zagon
+            Please restart and reopen the file.: Ponovno zaženi in odpri delotok.
+        def `install_requirements`:
+            Install required packages: Nameščanje potrebnih dodatkov
+        def `reload_last`:
+            mainwindow/recent-items: false
+            path: false
+        def `set_scheme`:
+            signal_manager: false
+            widget_manager: false
+        def `__title_for_scheme`:
+            untitled: nepoimenovan
+        def `ask_save_changes`:
+            Do you want to save changes made to %s?: Shranim spremembe delotoka %s?
+            Do you want to save this workflow?: Shranim delotok?
+            Save Changes?: Shranim spremembe?
+            Your changes will be lost if you do not save them.: Spremembe ne bodo ohranjene, če jih ne shranite.
+        def `save_scheme_as`:
+            mainwindow: false
+            last-scheme-dir: false
+            .ows: false
+            Save Orange Workflow File: Shranjevanje delotoka
+            Orange Workflow (*.ows): Orangov delotok (*.ows)
+        def `save_scheme_to`:
+            untitled: nepoimenovan
+            basedir: false
+            Error saving %r to %r: false
+            'An error occurred while trying to save workflow ': Napaka pri shranjevanju delotoka
+            '"%s" to "%s"': '"%s" v "%s"'
+            Error saving %s: Napaka pri shranjevanju %s
+            wb: false
+            %s saving '%s': false
+            'Workflow "%s" could not be saved. The path does ': 'Delotoka "%s" ni mogoče shraniti. '
+            not exist: Pot ne obstaja.
+            Choose another location.: Izberite drugo mapo.
+            'Workflow "%s" could not be saved. You do not ': 'Delotoka ni mogoče shraniti, ker nimate pravice '
+            have write permissions.: pisati v izbrano mapo.
+            'Change the file system permissions or choose ': 'Spremenite nastavitve mape ali pa izberite '
+            another location.: drugo mapo.
+            Workflow "%s" could not be saved.: Delotoka "%s" ni mogoče shraniti.
+        def `save_swp_to`:
+            wb: false
+            Could not write swp file %r.: false
+        def `clear_swp`:
+            def `remove`:
+                'Could not delete swp file: %s': false
+        def `ask_load_swp_if_exists`:
+            startup/load-crashed-workflows: false
+        def `ask_load_swp`:
+            Restore unsaved changes from crash?: Obnovim neshranjene spremembe?
+            Orange: false
+            Restore Changes?: Obnovitev neshranjenih sprememb.
+            {} seems to have crashed at some point.\n: Videti je, da se je {} nepričakovano zaprl.\n
+            Changes will be discarded if not restored now.: Če sprememb ne obnovite, bodo zavržene.
+        def `load_swp_from`:
+            rb: false
+            'Could not load swp file: %r': false
+            Could not load restore data.: Ne morem obnoviti podatkov.
+            Error: Napaka
+        def `recent_scheme`:
+            mainwindow/recent-items: false
+            title: false
+            path: false
+            Recent Workflows: Nedavni delotoki
+            '<h3 style="font-size: 26px">\n': false
+            {0}\n: false
+            </h3>: false
+        def `examples_dialog`:
+            Example Workflows: Primeri delotokov
+            '<h3 style="font-size: 26px">\n': false
+            {0}\n: false
+            </h3>: false
+        def `welcome_dialog`:
+            Welcome to {}: Dobrodošli v programu {}
+            Welcome: Dobrodošli
+            Feedback: false
+            New: Nov
+            Open a new workflow.: Odpri nov delotok
+            New.svg: false
+            Open: Odpri
+            welcome-action-open: false
+            Open a workflow.: Odpri nov delotok
+            Open.svg: false
+            Recent: Nedavni
+            welcome-recent-action: false
+            Browse and open a recent workflow.: Prebrskaj in odpri nedavne delotoke
+            Ctrl+Shift+R: false
+            Recent.svg: false
+            Examples: Primeri
+            welcome-examples-action: false
+            Browse example workflows.: Prebrskaj primere delotokov
+            Examples.svg: false
+            light-grass: false
+            light-orange: false
+            startup/show-welcome-screen: false
+        def `scheme_properties_dialog`:
+            schemeinfo/show-at-new-scheme: false
+            Workflow Info: Podatki o delotoku
+        def `show_scheme_properties`:
+            Change Info: Spremeni podatke
+        def `set_signal_freeze`:
+            signal_manager: false
+            widget_manager: false
+        def `open_canvas_settings`:
+            Preferences: Nastavitve
+        def `open_addons`:
+            Orange: false
+            'Add-ons: insufficient permissions': Dodatki: nezadostne pravice
+            'Insufficient permissions to install add-ons. Try starting {name} ': Nimate pravice nameščati dodatkov. Poskusite zagnati {name}
+            as a system administrator or install {name} in user folders.: kot sistemski administrator ali pa namestiti {name} v uporabniško mapo.
+            Installer: Nameščanje
+        def `add_recent_scheme`:
+            {} ('{}'): false
+            mainwindow: false
+            recent-items: false
+            title: false
+            path: false
+        def `clear_recent_schemes`:
+            mainwindow/recent-items: false
+        def `closeEvent`:
+            mainwindow: false
+            geometry: false
+            state: false
+            canvasdock/expanded: false
+            scheme-margins-enabled: false
+            widgettoolbox/state: false
+            quick-help/visible: false
+            widgets-float-on-top: false
+        def `showEvent`:
+            mainwindow: false
+            geometry: false
+            state: false
+        def `__handle_help_query_response`:
+            There is no documentation for this widget.: Pomoč za ta gradnik ni na voljo.
+            No help found: Temu gradniku ni pomoči
+            no-help-found-message-box: false
+        def `whatsThisClickedEvent`:
+            help: false
+            search: false
+            def `run`:
+                No help topic found for %r: false
+            action: false
+            No target action found for %r: false
+        def `show_help`:
+            'Setting help to url: %r': false
+            help/open-in-external-browser: false
+        def `__update_from_settings`:
+            mainwindow: false
+            toolbox-dock-floatable: false
+            toolbox-dock-exclusive: false
+            num-recent-schemes: false
+            widgets-float-on-top: false
+            quickmenu: false
+            trigger-on-double-click: false
+            trigger-on-right-click: false
+            trigger-on-space-key: false
+            trigger-on-any-key: false
+            schemeedit: false
+            show-channel-names: false
+            open-anchors-on-hover: false
+            enable-node-animations: false
+    def `index`:
+        key: false
+        predicate: false
+        %r not in sequence: false
+    class `UrlDropEventFilter`:
+        def `acceptsDrop`:
+            file: false
+            .ows: false
+    K: false
+    V: false
+    def `render_error_details`:
+        Missing node definitions:: Manjkajoči gradniki:
+        '  \N{BULLET} ': false
+        Incompatible connection types:: Nezdružljive vrste povezav:
+        Unqualified errors:: Ostale napake:
+        \n: false
+application/canvastooldock.py:
+    class `SplitterResizer`:
+        def `__init__`:
+            size_: false
+            toggle-expanded: false
+        def `setSplitterAndWidget`:
+            Widget must be in a splitter.: false
+        def `toogleExpandedAction`:
+            "'toogleExpandedAction is deprecated, use 'toggleExpandedAction' ": false
+            instead.: false
+    class `CanvasToolDock`:
+        def `__setupUi`:
+            quick-help: false
+        def `toogleQuickHelpAction`:
+            "'toogleQuickHelpAction' is deprecated, use ": false
+            "'toggleQuickHelpAction' instead.": false
+    class `QuickCategoryToolbar`:
+        def `setColumnCount`:
+            Cannot set the column count on a Toolbar: false
+        def `createButtonForAction`:
+            quick-category-toolbutton: false
+            QToolButton {\n: false
+            '    background: %s;\n': false
+            '    border: none;\n': false
+            '    border-bottom: 1px solid palette(mid);\n': false
+            }: false
+    class `CategoryPopupMenu`:
+        def `__init__`:
+            darwin: false
+        def `setCategoryItem`:
+            setCategoryItem is deprecated. Use the more general 'setModel': false
+            and setRootIndex: false
+        def `exec_`:
+            exec_ is deprecated, use exec: false
+        def `__onDragStarted`:
+            application/vnd.orange-canvas.registry.qualified-name: false
+            utf-8: false
+application/examples.py:
+    def `list_workflows`:
+        def `is_ows`:
+            .ows: false
+    def `workflows`:
+        tutorials_entry_points: false
+        Could not load examples from %r: false
+        'A callable entry point (%r) raised an ': false
+        unexpected error.: false
+    class `ExampleWorkflow`:
+        def `abspath`:
+            cannot resolve resource to an absolute name: false
+        def `stream`:
+            rb: false
+application/outputview.py:
+    class `TerminalView`:
+        def `sizeHint`:
+            X: false
+    class `TerminalTextDocument`:
+        def `__init__`:
+            defaultFont: false
+        TextStream: false
+        Formatter: false
+        def `connectedStreams`:
+            TextStream: false
+        def `connectStream`:
+            TextStream: false
+            "'charformat' and kwargs cannot be used together": false
+        def `disconnectStream`:
+            TextStream: false
+        def `clone`:
+            TerminalTextDocument: false
+    class `OutputView`:
+        def `formated`:
+            "'Use 'formatted'": false
+    class `Formatter`:
+        def `formated`:
+            Use 'formatted': false
+    class `formater`:
+        def `__init__`:
+            'Deprecated: Renamed to Formatter.': false
+    class `TextStream`:
+        def `write`:
+            write operation on a closed stream.: false
+        def `writelines`:
+            write operation on a closed stream.: false
+        def `flush`:
+            write operation on a closed stream.: false
+        def `detach`:
+            detach: false
+        def `read`:
+            read: false
+        def `readline`:
+            readline: false
+        def `readlines`:
+            readlines: false
+        def `fileno`:
+            fileno: false
+        def `seek`:
+            seek: false
+        def `tell`:
+            tell: false
+    class `ExceptHook`:
+        def `__call__`:
+            ' Exception': false
+            ' (in non-GUI thread)': false
+            {:-^79}\n: false
+            ' ': false
+            -: false
+            \n: false
+application/schemeinfo.py:
+    class `SchemeInfoEdit`:
+        def `__setupUi`:
+            untitled: nepoimenovan
+            Title: Naslov
+            Description: Opis
+        def `setScheme`:
+            untitled: nepoimenovan
+        def `commit`:
+            untitled: nepoimenovan
+    class `SchemeInfoDialog`:
+        def `__setupUi`:
+            Workflow Info: Podatki o delotoku
+            <h3>{0}</h3>: false
+            heading: false
+            auto-show-container: false
+            Show when I make a New Workflow.: Pokaži ob sestavljanju novega delotoka
+            auto-show-check: false
+            'You can also edit Workflow Info later ': ' Te podatke lahko urejate tudi kasneje '
+            (File -> Workflow Info).: (Datoteka -> Podatki o delotoku).
+            auto-show-info: false
+application/settings.py:
+    class `UserSettingsModel`:
+        def `__init__`:
+            Name: false
+            Status: false
+            Type: false
+            Value: false
+        def `data`:
+            Default: false
+            User: false
+        def `setData`:
+            Failed to set value (%r) for key %r: false
+    _State: false
+    visible: false
+    position: false
+    class `UserSettingsDialog`:
+        def `__init__`:
+            darwin: false
+        def `__setupUi`:
+            General: Splošno
+            General Options: Splošne nastavitve
+            nodes: false
+            Enable node animations: Animiraj gradnike
+            enable-node-animations: false
+            'Enable shadow and ping animations for nodes ': 'Dodaj sence in animacijo ob dotiku gradnikov '
+            in the workflow.: v delotoku.
+            Open anchors on hover: Pokaži vhode in izhode ob prehodu miške
+            open-anchors-on-hover: false
+            'Open/expand node anchors on mouse hover (if unchecked the ': 'Razširi in poimenuj vhode in izhode ob povezovanju '
+            anchors are expanded when Shift key is pressed).: (če ni vključeno, dosežemo isti učinek s pritiskom tipke Shift)
+            checked: false
+            schemeedit/enable-node-animations: false
+            schemeedit/open-anchors-on-hover: false
+            Nodes: Gradniki
+            links: false
+            Show channel names between widgets: Pokaži imena povezav med gradniki
+            show-channel-names: false
+            'Show source and sink channel names ': 'Pokaži ime izhoda in vhoda '
+            over the links.: nad povezavami.
+            schemeedit/show-channel-names: false
+            Links: Povezave
+            quickmenu-options: false
+            Open on double click: Odpri z dvojnim klikom
+            'Open quick menu on a double click ': Ob dvojnem kliku na praznem mestu
+            on an empty spot in the canvas: odpri menu za izbor gradnikov
+            Open on right click: Odpri z desnim klikom
+            'Open quick menu on a right click ': Ob kliku na desno tipko miške odpri menu za izbor gradnikov.
+            Open on space key press: Odpri s preslednico
+            'Open quick menu on Space key press ': 'Ob pritisku na preslednico odpri menu za izbor gradnikov, '
+            while the mouse is hovering over the canvas.: če se miška nahaja na platnu.
+            Open on any key press: Odpri s poljubno tipko
+            'Open quick menu on any key press ': Odpri menu s pritiskom na poljubno tipko
+            Show categories: Pokaži kategorije
+            'In addition to searching, allow filtering ': Poleg iskanja omogoči iskanje po kategorijah.
+            by categories.: ""
+            quickmenu/trigger-on-double-click: false
+            quickmenu/trigger-on-right-click: false
+            quickmenu/trigger-on-space-key: false
+            quickmenu/trigger-on-any-key: false
+            quickmenu/show-categories: false
+            Quick menu: Hitri menu
+            startup-group: false
+            Show splash screen: Pokaži pozdravno okno
+            show-splash-screen: false
+            Show welcome screen: Pokaži začetno okno
+            show-welcome-screen: false
+            Load crashed scratch workflows: Po nepričakovanem zaprtju ponovno naloži delotok
+            load-crashed-workflows: false
+            startup/show-splash-screen: false
+            startup/show-welcome-screen: false
+            startup/load-crashed-workflows: false
+            On startup: Ob zagonu
+            toolbox-group: false
+            Only one tab can be open at a time: Naenkrat kaži le eno kategorijo
+            mainwindow/toolbox-dock-exclusive: false
+            Tool box: Polica z gradniki
+            &Style: Slog
+            Application style: Slog aplikacije
+            selectedStyle_: false
+            application-style/style-name: false
+            selectedPalette_: false
+            application-style/palette: false
+            Output: Izhod
+            Output Redirection: Preusmeritev izhoda
+            Critical: Kritična
+            Error: Napake
+            Warn: Opozorila
+            Info: Informacije
+            Debug: Razhroščevanje
+            currentIndex: false
+            logging/level: false
+            Logging: Prikaži sporočila
+            Open in external browser: Odpri v zunanjem brskalniku
+            open-in-external-browser: false
+            help/open-in-external-browser: false
+            Help window: Okno s pomočjo
+            Categories: Katerogije
+            Add-ons: Dodatki
+            Settings related to add-on installation: Nastavitve, povezane z dodatki
+            conda-group: false
+            Install add-ons with conda: Dodatke nameščaj s condo
+            allow-conda: false
+            add-ons/allow-conda: false
+            Conda: true
+            Pip: true
+            Pip install arguments:: Argumenti za pip:
+            text: false
+            add-ons/pip-install-arguments: false
+            Network: Omrežje
+            Settings related to networking: Nastavitve povezane z omrežjem
+            network/http-proxy: false
+            HTTP proxy:: true
+            network/https-proxy: false
+            HTTPS proxy:: true
+        def `reset`:
+            Error reseting %r: false
+        def `exec_`:
+            exec_ is deprecated, use exec: false
+    class `StyleConfigWidget`:
+        windowsvista: false
+        Windows (default): Windows (privzeto)
+        macintosh: false
+        macOS (default): macOS (privzeto)
+        windows: false
+        MS Windows 9x: false
+        def `__init__`:
+            windows: false
+            fusion: false
+            Default: Privzeto
+            style-cb: false
+            palette-cb: false
+            Breeze Light: false
+            breeze-light: false
+            Breeze Dark: false
+            breeze-dark: false
+            Zion Reversed: false
+            zion-reversed: false
+            Dark: Temno
+            dark: false
+            Style: Slog
+            Color theme: Barvna tema
+            <small>Changes will be applied on next application startup.</small>: <small>Spremembe bodo uveljavljene po ponovnem zagonu.</small>
+        def `_update_colors_enabled_state`:
+            fusion: false
+            windows: false
+    def `category_state`:
+        mainwindow/categories/{0}/visible: false
+        mainwindow/categories/{0}/position: false
+    def `save_category_state`:
+        mainwindow/categories/{0}/visible: false
+        mainwindow/categories/{0}/position: false
+application/welcomedialog.py:
+    class `DecoratedIconEngine`:
+        def `paint`:
+            QPainter: false
+        def `clone`:
+            QIconEngine: false
+    '
+WelcomeActionButton {
+    border: 1px solid transparent;
+    border-radius: 10px;
+    font-size: 13px;
+    icon-size: 75px;
+}
+WelcomeActionButton:pressed {
+    background-color: palette(highlight);
+    color: palette(highlighted-text);
+}
+WelcomeActionButton:focus {
+    border: 1px solid palette(highlight);
+}
+': false
+    class `WelcomeActionButton`:
+        def `__init__`:
+            QAbstractButton: false
+    class `WelcomeDialog`:
+        def `__init__`:
+            showAtStartup: false
+            feedbackUrl: false
+        def `setupUi`:
+            bottom-bar: false
+            Show at startup: Pokaži ob zagonu
+        def `setFeedbackUrl`:
+            Help us improve!: Pomagaj, da bomo še boljši
+            <a href="{url}">{text}</a>: false
+        def `addRow`:
+            light-orange: false
+        def `insertRow`:
+            light-orange: false
+            icon-row: false
+        def `insertAction`:
+            light-orange: false
+        def `createButton`:
+            light-orange: false
+application/widgettoolbox.py:
+    class `WidgetToolGrid`:
+        def `__startDrag`:
+            application/vnd.orange-canvas.registry.qualified-name: false
+            utf-8: false
+    class `WidgetToolBox`:
+        def `__init__`:
+            Search.svg: false
+            Search: Iskanje
+            filter-edit-line: false
+            Filter...: Filtriranje...
+            Filter/search the list of available widgets.: Filtriranje/iskanje po seznamu razpoložljivih gradnikov.
+            Open all: Odpri vse
+            Close all: Zapri vse
+        def `__insertItem`:
+            tab-title: false
+            widgets-toolbox-grid: false
+        def `__openAllTabsForFilter`:
+            !__exclusive: false
+        def `__restoreAllTabsForFilter`:
+            !__exclusive: false
+application/utils/addons.py:
+    https://pypi.org/pypi/{name}/json: false
+    A: false
+    B: false
+    def `prettify_name`:
+        -: false
+        orange: false
+        orange3: false
+        ' ': false
+        (?<!^)((?<![\s\d])[A-Z][a-z]|(?<=[a-z])[A-Z]): false
+        ' \1': false
+    class `Installable`:
+        Installable: false
+        name: false
+        version: false
+        summary: false
+        description: false
+        package_url: false
+        release_urls: false
+        ReleaseUrl: false
+        requirements: false
+        description_content_type: false
+        force: false
+    class `ReleaseUrl`:
+        ReleaseUrl: false
+        filename: false
+        url: false
+        size: false
+        python_version: false
+        package_type: false
+    class `Available`:
+        Available: false
+        installable: false
+    class `Installed`:
+        Installed: false
+        installable: false
+        local: false
+        Distribution: false
+        required: false
+        constraint: false
+    def `get_meta_from_archive`:
+        def `is_metadata`:
+            PKG-INFO: false
+            METADATA: false
+        .zip: false
+        .whl: false
+        utf-8: false
+        .tar.gz: false
+        .tgz: false
+    def `installable_from_json_response`:
+        info: false
+        name: false
+        version: false
+        0: false
+        summary: false
+        description: false
+        description_content_type: false
+        package_url: false
+        releases: false
+        filename: false
+        url: false
+        size: false
+        python_version: false
+        packagetype: false
+        requires_dist: false
+    def `_session`:
+        networkcache: false
+        requests.sqlite: false
+        sqlite: false
+        "Cache file creation/opening failed with: '{str(ex)}'. ": false
+        Using requests.Session instead of cached session.: false
+    def `list_available_versions`:
+        def `getname`:
+            info: false
+            name: false
+    def `have_install_permissions`:
+        purelib: false
+        test_write_: false
+        w: false
+    class `Command`:
+        Install: Namesti
+        Upgrade: Posodobi
+        Uninstall: Odstrani
+    class `CommandFailed`:
+        def `__init__`:
+            ' ': false
+    class `Installer`:
+        def `_next`:
+            Installing {}: Nameščanje {}
+            Upgrading {}: Posodabljanje {}
+            Uninstalling {}: Odstranjevanje {}
+            'Command failed: python {}': Ukaz ni uspel: python {}
+    class `PipInstaller`:
+        def `__init__`:
+            add-ons/pip-install-arguments: false
+        def `install`:
+            python: false
+            -m: false
+            pip: false
+            install: false
+            --upgrade: false
+            --upgrade-strategy=only-if-needed: false
+            http://: false
+            https://: false
+            =={}: false
+        def `upgrade`:
+            python: false
+            -m: false
+            pip: false
+            install: false
+            --upgrade: false
+            --upgrade-strategy=only-if-needed: false
+            http://: false
+            https://: false
+            =={}: false
+        def `uninstall`:
+            python: false
+            -m: false
+            pip: false
+            uninstall: false
+            --yes: false
+    class `CondaInstaller`:
+        def `__init__`:
+            add-ons/allow-conda: false
+        def `_find_conda`:
+            conda: false
+            Scripts: false
+            conda.bat: false
+            CONDA_PREFIX: false
+            CONDA_DEFAULT_ENV: false
+        def `install`:
+            ={}: false
+            install: false
+            --yes: false
+            --quiet: false
+            --satisfied-skip-solve: false
+        def `upgrade`:
+            ={}: false
+            install: false
+            --yes: false
+            --quiet: false
+            --satisfied-skip-solve: false
+        def `uninstall`:
+            uninstall: false
+            --yes: false
+    def `run_command`:
+        Running %s: false
+        ' ': false
+        python: false
+    def `run_process`:
+        subprocess.Popen: false
+        file: false
+canvas/__init__.py:
+    scene: false
+    layout: false
+    view: false
+    items: false
+canvas/layout.py:
+    class `AnchorLayout`:
+        def `invalidateAnchorItem`:
+            sinkItem: false
+            inputAnchorItem: false
+            sourceItem: false
+            outputAnchorItem: false
+canvas/scene.py:
+    T: false
+    CanvasScene: false
+    grab_svg: false
+    class `CanvasScene`:
+        def `add_node_item`:
+            %r is already in the scene.: false
+        def `new_link_item`:
+            <b>{0}</b>&nbsp; \u2192 &nbsp;<b>{1}</b>: false
+        def `commit_scheme_node`:
+            Scheme not editable.: false
+            No 'NodeItem' for node.: false
+            An error occurred while committing node '%s': false
+            Commited node '%s' from '%s' to '%s': false
+        def `commit_scheme_link`:
+            Scheme not editable: false
+            No 'LinkItem' for link.: false
+            Commited link '%s' from '%s' to '%s': false
+        def `neighbor_nodes`:
+            sourceItem: false
+            sinkItem: false
+        def `set_user_interaction_handler`:
+            Setting interaction '%s' to '%s': false
+        def `__str__`:
+            %s(objectName=%r, ...): false
+    def `font_from_dict`:
+        family: false
+        size: false
+    def `grab_svg`:
+        utf-8: false
+canvas/view.py:
+    class `CanvasView`:
+        def `__init__`:
+            Zoom in: Povečaj
+            action-zoom-in: false
+            Cmd: false
+            darwin: false
+            Ctrl: false
+            +=: false
+            Zoom out: Pomanjšaj
+            action-zoom-out: false
+            Reset Zoom: Ponastavi velikost
+            action-zoom-reset: false
+            Ctrl+0: false
+        def `__should_scroll_horizontally`:
+            darwin: false
+        def `__startAutoScroll`:
+            Auto scroll timer started: false
+        def `__stopAutoScroll`:
+            Auto scroll timer stopped: false
+        def `__autoScrollAdvance`:
+            Auto scroll advance: false
+        def `setBackgroundIcon`:
+            A QIcon expected.: false
+canvas/items/annotationitem.py:
+    class `GraphicsTextEdit`:
+        def `__init__`:
+            editTriggers: false
+        Placeholder text: false
+    class `TextAnnotation`:
+        def `__init__`:
+            text/plain: false
+            Enter text here: Vnesi besedilo
+        def `setContent`:
+            text/plain: false
+        def `setPlainText`:
+            text/plain: false
+        def `setHtml`:
+            text/html: false
+        def `endEdit`:
+            __updateRenderedContent: false
+        def `contextMenuEvent`:
+            Render as: Pokaži kot
+            Plain Text: Golo besedlo
+            Render contents as plain text: Pokaži v obliki golega besedila
+            text/plain: false
+            HTML: true
+            Render contents as HTML: Pokaži vsebino kot HTML
+            text/html: false
+            RST: RST
+            'Render contents as RST ': Pokaži vsebino kot RST
+            (reStructuredText): true
+            text/rst: false
+            Markdown: true
+            Render contents as Markdown: Pokaži besedilo kot Markdown
+            text/markdown: false
+canvas/items/graphicspathobject.py:
+    class `GraphicsPathObject`:
+        QPointF: false
+canvas/items/graphicstextitem.py:
+    def `createStandardContextMenu`:
+        def `createMimeDataFromSelection`:
+            utf-8: false
+        def `canPaste`:
+            text/plain: false
+            text/html: false
+        &Undo: Razveljavi
+        edit-undo: false
+        &Redo: Ponovno uveljavi
+        edit-redo: false
+        Cu&t: Izreži
+        edit-cut: false
+        &Copy: Kopiraj
+        edit-copy: false
+        Copy &Link Location: Kopiraj povezavo na mesto
+        link-copy: false
+        &Paste: Prilepi
+        edit-paste: false
+        Delete: Pobriši
+        edit-delete: false
+        Select All: Izberi vse
+        select-all: false
+    class `GraphicsTextEdit`:
+        def `__init__`:
+            editTriggers: false
+            alignment: false
+            returnKeyEndsEditing: false
+            darwin: false
+        def `setTextInteractionFlags`:
+            Qt.TextInteractionFlag: false
+            Qt.TextInteractionFlags: false
+    def `qgraphicsitem_accent_color`:
+        QGraphicsItem: false
+        QMacStyle: false
+canvas/items/linkitem.py:
+    class `LinkCurveItem`:
+        def `__init__`:
+            '#9CACB4': false
+            blurRadius: false
+    class `LinkItem`:
+        def `__init__`:
+            opacity: false
+        def `setSourceItem`:
+            Anchor must be belong to the item: false
+        def `setSinkItem`:
+            Anchor must be belong to the item: false
+        def `__updateText`:
+            <nobr>{0}</nobr> \u2192 <nobr>{1}</nobr>: false
+            '<div align="center" style="font-size: small" >{0}</div>': false
+        def `__updatePen`:
+            '#9CACB4': false
+            '#959595': false
+canvas/items/nodeitem.py:
+    def `create_palette`:
+        '#515151': false
+    def `default_palette`:
+        light-yellow: false
+        yellow: false
+    '#9CACB4': false
+    '#609ED7': false
+    class `NodeBodyItem`:
+        def `__init__`:
+            shadow-shape-item: false
+            blurRadius: false
+            scale: false
+    class `LinkAnchorIndicator`:
+        def `__init__`:
+            '#9CACB4': false
+            '#959595': false
+        def `setLinkState`:
+            LinkItem.State: false
+    class `AnchorPoint`:
+        def `__init__`:
+            pos: false
+        def `setLinkState`:
+            LinkItem.State: false
+    class `NodeAnchorItem`:
+        def `__init__`:
+            '#CDD5D9': false
+            '#9CACB4': false
+            '#959595': false
+            shadow-shape-item: false
+            blurRadius: false
+        def `setSignals`:
+            <div align=": false
+            left: false
+            right: false
+            '" style="font-size: small; background-color: palette(base);" >{0}</div>': false
+            opacity: false
+        def `insertAnchor`:
+            %s already added.: false
+    class `GraphicsIconItem`:
+        def `__init__`:
+            opacity: false
+    class `NodeItem`:
+        Node title text.: false
+        Node progress state.: false
+        def `newInputAnchor`:
+            Widget has no inputs.: false
+        def `newOutputAnchor`:
+            Widget has no outputs.: false
+        def `__updateTitleText`:
+            <div align="center">%s: false
+            progress: false
+            {0:.0f}%: true
+            %i%%: false
+            <br/>: false
+            '<span style="font-style: italic">': false
+            </span>: false
+            </div>: false
+        def `__updateMessages`:
+            _error: false
+            _warn: false
+            _info: false
+            severity: false
+            <br/>: false
+    '\
+<html>
+<head>
+<style type="text/css">
+{style}
+</style>
+</head>
+<body>
+{tooltip}
+</body>
+</html>
+': false
+    def `NodeItem_toolTipHelper`:
+        <li>{0}</li>: false
+        <b>{title}</b><hr/>: false
+        Inputs:<ul>{inputs}</ul><hr/>: Vhodi:<ul>{inputs}</ul><hr/>
+        Outputs:<ul>{outputs}</ul>: Izhodi:<ul>{outputs}</ul>
+        No inputs<hr/>: Ni vhodov<hr/>
+        No outputs: Ni izhodov<hr/>
+        'ul { margin-top: 1px; margin-bottom: 1px; }': false
+canvas/items/utils.py:
+    T: false
+    A: false
+    B: false
+    C: false
+    def `linspace`:
+        Count must be non-negative: false
+document/__init__.py:
+    quickmenu: false
+    schemeedit: false
+document/commands.py:
+    class `UndoCommand`:
+        def `__getstate__`:
+            _UndoCommand__initialized: false
+            _UndoCommand__text: false
+            _UndoCommand__children: false
+        def `__setstate__`:
+            _UndoCommand__initialized: false
+            _UndoCommand__text: false
+            _UndoCommand__parent: false
+            _UndoCommand__child_states: false
+    class `AddNodeCommand`:
+        def `__init__`:
+            Add %s: dodajanje gradnika %s
+    class `RemoveNodeCommand`:
+        def `__init__`:
+            Remove %s: odstranitev gradnika %s
+    class `AddLinkCommand`:
+        def `__init__`:
+            Add link: dodajanje povezave
+    class `RemoveLinkCommand`:
+        def `__init__`:
+            Remove link: odstranitev povezave
+    class `InsertNodeCommand`:
+        def `__init__`:
+            Insert widget into link: vstavljanje gradnika
+    class `AddAnnotationCommand`:
+        def `__init__`:
+            Add annotation: dodajanje oznake
+    class `RemoveAnnotationCommand`:
+        def `__init__`:
+            Remove annotation: odstranitev oznake
+    class `MoveNodeCommand`:
+        def `__init__`:
+            Move: premik
+    class `ResizeCommand`:
+        def `__init__`:
+            Resize: spremembo velikosti
+    class `ArrowChangeCommand`:
+        def `__init__`:
+            Move arrow: premik puščice
+    class `AnnotationGeometryChange`:
+        def `__init__`:
+            Change Annotation Geometry: spremembo oznake
+    class `RenameNodeCommand`:
+        def `__init__`:
+            Rename: preimenovanje
+    class `TextChangeCommand`:
+        def `__init__`:
+            Change text: spremembo besedila
+    class `SetAttrCommand`:
+        def `__init__`:
+            Set %r: nastavljanje %r
+    class `SetWindowGroupPresets`:
+        def `__init__`:
+            Scheme: false
+            Scheme.WindowGroup: false
+            text: false
+            Set Window Presets: nastavitve oken
+document/editlinksdialog.py:
+    class `EditLinksDialog`:
+        def `__setupUi`:
+            Clear All: false
+    _Link: false
+    output: false
+    input: false
+    lineItem: false
+    class `LinksEditWidget`:
+        def `addLink`:
+            %r is not an output channel of %r: false
+            %r is not an input channel of %r: false
+            Click to remove the link.: Kliknite, da odstranite povezavo.
+        def `removeLink`:
+            No such link {0.name!r} -> {1.name!r}.: false
+        def `__updateState`:
+            <center><b>{0}<b></center>: false
+        def `__updateAnchorState`:
+            Click and drag to connect widgets!: Kliknite in vlecite, da povežete gradnike
+            No compatible input channel.: Ni primernega izhoda.
+            No compatible output channel.: Ni primernega vhoda.
+    class `EditLinksNode`:
+        def `setSchemeNode`:
+            <div align="{align}">: false
+            <span class="channelname">{name}</span>: false
+            </div>: false
+            right: false
+            left: false
+            description: false
+document/interactions.py:
+    A: false
+    class `NewLinkAction`:
+        def `mousePressEvent`:
+            Create a new link: Dodaj novo povezavo
+            <h3>Create new link</h3>: <h3>Dodaj novo povezavo</h3>
+            '<p>Drag a link to an existing node or release on ': '<p>Povlecite povezavo do obstoječega gradnika ali pa '
+            an empty spot to create a new node.</p>: na prazno mesto, da tam postavite nov gradnik.</p>
+            '<p>Hold Shift when releasing the mouse button to ': <p>Držite tipko Shift za urejanje povezav.</p>
+            edit connections.</p>: ""
+        def `mouseMoveEvent`:
+            %r is no longer the target.: false
+            %r is the new target.: false
+            %r does not have compatible channels: false
+        def `mouseReleaseEvent`:
+            Add link: false
+            Failed to create a new node, ending.: false
+        def `create_new`:
+            item: false
+        def `connect_nodes`:
+            'proposed (weighted) links: %r': false
+            Failed to edit the links: false
+            'Cannot connect: invalid channel types.': false
+            'Cannot connect: connection creates a cycle.': false
+            'Cannot connect: no possible links.': false
+            User canceled a new link action.: false
+            An error occurred during the creation of a new link.: false
+        def `edit_links`:
+            Optional[List[OIPair]]: false
+            Tuple[int, List[Link], List[Link]]: false
+    def `edit_links`:
+        Optional[List[OIPair]]: false
+        Optional[QWidget]: false
+        Tuple[int, List[OIPair], List[OIPair]]: false
+        Constructing a Link Editor dialog.: false
+        Edit Links: Urejanje povezav
+        Executing a Link Editor Dialog.: false
+    class `NewNodeAction`:
+        def `create_new`:
+            item: false
+    class `EditNodeLinksAction`:
+        def `edit_links`:
+            Constructing a Link Editor dialog.: false
+            Edit Links: Urejanje povezav
+            Executing a Link Editor Dialog.: false
+    class `NewArrowAnnotation`:
+        def `__init__`:
+            red: false
+        def `start`:
+            Click and drag to create a new arrow: Povlecite in spustite, da narišete puščico.
+            <h3>New arrow annotation</h3>: <h3>Risanje oznake s puščico</h3>
+            <p>Click and drag to create a new arrow annotation</p>: <p>Povlecite in spustite, da ustvarite oznako s puščico.</p>
+    class `NewTextAnnotation`:
+        def `start`:
+            Click to create a new text annotation: Kliknite, da dodate besedilno oznako.
+            <h3>New text annotation</h3>: <h3>Nova besedilna oznaka</h3>
+            '<p>Click (and drag to resize) on the canvas to create ': <p>Kliknite (in vlecite, da določite velikost), da dodate novo besedilno oznako.</p>
+            a new text annotation item.</p>: ""
+        def `createNewAnnotation`:
+            family: false
+            size: false
+    class `ResizeTextAnnotation`:
+        def `commit`:
+            rect: false
+            Edit text geometry: false
+        def `cancel`:
+            ResizeTextAnnotation.cancel(%s): false
+    class `ResizeArrowAnnotation`:
+        def `commit`:
+            geometry: false
+            Edit arrow geometry: false
+        def `cancel`:
+            ResizeArrowAnnotation.cancel(%s): false
+    class `DropHandler`:
+        def `accepts`:
+            SchemeEditWidget: false
+            QGraphicsSceneDragDropEvent: false
+        def `doDrop`:
+            SchemeEditWidget: false
+            QGraphicsSceneDragDropEvent: false
+    class `DropHandlerAction`:
+        def `actionFromDropEvent`:
+            SchemeEditWidget: false
+            QGraphicsSceneDragDropEvent: false
+    class `NodeFromMimeDataDropHandler`:
+        def `canDropMimeData`:
+            SchemeEditWidget: false
+            QMimeData: false
+        def `parametersFromMimeData`:
+            SchemeEditWidget: false
+            QMimeData: false
+            Dict[str, Any]: false
+        def `accepts`:
+            SchemeEditWidget: false
+            QGraphicsSceneDragDropEvent: false
+        def `nodeFromMimeData`:
+            SchemeEditWidget: false
+            QMimeData: false
+            Node: false
+        def `doDrop`:
+            SchemeEditWidget: false
+            QGraphicsSceneDragDropEvent: false
+        def `activateNode`:
+            SchemeEditWidget: false
+            Node: false
+            QWidget: false
+        def `actionFromDropEvent`:
+            SchemeEditWidget: false
+            QGraphicsSceneDragDropEvent: false
+            {self.qualifiedName()}: false
+    def `load_entry_point`:
+        EntryPoint: false
+        Could not load %s: false
+        Unexpected Error; %s will be skipped: false
+    class `PluginDropHandler`:
+        orangecanvas.document.interactions.DropHandler: false
+        def `iterEntryPoints`:
+            EntryPoint: false
+        def `entryPoints`:
+            EntryPoint: false
+            DropHandler: false
+            '{ep} yielded {type(value)}, expected a ': false
+            {DropHandler} subtype: false
+            Error in default constructor of %s: false
+        def `accepts`:
+            SchemeEditWidget: false
+            QGraphicsSceneDragDropEvent: false
+        def `doDrop`:
+            SchemeEditWidget: false
+            QGraphicsSceneDragDropEvent: false
+            class `Title`:
+                def `createWidget`:
+                    <b>Select a widget</b>: <b>Izberi gradnik</b>
+            {ep_.name} ({ep_.module_name}): false
+    class `DropAction`:
+        def `canHandleDrop`:
+            QGraphicsSceneDragDropEvent: false
+document/quickmenu.py:
+    class `_MenuItemDelegate`:
+        def `paint`:
+            FFA840: false
+            \u21B5: false
+    class `MenuPage`:
+        Title of the page.: false
+        Page icon: false
+    class `ItemDisableFilter`:
+        def `setFilterFunc`:
+            A callable object or None expected.: false
+    class `SortFilterProxyModel`:
+        def `setFilterFunc`:
+            A callable object or None expected.: false
+        def `lessThan`:
+            ' ': false
+    class `SearchWidget`:
+        def `__setupUi`:
+            Search.svg: false
+            Search: Poišči
+    class `TabButton`:
+        def `__init__`:
+            '#000000': false
+    _Tab: false
+    text: false
+    icon: false
+    toolTip: false
+    button: false
+    data: false
+    palette: false
+    class `TabBarWidget`:
+        def `insertTab`:
+            tab-button: false
+            lastCategoryButton: false
+    class `PagedMenu`:
+        def `update_from_settings`:
+            quickmenu/show-categories: false
+    "\
+TabButton {{
+    qproperty-flat_: false;
+    qproperty-shadowColor_: {2};
+    background: {0};
+    border: none;
+    border-right: 3px solid {0};
+    border-bottom: 1px solid #9CACB4;
+    border-top: 1px solid {0}
+}}
+
+TabButton:checked {{
+    background: {1};
+    border: none;
+}}
+
+TabButton[lastCategoryButton='true']:checked {{
+    border-bottom: 1px solid #9CACB4;
+}}
+": false
+    class `QuickMenu`:
+        def `__init__`:
+            search-line: false
+            Search for a widget...: Poišči gradnik...
+            menu-frame: false
+            paged-menu: false
+            suggest-page: false
+            icons/Search.svg: false
+            darwin: false
+            Quick Search: Hitro iskanje
+        def `createPage`:
+            darwin: false
+        def `popup`:
+            quickmenu/size: false
+        def `exec_`:
+            exec_ is deprecated, use exec: false
+        def `hideEvent`:
+            quickmenu/size: false
+    class `WindowSizeGrip`:
+        def `setCorner`:
+            Qt.Corner flag expected: false
+        def `sizeHint`:
+            QMacStyle: false
+document/schemeedit.py:
+    application/vnd.{}-ows-fragment+xml: false
+    class `NoWorkflowError`:
+        def `__init__`:
+            No workflow model is set: false
+    class `SchemeEditWidget`:
+        class `OpenAnchors`:
+            Never: false
+            Always: false
+            OnShift: false
+        def `__init__`:
+            &Edit: Uredi
+            Widget: Gradnik
+            &Widget: Gradnik
+            Link: Povezava
+        def `__setupActions`:
+            Clean Up: Počisti
+            cleanup-action: false
+            Shift+A: false
+            Align widgets to a grid (Shift+A): Poravnaj vse gradnike na mrežo (Shift+A)
+            Text: Besedilo
+            new-text-action: false
+            Add a text annotation to the workflow.: V delotok dodaj besedilno oznako.
+            Font Size: Velikost pisave
+            %ipx: false
+            Arrow: Puščica
+            new-arrow-action: false
+            Add a arrow annotation to the workflow.: V delotok dodaj oznako s puščico.
+            Arrow Color: Barva puščice
+            '#000': false
+            '#C1272D': false
+            '#662D91': false
+            '#1F9CDF': false
+            '#39B54A': false
+            undo-action: false
+            redo-action: false
+            Select all: Izberi vse
+            select-all-action: false
+            Select all items.: Izberi vse elemente.
+            Open: Odpri
+            open-action: false
+            Open selected widget: Odpri izbrane gradnike
+            Remove: Odstrani
+            remove-selected: false
+            Remove selected items: Odstrani izbrane gradnike
+            Ctrl+Backspace: fales
+            Rename: Preimenuj
+            rename-action: false
+            Rename selected widget: Preimenuj izbrane gradnike
+            darwin: false
+            Help: Pomoč
+            help-action: false
+            Show widget help: Pokaži pomoč za gradnik
+            F1: false
+            Enabled: Vključeno
+            link-enable-action: false
+            link-remove-action: false
+            Remove link.: Odstrani povezavo.
+            Insert Widget: Vstavi gradnik
+            node-insert-action: false
+            Insert widget.: Vstavi gradnik.
+            Reset Signals: Ponastavi signale
+            link-reset-action: false
+            Duplicate: Podvoji
+            duplicate-action: false
+            Ctrl+D: false
+            Copy: Kopiraj
+            copy-action: false
+            Ctrl+C: false
+            Paste: Prilepi
+            paste-action: false
+            Ctrl+V: false
+            Window Groups: Skupine oken
+            window-groups-action: false
+            Manage preset widget groups: Upravljaj postavljene skupine gradnikov
+            window-groups-action-group: false
+            Save Window Group...: Shrani skupine oken...
+            window-groups-save-action: false
+            Create and save a new window group.: Ustvari in shrani novo skupino oken.
+            Delete All Groups: Pobriši vse skupine
+            window-groups-clear-action: false
+            Delete all saved widget presets: Pobriši vse prednastavitve gradnikov.
+            groups-separator: false
+            Bring Widgets to Front: Pokaži gradnike v ospredju
+            bring-widgets-to-front-action: false
+            Ctrl+Down: false
+        def `toolbarActions`:
+            action-zoom-in: false
+            action-zoom-out: false
+            action-zoom-reset: false
+        def `isModifiedStrict`:
+            'Modified strict check (modified flag: %s, ': false
+            'undo stack clean: %s, properties: %s)': false
+        def `uncleanProperties`:
+            context_settings: false
+        def `setScheme`:
+            widget_manager: false
+        def `setTitle`:
+            title: false
+        def `setDescription`:
+            description: false
+        def `enumerateTitle`:
+            ' ({0})': false
+        def `removeSelected`:
+            Remove: odstranjevanje
+        def `alignToGrid`:
+            position: false
+            Align To Grid: poravnavo na mrežo
+        def `__desc_from_mime_data`:
+            application/vnd.orange-canvas.registry.qualified-name: false
+            application/vnv.orange-canvas.registry.qualified-name: false
+            utf-8: false
+        def `sceneMousePressEvent`:
+            darwin: false
+        def `sceneMouseReleaseEvent`:
+            Move: premik
+        def `__onSelectionChanged`:
+            Open All: Odpri vse
+            Open: Odpri
+            Remove All: Zapri vse
+            Remove: Zapri
+        def `__onAnnotationAdded`:
+            Annotation added (%r): false
+        def `__onAnnotationRemoved`:
+            Annotation removed (%r): false
+        def `__toggleNewArrowAnnotation`:
+            Canceled new arrow annotation: false
+        def `__toggleNewTextAnnotation`:
+            Canceled new text annotation: false
+        def `__onHelpAction`:
+            help://search?: false
+            id: false
+        def `__showHelpFor`:
+            'Sorry there is no documentation available for ': 'Dokumentacija za ta gradnik '
+            this widget.: ne obstaja.
+        def `__toggleLinkEnabled`:
+            enabled: false
+            Set enabled: false
+        def `__nodeInsert`:
+            item: false
+            'Cannot insert node: links not possible.': false
+        def `__duplicateSelected`:
+            Duplicate: false
+        def `__copyToClipboard`:
+            copyToClipboard:: false
+        def `__pasteFromClipboard`:
+            pasteFromClipboard:: false
+        def `__paste`:
+            {item} ({_}): false
+            Paste: false
+        def `__startControlPointEdit`:
+            Unknown annotation item type %r: false
+            Control point editing started (%r).: false
+        def `__endControlPointEdit`:
+            Control point editing finished.: false
+        def `__reset_window_group_menu`:
+            groups-separator: false
+            Meta+P, Ctrl+{}: false
+        def `__saveWindowGroup`:
+            Save Group as...: Shrani skupino oken
+            def `store_group`:
+                Store Window Group: Shrani skupino oken
+                Update Window Group: Prenovi skupino oken
+        def `__clearWindowGroups`:
+            Delete All Window Groups: Pobriši vse skupine oken
+    class `SaveWindowGroup`:
+        def `__init__`:
+            Window Group 1: Skupina oken 1
+            Save As:: Shrani kot:
+            Use as default: Uporabi privzeto
+            Automatically use this preset when opening the workflow.: Samodejno uporabi to nastavitev ob odpiranju delotoka.
+            "Save the current open widgets' window arrangement to the ": 'Shrani trenuten razpored odprtih gradnikov '
+            workflow view presets.: kot prednastavitev delotoka.
+        def `__accept_check`:
+            Confirm Overwrite: Potrdi spremembo
+            "The window group '{}' already exists. Do you want ": "Skupina '{}' že obstaja. "
+            to replace it?: Jo zamenjam s trenutno?
+            Replace: Zamenjaj
+    Cc: false
+    Cf: false
+    Cs: false
+    Co: false
+    Cn: false
+    def `uniquify`:
+        {item}-{_}: false
+document/suggestions.py:
+    class `Suggestions`:
+        class `__Suggestions`:
+            def `__init__`:
+                widget-use-frequency.pickle: false
+            def `load_link_frequency`:
+                rb: false
+                Failed to open widget link frequencies.: false
+            def `default_link_frequency`:
+                File: false
+                Data Table: false
+            def `write_link_frequency`:
+                wb: false
+                Failed to write widget link frequencies.: false
+document/usagestatistics.py:
+    class `UsageStatistics`:
+        def `set_enabled`:
+            {} usage statistics tracking: false
+            Enabling: false
+            Disabling: false
+        def `begin_action`:
+            'Tried to set ': false
+            ' but ': false
+            ' was already set.': false
+        def `begin_extend_action`:
+            Tried to start extend action while current action already has events: false
+            Attempted to extend widget before it was logged. No action type was set.: false
+            Extended Widget: false
+        def `begin_insert_action`:
+            Tried to start insert action while current action already has events: false
+            'Attempted to log insert action between unknown widgets. ': false
+            No action was logged.: false
+            Source Widget: false
+            Sink Widget: false
+        def `end_action`:
+            End action called but no events were logged.: false
+            Type: false
+            Events: false
+            Query: false
+        def `log_node_add`:
+            Type: false
+            Widget Name: false
+            Widget: false
+        def `log_node_remove`:
+            Attempted to log node removal before its addition. No action was logged.: false
+            Type: false
+            Widget: false
+        def `_log_link`:
+            Attempted to log link action between unknown widgets. No action was logged.: false
+            Type: false
+            Source Widget: false
+            Sink Widget: false
+            Source Channel: false
+            Sink Channel: false
+            Source Open: false
+            Sink Open:: false
+        def `write_statistics`:
+            Date: false
+            Application Version: false
+            Operating System: false
+            ' ': false
+            Launch Count: false
+            startup/launch-count: false
+            Session: false
+        def `filename`:
+            usage-statistics.json: false
+        def `load`:
+            List[dict]: false
+            r: false
+            utf-8: false
+        def `store`:
+            w: false
+            utf-8: false
+gui/dock.py:
+    class `CollapsibleDockWidget`:
+        def `__init__`:
+            qt_dockwidget_closebutton: false
+        def `setWidget`:
+            "Please use the 'setExpandedWidget'/'setCollapsedWidget' ": false
+            methods to set the contents of the dock widget.: false
+gui/dropshadow.py:
+    class `DropShadowFrame`:
+        Drop shadow color: false
+        Drop shadow blur radius.: false
+        Drop shadow offset.: false
+gui/framelesswindow.py:
+    class `FramelessWindow`:
+        Window border radius: false
+gui/iconengine.py:
+    StyledIconEngine: false
+    SymbolIconEngine: false
+    class `StyledIconEngine`:
+        __palette: false
+        __styleObject: false
+        def `paletteFromStyleObject`:
+            palette: false
+    class `SymbolIconEngine`:
+        def `__renderStyledPixmap`:
+            {__name__}:SymbolIconEngine/{self.__cache_key}: false
+            {size.width()}x{size.height()}: false
+            {hex(palette.cacheKey())}-{cg}-{role}: false
+            {namespace}/{cachekey}/{style_key}: false
+        def `clone`:
+            QIconEngine: false
+gui/iconview.py:
+    class `LinearIconView`:
+        def `sizeHint`:
+            X: false
+            \nX: false
+gui/itemmodels.py:
+    class `FilterProxyModel`:
+        Filter: false
+        column: false
+        role: false
+        predicate: false
+gui/lineedit.py:
+    _ActionSlot: false
+    position: false
+    int: false
+    action: false
+    QAction: false
+    button: false
+    LineEditButton: false
+    autoHide: false
+    Any: false
+    class `LineEditButton`:
+        def `__init__`:
+            '#000000': false
+    class `LineEdit`:
+        def `_checkPosition`:
+            Invalid position: false
+gui/quickhelp.py:
+    class `StatusTipPromoter`:
+        def `eventFilter`:
+            whatsThis: false
+gui/splashscreen.py:
+    mightBeRichText: false
+gui/stackedwidget.py:
+    class `AnimatedStackedWidget`:
+        def `__init__`:
+            blendingFactor_: false
+        def `__transitionStart`:
+            Stack transition start (%s): false
+        def `__onTransitionFinished`:
+            Stack transition finished (%s): false
+gui/svgiconengine.py:
+    class `SvgIconEngine`:
+        __contents: false
+        __generator: false
+        __cache_id: false
+        def `pixmap`:
+            {}.SVGIconEngine/{}/{}x{}: false
+    class `StyledSvgIconEngine`:
+        __contents: false
+        __styled_contents_cache: false
+        __renderer: false
+        __cache_key: false
+        def `__init__`:
+            only one of palette or styleObject can be defined: false
+        def `__renderStyledPixmap`:
+            {__name__}:{__class__.__name__}/{self.__cache_key}: false
+            {hex(palette.cacheKey())}-{cg}-{role}: false
+            {namespace}/{style_key}/{size.width()}x{size.height()}: false
+        def `clone`:
+            QIconEngine: false
+    '
+* {{
+    color: {text};
+}}
+.ColorScheme-Text {{
+    color: {text};
+}}
+.ColorScheme-Background {{
+    color: {background};
+}}
+.ColorScheme-Highlight {{
+    color: {highlight};
+}}
+.ColorScheme-Disabled-Text {{
+    color: {disabled_text};
+}}
+.ColorScheme-Contrast {{
+    color: {contrast};
+}}
+.ColorScheme-Complement {{
+    color: {complement};
+}}
+': false
+    def `replace_css_style`:
+        current-color-scheme: false
+        class `StyleReplaceFilter`:
+            def `startElement`:
+                style: false
+                id: false
+                \n: false
+            def `endElement`:
+                style: false
+        utf-8: false
+gui/test.py:
+    class `QCoreAppTestCase`:
+        def `setUpClass`:
+            orangecanvas.testing: false
+            biolab.si: false
+        def `singleShot`:
+            Callable[[], Any]: false
+gui/toolbox.py:
+    ToolBox: false
+    _ToolBoxPage: false
+    index: false
+    widget: false
+    action: false
+    button: false
+    class `ToolBoxTabButton`:
+        def `__init__`:
+            font: false
+            QAbstractButton: false
+    class `ToolBox`:
+        Exclusive tabs: false
+        def `__init__`:
+            toolbox-scroll-area: false
+            toolbox-contents: false
+            toolbox-tab-action-group: false
+        def `createTabButton`:
+            toolbox-tab-button: false
+        def `__onTabActionToggled`:
+            action: false
+    A: false
+    B: false
+    C: false
+gui/toolgrid.py:
+    ToolGrid: false
+    _ToolGridSlot: false
+    button: false
+    action: false
+    row: false
+    column: false
+    class `ToolGridButton`:
+        def `__init__`:
+            darwin: false
+            QWidget: false
+        def `__textLayout`:
+            ' ': false
+            \n: false
+            &: false
+            &&: false
+    class `ToolGrid`:
+        def `__init__`:
+            sizePolicy: false
+        def `createButtonForAction`:
+            tool-grid-button: false
+gui/tooltree.py:
+    ToolTree: false
+    FlattenedTreeItemModel: false
+    class `ToolTree`:
+        def `__init__`:
+            tool-tree-view: false
+gui/utils.py:
+    def `disabled`:
+        setEnabled: false
+        isEnabled: false
+        %r does not have 'enabled' property: false
+    def `is_transparency_supported`:
+        win32: false
+        cygwin: false
+        darwin: false
+        linux: false
+        freebsd: false
+    def `is_x11_compositing_enabled`:
+        isCompositingManagerRunning: false
+    def `windows_set_current_process_app_user_model_id`:
+        nt: false
+    def `macos_set_nswindow_tabbing`:
+        darwin: false
+        .: false
+        libobjc: false
+        AppKit: false
+        NSWindow: false
+        setAllowsAutomaticWindowTabbing:: false
+    def `css_gradient`:
+        \n: false
+        '    stop: {0:f} {1}': false
+        qlineargradient(\n: false
+        '    x1: {x1}, y1: {y1}, x2: {x2}, y2: {y2},\n': false
+        {stops}): false
+    def `message_critical`:
+        An unexpected error occurred.: Prišlo je do nepričakovane napake
+        Error: Napaka
+    def `message_warning`:
+        Death could come at any moment.: Smrt pride nepričakovano.
+        Murphy lurks about. Remember to save frequently.: Murphy je vedno na preži. Ne pozabi na pogosto shranjevanje.
+        Warning: Opozorilo
+    def `message_information`:
+        Information: Informacije
+        I am not a number.: Nisem številka.
+    def `message`:
+        Message: Sporočilo
+        I am neither a postman nor a doctor.: Nisem ne poštar ne dohtar.
+    def `innerGlowBackgroundPixmap`:
+        'InnerGlowBackground ': false
+        ' ': false
+    def `shadowTemplatePixmap`:
+        'InnerShadowTemplate ': false
+        ' ': false
+    def `innerShadowPixmap`:
+        'InnerShadow ': false
+        ' ': false
+gui/windowlistmanager.py:
+    WindowListManager: false
+    class `WindowListManager`:
+        def `instance`:
+            WindowListManager: false
+        def `__init__`:
+            window-list-manager-action-group: false
+        def `addWindow`:
+            {window} already added: false
+        def `createActionForWindow`:
+            action-canvas-window-list-manager-window-action: false
+gui/examples/dock.py:
+    def `main`:
+        Expand: false
+        Ctrl+D: false
+    __main__: false
+gui/examples/toolbox.py:
+    def `main`:
+        A Label: false
+        Another\nlabel: false
+        Tab 1: false
+        Tab 2: false
+        The second tab: false
+        Tab 3: false
+        Tab 4: false
+        <h1>Hello Visitor</h1>: false
+        <p>Are you interested in some of our wares?</p>: false
+        Dear friend: false
+    __main__: false
+gui/examples/toolgrid.py:
+    def `main`:
+        A: false
+        B: false
+        This one is longer.: false
+        Not done yet!: false
+        The quick brown fox ... does something I guess: false
+    __main__: false
+help/intersphinx.py:
+    utf-8: false
+    def `read_inventory_v1`:
+        mod: false
+        py:module: false
+        '#module-': false
+        py:: false
+        '#': false
+        -: false
+    def `read_inventory_v2`:
+        utf-8: false
+        zlib: false
+        def `split_lines`:
+            \n: false
+            utf-8: false
+        (?x)(.+?)\s+(\S*:\S*)\s+(\S+)\s+(\S+)\s+(.*): false
+        $: false
+help/manager.py:
+    class `HelpManager`:
+        def `initialize`:
+            `HelpManager.initialize` is deprecated and does nothing.: false
+        def `get_provider`:
+            Could not get distribution for '%s': false
+            'Error while initializing help ': false
+            provider for %r: false
+        def `get_help`:
+            help: false
+            search: false
+        def `description_by_id`:
+            No registry set. Cannot resolve: false
+        def `search`:
+            id: false
+        def `search_async`:
+            id: false
+    def `_replacements_for_dist`:
+        PROJECT_NAME: false
+        PROJECT_NAME_LOWER: false
+        PROJECT_VERSION: false
+        DATA_DIR: false
+        data: false
+        URL: false
+        DEVELOP_ROOT: false
+        .: false
+    def `create_intersphinx_provider`:
+        objects.inv: false
+        Local doc root '%s' does not exist.: false
+    def `create_html_provider`:
+        Local doc root '%s' does not exist.: false
+    def `create_html_inventory_provider`:
+        Local doc root '%s' does not exist: false
+    intersphinx: false
+    html-simple: false
+    html-index: false
+    def `get_help_provider_for_distribution`:
+        Distribution: false
+        orange.canvas.help: false
+        orangecanvas.help: false
+        Exception {}: false
+        Created %s provider for %s: false
+help/provider.py:
+    class `HelpProvider`:
+        def `_networkAccessManagerInstance`:
+            help: false
+            cache_size_mb: false
+        def `search_async`:
+            QUrl: false
+    class `BaseInventoryProvider`:
+        def `__init__`:
+            file: false
+        def `_fetch_inventory`:
+            rb: false
+        def `_on_finished`:
+            \nGET:: false
+            '  (served from cache)': false
+            latin-1: false
+            :: false
+            'An error occurred while fetching ': false
+            help inventory '{0}': false
+        def `search_async`:
+            QUrl: false
+    class `IntersphinxHelpProvider`:
+        def `search`:
+            std:label: false
+        def `_load_inventory`:
+            '# Sphinx inventory version 1': false
+            '# Sphinx inventory version 2': false
+            Invalid/unknown intersphinx inventory format.: false
+            '{0} does not seem to be an intersphinx ': false
+            inventory file: false
+    class `SimpleHelpProvider`:
+        def `search`:
+            {}.html: false
+            index.html: false
+            http: false
+            https: false
+            .html: false
+            /: false
+    class `HtmlIndexProvider`:
+        def `_load_inventory`:
+            Error reading help index.: false
+            Could not determine html charset from contents.: false
+            utf-8: false
+            Error parsing: false
+        def `_parse`:
+            .//*[@id='widgets']//li/a: false
+            href: false
+            No help references found. Wrong configuration??: false
+    def `sniff_html_charset`:
+        def `parse_content_type`:
+            Tuple[str, List[Tuple[str, str]]]: false
+            ;: false
+            =: false
+        class `CharsetSniff`:
+            def `handle_starttag`:
+                List[Tuple[str, Optional[str]]]: false
+                meta: false
+                charset: false
+                http-equiv: false
+                content-type: false
+                content: false
+        utf-16: false
+        latin-1: false
+preview/previewbrowser.py:
+    '
+
+': false
+    '
+<h3 class=item-heading>{name}</h3>
+<p class=item-description>
+{description}
+</p>
+
+': false
+    class `PreviewBrowser`:
+        def `__init__`:
+            top-layout: false
+            heading: false
+            description-label: false
+            preview-image: false
+            <b>{0!s}</b>: false
+            Path:: false
+            path-label: false
+            path-text: false
+            preview-list-view: false
+        def `setPreviewMargins`:
+            top-layout: false
+        def `__update`:
+            No description.: Brez opisa.
+            \n: false
+            <br/>: false
+            Untitled: Nepoimenovano
+            utf-8: false
+    def `contractuser`:
+        ~/: false
+        ~: false
+preview/previewdialog.py:
+    class `PreviewDialog`:
+        def `__setupUi`:
+            <h3>{0}</h3>: false
+            Preview: Ogled
+            button-container: false
+preview/previewmodel.py:
+    '<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="161.8mm" height="100.0mm"
+ xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+ version="1.2" baseProfile="tiny">
+</svg>
+': false
+    class `PreviewModel`:
+        def `delayedScanUpdate`:
+            'delayedScanUpdate: Start': false
+        def `__process_next`:
+            'delayedScanUpdate: Next %i': false
+            'delayedScanUpdate: Stop': false
+            'An unexpected error occurred while ': false
+            scanning '%s'.: false
+    class `PreviewItem`:
+        def `__init__`:
+            Untitled: Nepoimenovano
+            No description.: Brez opisa.
+        def `setName`:
+            untitled: false
+        def `setThumbnail`:
+            utf-8: false
+preview/scanner.py:
+    class `PreviewHandler`:
+        def `startElement`:
+            scheme: false
+            version: false
+            1.0: false
+            2.0: false
+            title: false
+            description: false
+            thumbnail: false
+        def `endElement`:
+            name: false
+            description: false
+            thumbnail: false
+    def `filter_properties`:
+        class `PropertiesFilter`:
+            def `startElement`:
+                properties: false
+            def `endElement`:
+                properties: false
+        utf-8: false
+    def `scheme_svg_thumbnail`:
+        rb: false
+    def `scan_update`:
+        %r is malformed (%r): false
+        Could not render scheme preview for %r: false
+registry/__init__.py:
+    light-orange: false
+    '#FFD39F': false
+    orange: false
+    '#FFA840': false
+    light-red: false
+    '#FFB7B1': false
+    red: false
+    '#FF7063': false
+    light-pink: false
+    '#FAC1D9': false
+    pink: false
+    '#F584B4': false
+    light-purple: false
+    '#E5BBFB': false
+    purple: false
+    '#CB77F7': false
+    light-blue: false
+    '#CAE1FC': false
+    blue: false
+    '#95C3F9': false
+    light-turquoise: false
+    '#C3F3F3': false
+    turquoise: false
+    '#87E8E8': false
+    light-green: false
+    '#ACE3CE': false
+    green: false
+    '#5AC79E': false
+    light-grass: false
+    '#DFECB0': false
+    grass: false
+    '#C0D962': false
+    light-yellow: false
+    '#F7F5A7': false
+    yellow: false
+    '#F0EC4F': false
+    def `global_registry`:
+        _default: false
+        "'global_registry()' - running widget discovery.": false
+        "'global_registry()' discovery finished.": false
+    def `set_global_registry`:
+        _default: false
+        "'set_global_registry()' - setting registry.": false
+registry/base.py:
+    class `WidgetRegistry`:
+        def `__init__`:
+            Expected a 'WidgetRegistry' got %r.: false
+        def `widgets`:
+            priority: false
+        def `register_widget`:
+            Expected a 'WidgetDescription' got %r.: false
+            %r already exists in the registry.: false
+            Unspecified: false
+            Creating a default category %r.: false
+        def `register_category`:
+            Expected a 'CategoryDescription' got %r.: false
+            Creating a default category name.: false
+            default: false
+            A category with %r name already exists: false
+registry/cache.py:
+    def `registry_cache_filename`:
+        registry-cache.pck: false
+        registry.registry-cache: false
+        Creating directory %r: false
+    def `registry_cache`:
+        Loading widget registry cache (%r).: false
+        rb: false
+        Could not load registry cache.: false
+    def `save_registry_cache`:
+        Saving widget registry cache with %i entries (%r).: false
+        wb: false
+        Could not save registry cache: false
+registry/description.py:
+    DescriptionError: false
+    WidgetSpecificationError: false
+    SignalSpecificationError: false
+    CategorySpecificationError: false
+    Single: false
+    Multiple: false
+    Default: false
+    NonDefault: false
+    Explicit: false
+    Dynamic: false
+    InputSignal: false
+    OutputSignal: false
+    WidgetDescription: false
+    CategoryDescription: false
+    class `InputSignal`:
+        def `__str__`:
+            '{0.__name__}(name={name!r}, type={type!r}, ': false
+            handler={handler!r}, ...): false
+    def `input_channel_from_args`:
+        'tuple, dict or InputSignal expected ': false
+        (got {0!r}): false
+    class `OutputSignal`:
+        def `__str__`:
+            '{0.__name__}(name={name!r}, type={type!r}, ': false
+            ...): false
+    def `output_channel_from_args`:
+        'tuple, dict or OutputSignal expected ': false
+        (got {0!r}): false
+    class `WidgetDescription`:
+        def `__init__`:
+            "'qualified_name' must be supplied.": false
+        def `__str__`:
+            'WidgetDescription(name=%(name)r, id=%(id)r), ': false
+            category=%(category)r, ...): false
+        def `from_module`:
+            "'WidgetDescription.from_module' is deprecated": false
+    class `CategoryDescription`:
+        def `__str__`:
+            CategoryDescription(name=%(name)r, ...): false
+        def `from_package`:
+            "'CategoryDescription.from_package' is deprecated": false
+registry/discovery.py:
+    _CacheEntry: false
+    mod_path: false
+    name: false
+    mtime: false
+    project_name: false
+    project_version: false
+    exc_type: false
+    exc_val: false
+    description: false
+    def `default_category_name_for_module`:
+        .: false
+        widgets: false
+    class `WidgetDiscovery`:
+        def `__init__`:
+            "'WidgetRegistry', 'Handler' or None expected": false
+            !VERSION: false
+        def `run`:
+            'An exception occurred while loading ': false
+            entry point '%s': false
+            __path__: false
+            Cannot handle entry point %r: false
+            An exception occurred while processing %r.: false
+        def `process_widget_module`:
+            Invalid widget specification.: false
+        def `process_category_package`:
+            widget_discovery: false
+            category_description: false
+            Error calling 'category_description' in %r.: false
+            Package %r does not describe a category.: false
+        def `process_loader`:
+            Error calling %r: false
+        def `process_iter`:
+            'Category or Widget Description instance ': false
+            expected. Got %r.: false
+        def `iter_widget_descriptions`:
+            .: false
+            .py: false
+            Ignoring %r.: false
+            Could not import %r.: false
+            Error while importing %r.: false
+            Problem parsing %r: false
+    def `fix_pyext`:
+        .pyo: false
+        pyc: false
+    def `widget_descriptions_from_package`:
+        .: false
+        Error importing %r.: false
+        Error in %r: false
+registry/qt.py:
+    class `QtWidgetRegistry`:
+        def `item_for_widget`:
+            Unspecified: false
+        def `create_action_for_item`:
+            item: false
+        def `_cat_desc_to_std_item`:
+            icons/default-category.svg: false
+        def `_widget_desc_to_std_item`:
+            icons/default-widget.svg: false
+            'ul { margin-top: 1px; margin-bottom: 1px; }': false
+    '\
+<html>
+<head>
+<style type="text/css">
+{style}
+</style>
+</head>
+<body>
+{tooltip}
+</body>
+</html>
+': false
+    def `tooltip_helper`:
+        <b>{name}</b>: false
+        Orange: false
+        ' (from {0})': false
+        {0}: false
+        <li>{name} ({class_name})</li>: false
+        Inputs:<ul>{0}</ul>: Vhodi:<ul>{0}</ul>
+        No inputs: Ni vhodov
+        Outputs:<ul>{0}</ul>: Izhodi:<ul>{0}</ul>
+        No outputs: Ni izhodov
+        <hr/>: false
+    def `whats_this_helper`:
+        help://search?: false
+        id: false
+        <h3>{0}</h3>: false
+        <p>{0}</p>: false
+        <a href='{0}'>more...</a>: false
+        \n: false
+    def `run_discovery`:
+        run_discovery is deprecated and will be removed.: false
+registry/utils.py:
+    def `widget_from_module_globals`:
+        .: false
+        WIDGET_CLASS: false
+        NAME: false
+        %s.%s: false
+        ID: false
+        INPUTS: false
+        OUTPUTS: false
+        CATEGORY: false
+        VERSION: false
+        DESCRIPTION: false
+        LONG_DESCRIPTION: false
+        AUTHOR: false
+        AUTHOR_EMAIL: false
+        MAINTAINER: false
+        MAINTAINER_EMAIL: false
+        HELP: false
+        HELP_REF: false
+        URL: false
+        ICON: false
+        PRIORITY: false
+        KEYWORDS: false
+        BACKGROUND: false
+        REPLACES: false
+    def `category_from_package_globals`:
+        NAME: false
+        DESCRIPTION: false
+        LONG_DESCRIPTION: false
+        AUTHOR: false
+        AUTHOR_EMAIL: false
+        MAINTAINER: false
+        MAINTAINER_MAIL: false
+        URL: false
+        HELP: false
+        KEYWORDS: false
+        WIDGETS: false
+        PRIORITY: false
+        ICON: false
+        BACKGROUND: false
+        HIDDEN: false
+        prototypes: false
+    def `search_filter_query_helper`:
+        -: false
+        ' ': false
+registry/tests/__init__.py:
+    def `make_module`:
+        {}.{}: false
+    Test: false
+    This is a test.: false
+    This. Is. A. Test.: false
+    constants: false
+    Constants: false
+    zero: false
+    Zero: false
+    value: false
+    one: false
+    One: false
+    operators: false
+    Operators: false
+    add: false
+    Add: false
+    left: false
+    set_left: false
+    right: false
+    set_right: false
+    sub: false
+    Subtract: false
+    mult: false
+    Multiply: false
+    div: false
+    Divide: false
+    def `small_testing_registry`:
+        Constants: false
+        light-orange: false
+        zero: false
+        value: false
+        int: false
+        val: false
+        one: false
+        unit: false
+        tuple: false
+        Operators: false
+        grass: false
+        add: false
+        left: false
+        set_left: false
+        right: false
+        set_right: false
+        droite: false
+        result: false
+        sub: false
+        mult: false
+        div: false
+        negate: false
+        set_value: false
+        Structure: false
+        red: false
+        cons: false
+        first: false
+        object: false
+        set_first: false
+        second: false
+        set_second: false
+        decons: false
+        set_cons: false
+        First matched: false
+        Second matched: false
+        empty: false
+        No match: false
+scheme/annotations.py:
+    class `SchemeArrowAnnotation`:
+        def `__init__`:
+            red: false
+    class `SchemeTextAnnotation`:
+        def `__init__`:
+            text/plain: false
+        def `set_text`:
+            text/plain: false
+        def `set_content`:
+            text/plain: false
+scheme/events.py:
+    WorkflowEvent: false
+    NodeEvent: false
+    LinkEvent: false
+    AnnotationEvent: false
+    WorkflowEnvChanged: false
+scheme/link.py:
+    def `resolve_types`:
+        An unexpected error while resolving type {!r}:\n{}: false
+    def `_get_first_type`:
+        'Multiple types specified, but using only the first. ': false
+        Use `{newname}` instead.: false
+        no type spec: false
+        {!r} does not resolve to a type: false
+    class `SchemeLink`:
+        def `__init__`:
+            %r not in in nodes output channels.: false
+            %r not in in nodes input channels.: false
+            Cannot connect %r to %r: false
+        def `source_type`:
+            `source_type()` is deprecated. Use `source_types()`.: false
+            source_types: false
+        def `sink_type`:
+            `sink_type()` is deprecated. Use `sink_types()`.: false
+            sink_types: false
+        def `__str__`:
+            {0}(({1}, {2}) -> ({3}, {4})): false
+scheme/node.py:
+    class `SchemeNode`:
+        def `input_channel`:
+            %r is not a valid input channel for %r.: false
+        def `output_channel`:
+            %r is not a valid output channel for %r.: false
+        def `set_state_message`:
+            "'message' with no id was ignored. ": false
+            This will raise an error in the future.: false
+        def `__str__`:
+            SchemeNode(description_id=%r, title=%r, ...): false
+scheme/readwrite.py:
+    def `_ast_parse_expr`:
+        <source>: false
+        eval: false
+    def `string_eval`:
+        %r is not a string literal: false
+    def `tuple_eval`:
+        %r is not a tuple literal: false
+        Can only contain numbers or strings: false
+    def `_terminal_value`:
+        Not a terminal: false
+    _scheme: false
+    title: false
+    version: false
+    description: false
+    nodes: false
+    _node: false
+    links: false
+    _link: false
+    annotations: false
+    _annotation: false
+    session_state: false
+    _session_data: false
+    id: false
+    name: false
+    position: false
+    project_name: false
+    qualified_name: false
+    data: false
+    _data: false
+    format: false
+    source_node_id: false
+    sink_node_id: false
+    source_channel: false
+    source_channel_id: false
+    sink_channel: false
+    sink_channel_id: false
+    enabled: false
+    type: false
+    params: false
+    _text_params: false
+    _arrow_params: false
+    geometry: false
+    text: false
+    font: false
+    content_type: false
+    color: false
+    _window_group: false
+    default: false
+    state: false
+    groups: false
+    def `parse_ows_etree_v_2_0`:
+        version: false
+        node_properties/properties: false
+        node_id: false
+        format: false
+        2.0: false
+        data: false
+        nodes/node: false
+        id: false
+        position: false
+        title: false
+        name: false
+        project_name: false
+        qualified_name: false
+        links/link: false
+        source_node_id: false
+        sink_node_id: false
+        source_channel: false
+        source_channel_id: false
+        sink_channel: false
+        sink_channel_id: false
+        enabled: false
+        true: false
+        annotations/*: false
+        text: false
+        rect: false
+        (0.0, 0.0, 20.0, 20.0): false
+        font-family: false
+        font-size: false
+        family: false
+        size: false
+        type: false
+        text/plain: false
+        arrow: false
+        start: false
+        (0, 0): false
+        end: false
+        fill: false
+        red: false
+        Unknown annotation '%s'. Skipping.: false
+        session_state/window_groups/group: false
+        default: false
+        false: false
+        window_state: false
+        ascii: false
+        description: false
+    def `parse_ows_stream`:
+        scheme: false
+        Invalid Orange Workflow Scheme file: false
+        version: false
+        widgets: false
+        'Cannot open Orange Workflow Scheme v1.0. This format is no ': false
+        longer supported: false
+        Invalid Orange Workflow Scheme file (missing version).: false
+        2.0: false
+        2.1: false
+        Unsupported format version {version}: false
+    def `scheme_load`:
+        Could not load properties for %r.: false
+        text: false
+        arrow: false
+        'Ignoring unknown annotation type: %r': false
+    def `_find_source_channel`:
+        '{link.source_channel!r} is not a valid output channel ': false
+        for {node.description.name!r}.: false
+    def `_find_sink_channel`:
+        '{link.sink_channel!r} is not a valid input channel ': false
+        for {node.description.name!r}.: false
+    def `scheme_to_etree`:
+        literal: false
+        scheme: false
+        version: false
+        2.0: false
+        title: false
+        description: false
+        nodes: false
+        id: false
+        name: false
+        qualified_name: false
+        project_name: false
+        position: false
+        scheme_node_type: false
+        %s.%s: false
+        node: false
+        links: false
+        source_node_id: false
+        sink_node_id: false
+        source_channel: false
+        sink_channel: false
+        enabled: false
+        true: false
+        false: false
+        source_channel_id: false
+        sink_channel_id: false
+        link: false
+        annotations: false
+        text: false
+        type: false
+        rect: false
+        font-family: false
+        family: false
+        font-size: false
+        size: false
+        arrow: false
+        start: false
+        end: false
+        fill: false
+        Can't save %r: false
+        thumbnail: false
+        node_properties: false
+        Error serializing properties for node %r: false
+        properties: false
+        node_id: false
+        format: false
+        session_state: false
+        window_groups: false
+        group: false
+        default: false
+        window_state: false
+        ascii: false
+        window_group: false
+    def `scheme_to_ows_stream`:
+        literal: false
+        utf-8: false
+    def `indent`:
+        \t: false
+        def `indent_`:
+            \n: false
+    def `dumps`:
+        literal: false
+        Could not serialize to a literal string: false
+        json: false
+        Could not serialize to a json string: false
+        pickle: false
+        ascii: false
+        Unsupported format %r: false
+        Using pickle fallback: false
+        Something strange happened.: false
+    def `loads`:
+        literal: false
+        json: false
+        pickle: false
+        ascii: false
+        Unknown format: false
+    def `literal_dumps`:
+        def `check`:
+            'Non-finite values can not be ': false
+            serialized as a python literal: false
+            {0} is a recursive structure: false
+            '{0} can not be serialized as a python ': false
+            literal: false
+        def `check_relaxed`:
+            'Non-finite values can not be ': false
+            serialized as a python literal: false
+            {0} is a recursive structure: false
+            '{0} can not be serialized as a python ': false
+            literal: false
+scheme/scheme.py:
+    T: false
+    class `Scheme`:
+        def `insert_node`:
+            Node already in scheme.: false
+            Added node %r to scheme %r.: false
+        def `new_node`:
+            Expected %r, got %r.: false
+        def `remove_node`:
+            Node is not in the scheme.: false
+            Removed node %r from scheme %r.: false
+        def `insert_link`:
+            Added link %r (%r) -> %r (%r) to scheme %r.: false
+        def `remove_link`:
+            Link is not in the scheme.: false
+            Removed link %r (%r) -> %r (%r) from scheme %r.: false
+        def `check_connect`:
+            Cannot create self cycle in the scheme: false
+            Cannot create cycles in the scheme: false
+            Cannot connect %r to %r.: false
+            A link from %r (%r) -> %r (%r) already exists: false
+            %r is already connected.: false
+        def `insert_annotation`:
+            Cannot add the same annotation multiple times: false
+        def `save_to`:
+            wb: false
+        def `load_from`:
+            Scheme is not empty.: false
+            rb: false
+        def `window_group_presets`:
+            _presets: false
+        def `set_window_group_presets`:
+            _presets: false
+scheme/signalmanager.py:
+    V: false
+    K: false
+    class `Signal`:
+        Signal: false
+        link: false
+        value: false
+        id: false
+        index: false
+        Type[New]: false
+        Type[Update]: false
+        Type[Close]: false
+    enabled: false
+    class `_LazyValueType`:
+        class `LazyValueMeta`:
+            def `__repr__`:
+                LazyValue[{cls.type().__name__}]: false
+    class `_OutputState`:
+        flags: false
+        outputs: false
+        def `__repr__`:
+            State(flags={}, outputs={!r}): false
+    class `_LinkExtra`:
+        flags: false
+    class `SignalManager`:
+        def `__on_node_removed`:
+            Removing pending signals for '%s'.: false
+        def `__on_link_added`:
+            Scheduling signal data update for '%s'.: false
+        def `eventFilter`:
+            Scheduling close signal (%s).: false
+        def `__on_link_enabled_changed`:
+            Link %s enabled. Scheduling signal data update.: false
+        def `send`:
+            "'send' called with no workflow!.": false
+            `id` parameter is deprecated and will be removed in v0.2: false
+            '%r sending %r (id: %r) on channel %r': false
+            'Sending multiple values on the same output channel via ': false
+            different ids is no longer supported.: false
+            %r clear invalidated flag on channel %r: false
+        def `invalidate`:
+            %r invalidating channel %r: false
+        def `purge_link`:
+            `purge_link` is deprecated.: false
+        def `process_queued`:
+            `max_nodes` is deprecated and will be removed in the future: false
+            Cannot re-enter 'process_queued': false
+            Can't process in state %i: false
+        def `process_node`:
+            Processing %r, sending %i signals.: false
+        def `__process_next`:
+            Received 'UpdateRequest' while not in 'Running' state: false
+            "Received 'UpdateRequest' while in 'process_queued'. ": false
+            'An update will be re-scheduled when exiting the ': false
+            current update.: false
+        def `__process_next_helper`:
+            'Process next, queued signals: %i, nactive: %i ': false
+            '(max_active: %i)': false
+            title: false
+            'Pending nodes: %s': false
+            'Blocking nodes: %s': false
+            'Invalidated nodes: %s': false
+            'Nodes ready for update: %s': false
+        def `max_active`:
+            MAX_ACTIVE_NODES: false
+            max-active-nodes: false
+    def `compress_signals`:
+        Must preserve signal id: false
+    def `compress_single`:
+        def `is_none_update`:
+            Optional[Signal]: false
+        def `is_update`:
+            Optional[Signal]: false
+        def `is_close`:
+            Optional[Signal]: false
+scheme/widgetmanager.py:
+    WidgetManager: false
+    class `WidgetManager`:
+        class `CreationPolicy`:
+            Normal: false
+            Immediate: false
+            OnDemand: false
+        def `__init__`:
+            action-canvas-windows-list-head: false
+        def `__add_widget_for_node`:
+            Creating widget for node %s: false
+            widgetmanager-error-placeholder: false
+            <pre>: false
+            </pre>: false
+            Raise Canvas to Front: Pokaži platno
+            action-canvas-raise-canvas: false
+            Raise containing canvas workflow window: Postavi platno z delotokom v ospredje
+            Ctrl+Up: false
+            Raise Descendants: Pokaži naslednike
+            action-canvas-raise-descendants: false
+            Raise all immediate descendants of this node: Postavi v ospredje gradnike, ki sledijo izbranemu
+            Ctrl+Shift+Right: false
+            Raise Ancestors: Pokaži prednike
+            action-canvas-raise-ancestors: false
+            Raise all immediate ancestors of this node: Postavi v ospredje gradnike, ki so pred izbranim
+            Ctrl+Shift+Left: false
+        def `__process_init_queue`:
+            "__process_init_queue: '%s'": false
+        def `__update_actions_state`:
+            action-canvas-raise-ancestors: false
+            action-canvas-raise-descendants: false
+styles/__init__.py:
+    _T: false
+    def `breeze_light`:
+        '#30363C': false
+        '#888786': false
+        '#EFF0F1': false
+        '#FCFCFC': false
+        '#00B0EF': false
+        '#0057B4': false
+        '#ffffff': false
+        '#c4c9cd': false
+        '#888e93': false
+        '#474a4c': false
+    breeze-light: false
+    breeze-dark: false
+    zion-reversed: false
+    dark: false
+    def `style_sheet`:
+        def `process_qss`:
+            ^\s*@([a-zA-Z0-9_]+?)\s*:\s*([a-zA-Z0-9_/]+?);\s*$: false
+        r: false
+        utf-8: false
+        qss: false
+utils/__init__.py:
+    dotted_getattr: false
+    qualified_name: false
+    name_lookup: false
+    type_lookup: false
+    type_lookup_: false
+    asmodule: false
+    check_type: false
+    check_arg: false
+    check_subclass: false
+    unique: false
+    assocv: false
+    assocf: false
+    group_by_all: false
+    mapping_get: false
+    findf: false
+    set_flag: false
+    is_flag_set: false
+    qsizepolicy_is_expanding: false
+    qsizepolicy_is_shrinking: false
+    is_event_source_mouse: false
+    UNUSED: false
+    H: false
+    A: false
+    B: false
+    C: false
+    K: false
+    V: false
+    F: false
+    def `dotted_getattr`:
+        .: false
+    def `qualified_name`:
+        builtins: false
+        %s.%s: false
+    def `type_str`:
+        Union[: false
+        ', ': false
+        ]: false
+        builtin.: false
+    def `name_lookup`:
+        .: false
+        builtins.: false
+    def `type_lookup`:
+        "'{}' is a {!r} not a type": false
+    def `check_type`:
+        Expected %r. Got %r: false
+    def `check_subclass`:
+        Expected %r. Got %r: false
+    def `unique`:
+        Callable[[A], H]: false
+    def `findf`:
+        Union[A, B]: false
+utils/after_exit.py:
+    def `run_after_exit`:
+        --arg=: false
+        --log=: false
+        -m: false
+    register_at_fork: false
+    def `main`:
+        -f: false
+        -a: false
+        --arg: false
+        append: false
+        --log: false
+        Log file: false
+        w: false
+        'Blocking on read from fd: %d': false
+        Unexpected content %r from parent: false
+        Parent closed fd; %d: false
+        'Starting new process with cmd: %r': false
+    __main__: false
+utils/asyncutils.py:
+    def `get_event_loop`:
+        QCoreApplication is not running: false
+        Called from non-main thread: false
+utils/graph.py:
+    traverse_bf: false
+    strongly_connected_components: false
+    H: false
+utils/image.py:
+    def `qimage_copy_from_buffer`:
+        Wrong data.shape (expected ({w}, {h}) got {data.shape}): false
+utils/markup.py:
+    def `render_plain`:
+        '<p style="white-space: pre-wrap;">': false
+        </p>: false
+    def `render_rst`:
+        report_level: false
+        output-encoding: false
+        utf-8: false
+        html: false
+    text/plain: false
+    text/rst: false
+    text/x-rst: false
+    text/markdown: false
+    text/html: false
+    def `render_as_rich_text`:
+        text/plain: false
+        ;: false
+utils/overlay.py:
+    class `NotificationMessageWidget`:
+        _Button: false
+        button: false
+        role: false
+        stdbutton: false
+        def `__init__`:
+            Ok: true
+            No: Ne
+            icon-label: false
+            title-label: false
+            text-label: false
+            darwin: false
+        def `addButton`:
+            'Wrong number of arguments for ': false
+            addButton(QAbstractButton, role): false
+            addButton(StandardButton): false
+            addButton(str, ButtonRole): false
+            darwin: false
+    def `proxydoc`:
+        __doc__: false
+    class `NotificationWidget`:
+        def `__init__`:
+            Ok: true
+            No: Ne
+            darwin: false
+        def `resizeEvent`:
+            darwin: false
+        def `fromNotification`:
+            title: false
+            text: false
+            icon: false
+            acceptLabel: false
+            rejectLabel: false
+            standardButtons: false
+    class `NotificationOverlay`:
+        def `nextWidget`:
+            Received next notification signal while no notification is displayed: false
+    class `NotificationServer`:
+        def `_nextNotification`:
+            Received next notification signal while no notification is enqueued: false
+utils/pickle.py:
+    class `Pickler`:
+        def `persistent_id`:
+            scheme: false
+            SchemeNode_: false
+            SchemeLink_: false
+            BaseSchemeAnnotation_: false
+    class `Unpickler`:
+        def `persistent_load`:
+            scheme: false
+            SchemeNode_: false
+            _: false
+            SchemeLink_: false
+            BaseSchemeAnnotation_: false
+            Unsupported persistent object: false
+    def `scratch_swp_base_name`:
+        scratch.swp.p: false
+        scratch-crashes: false
+    def `swp_name`:
+        .: false
+        .swp.p: false
+        startup/load-crashed-workflows: false
+    def `glob_scratch_swps`:
+        .*: false
+utils/pkgmeta.py:
+    Distribution: false
+    EntryPoint: false
+    entry_points: false
+    normalize_name: false
+    trim: false
+    trim_leading_lines: false
+    trim_trailing_lines: false
+    parse_meta: false
+    get_dist_meta: false
+    get_distribution: false
+    def `normalize_name`:
+        [-_.]+: false
+        -: false
+        _: false
+    def `is_develop_egg`:
+        {normalize_name(dist.name)}.egg-info/: false
+        setup.py: false
+    def `trim`:
+        \n: false
+    Platform: false
+    Supported-Platform: false
+    Classifier: false
+    Requires-Dist: false
+    Provides-Dist: false
+    Obsoletes-Dist: false
+    Project-URL: false
+    def `parse_meta`:
+        Description: false
+        Metadata-Version: false
+        1.3: false
+    def `get_dist_url`:
+        Home-page: false
+    def `get_dist_meta`:
+        Description: false
+utils/propertybindings.py:
+    def `find_meta_property`:
+        %s does no have a property named %r.: false
+    def `find_notifier`:
+        %s does not have a notifier signal.: false
+        utf-8: false
+        (: false
+    class `PropertyBindingExpr`:
+        def `__init__`:
+            eval: false
+            <unknown>: false
+        def `set`:
+            Cannot set a value of an expression: false
+        def `bindTo`:
+            Cannot bind an expression: false
+    class `BindingManager`:
+        darwin: false
+    class `UnboundBindingWrapper`:
+        def `to`:
+            Can only call 'to' once.: false
+utils/qinvoke.py:
+    A: false
+    T1: false
+    T2: false
+    T3: false
+    T4: false
+    T5: false
+    T6: false
+utils/qobjref.py:
+    qobjref: false
+    qobjref_weak: false
+    Q: false
+    class `qobjref`:
+        __obj: false
+        __state: false
+        __weakref__: false
+        def `__repr__`:
+            'to ': false
+            dead: false
+            '<qobjref at 0x%x; ': false
+            >: false
+    class `qobjref_weak`:
+        __obj_ref: false
+        __state: false
+        __weakref__: false
+        def `__repr__`:
+            'to ': false
+            dead: false
+            '<qobjref_weak at 0x%x; ': false
+            >: false
+utils/qtcompat.py:
+    def `toPyObject`:
+        toPyObject is deprecated and will be removed.: false
+    def `qunwrap`:
+        qunwrap is deprecated and will be removed.: false
+    def `qwrap`:
+        qwrap is deprecated and will be removed.: false
+utils/redirect.py:
+    "'{}' is deprecated use contextlib.redirect_{stderr,stdin}.": false
+utils/settings.py:
+    config_slot: false
+    key: false
+    value_type: false
+    default_value: false
+    doc: false
+    class `_pickledvalue`:
+        def `__init__`:
+            "'_pickledvalue' instances should not be created": false
+    class `Settings`:
+        def `__init__`:
+            /: false
+        def `__key`:
+            /: false
+        def `__getitem__`:
+            {0!r} is a group: false
+        def `__setitem__`:
+            Expected {0!r} got {1!r}: false
+        def `__iter__`:
+            /: false
+        def `group`:
+            /: false
+        def `isgroup`:
+            {0!r} is not a valid key: false
+        def `customEvent`:
+            /: false
+    _T: false
+    def `QSettings_readArray`:
+        def `normalize_spec`:
+            len(spec) != 2: false
+utils/shtools.py:
+    def `python_process`:
+        nt: false
+        pythonw.exe: false
+        python.exe: false
+    def `__nt_kwargs_defaults`:
+        CREATE_NO_WINDOW: false
+        creationflags: false
+    def `python_run`:
+        nt: false
+        pythonw.exe: false
+        python.exe: false
+    def `create_process`:
+        nt: false
+    def `temp_named_file`:
+        utf-8: false
+        wt: false
+utils/localization/__init__.py:
+    def `pl`:
+        '|': false
+        yY: false
+        aeiouAEIOU: false
+        ies: false
+        s: false
