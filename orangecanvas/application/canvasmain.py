@@ -27,7 +27,7 @@ from AnyQt.QtGui import (
     QWhatsThisClickedEvent, QShowEvent, QCloseEvent
 )
 from AnyQt.QtCore import (
-    Qt, QObject, QEvent, QSize, QUrl, QByteArray, QFileInfo,
+    Signal, Qt, QObject, QEvent, QSize, QUrl, QByteArray, QFileInfo,
     QSettings, QStandardPaths, QAbstractItemModel, QMimeData, QT_VERSION)
 
 try:
@@ -39,11 +39,6 @@ except ImportError:
         from AnyQt.QtNetwork import QNetworkDiskCache
     except ImportError:
         QWebView = None   # type: ignore
-
-
-from AnyQt.QtCore import (
-    pyqtProperty as Property, pyqtSignal as Signal
-)
 
 from ..scheme import Scheme, IncompatibleChannelTypeError, SchemeNode
 from ..scheme import readwrite
@@ -96,25 +91,6 @@ def user_documents_path():
     return QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation)
 
 
-class FakeToolBar(QToolBar):
-    """A Toolbar with no contents (used to reserve top and bottom margins
-    on the main window).
-
-    """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.setFloatable(False)
-        self.setMovable(False)
-
-        # Don't show the tool bar action in the main window's
-        # context menu.
-        self.toggleViewAction().setVisible(False)
-
-    def paintEvent(self, event):
-        # Do nothing.
-        pass
-
-
 class DockWidget(QDockWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -132,8 +108,6 @@ class CanvasMainWindow(QMainWindow):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        self.__scheme_margins_enabled = True
         self.__document_title = "untitled"
         self.__first_show = True
         self.__is_transient = True
@@ -178,28 +152,10 @@ class CanvasMainWindow(QMainWindow):
     def setup_ui(self):
         """Setup main canvas ui
         """
-        # Two dummy tool bars to reserve space
-        self.__dummy_top_toolbar = FakeToolBar(
-            objectName="__dummy_top_toolbar")
-        self.__dummy_bottom_toolbar = FakeToolBar(
-            objectName="__dummy_bottom_toolbar")
-
-        self.__dummy_top_toolbar.setFixedHeight(20)
-        self.__dummy_bottom_toolbar.setFixedHeight(20)
-
-        self.addToolBar(Qt.TopToolBarArea, self.__dummy_top_toolbar)
-        self.addToolBar(Qt.BottomToolBarArea, self.__dummy_bottom_toolbar)
-
         self.setCorner(Qt.BottomLeftCorner, Qt.LeftDockWidgetArea)
         self.setCorner(Qt.BottomRightCorner, Qt.RightDockWidgetArea)
 
         self.setDockOptions(QMainWindow.AnimatedDocks)
-        # Create an empty initial scheme inside a container with fixed
-        # margins.
-        w = QWidget()
-        w.setLayout(QVBoxLayout())
-        w.layout().setContentsMargins(20, 0, 10, 0)
-
         self.scheme_widget = SchemeEditWidget()
         self.scheme_widget.setDropHandlers([interactions.PluginDropHandler(),])
         self.set_scheme(config.workflow_constructor(parent=self))
@@ -212,9 +168,7 @@ class CanvasMainWindow(QMainWindow):
         self.scheme_widget.setAcceptDrops(True)
         self.scheme_widget.view().viewport().installEventFilter(dropfilter)
 
-        w.layout().addWidget(self.scheme_widget)
-
-        self.setCentralWidget(w)
+        self.setCentralWidget(self.scheme_widget)
 
         # Drop shadow around the scheme document
         frame = DropShadowFrame(radius=15)
@@ -339,9 +293,6 @@ class CanvasMainWindow(QMainWindow):
         self.dock_widget.expandedChanged.connect(self._on_tool_dock_expanded)
 
         self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_widget)
-        self.dock_widget.dockLocationChanged.connect(
-            self._on_dock_location_changed
-        )
 
         self.output_dock = DockWidget(
             self.tr("Log"), self, objectName="output-dock",
@@ -591,15 +542,6 @@ class CanvasMainWindow(QMainWindow):
         # TODO: This is bad (should be moved here).
         self.dock_help_action = None
 
-        self.toogle_margins_action = QAction(
-            self.tr("Show Workflow Margins"), self,
-            checkable=True,
-            toolTip=self.tr("Show margins around the workflow view."),
-        )
-        self.toogle_margins_action.setChecked(True)
-        self.toogle_margins_action.toggled.connect(
-            self.set_scheme_margins_enabled)
-
         self.float_widgets_on_top_action = QAction(
             self.tr("Display Widgets on Top"), self,
             checkable=True,
@@ -711,7 +653,6 @@ class CanvasMainWindow(QMainWindow):
         sep = self.view_menu.addSeparator()
         sep.setObjectName("view-zoom-actions-separator")
 
-        self.view_menu.addAction(self.toogle_margins_action)
         menu_bar.addMenu(self.view_menu)
 
         # Options menu
@@ -778,9 +719,6 @@ class CanvasMainWindow(QMainWindow):
             settings.value("toolbox-dock-exclusive", False, type=bool)
         )
 
-        self.toogle_margins_action.setChecked(
-            settings.value("scheme-margins-enabled", False, type=bool)
-        )
         self.show_output_action.setChecked(
             settings.value("output-dock/is-visible", False, type=bool))
 
@@ -951,39 +889,6 @@ class CanvasMainWindow(QMainWindow):
                 cat_act.setChecked(cat_act.text() == category)
 
             self.dock_widget.expand()
-
-    def set_scheme_margins_enabled(self, enabled):
-        # type: (bool) -> None
-        """Enable/disable the margins around the scheme document.
-        """
-        if self.__scheme_margins_enabled != enabled:
-            self.__scheme_margins_enabled = enabled
-            self.__update_scheme_margins()
-
-    def _scheme_margins_enabled(self):
-        # type: () -> bool
-        return self.__scheme_margins_enabled
-
-    scheme_margins_enabled: bool
-    scheme_margins_enabled = Property(  # type: ignore
-        bool, _scheme_margins_enabled, set_scheme_margins_enabled)
-
-    def __update_scheme_margins(self):
-        """Update the margins around the scheme document.
-        """
-        enabled = self.__scheme_margins_enabled
-        self.__dummy_top_toolbar.setVisible(enabled)
-        self.__dummy_bottom_toolbar.setVisible(enabled)
-        central = self.centralWidget()
-
-        margin = 20 if enabled else 0
-
-        if self.dockWidgetArea(self.dock_widget) == Qt.LeftDockWidgetArea:
-            margins = (margin // 2, 0, margin, 0)
-        else:
-            margins = (margin, 0, margin // 2, 0)
-
-        central.layout().setContentsMargins(*margins)
 
     def is_transient(self):
         # type: () -> bool
@@ -2202,13 +2107,6 @@ class CanvasMainWindow(QMainWindow):
         filename = str(action.data())
         self.open_scheme_file(filename)
 
-    def _on_dock_location_changed(self, location):
-        # type: (Qt.DockWidgetArea) -> None
-        """Location of the dock_widget has changed, fix the margins
-        if necessary.
-        """
-        self.__update_scheme_margins()
-
     def set_tool_dock_expanded(self, expanded):
         # type: (bool) -> None
         """
@@ -2268,9 +2166,6 @@ class CanvasMainWindow(QMainWindow):
         settings.setValue("state", state)
         settings.setValue("canvasdock/expanded",
                           self.dock_widget.expanded())
-        settings.setValue("scheme-margins-enabled",
-                          self.scheme_margins_enabled)
-
         settings.setValue("widgettoolbox/state",
                           self.widgets_tool_box.saveState())
 
