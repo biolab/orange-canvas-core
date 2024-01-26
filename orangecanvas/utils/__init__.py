@@ -34,6 +34,7 @@ __all__ = [
     "group_by_all",
     "mapping_get",
     "findf",
+    "index_where",
     "set_flag",
     "is_flag_set",
     "qsizepolicy_is_expanding",
@@ -295,6 +296,19 @@ def findf(iterable, predicate, default=None):
         if predicate(item):
             return item
     return typing.cast('Union[A, B]', default)
+
+
+def index_where(iterable, predicate):
+    # type: (Iterable[A], Callable[[A], bool]) -> Optional[int]
+    """
+    Return the first index of el in `iterable` where `predicate(el)` returns True.
+
+    If no element matches return `None`.
+    """
+    for i, el in enumerate(iterable):
+        if predicate(el):
+            return i
+    return None
 
 
 def set_flag(flags, mask, on=True):
