@@ -5,7 +5,6 @@ Orange Canvas Main Window
 import os
 import sys
 import logging
-import operator
 import io
 import traceback
 from concurrent import futures
@@ -78,7 +77,7 @@ from ..utils.settings import QSettings_readArray, QSettings_writeArray
 from ..utils.qinvoke import qinvoke
 from ..utils.pickle import Pickler, Unpickler, glob_scratch_swps, swp_name, \
     canvas_scratch_name_memo, register_loaded_swp
-from ..utils import unique, group_by_all, set_flag, findf
+from ..utils import unique, group_by_all, set_flag, findf, index_where
 from ..utils.asyncutils import get_event_loop
 from ..utils.qobjref import qobjref
 from . import welcomedialog
@@ -940,9 +939,11 @@ class CanvasMainWindow(QMainWindow):
             popup.setActionRole(QtWidgetRegistry.WIDGET_ACTION_ROLE)
             model = self.__registry_model
             assert model is not None
-            i = index(self.widget_registry.categories(), category,
-                      predicate=lambda name, cat: cat.name == name)
-            if i != -1:
+            i = index_where(
+                self.widget_registry.categories(),
+                lambda cat: cat.name == category
+            )
+            if i is not None:
                 popup.setModel(model)
                 popup.setRootIndex(model.index(i, 0))
                 popup.adjustSize()
@@ -2248,7 +2249,7 @@ class CanvasMainWindow(QMainWindow):
 
         # Find the separator action in the menu (after 'Browse Recent')
         recent_actions = self.recent_menu.actions()
-        begin_index = index(recent_actions, self.recent_menu_begin)
+        begin_index = recent_actions.index(self.recent_menu_begin)
         action_before = recent_actions[begin_index + 1]
 
         self.recent_menu.insertAction(action_before, action)
@@ -2628,27 +2629,6 @@ class CanvasMainWindow(QMainWindow):
 
 def updated_flags(flags, mask, state):
     return set_flag(flags, mask, state)
-
-
-
-def identity(item):
-    return item
-
-
-def index(sequence, *what, **kwargs):
-    """index(sequence, what, [key=None, [predicate=None]])
-
-    Return index of `what` in `sequence`.
-
-    """
-    what = what[0]
-    key = kwargs.get("key", identity)
-    predicate = kwargs.get("predicate", operator.eq)
-    for i, item in enumerate(sequence):
-        item_key = key(item)
-        if predicate(what, item_key):
-            return i
-    raise ValueError("%r not in sequence" % what)
 
 
 def category_filter_function(state):
