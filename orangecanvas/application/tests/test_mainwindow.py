@@ -60,7 +60,6 @@ class TestMainWindow(TestMainWindowBase):
         w.show()
         new.show()
 
-        w.set_scheme_margins_enabled(True)
         new.deleteLater()
         stream = TextStream()
         w.connect_output_stream(stream)
