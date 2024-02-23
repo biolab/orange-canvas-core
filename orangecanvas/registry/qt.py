@@ -209,7 +209,7 @@ class QtWidgetRegistry(QObject, WidgetRegistry):
         insertion_i = bisect.bisect_right(priorities, desc.priority)
 
         WidgetRegistry._insert_widget(self, category, desc)
-
+        desc = self.widget(desc.qualified_name)
         cat_item = self.__item_model.item(cat_i)
         widget_item = self._widget_desc_to_std_item(desc, category)
 

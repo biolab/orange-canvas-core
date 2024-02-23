@@ -24,8 +24,7 @@ from .nodeitem import AnchorPoint, SHADOW_COLOR
 from .graphicstextitem import GraphicsTextItem
 from .utils import stroke_path, qpainterpath_sub_path
 from ...registry import InputSignal, OutputSignal
-
-from ...scheme import SchemeLink
+from ...scheme import Link
 
 if typing.TYPE_CHECKING:
     from . import NodeItem, AnchorPoint
@@ -209,7 +208,7 @@ def path_link_disabled(basepath):
     return p1
 
 
-_State = SchemeLink.State
+_State = Link.State
 
 
 class LinkItem(QGraphicsWidget):
@@ -235,19 +234,19 @@ class LinkItem(QGraphicsWidget):
     Z_VALUE = 0
 
     #: Runtime link state value
-    #: These are pulled from SchemeLink.State for ease of binding to it's
+    #: These are pulled from Link.State for ease of binding to its
     #: state
-    State = SchemeLink.State
+    State = Link.State
     #: The link has no associated state.
-    NoState = SchemeLink.NoState
+    NoState = Link.NoState
     #: Link is empty; the source node does not have any value on output
-    Empty = SchemeLink.Empty
+    Empty = Link.Empty
     #: Link is active; the source node has a valid value on output
-    Active = SchemeLink.Active
+    Active = Link.Active
     #: The link is pending; the sink node is scheduled for update
-    Pending = SchemeLink.Pending
+    Pending = Link.Pending
     #: The link's input is marked as invalidated (not yet available).
-    Invalidated = SchemeLink.Invalidated
+    Invalidated = Link.Invalidated
 
     def __init__(self, parent=None, **kwargs):
         # type: (Optional[QGraphicsItem], Any) -> None

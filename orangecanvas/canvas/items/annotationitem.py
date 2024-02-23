@@ -23,10 +23,14 @@ from .graphicspathobject import GraphicsPathObject
 from .graphicstextitem import GraphicsTextEdit
 
 
-class Annotation(QGraphicsWidget):
+class AnnotationItem(QGraphicsWidget):
     """
     Base class for annotations in the canvas scheme.
     """
+
+
+# alias for back-compatibility
+Annotation = AnnotationItem
 
 
 class GraphicsTextEdit(GraphicsTextEdit):

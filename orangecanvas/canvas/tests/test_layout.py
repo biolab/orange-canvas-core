@@ -32,17 +32,20 @@ class TestAnchorLayout(QAppTestCase):
     def test_layout(self):
         one_desc, negate_desc, cons_desc = self.widget_desc()
         one_item = NodeItem()
-        one_item.setWidgetDescription(one_desc)
+        one_item.initFrom(one_desc)
+        # one_item.setWidgetDescription(one_desc)
         one_item.setPos(0, 150)
         self.scene.add_node_item(one_item)
 
         cons_item = NodeItem()
-        cons_item.setWidgetDescription(cons_desc)
+        cons_item.initFrom(cons_desc)
+        # cons_item.setWidgetDescription(cons_desc)
         cons_item.setPos(200, 0)
         self.scene.add_node_item(cons_item)
 
         negate_item = NodeItem()
-        negate_item.setWidgetDescription(negate_desc)
+        negate_item.initFrom(negate_desc)
+        # negate_item.setWidgetDescription(negate_desc)
         negate_item.setPos(200, 300)
         self.scene.add_node_item(negate_item)
 

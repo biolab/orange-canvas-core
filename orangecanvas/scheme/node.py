@@ -10,9 +10,14 @@ from typing import Optional, Dict, Any, List, Tuple, Iterable, Union
 
 from AnyQt.QtCore import QObject, QCoreApplication
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
+from AnyQt.QtGui import QIcon
 
 from ..registry import WidgetDescription, InputSignal, OutputSignal
-from .events import NodeEvent
+from .events import NodeEvent, NodeInputChannelEvent, NodeOutputChannelEvent
+from .element import Element
+from ..resources import icon_loader
+
+Pos = Tuple[float, float]
 
 
 class UserMessage(object):
@@ -41,23 +46,13 @@ class UserMessage(object):
         self.data = dict(data)
 
 
-class SchemeNode(QObject):
+class Node(Element):
     """
-    A node in a :class:`.Scheme`.
+    Common base class of all other workflow graph nodes.
 
-    Parameters
-    ----------
-    description : :class:`WidgetDescription`
-        Node description instance.
-    title : str, optional
-        Node title string (if None `description.name` is used).
-    position : tuple
-        (x, y) tuple of floats for node position in a visual display.
-    properties : dict
-        Additional extra instance properties (settings, widget geometry, ...)
-    parent : :class:`QObject`
-        Parent object.
-
+    This class should not be instantiated directly use one of
+    :class:`SchemeNode`, :class:`MetaNode`, :class:`InputNode` and
+    :class:`OutputNode`.
     """
     class State(enum.IntEnum):
         """
@@ -94,38 +89,102 @@ class SchemeNode(QObject):
     Invalidated = State.Invalidated
     NotReady = State.NotReady
 
-    def __init__(self, description, title=None, position=None,
-                 properties=None, parent=None):
-        # type: (WidgetDescription, str, Tuple[float, float], dict, QObject) -> None
-        super().__init__(parent)
-        self.description = description
-
-        if title is None:
-            title = description.name
-
+    def __init__(
+            self, title: str = "", position: Pos = (0, 0),
+            properties: Optional[dict] = None, parent: Optional[QObject] = None,
+            **kwargs
+    ):
+        super().__init__(parent, **kwargs)
+        self.__parent_node = None
         self.__title = title
-        self.__position = position or (0, 0)
+        self.__position = position
+        self.__properties = properties or {}
+        self.__title = title
+        self.__position = position
         self.__progress = -1
         self.__processing_state = 0
         self.__tool_tip = ""
         self.__status_message = ""
         self.__state_messages = {}  # type: Dict[str, UserMessage]
-        self.__state = SchemeNode.NoState  # type: Union[SchemeNode.State, int]
+        self.__state = Node.NoState  # type: Union[Node.State, int]
+        # I/O channels added at runtime/config
+        self.__inputs = []  # type: List[InputSignal]
+        self.__outputs = []  # type: List[OutputSignal]
         self.properties = properties or {}
+
+    #: Signal emitted when an input channel is inserted
+    input_channel_inserted = Signal(int, InputSignal)
+    #: Signal emitted when an input channel is removed
+    input_channel_removed = Signal(int, InputSignal)
+
+    def add_input_channel(self, signal: InputSignal):
+        """Add `signal` input channel."""
+        self.insert_input_channel(len(self.input_channels()), signal)
+
+    def insert_input_channel(self, index, signal: InputSignal):
+        """Insert the `signal` input channel at `index`"""
+        self.__inputs.insert(index, signal)
+        ev = NodeInputChannelEvent(NodeEvent.InputChannelAdded, self, signal, index)
+        QCoreApplication.sendEvent(self, ev)
+        w = self.workflow()
+        if w is not None:
+            QCoreApplication.sendEvent(self, ev)
+        self.input_channel_inserted.emit(index, signal)
+
+    def remove_input_channel(self, index) -> InputSignal:
+        """Remove the input channel at `index`"""
+        r = self.__inputs.pop(index)
+        ev = NodeInputChannelEvent(NodeEvent.InputChannelRemoved, self, r, index)
+        QCoreApplication.sendEvent(self, ev)
+        w = self.workflow()
+        if w is not None:
+            QCoreApplication.sendEvent(w, ev)
+        self.input_channel_removed.emit(index, r)
+        return r
 
     def input_channels(self):
         # type: () -> List[InputSignal]
         """
         Return a list of input channels (:class:`InputSignal`) for the node.
         """
-        return list(self.description.inputs)
+        return list(self.__inputs)
+
+    #: Signal emitted when an output channel is inserted.
+    output_channel_inserted = Signal(int, OutputSignal)
+    #: Signal emitted when an output channel is removed.
+    output_channel_removed = Signal(int, OutputSignal)
+
+    def add_output_channel(self, signal: OutputSignal):
+        """Add `signal` output channel."""
+        self.insert_output_channel(len(self.output_channels()), signal)
+
+    def insert_output_channel(self, index, signal: OutputSignal):
+        """Insert the `signal` output channel at `index`"""
+        self.__outputs.insert(index, signal)
+        ev = NodeOutputChannelEvent(NodeEvent.OutputChannelAdded, self, signal, index)
+        QCoreApplication.sendEvent(self, ev)
+        w = self.workflow()
+        if w is not None:
+            QCoreApplication.sendEvent(w, ev)
+        self.output_channel_inserted.emit(index, signal)
+
+    def remove_output_channel(self, index) -> OutputSignal:
+        """Remove the output channel at `index`"""
+        r = self.__outputs.pop(index)
+        ev = NodeOutputChannelEvent(NodeEvent.OutputChannelRemoved, self, r, index)
+        QCoreApplication.sendEvent(self, ev)
+        w = self.workflow()
+        if w is not None:
+            QCoreApplication.sendEvent(w, ev)
+        self.output_channel_removed.emit(index, r)
+        return r
 
     def output_channels(self):
         # type: () -> List[OutputSignal]
         """
         Return a list of output channels (:class:`OutputSignal`) for the node.
         """
-        return list(self.description.outputs)
+        return list(self.__outputs)
 
     def input_channel(self, name):
         # type: (str) -> InputSignal
@@ -140,8 +199,8 @@ class SchemeNode(QObject):
         for channel in self.input_channels():
             if channel.name == name:
                 return channel
-        raise ValueError("%r is not a valid input channel for %r." % \
-                         (name, self.description.name))
+        raise ValueError("%r is not a valid input channel for %r." %
+                         (name, self.title))
 
     def output_channel(self, name):
         # type: (str) -> OutputSignal
@@ -156,8 +215,8 @@ class SchemeNode(QObject):
         for channel in self.output_channels():
             if channel.name == name:
                 return channel
-        raise ValueError("%r is not a valid output channel for %r." % \
-                         (name, self.description.name))
+        raise ValueError("%r is not a valid output channel for %r." %
+                         (name, self.title))
 
     #: The title of the node has changed
     title_changed = Signal(str)
@@ -178,6 +237,9 @@ class SchemeNode(QObject):
 
     title: str
     title = Property(str, _title, set_title)  # type: ignore
+
+    def icon(self) -> QIcon:
+        return QIcon()
 
     #: Position of the node in the scheme has changed
     position_changed = Signal(tuple)
@@ -226,13 +288,13 @@ class SchemeNode(QObject):
         """
         Set the node processing state.
         """
-        self.set_state_flags(SchemeNode.Running, bool(state))
+        self.set_state_flags(Node.Running, bool(state))
 
     def _processing_state(self):
         """
         The node processing state, 0 for not processing, 1 the node is busy.
         """
-        return int(bool(self.state() & SchemeNode.Running))
+        return int(bool(self.state() & Node.Running))
 
     processing_state: int
     processing_state = Property(  # type: ignore
@@ -321,7 +383,7 @@ class SchemeNode(QObject):
 
         Parameters
         ----------
-        state: SchemeNode.State
+        state: Node.State
         """
         if self.__state != state:
             curr = self.__state
@@ -330,9 +392,9 @@ class SchemeNode(QObject):
                 self, NodeEvent(NodeEvent.NodeStateChange, self)
             )
             self.state_changed.emit(state)
-            if curr & SchemeNode.Running != state & SchemeNode.Running:
+            if curr & Node.Running != state & Node.Running:
                 self.processing_state_changed.emit(
-                    int(bool(state & SchemeNode.Running))
+                    int(bool(state & Node.Running))
                 )
 
     def state(self):
@@ -349,7 +411,7 @@ class SchemeNode(QObject):
 
         Parameters
         ----------
-        flags: SchemeNode.State
+        flags: Node.State
             Flag to modify
         on: bool
             Turn the flag on or off
@@ -367,13 +429,115 @@ class SchemeNode(QObject):
 
         Parameters
         ----------
-        flag: SchemeNode.State
+        flag: Node.State
 
         Returns
         -------
         val: bool
         """
         return bool(self.__state & flag)
+
+
+class SchemeNode(Node):
+    """
+    A node in a :class:`.Scheme`.
+
+    Parameters
+    ----------
+    description : :class:`WidgetDescription`
+        Node description instance.
+    title : str, optional
+        Node title string (if None `description.name` is used).
+    position : tuple
+        (x, y) tuple of floats for node position in a visual display.
+    properties : dict
+        Additional extra instance properties (settings, widget geometry, ...)
+    parent : :class:`QObject`
+        Parent object.
+    """
+    def __init__(self, description, title=None, position=(0, 0),
+                 properties=None, parent=None):
+        # type: (WidgetDescription, str, Pos, dict, QObject) -> None
+        if title is None:
+            title = description.name
+
+        super().__init__(title, position, properties or {}, parent=parent)
+        self.description = description
+        # I/O channels added at runtime/config
+        self.__inputs = []  # type: List[InputSignal]
+        self.__outputs = []  # type: List[OutputSignal]
+
+    def input_channels(self):
+        # type: () -> List[InputSignal]
+        """
+        Return a list of input channels (:class:`InputSignal`) for the node.
+        """
+        return list(self.description.inputs) + self.__inputs
+
+    input_channel_inserted = Signal(int, InputSignal)
+    input_channel_removed = Signal(int, InputSignal)
+
+    def add_input_channel(self, signal: InputSignal):
+        self.insert_input_channel(len(self.input_channels()), signal)
+
+    def insert_input_channel(self, index, signal: InputSignal):
+        inputs = self.description.inputs
+        if 0 <= index < len(inputs):
+            raise IndexError("Cannot insert into predefined inputs")
+        self.__inputs.insert(index - len(inputs), signal)
+        QCoreApplication.sendEvent(
+            self, NodeInputChannelEvent(NodeEvent.InputChannelAdded, self, signal, index)
+        )
+        self.input_channel_inserted.emit(index, signal)
+
+    def remove_input_channel(self, index) -> InputSignal:
+        inputs = self.description.inputs
+        if 0 <= index < len(inputs):
+            raise IndexError("Cannot remove predefined inputs")
+        r = self.__inputs.pop(index - len(inputs))
+        QCoreApplication.sendEvent(
+            self, NodeInputChannelEvent(NodeEvent.InputChannelRemoved, self, r, index)
+        )
+        self.input_channel_removed.emit(index, r)
+        return r
+
+    def output_channels(self):
+        # type: () -> List[OutputSignal]
+        """
+        Return a list of output channels (:class:`OutputSignal`) for the node.
+        """
+        return list(self.description.outputs) + self.__outputs
+
+    output_channel_inserted = Signal(int, OutputSignal)
+    output_channel_removed = Signal(int, OutputSignal)
+
+    def add_output_channel(self, signal: OutputSignal):
+        self.insert_output_channel(len(self.output_channels()), signal)
+
+    def insert_output_channel(self, index, signal: OutputSignal):
+        outputs = self.description.outputs
+        if 0 <= index < len(outputs):
+            raise IndexError("Cannot insert into predefined outputs")
+        self.__outputs.insert(index - len(outputs), signal)
+        QCoreApplication.sendEvent(
+            self, NodeOutputChannelEvent(NodeEvent.OutputChannelAdded, self, signal, index)
+        )
+        self.output_channel_inserted.emit(index, signal)
+
+    def remove_output_channel(self, index) -> OutputSignal:
+        outputs = self.description.outputs
+        if 0 <= index < len(outputs):
+            raise IndexError("Cannot remove predefined output")
+        r = self.__outputs.pop(index - len(outputs))
+        QCoreApplication.sendEvent(
+            self, NodeOutputChannelEvent(NodeEvent.OutputChannelRemoved, self, r, index)
+        )
+        self.output_channel_removed.emit(index, r)
+        return r
+
+    def icon(self) -> QIcon:
+        desc = self.description
+        return icon_loader.from_description(desc).get(desc.icon)
 
     def __str__(self):
         return "SchemeNode(description_id=%r, title=%r, ...)" % \
@@ -384,10 +548,16 @@ class SchemeNode(QObject):
 
     def __getstate__(self):
         return self.description, \
-               self.__title, \
-               self.__position, \
+               self.title, \
+               self.position, \
                self.properties, \
-               self.parent()
+               self.__inputs, \
+               self.__outputs
 
     def __setstate__(self, state):
+        *state, inputs, outputs = state
         self.__init__(*state)
+        for ic in self.__inputs:
+            self.add_input_channel(ic)
+        for oc in self.__outputs:
+            self.add_output_channel(oc)
