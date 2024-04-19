@@ -176,10 +176,16 @@ class TestMainWindowLoad(TestMainWindowBase):
             f.assert_not_called()
 
         w.current_document().setPath("")
-        with patch("AnyQt.QtWidgets.QFileDialog.getSaveFileName",
-                   return_value=(self.filename, "")) as f:
+
+        def exec(myself):
+            myself.setOption(QFileDialog.DontUseNativeDialog)
+            myself.setOption(QFileDialog.DontConfirmOverwrite)
+            myself.selectFile(self.filename)
+            myself.accept()
+
+        with patch("AnyQt.QtWidgets.QFileDialog.exec", exec):
             w.save_scheme()
-            self.assertEqual(w.current_document().path(), self.filename)
+            self.assertTrue(os.path.samefile(w.current_document().path(), self.filename))
 
     def test_save_svg_image(self):
         w = self.w

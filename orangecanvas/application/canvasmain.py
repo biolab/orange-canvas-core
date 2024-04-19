@@ -1500,8 +1500,7 @@ class CanvasMainWindow(QMainWindow):
         curr_scheme = document.scheme()
         assert curr_scheme is not None
         title = self.__title_for_scheme(curr_scheme)
-        settings = QSettings()
-        settings.beginGroup("mainwindow")
+        settings = self._settings()
 
         if document.path():
             start_dir = document.path()
@@ -1512,12 +1511,21 @@ class CanvasMainWindow(QMainWindow):
 
             start_dir = os.path.join(start_dir, title + ".ows")
 
-        filename, _ = QFileDialog.getSaveFileName(
-            self, self.tr("Save Orange Workflow File"),
-            start_dir, self.tr("Orange Workflow (*.ows)")
+        dialog = QFileDialog(
+            self,
+            windowTitle=self.tr("Save Orange Workflow File"),
+            directory=start_dir,
+            fileMode=QFileDialog.AnyFile,
+            acceptMode=QFileDialog.AcceptSave,
+            windowModality=Qt.WindowModal,
+            objectName="save-as-ows-filedialog",
         )
-
-        if filename:
+        dialog.setNameFilter(self.tr("Orange Workflow (*.ows)"))
+        dialog.exec()
+        files = dialog.selectedFiles()
+        dialog.deleteLater()
+        if files:
+            filename = files[0]
             settings.setValue("last-scheme-dir", os.path.dirname(filename))
             if self.save_scheme_to(curr_scheme, filename):
                 document.setPath(filename)
