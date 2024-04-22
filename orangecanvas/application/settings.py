@@ -21,6 +21,7 @@ from AnyQt.QtCore import (
     Signal)
 
 from .. import config
+from ..utils.localization import get_languages
 from ..utils.settings import SettingChangedEvent
 from ..utils.propertybindings import (
     AbstractBoundProperty, PropertyBinding, BindingManager
@@ -273,6 +274,17 @@ class UserSettingsDialog(QMainWindow):
 
         form = FormLayout()
         tab.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+        languages = get_languages()
+        if languages:
+            cm_lang = QComboBox(
+                objectName="combo-language",
+                toolTip=self.tr("Select the application language.")
+            )
+            cm_lang.addItems(languages)
+            self.bind(cm_lang, "currentText", "application/language")
+
+            form.addRow(self.tr("Language"), cm_lang)
 
         nodes = QWidget(self, objectName="nodes")
         nodes.setLayout(QVBoxLayout())

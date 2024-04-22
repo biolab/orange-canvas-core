@@ -1,3 +1,9 @@
+import os
+import json
+import importlib
+
+from AnyQt.QtCore import QSettings
+
 def pl(n: int, forms: str) -> str:  # pylint: disable=invalid-name
     """
     Choose a singular/plural form for English - or create one, for regular nouns
@@ -29,3 +35,35 @@ def pl(n: int, forms: str) -> str:  # pylint: disable=invalid-name
     if forms.isupper():
         word = word.upper()
     return word
+
+
+def get_languages(package=None):
+    if package is None:
+        package = "orangecanvas"
+    package_path = os.path.dirname(importlib.import_module(package).__file__)
+    msgs_path = os.path.join(package_path, "i18n")
+    if not os.path.exists(msgs_path):
+        return []
+    return [name
+            for name, ext in map(os.path.splitext, os.listdir(msgs_path))
+            if ext == ".json"]
+
+
+class Translator:
+    e = eval
+
+    def __init__(self, package, organization="biolab.si", application="Orange"):
+        s = QSettings(QSettings.IniFormat, QSettings.UserScope,
+                      organization, application)
+        lang = s.value("application/language", "English")
+        # For testing purposes (and potential fallback)
+        # lang = os.environ.get("ORANGE_LANG", "English")
+        package_path = os.path.dirname(importlib.import_module(package).__file__)
+        path = os.path.join(package_path, "i18n", f"{lang}.json")
+        if not os.path.exists(path):
+            path = os.path.join(package_path, "i18n", "English.json")
+        assert os.path.exists(path)
+        self.m = json.load(open(path))
+
+    def c(self, idx):
+        return compile(self.m[idx], '<string>', 'eval')
