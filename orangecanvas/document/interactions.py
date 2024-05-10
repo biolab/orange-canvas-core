@@ -1676,6 +1676,17 @@ class ResizeTextAnnotation(UserInteraction):
             rect = self.item.geometry()
             self.control.setRect(rect)
 
+    def start(self) -> None:
+        super().start()
+        helpevent = QuickHelpTipEvent(
+            self.tr("Edit Text Annotation"),
+            self.tr('<h3>Edit Text Annotation</h3>'
+                    '<p>Drag control points to resize the annotation.</p>'
+                    '<p>Right click on the annotation to change how it is '
+                    'rendered.</p>')
+        )
+        QCoreApplication.postEvent(self.document, helpevent)
+
     def cancel(self, reason=UserInteraction.OtherReason):
         # type: (int) -> None
         log.debug("ResizeTextAnnotation.cancel(%s)", reason)
@@ -1694,7 +1705,8 @@ class ResizeTextAnnotation(UserInteraction):
         self.item = None
         self.annotation = None
         self.control = None
-
+        helpevent = QuickHelpTipEvent("", "")
+        QCoreApplication.postEvent(self.document, helpevent)
         super().end()
 
 
