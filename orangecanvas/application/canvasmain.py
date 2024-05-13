@@ -9,6 +9,7 @@ import operator
 import io
 import traceback
 from concurrent import futures
+from contextlib import contextmanager
 
 from xml.sax.saxutils import escape
 from functools import partial, reduce
@@ -86,6 +87,7 @@ from ..preview import previewdialog, previewmodel
 from .. import config
 from . import examples
 from ..resources import load_styled_svg_icon
+from ..canvas import scene
 
 log = logging.getLogger(__name__)
 
@@ -427,6 +429,12 @@ class CanvasMainWindow(QMainWindow):
             triggered=self.save_scheme_as,
             shortcut=QKeySequence.SaveAs,
         )
+        self.save_as_svg_action = QAction(
+            self.tr("Save Workflow Image as SVG ..."), self,
+            objectName="action-save-to-svg.",
+            toolTip=self.tr("Save workflow image as SVG."),
+            triggered=self.save_as_svg,
+        )
         self.quit_action = QAction(
             self.tr("Quit"), self,
             objectName="quit-action",
@@ -646,6 +654,7 @@ class CanvasMainWindow(QMainWindow):
         sep.setObjectName("close-window-actions-separator")
         file_menu.addAction(self.save_action)
         file_menu.addAction(self.save_as_action)
+        file_menu.addAction(self.save_as_svg_action)
         sep = file_menu.addSeparator()
         sep.setObjectName("save-actions-separator")
         file_menu.addAction(self.show_properties_action)
@@ -1491,8 +1500,7 @@ class CanvasMainWindow(QMainWindow):
         curr_scheme = document.scheme()
         assert curr_scheme is not None
         title = self.__title_for_scheme(curr_scheme)
-        settings = QSettings()
-        settings.beginGroup("mainwindow")
+        settings = self._settings()
 
         if document.path():
             start_dir = document.path()
@@ -1503,12 +1511,21 @@ class CanvasMainWindow(QMainWindow):
 
             start_dir = os.path.join(start_dir, title + ".ows")
 
-        filename, _ = QFileDialog.getSaveFileName(
-            self, self.tr("Save Orange Workflow File"),
-            start_dir, self.tr("Orange Workflow (*.ows)")
+        dialog = QFileDialog(
+            self,
+            windowTitle=self.tr("Save Orange Workflow File"),
+            directory=start_dir,
+            fileMode=QFileDialog.AnyFile,
+            acceptMode=QFileDialog.AcceptSave,
+            windowModality=Qt.WindowModal,
+            objectName="save-as-ows-filedialog",
         )
-
-        if filename:
+        dialog.setNameFilter(self.tr("Orange Workflow (*.ows)"))
+        dialog.exec()
+        files = dialog.selectedFiles()
+        dialog.deleteLater()
+        if files:
+            filename = files[0]
             settings.setValue("last-scheme-dir", os.path.dirname(filename))
             if self.save_scheme_to(curr_scheme, filename):
                 document.setPath(filename)
@@ -1797,6 +1814,79 @@ class CanvasMainWindow(QMainWindow):
 
         properties = properties_and_commands[0]
         document.restoreProperties(properties)
+
+    def _settings(self) -> QSettings:
+        s = QSettings()
+        s.beginGroup("mainwindow")
+        return s
+
+    def save_as_svg(self):
+        settings = self._settings()
+        settings.beginGroup("save-as-svg-filedialog")
+        path = settings.value("path", defaultValue="", type=str)
+        if path:
+            directory = os.path.dirname(path)
+        else:
+            directory = user_documents_path()
+        document_path = self.current_document().path()
+        if document_path:
+            document_basename = os.path.basename(document_path)
+            basename, _ = os.path.splitext(document_basename)
+            basename = basename + ".svg"
+        else:
+            basename = self.tr("untitled.svg")
+        dialog = QFileDialog(
+            self,
+            acceptMode=QFileDialog.AcceptSave,
+            fileMode=QFileDialog.AnyFile,
+            directory=directory,
+            windowModality=Qt.WindowModal,
+            objectName="save-as-svg-filedialog",
+        )
+        dialog.setAttribute(Qt.WA_DeleteOnClose)
+        dialog.setNameFilter(self.tr("Scalable Vector Graphics (*.svg)"))
+        dialog.selectFile(os.path.join(directory, basename))
+
+        def save():
+            files = dialog.selectedFiles()
+            if files:
+                self.__save_as_svg(files[0])
+                settings.setValue("path", files[0])
+
+        dialog.accepted.connect(save)
+        dialog.exec()
+
+    def __save_as_svg(self, path):
+        doc = self.current_document()
+        content = scene.grab_svg(doc.scene())
+        with self._handle_os_write_error():
+            with open(path, "wt", encoding="utf-8") as f:
+                f.write(content)
+
+    @contextmanager
+    def _handle_os_write_error(self):
+        try:
+            yield
+        except PermissionError as ex:
+            log.error("Write error", exc_info=True)
+            message_warning(
+                self.tr('"%(path)s" could not be saved. You do not '
+                        'have write permissions (%(strerror)s).') %
+                {"path": ex.filename, "strerror": ex.strerror},
+                title="",
+                informative_text=self.tr(
+                    "Change the file system permissions or choose "
+                    "another location."),
+                parent=self
+            )
+        except OSError as ex:
+            log.error("Write error", exc_info=True)
+            message_warning(
+                self.tr('"%(path)s" could not be saved.') %
+                {"path": ex.filename},
+                title="",
+                informative_text=ex.strerror
+            )
 
     def recent_scheme(self):
         # type: () -> int

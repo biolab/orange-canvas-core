@@ -950,8 +950,7 @@ else:
     _QSvgGenerator = QSvgGenerator  # type: ignore
 
 
-def grab_svg(scene):
-    # type: (QGraphicsScene) -> str
+def grab_svg(scene: QGraphicsScene) -> str:
     """
     Return a SVG rendering of the scene contents.
 
@@ -962,6 +961,12 @@ def grab_svg(scene):
     """
     svg_buffer = QBuffer()
     gen = _QSvgGenerator()
+    views = scene.views()
+    if views:
+        screen = views[0].screen()
+        if screen is not None:
+            res = screen.physicalDotsPerInch()
+            gen.setResolution(int(res))
     gen.setOutputDevice(svg_buffer)
 
     items_rect = scene.itemsBoundingRect().adjusted(-10, -10, 10, 10)

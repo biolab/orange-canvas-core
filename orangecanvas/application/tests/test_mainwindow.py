@@ -1,9 +1,12 @@
+import io
 import os
 import tempfile
 from unittest.mock import patch
 
 from AnyQt.QtGui import QWhatsThisClickedEvent
-from AnyQt.QtWidgets import QToolButton, QDialog, QMessageBox, QApplication
+from AnyQt.QtWidgets import (
+    QToolButton, QDialog, QMessageBox, QApplication, QFileDialog
+)
 
 from .. import addons
 from ..outputview import TextStream
@@ -173,10 +176,31 @@ class TestMainWindowLoad(TestMainWindowBase):
             f.assert_not_called()
 
         w.current_document().setPath("")
-        with patch("AnyQt.QtWidgets.QFileDialog.getSaveFileName",
-                   return_value=(self.filename, "")) as f:
+
+        def exec(myself):
+            myself.setOption(QFileDialog.DontUseNativeDialog)
+            myself.setOption(QFileDialog.DontConfirmOverwrite)
+            myself.selectFile(self.filename)
+            myself.accept()
+
+        with patch("AnyQt.QtWidgets.QFileDialog.exec", exec):
             w.save_scheme()
-            self.assertEqual(w.current_document().path(), self.filename)
+            self.assertTrue(os.path.samefile(w.current_document().path(), self.filename))
+
+    def test_save_svg_image(self):
+        w = self.w
+        scheme = w.current_document().scheme()
+        scheme.load_from(io.BytesIO(TEST_OWS), registry=w.widget_registry)
+        with patch("AnyQt.QtWidgets.QFileDialog.exec"):
+            w.save_as_svg()
+            dialog = w.findChild(QFileDialog, "save-as-svg-filedialog")
+            dialog.setOption(QFileDialog.DontUseNativeDialog)
+            dialog.setOption(QFileDialog.DontConfirmOverwrite)
+            dialog.selectFile(self.filename)
+            dialog.accept()
+        with open(self.filename, "rb") as f:
+            contents = f.read()
+        self.assertIn(b"<svg", contents)
 
     def test_save_swp(self):
         w = self.w
