@@ -277,14 +277,22 @@ class UserSettingsDialog(QMainWindow):
 
         languages = get_languages()
         if languages:
+            langlay = QHBoxLayout()
+            label = QLabel(
+                "Changes will take effect on next application startup.")
+            label.setHidden(True)
+
             cm_lang = QComboBox(
                 objectName="combo-language",
                 toolTip=self.tr("Select the application language.")
             )
             cm_lang.addItems(languages)
             self.bind(cm_lang, "currentText", "application/language")
+            cm_lang.currentTextChanged.connect(lambda: label.setHidden(False))
 
-            form.addRow(self.tr("Language"), cm_lang)
+            langlay.addWidget(cm_lang)
+            langlay.addWidget(label)
+            form.addRow(self.tr("Language"), langlay)
 
         nodes = QWidget(self, objectName="nodes")
         nodes.setLayout(QVBoxLayout())

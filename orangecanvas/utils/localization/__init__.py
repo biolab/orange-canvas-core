@@ -49,6 +49,19 @@ def get_languages(package=None):
             if ext == ".json"]
 
 
+def language_changed():
+    s = QSettings()
+    lang = s.value("application/language", "English")
+    last_lang = s.value("application/last-used-language", "English")
+    return lang != last_lang
+
+
+def update_last_used_language():
+    s = QSettings()
+    lang = s.value("application/language", "English")
+    s.setValue("application/last-used-language", lang)
+
+
 class Translator:
     e = eval
 

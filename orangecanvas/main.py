@@ -16,6 +16,7 @@ from contextlib import ExitStack, closing
 from AnyQt.QtGui import QFont, QColor, QPalette
 from AnyQt.QtCore import Qt, QSettings, QTimer, QUrl, QDir
 
+from orangecanvas.utils import localization
 from .utils.after_exit import run_after_exit
 from .styles import style_sheet, breeze_dark as _breeze_dark
 from .application.application import CanvasApplication
@@ -142,7 +143,8 @@ class Main:
         Run the widget discovery and return the resulting registry.
         """
         options = self.options
-        if not options.force_discovery:
+        language_changed = localization.language_changed()
+        if not (options.force_discovery or language_changed):
             reg_cache = cache.registry_cache()
         else:
             reg_cache = None
@@ -168,6 +170,8 @@ class Main:
             with open(cache_filename, "wb") as f:
                 pickle.dump(WidgetRegistry(widget_registry), f)
         self.registry = widget_registry
+        if language_changed:
+            localization.update_last_used_language()
         self.close_splash_screen()
         return widget_registry
 
