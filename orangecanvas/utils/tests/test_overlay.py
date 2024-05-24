@@ -13,6 +13,7 @@ from orangecanvas.utils.overlay import NotificationWidget, NotificationOverlay, 
 
 class TestOverlay(QAppTestCase):
     def setUp(self) -> None:
+        super().setUp()
         self.container = QWidget()
         self.overlay = NotificationOverlay(self.container)
         self.server = NotificationServer()
@@ -30,6 +31,7 @@ class TestOverlay(QAppTestCase):
         self.overlay = None
         self.notif = None
         self.server = None
+        super().tearDown()
 
     def test_notification_widget(self):
         stdb = NotificationWidget.Ok | NotificationWidget.Close
