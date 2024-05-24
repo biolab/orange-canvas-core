@@ -3,7 +3,7 @@
 import unittest.mock
 
 from AnyQt.QtCore import Qt, QEvent
-from AnyQt.QtTest import QTest
+from AnyQt.QtTest import QTest, QSignalSpy
 from AnyQt.QtWidgets import QWidget, QApplication
 
 from orangecanvas.gui.test import QAppTestCase
@@ -79,8 +79,7 @@ class TestOverlay(QAppTestCase):
         self.server.newNotification.connect(overlay2.addNotification)
         self.server.nextNotification.connect(overlay2.nextWidget)
 
-        mock = unittest.mock.MagicMock()
-        self.notif.accepted.connect(mock)
+        spy = QSignalSpy(self.notif.accepted)
 
         self.server.registerNotification(self.notif)
 
@@ -96,7 +95,7 @@ class TestOverlay(QAppTestCase):
         button = w2.button(NotificationWidget.Ok)
         QTest.mouseClick(button, Qt.LeftButton)
 
-        mock.assert_called_once_with()
+        self.assertSequenceEqual(list(spy), [[]])
 
         self.assertFalse(w1.isVisible())
         self.assertFalse(w2.isVisible())
