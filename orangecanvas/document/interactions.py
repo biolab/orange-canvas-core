@@ -189,6 +189,18 @@ class UserInteraction(QObject):
         """
         return self.__cancelReason
 
+    def postQuickTip(self, contents: str) -> None:
+        """
+        Post a QuickHelpTipEvent with rich text `contents` to the document
+        editor.
+        """
+        hevent = QuickHelpTipEvent("", contents)
+        QApplication.postEvent(self.document, hevent)
+
+    def clearQuickTip(self):
+        """Clear the quick tip help event."""
+        self.postQuickTip("")
+
     def mousePressEvent(self, event):
         # type: (QGraphicsSceneMouseEvent) -> bool
         """
@@ -448,9 +460,7 @@ class NewLinkAction(UserInteraction):
                 self.direction = NewLinkAction.FROM_SINK
 
             event.accept()
-
-            helpevent = QuickHelpTipEvent(
-                self.tr("Create a new link"),
+            self.postQuickTip(
                 self.tr('<h3>Create new link</h3>'
                         '<p>Drag a link to an existing node or release on '
                         'an empty spot to create a new node.</p>'
@@ -460,7 +470,6 @@ class NewLinkAction(UserInteraction):
 #                        'More ...</a>'
                         )
             )
-            QCoreApplication.postEvent(self.document, helpevent)
             return True
         else:
             # Whoever put us in charge did not know what he was doing.
@@ -875,8 +884,7 @@ class NewLinkAction(UserInteraction):
         self.reset_open_anchor()
         # Remove the help tip set in mousePressEvent
         self.macro = None
-        helpevent = QuickHelpTipEvent("", "")
-        QCoreApplication.postEvent(self.document, helpevent)
+        self.clearQuickTip()
         super().end()
 
     def cancel(self, reason=UserInteraction.OtherReason):
@@ -1340,17 +1348,13 @@ class NewArrowAnnotation(UserInteraction):
     def start(self):
         # type: () -> None
         self.document.view().setCursor(Qt.CrossCursor)
-
-        helpevent = QuickHelpTipEvent(
-            self.tr("Click and drag to create a new arrow"),
+        self.postQuickTip(
             self.tr('<h3>New arrow annotation</h3>'
                     '<p>Click and drag to create a new arrow annotation</p>'
 #                    '<a href="help://orange-canvas/arrow-annotations>'
 #                    'More ...</a>'
                     )
         )
-        QCoreApplication.postEvent(self.document, helpevent)
-
         super().start()
 
     def setColor(self, color):
@@ -1428,11 +1432,7 @@ class NewArrowAnnotation(UserInteraction):
         self.arrow_item = None
         self.annotation = None
         self.document.view().setCursor(Qt.ArrowCursor)
-
-        # Clear the help tip
-        helpevent = QuickHelpTipEvent("", "")
-        QCoreApplication.postEvent(self.document, helpevent)
-
+        self.clearQuickTip()
         super().end()
 
 
@@ -1465,18 +1465,16 @@ class NewTextAnnotation(UserInteraction):
     def start(self):
         # type: () -> None
         self.document.view().setCursor(Qt.CrossCursor)
-
-        helpevent = QuickHelpTipEvent(
-            self.tr("Click to create a new text annotation"),
+        self.postQuickTip(
             self.tr('<h3>New text annotation</h3>'
                     '<p>Click (and drag to resize) on the canvas to create '
                     'a new text annotation item.</p>'
+                    '<p>Right click on the annotation to change how it is '
+                    'rendered (Markdown, HTML, ...).</p>'
 #                    '<a href="help://orange-canvas/text-annotations">'
 #                    'More ...</a>'
                     )
         )
-        QCoreApplication.postEvent(self.document, helpevent)
-
         super().start()
 
     def createNewAnnotation(self, rect):
@@ -1590,11 +1588,7 @@ class NewTextAnnotation(UserInteraction):
         self.annotation_item = None
         self.annotation = None
         self.document.view().setCursor(Qt.ArrowCursor)
-
-        # Clear the help tip
-        helpevent = QuickHelpTipEvent("", "")
-        QCoreApplication.postEvent(self.document, helpevent)
-
+        self.clearQuickTip()
         super().end()
 
 
@@ -1676,6 +1670,15 @@ class ResizeTextAnnotation(UserInteraction):
             rect = self.item.geometry()
             self.control.setRect(rect)
 
+    def start(self) -> None:
+        super().start()
+        self.postQuickTip(
+            self.tr('<h3>Edit Text Annotation</h3>'
+                    '<p>Drag control points to resize the annotation.</p>'
+                    '<p>Right click on the annotation to change how it is '
+                    'rendered (Markdown, HTML, ...).</p>')
+        )
+
     def cancel(self, reason=UserInteraction.OtherReason):
         # type: (int) -> None
         log.debug("ResizeTextAnnotation.cancel(%s)", reason)
@@ -1694,7 +1697,7 @@ class ResizeTextAnnotation(UserInteraction):
         self.item = None
         self.annotation = None
         self.control = None
-
+        self.clearQuickTip()
         super().end()
 
 
