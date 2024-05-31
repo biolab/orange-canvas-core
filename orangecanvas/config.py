@@ -364,6 +364,12 @@ spec = \
      ("startup/load-crashed-workflows", bool, True,
       "Load crashed scratch workflows on startup"),
 
+     ("application/language", str, "English",
+      "Application language"),
+
+     ("application/last-used-language", str, "English",
+      "If different from application/language, widget discovery is forced"),
+
      ("stylesheet", str, "orange",
       "QSS stylesheet to use"),
 
