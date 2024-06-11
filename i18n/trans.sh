@@ -1,10 +1,8 @@
-if [ "$#" -ne 2 ]
+if [ "$#" -ne 1 ]
 then
-    echo "Urage: trans <language> <destination>"
+    echo "trans <destination>"
     exit
 else
-    lang=$1
-    dest=$2
-    trubar --conf $lang/trubar-config.yaml translate -s ../orangecanvas -d $dest/orangecanvas --static $lang/static $lang/msgs.jaml
+    dest=$1
+    trubar --conf trubar-config.yaml translate -s ../orangecanvas -d $dest/orangecanvas msgs.jaml
 fi
-
