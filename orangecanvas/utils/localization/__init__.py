@@ -67,6 +67,14 @@ def update_last_used_language():
     s.setValue("application/last-used-language", lang)
 
 
+class _list(list):
+    # Accept extra argument to allow for the original string
+    def __getitem__(self, item):
+        if isinstance(item, tuple):
+            item = item[0]
+        return super().__getitem__(item)
+
+
 class Translator:
     e = eval
 
@@ -81,7 +89,8 @@ class Translator:
         if not os.path.exists(path):
             path = os.path.join(package_path, "i18n", f"{DEFAULT_LANGUAGE}.json")
         assert os.path.exists(path), f"Missing language file {path}"
-        self.m = json.load(open(path))
+        self.m = _list(json.load(open(path)))
 
-    def c(self, idx):
+    # Extra argument(s) can give the original string or any other relevant data
+    def c(self, idx, *_):
         return compile(self.m[idx], '<string>', 'eval')
