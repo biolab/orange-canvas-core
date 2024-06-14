@@ -151,6 +151,9 @@ class CanvasApplication(QApplication):
                 sh.setShowShortcutsInContextMenus(True)
         if QT_VERSION_INFO < (5, 15):  # QTBUG-61707
             macos_set_nswindow_tabbing(False)
+        if QT_VERSION_INFO < (6, 0):  # QTBUG-58610
+            # https://github.com/musescore/MuseScore/pull/5820
+            QApplication.setFont(QApplication.font("QMessageBox"))
         self.configureStyle()
 
     def event(self, event):
