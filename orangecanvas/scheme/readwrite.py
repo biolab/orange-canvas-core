@@ -3,9 +3,6 @@ Scheme save/load routines.
 
 """
 import numbers
-import sys
-import types
-import warnings
 import base64
 import binascii
 import itertools
@@ -14,7 +11,7 @@ import math
 from xml.etree.ElementTree import TreeBuilder, Element, ElementTree, parse
 
 from collections import defaultdict
-from itertools import chain, count
+from itertools import chain
 
 import pickle
 import json
@@ -28,6 +25,8 @@ import logging
 from typing import (
     NamedTuple, Dict, Tuple, List, Union, Any, Optional, AnyStr, IO
 )
+
+from typing_extensions import TypeGuard
 
 from . import SchemeNode, SchemeLink
 from .annotations import SchemeTextAnnotation, SchemeArrowAnnotation
@@ -65,9 +64,10 @@ def string_eval(source):
 
     """
     node = _ast_parse_expr(source)
-    if not isinstance(node.body, ast.Str):
+    body = node.body
+    if not _is_constant(body, (str,)):
         raise ValueError("%r is not a string literal" % source)
-    return node.body.s
+    return body.value
 
 
 def tuple_eval(source):
@@ -85,11 +85,11 @@ def tuple_eval(source):
     if not isinstance(node.body, ast.Tuple):
         raise ValueError("%r is not a tuple literal" % source)
 
-    if not all(isinstance(el, (ast.Str, ast.Num)) or
+    if not all(_is_constant(el, (str, float, complex, int)) or
                # allow signed number literals in Python3 (i.e. -1|+1|-1.0)
                (isinstance(el, ast.UnaryOp) and
                 isinstance(el.op, (ast.UAdd, ast.USub)) and
-                isinstance(el.operand, ast.Num))
+                _is_constant(el.operand, (float, complex, int)))
                for el in node.body.elts):
         raise ValueError("Can only contain numbers or strings")
 
@@ -112,16 +112,15 @@ def terminal_eval(source):
 
 def _terminal_value(node):
     # type: (ast.AST) -> Union[str, bytes, int, float, complex, None]
-    if isinstance(node, ast.Str):
-        return node.s
-    elif isinstance(node, ast.Bytes):
-        return node.s
-    elif isinstance(node, ast.Num):
-        return node.n
-    elif isinstance(node, ast.NameConstant):
+    if _is_constant(node, (str, bytes, int, float, complex, type(None))):
         return node.value
-
     raise ValueError("Not a terminal")
+
+
+def _is_constant(
+        node: ast.AST, types: Tuple[type, ...]
+) -> TypeGuard[ast.Constant]:
+    return isinstance(node, ast.Constant) and isinstance(node.value, types)
 
 
 # Intermediate scheme representation

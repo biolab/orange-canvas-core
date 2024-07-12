@@ -32,6 +32,7 @@ INSTALL_REQUIRES = (
     "qasync>=0.10.0",
     "importlib_metadata; python_version<'3.10'",
     "importlib_resources; python_version<'3.9'",
+    "typing_extensions",
     "packaging",
     "numpy",
 )
