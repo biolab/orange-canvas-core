@@ -32,6 +32,7 @@ INSTALL_REQUIRES = (
     "qasync>=0.10.0",
     "importlib_metadata>=4.6; python_version<'3.10'",
     "importlib_resources; python_version<'3.9'",
+    "typing_extensions",
     "packaging",
     "numpy",
 )
@@ -59,7 +60,7 @@ PROJECT_URLS = {
     "Documentation": "https://orange-canvas-core.readthedocs.io/en/latest/",
 }
 
-PYTHON_REQUIRES = ">=3.6"
+PYTHON_REQUIRES = ">=3.8"
 
 if __name__ == "__main__":
     setup(

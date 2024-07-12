@@ -82,6 +82,9 @@ class TestReadWrite(test.QAppTestCase):
         self.assertEqual(s, chr(0) + chr(255))
 
         with self.assertRaises(ValueError):
+            readwrite.string_eval("3")
+
+        with self.assertRaises(ValueError):
             readwrite.string_eval("[1, 2]")
 
         t = readwrite.tuple_eval("(1, 2.0, 'a')")
@@ -96,10 +99,14 @@ class TestReadWrite(test.QAppTestCase):
         self.assertIs(readwrite.terminal_eval("True"), True)
         self.assertIs(readwrite.terminal_eval("False"), False)
         self.assertIs(readwrite.terminal_eval("None"), None)
-
         self.assertEqual(readwrite.terminal_eval("42"), 42)
+        self.assertEqual(readwrite.terminal_eval("42."), 42.)
         self.assertEqual(readwrite.terminal_eval("'42'"), '42')
         self.assertEqual(readwrite.terminal_eval(r"b'\xff\x00'"), b'\xff\x00')
+        with self.assertRaises(ValueError):
+            readwrite.terminal_eval("...")
+        with self.assertRaises(ValueError):
+            readwrite.terminal_eval("{}")
 
     def test_literal_dump(self):
         struct = {1: [{(1, 2): ""}],

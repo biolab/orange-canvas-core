@@ -3,7 +3,7 @@
 setuptools
 sphinx~=4.2.0
 sphinx-rtd-theme
-PyQt5~=5.9.2
+PyQt5
 AnyQt
 
 # sphinx pins docutils version, but the installation in the RTD worker/config
