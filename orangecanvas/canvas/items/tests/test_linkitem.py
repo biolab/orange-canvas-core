@@ -14,29 +14,17 @@ from . import TestItems
 class TestLinkItem(TestItems):
     def test_linkitem(self):
         reg = small_testing_registry()
-
-        const_desc = reg.category("Constants")
-
         one_desc = reg.widget("one")
-
         one_item = NodeItem()
-        one_item.setWidgetDescription(one_desc)
-        one_item.setWidgetCategory(const_desc)
+        one_item.initFrom(one_desc)
         one_item.setPos(0, 100)
-
         negate_desc = reg.widget("negate")
-
         negate_item = NodeItem()
-        negate_item.setWidgetDescription(negate_desc)
-        negate_item.setWidgetCategory(const_desc)
+        negate_item.initFrom(negate_desc)
         negate_item.setPos(200, 100)
-        operator_desc = reg.category("Operators")
-
         add_desc = reg.widget("add")
-
         nb_item = NodeItem()
-        nb_item.setWidgetDescription(add_desc)
-        nb_item.setWidgetCategory(operator_desc)
+        nb_item.initFrom(add_desc)
         nb_item.setPos(400, 100)
 
         self.scene.addItem(one_item)

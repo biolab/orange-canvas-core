@@ -52,6 +52,12 @@ class TestWidgetManager(unittest.TestCase):
         scheme.new_link(one, "value", add, "right")
 
         self.scheme = scheme
+        self.root = scheme.root()
+
+    def tearDown(self) -> None:
+        del self.scheme
+        del self.root
+        super().tearDown()
 
     def tearDown(self) -> None:
         self.scheme.clear()
@@ -63,7 +69,7 @@ class TestWidgetManager(unittest.TestCase):
         wm.set_creation_policy(TestingWidgetManager.Immediate)
         spy = QSignalSpy(wm.widget_for_node_added)
         wm.set_workflow(self.scheme)
-        nodes = self.scheme.nodes
+        nodes = self.root.nodes()
         self.assertEqual(len(spy), 3)
         self.assertSetEqual({n for n, _ in spy}, set(nodes))
         spy = QSignalSpy(wm.widget_for_node_removed)
@@ -73,7 +79,7 @@ class TestWidgetManager(unittest.TestCase):
 
     def test_create_normal(self):
         workflow = self.scheme
-        nodes = workflow.nodes
+        nodes = workflow.root().nodes()
         wm = TestingWidgetManager()
         wm.set_creation_policy(TestingWidgetManager.Normal)
         spy = QSignalSpy(wm.widget_for_node_added)
@@ -98,7 +104,7 @@ class TestWidgetManager(unittest.TestCase):
 
     def test_create_on_demand(self):
         workflow = self.scheme
-        nodes = workflow.nodes
+        nodes = workflow.root().nodes()
         wm = TestingWidgetManager()
         wm.set_creation_policy(WidgetManager.OnDemand)
         spy = QSignalSpy(wm.widget_for_node_added)
@@ -116,7 +122,7 @@ class TestWidgetManager(unittest.TestCase):
 
     def test_mappings(self):
         workflow = self.scheme
-        nodes = workflow.nodes
+        nodes = workflow.root().nodes()
         wm = TestingWidgetManager()
         wm.set_workflow(workflow)
         w = wm.widget_for_node(nodes[0])
@@ -125,7 +131,7 @@ class TestWidgetManager(unittest.TestCase):
 
     def test_save_geometry(self):
         workflow = self.scheme
-        nodes = workflow.nodes
+        nodes = workflow.root().nodes()
         wm = TestingWidgetManager()
         wm.set_workflow(workflow)
         n = nodes[0]
@@ -154,9 +160,9 @@ class TestWidgetManager(unittest.TestCase):
         wm.set_workflow(Scheme())
 
     def test_event_dispatch(self):
-        workflow = self.scheme
-        nodes = workflow.nodes
-        links = workflow.links
+        workflow, root = self.scheme, self.root
+        nodes = root.nodes()
+        links = root.links()
 
         class Widget(QWidget):
             def __init__(self, *a):
@@ -212,7 +218,7 @@ class TestWidgetManager(unittest.TestCase):
 
     def test_activation_on_delayed_creation_policy(self):
         workflow = self.scheme
-        nodes = workflow.nodes
+        nodes = workflow.root().nodes()
         wm = TestingWidgetManager()
         wm.set_creation_policy(WidgetManager.Normal)
         wm.set_workflow(workflow)
@@ -255,7 +261,7 @@ class TestWidgetManager(unittest.TestCase):
             return widget.findChild(QAction, "action-canvas-raise-descendants")
 
         workflow = self.scheme
-        nodes = workflow.nodes
+        nodes = workflow.root().nodes()
         wm = TestingWidgetManager()
         wm.set_creation_policy(WidgetManager.Immediate)
         wm.set_workflow(workflow)

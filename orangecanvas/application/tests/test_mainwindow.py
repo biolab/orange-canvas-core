@@ -60,7 +60,6 @@ class TestMainWindow(TestMainWindowBase):
         w.show()
         new.show()
 
-        w.set_scheme_margins_enabled(True)
         new.deleteLater()
         stream = TextStream()
         w.connect_output_stream(stream)
@@ -107,9 +106,9 @@ class TestMainWindow(TestMainWindowBase):
         grid = toolbox.widget(0)
 
         button = grid.findChild(QToolButton)  # type: QToolButton
-        self.assertEqual(len(wf.nodes), 0)
+        self.assertEqual(len(wf.root().nodes()), 0)
         button.click()
-        self.assertEqual(len(wf.nodes), 1)
+        self.assertEqual(len(wf.root().nodes()), 1)
 
     def test_create_category_toolbar(self):
         w = self.w
@@ -270,8 +269,8 @@ class TestMainWindowLoad(TestMainWindowBase):
         node.properties['dummy'] = 0
 
         test(lambda:
-             self.assertEqual(w2.scheme_widget.scheme().nodes[0].properties['dummy'], 0))
-        w2_node = w2.scheme_widget.scheme().nodes[0]
+             self.assertEqual(w2.scheme_widget.scheme().root().nodes()[0].properties['dummy'], 0))
+        w2_node = w2.scheme_widget.scheme().root().nodes()[0]
 
         # test widget change properties
         node.properties['dummy'] = 1
@@ -284,29 +283,29 @@ class TestMainWindowLoad(TestMainWindowBase):
         # test link add
         w.current_document().addLink(link)
         test(lambda:
-             self.assertTrue(w2.scheme_widget.scheme().links))
+             self.assertTrue(w2.scheme_widget.scheme().root().links()))
 
         # test link remove
         w.current_document().removeLink(link)
         test(lambda:
-             self.assertFalse(w2.scheme_widget.scheme().links))
+             self.assertFalse(w2.scheme_widget.scheme().root().links()))
 
         # test widget remove
         w.scheme_widget.removeNode(node)
         w.scheme_widget.removeNode(node2)
         test(lambda:
-             self.assertFalse(w2.scheme_widget.scheme().nodes))
+             self.assertFalse(w2.scheme_widget.scheme().root().nodes()))
 
         # test annotation add
         a = SchemeTextAnnotation((200, 300, 50, 20), "text")
         w.current_document().addAnnotation(a)
         test(lambda:
-             self.assertTrue(w2.scheme_widget.scheme().annotations))
+             self.assertTrue(w2.scheme_widget.scheme().root().annotations()))
 
         # test annotation remove
         w.current_document().removeAnnotation(a)
         test(lambda:
-             self.assertFalse(w2.scheme_widget.scheme().annotations))
+             self.assertFalse(w2.scheme_widget.scheme().root().annotations()))
 
     def test_open_ows_req(self):
         w = self.w

@@ -6,6 +6,7 @@ Node Item
 """
 import typing
 import string
+import warnings
 
 from operator import attrgetter
 from itertools import groupby
@@ -13,7 +14,7 @@ from itertools import groupby
 from functools import reduce
 from xml.sax.saxutils import escape
 
-from typing import Dict, Any, Optional, List, Iterable, Tuple, Union
+from typing import Dict, Any, Optional, List, Iterable, Tuple, Sequence, Union
 
 from AnyQt.QtWidgets import (
     QGraphicsItem, QGraphicsObject, QGraphicsWidget,
@@ -41,6 +42,7 @@ from ... import styles
 from ...gui.iconengine import StyledIconEngine
 from ...gui.utils import disconnected
 
+from ...scheme import Node
 from ...scheme.node import UserMessage
 from ...registry import NAMED_COLORS, WidgetDescription, CategoryDescription, \
     InputSignal, OutputSignal
@@ -625,6 +627,9 @@ class NodeAnchorItem(GraphicsPathObject):
             lblAnim.setDuration(50)
             self.animGroup.addAnimation(lblAnim)
             self.__signalLabelAnims.append(lblAnim)
+
+    def signals(self):
+        return self.__signals
 
     def setIncompatible(self, enabled):
         if self.__incompatible != enabled:
@@ -1221,7 +1226,10 @@ class NodeItem(QGraphicsWidget):
         self.shapeItem = NodeBodyItem(self)
         self.shapeItem.setShapeRect(shape_rect)
         self.shapeItem.setAnimationEnabled(self.__animationEnabled)
-
+        self.iconItem = GraphicsIconItem(self.shapeItem, iconSize=QSize(36, 36))
+        # assuming light-ish color background
+        self.iconItem.setPalette(styles.breeze_light())
+        self.iconItem.setPos(-18, -18)
         # Rect for widget's 'ears'.
         anchor_rect = QRectF(-31, -31, 62, 62)
         self.inputAnchorItem = SinkAnchorItem(self)
@@ -1268,82 +1276,115 @@ class NodeItem(QGraphicsWidget):
 
         self.prepareGeometryChange()
         self.__boundingRect = None
-
+        self.widget_description = None
+        self.category_description = None
         if widget_description is not None:
+            warnings.warn(
+                "'widget_description' parameter is deprecated", DeprecationWarning,
+                stacklevel=2
+            )
             self.setWidgetDescription(widget_description)
 
     @classmethod
-    def from_node(cls, node):
+    def from_node(cls, node: Node) -> 'NodeItem':
         """
         Create an :class:`NodeItem` instance and initialize it from a
-        :class:`SchemeNode` instance.
-
+        :class:`Node` instance.
         """
         self = cls()
-        self.setWidgetDescription(node.description)
-#        self.setCategoryDescription(node.category)
+        self.initFrom(node)
         return self
 
     @classmethod
-    def from_node_meta(cls, meta_description):
+    def from_node_meta(cls, meta_description: WidgetDescription) -> 'NodeItem':
         """
         Create an `NodeItem` instance from a node meta description.
         """
         self = cls()
-        self.setWidgetDescription(meta_description)
+        self.initFrom(meta_description)
         return self
 
-    # TODO: Remove the set[Widget|Category]Description. The user should
-    # handle setting of icons, title, ...
+    def initFrom(self, node: typing.Union['Node', WidgetDescription]):
+        if isinstance(node, Node):
+            title = node.title
+            ics, ocs = node.input_channels(), node.output_channels()
+            icon = node.icon()
+            color = background_color_from_desc(node)
+        elif isinstance(node, WidgetDescription):
+            desc = node
+            title = desc.name
+            ics, ocs = desc.inputs, desc.outputs
+            icon = icon_loader.from_description(desc).get(desc.icon)
+            color = background_color_from_desc(desc)
+        else:
+            raise TypeError
+        self.setIcon(icon)
+        self.setTitle(title)
+        if color.isValid():
+            self.setColor(color)
+        if ics:
+            self.setInputChannels(ics)
+        if ocs:
+            self.setOutputChannels(ocs)
+        tooltip = NodeItem_toolTipHelper(self)
+        self.setToolTip(tooltip)
+
     def setWidgetDescription(self, desc):
         # type: (WidgetDescription) -> None
         """
         Set widget description.
         """
+        warnings.warn(
+            "'setWidgetDescription' is deprecated", DeprecationWarning,
+            stacklevel=2
+        )
         self.widget_description = desc
         if desc is None:
             return
-
-        icon = icon_loader.from_description(desc).get(desc.icon)
-        if icon:
-            self.setIcon(icon)
-
-        if not self.title():
-            self.setTitle(desc.name)
-
-        if desc.inputs:
-            self.inputAnchorItem.setSignals(desc.inputs)
-            self.inputAnchorItem.show()
-        if desc.outputs:
-            self.outputAnchorItem.setSignals(desc.outputs)
-            self.outputAnchorItem.show()
-
-        tooltip = NodeItem_toolTipHelper(self)
-        self.setToolTip(tooltip)
+        self.initFrom(desc)
 
     def setWidgetCategory(self, desc):
         # type: (CategoryDescription) -> None
         """
         Set the widget category.
         """
+        warnings.warn(
+            "'setWidgetCategory' is deprecated", DeprecationWarning,
+            stacklevel=2
+        )
         self.category_description = desc
         if desc and desc.background:
-            background = NAMED_COLORS.get(desc.background, desc.background)
-            color = QColor(background)
+            color = background_color_from_desc(desc)
             if color.isValid():
                 self.setColor(color)
+
+    def setInputChannels(self, signals: Sequence[InputSignal]):
+        """Set this items input channels."""
+        self.inputAnchorItem.setSignals(list(signals))
+        self.inputAnchorItem.setVisible(bool(signals))
+
+    def inputChannels(self) -> Sequence[InputSignal]:
+        """Return this items input channels."""
+        return list(self.inputAnchorItem.signals())
+
+    def setOutputChannels(self, signals: Sequence[OutputSignal]):
+        """Set this items output channels."""
+        self.outputAnchorItem.setSignals(list(signals))
+        self.outputAnchorItem.setVisible(bool(signals))
+
+    def outputChannels(self) -> Sequence[OutputSignal]:
+        """Return this items output signals."""
+        return list(self.outputAnchorItem.signals())
 
     def setIcon(self, icon):
         # type: (QIcon) -> None
         """
         Set the node item's icon (:class:`QIcon`).
         """
-        self.icon_item = GraphicsIconItem(
-            self.shapeItem, icon=icon, iconSize=QSize(36, 36)
-        )
-        # assuming light-ish color background
-        self.icon_item.setPalette(styles.breeze_light())
-        self.icon_item.setPos(-18, -18)
+        self.iconItem.setIcon(icon)
+
+    def icon(self) -> QIcon:
+        return self.iconItem.icon()
 
     def setColor(self, color, selectedColor=None):
         # type: (QColor, Optional[QColor]) -> None
@@ -1551,12 +1592,9 @@ class NodeItem(QGraphicsWidget):
         """
         Create and return a new input :class:`AnchorPoint`.
         """
-        if not (self.widget_description and self.widget_description.inputs):
-            raise ValueError("Widget has no inputs.")
-
         anchor = AnchorPoint(self, signal=signal)
         self.inputAnchorItem.addAnchor(anchor)
-
+        self.inputAnchorItem.setVisible(True)
         return anchor
 
     def removeInputAnchor(self, anchor):
@@ -1571,12 +1609,9 @@ class NodeItem(QGraphicsWidget):
         """
         Create and return a new output :class:`AnchorPoint`.
         """
-        if not (self.widget_description and self.widget_description.outputs):
-            raise ValueError("Widget has no outputs.")
-
         anchor = AnchorPoint(self, signal=signal)
         self.outputAnchorItem.addAnchor(anchor)
-
+        self.outputAnchorItem.setVisible(True)
         return anchor
 
     def removeOutputAnchor(self, anchor):
@@ -1806,23 +1841,21 @@ def NodeItem_toolTipHelper(node, links_in=[], links_out=[]):
         A list of input links for the node.
     links_out : list of LinkItem instances
         A list of output links for the node.
-
     """
-    desc = node.widget_description
     channel_fmt = "<li>{0}</li>"
-
     title_fmt = "<b>{title}</b><hr/>"
     title = title_fmt.format(title=escape(node.title()))
     inputs_list_fmt = "Inputs:<ul>{inputs}</ul><hr/>"
     outputs_list_fmt = "Outputs:<ul>{outputs}</ul>"
-    if desc.inputs:
-        inputs = [channel_fmt.format(inp.name) for inp in desc.inputs]
+    inputs = node.inputChannels()
+    if inputs:
+        inputs = [channel_fmt.format(inp.name) for inp in inputs]
         inputs = inputs_list_fmt.format(inputs="".join(inputs))
     else:
         inputs = "No inputs<hr/>"
-
-    if desc.outputs:
-        outputs = [channel_fmt.format(out.name) for out in desc.outputs]
+    outputs = node.outputChannels()
+    if outputs:
+        outputs = [channel_fmt.format(out.name) for out in outputs]
         outputs = outputs_list_fmt.format(outputs="".join(outputs))
     else:
         outputs = "No outputs"
@@ -1830,6 +1863,18 @@ def NodeItem_toolTipHelper(node, links_in=[], links_out=[]):
     tooltip = title + inputs + outputs
     style = "ul { margin-top: 1px; margin-bottom: 1px; }"
     return TOOLTIP_TEMPLATE.format(style=style, tooltip=tooltip)
+
+
+def background_color_from_desc(
+        desc: Union[WidgetDescription, CategoryDescription, Node]
+) -> QColor:
+    if isinstance(desc, Node) and \
+            isinstance(getattr(desc, "description", None), WidgetDescription):
+        desc = desc.description
+    background = NAMED_COLORS.get(desc.background, desc.background)
+    if background is not None:
+        return QColor(background)
+    return QColor()
 
 
 def parse_format_fields(format_str):

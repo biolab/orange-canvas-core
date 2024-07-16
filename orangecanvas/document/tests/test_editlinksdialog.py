@@ -50,7 +50,7 @@ class TestLinksEditDialog(test.QAppTestCase):
         scene.addItem(node)
 
         node = EditLinksNode(direction=Qt.RightToLeft)
-        node.setSchemeNode(sink_node)
+        node.setNode(sink_node)
 
         node.setPos(300, 0)
         scene.addItem(node)

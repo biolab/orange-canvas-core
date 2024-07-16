@@ -4,6 +4,7 @@ Widget Registry
 ===============
 
 """
+import copy
 
 import logging
 import bisect
@@ -22,7 +23,7 @@ if typing.TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 # Registry hex version
-VERSION_HEX = 0x000106
+VERSION_HEX = 0x000107
 
 
 class WidgetRegistry(object):
@@ -218,6 +219,11 @@ class WidgetRegistry(object):
         """
         assert isinstance(category, description.CategoryDescription)
         _, widgets = self._categories_dict[category.name]
+
+        if desc.background is None:
+            desc.background = category.background
+        if desc.category is None:
+            desc.category = category.name
 
         priority = desc.priority
         priorities = [w.priority for w in widgets]

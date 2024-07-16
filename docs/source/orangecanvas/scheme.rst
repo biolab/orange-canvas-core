@@ -12,6 +12,7 @@ Scheme (``scheme``)
 
    scheme.scheme
    scheme.node
+   scheme.metanode
    scheme.link
    scheme.annotation
    scheme.readwrite

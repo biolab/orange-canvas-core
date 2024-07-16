@@ -12,3 +12,4 @@ Canvas (``canvas``)
    canvas.items.nodeitem
    canvas.items.linkitem
    canvas.items.annotationitem
+   canvas.utils
