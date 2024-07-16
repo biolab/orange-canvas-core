@@ -189,4 +189,4 @@ def style_sheet(stylesheet: str) -> Tuple[str, List[Tuple[str, str]]]:
         return stylesheet_string, []
     else:
         return process_qss(stylesheet_string.decode("utf-8"),
-                           os.path.basename(__file__))
+                           os.path.dirname(__file__))
