@@ -286,7 +286,7 @@ class UserSettingsDialog(QMainWindow):
                 objectName="combo-language",
                 toolTip=self.tr("Select the application language.")
             )
-            cm_lang.addItems(languages)
+            cm_lang.addItems(list(languages))
             self.bind(cm_lang, "currentText", "application/language")
             cm_lang.currentTextChanged.connect(lambda: label.setHidden(False))
 

@@ -1,3 +1,6 @@
+from functools import lru_cache
+import warnings
+
 import os
 import json
 import importlib
@@ -37,16 +40,25 @@ def pl(n: int, forms: str) -> str:  # pylint: disable=invalid-name
     return word
 
 
+@lru_cache
 def get_languages(package=None):
     if package is None:
         package = "orangecanvas"
     package_path = os.path.dirname(importlib.import_module(package).__file__)
     msgs_path = os.path.join(package_path, "i18n")
     if not os.path.exists(msgs_path):
-        return []
-    return [name
-            for name, ext in map(os.path.splitext, os.listdir(msgs_path))
-            if ext == ".json"]
+        return {}
+    names = {}
+    for name, ext in map(os.path.splitext, os.listdir(msgs_path)):
+        if ext == ".json":
+            try:
+                msgs = json.load(open(os.path.join(msgs_path, name + ext)))
+            except json.JSONDecodeError:
+                warnings.warn("Invalid language file "
+                              + os.path.join(msgs_path, name + ext))
+            else:
+                names[msgs[0]] = name
+    return names
 
 
 DEFAULT_LANGUAGE = QLocale().languageToString(QLocale().language())
@@ -67,6 +79,14 @@ def update_last_used_language():
     s.setValue("application/last-used-language", lang)
 
 
+class _list(list):
+    # Accept extra argument to allow for the original string
+    def __getitem__(self, item):
+        if isinstance(item, tuple):
+            item = item[0]
+        return super().__getitem__(item)
+
+
 class Translator:
     e = eval
 
@@ -77,11 +97,13 @@ class Translator:
         # For testing purposes (and potential fallback)
         # lang = os.environ.get("ORANGE_LANG", "English")
         package_path = os.path.dirname(importlib.import_module(package).__file__)
-        path = os.path.join(package_path, "i18n", f"{lang}.json")
+        lang_eng = get_languages().get(lang, lang)
+        path = os.path.join(package_path, "i18n", f"{lang_eng}.json")
         if not os.path.exists(path):
             path = os.path.join(package_path, "i18n", f"{DEFAULT_LANGUAGE}.json")
         assert os.path.exists(path), f"Missing language file {path}"
-        self.m = json.load(open(path))
+        self.m = _list(json.load(open(path)))
 
-    def c(self, idx):
+    # Extra argument(s) can give the original string or any other relevant data
+    def c(self, idx, *_):
         return compile(self.m[idx], '<string>', 'eval')
