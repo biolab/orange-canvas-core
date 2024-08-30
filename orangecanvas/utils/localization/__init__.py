@@ -1,4 +1,4 @@
-from functools import cache
+from functools import lru_cache
 import warnings
 
 import os
@@ -40,7 +40,7 @@ def pl(n: int, forms: str) -> str:  # pylint: disable=invalid-name
     return word
 
 
-@cache
+@lru_cache
 def get_languages(package=None):
     if package is None:
         package = "orangecanvas"
