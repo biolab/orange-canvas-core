@@ -1,6 +1,7 @@
 --only-binary PyQt5,numpy
 
 setuptools
+sphinx~=7.4.7
 sphinx-rtd-theme
 PyQt5
 AnyQt
