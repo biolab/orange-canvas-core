@@ -95,7 +95,6 @@ if __name__ == "__main__":
         license=LICENSE,
         packages=PACKAGES,
         package_data=PACKAGE_DATA,
-        setup_requires=["trubar>=0.3.3"],
         install_requires=INSTALL_REQUIRES,
         cmdclass={
             'install': InstallMultilingualCommand,
