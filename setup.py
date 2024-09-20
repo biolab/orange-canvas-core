@@ -64,7 +64,7 @@ PROJECT_URLS = {
     "Documentation": "https://orange-canvas-core.readthedocs.io/en/latest/",
 }
 
-PYTHON_REQUIRES = ">=3.8"
+PYTHON_REQUIRES = ">=3.9"
 
 
 class InstallMultilingualCommand(install):
