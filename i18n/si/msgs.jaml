@@ -365,6 +365,7 @@ application/application.py:
             -style: false
             styleHints: false
             setShowShortcutsInContextMenus: false
+            QMessageBox: false
         def `argumentParser`:
             -style: false
             -colortheme: false
@@ -3653,7 +3654,7 @@ utils/localization/__init__.py:
         i18n: false
         .json: false
         'Invalid language file ': false
-    English: null
+    English: false
     def `language_changed`:
         application/language: false
         application/last-used-language: false
@@ -3673,3 +3674,69 @@ utils/localization/__init__.py:
         def `c`:
             <string>: false
             eval: false
+utils/localization/si.py:
+    def `plsi`:
+        '|': false
+        a: false
+        i: false
+        e: false
+        ov: false
+    def `plsi_sz`:
+        {n:_}: false
+        _: false
+        1: false
+        z: false
+        zszzzzsssssssssszzzzzz: false
+        s: false
+        0: false
+        zzzssssszz: false
+    def `z_besedo`:
+        nič: false
+        m: false
+        en: false
+        enega: false
+        enemu: false
+        enem: false
+        enim: false
+        f: false
+        ena: false
+        ene: false
+        eni: false
+        eno: false
+        n: false
+        dva: false
+        dveh: false
+        dvema: false
+        dve: false
+        tri: false
+        treh: false
+        trem: false
+        tremi: false
+        štiri: false
+        štirih: false
+        štirim: false
+        štirimi: false
+        pet: false
+        petih: false
+        petim: false
+        petimi: false
+        šest: false
+        šestih: false
+        šestim: false
+        šestimi: false
+        sedem: false
+        sedmih: false
+        sedmim: false
+        sedmimi: false
+        osem: false
+        osmih: false
+        osmim: false
+        osmimi: false
+        devet: false
+        devetih: false
+        devetim: false
+        devetimi: false
+        deset: false
+        desetih: false
+        desetim: false
+        desetimi: false

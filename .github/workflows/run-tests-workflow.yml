@@ -18,12 +18,8 @@ jobs:
         include:
           # Linux
           - os: ubuntu-20.04
-            python-version: 3.8
+            python-version: 3.9
             test-env: "PyQt5~=5.12.0"
-
-          - os: ubuntu-20.04
-            python-version: 3.8
-            test-env: "PyQt5~=5.15.0"
 
           - os: ubuntu-20.04
             python-version: 3.9
@@ -53,7 +49,7 @@ jobs:
 
           # macOS
           - os: macos-12
-            python-version: 3.8
+            python-version: 3.9
             test-env: "PyQt5~=5.12.0"
 
           - os: macos-12
@@ -82,7 +78,7 @@ jobs:
 
           # Windows
           - os: windows-2019
-            python-version: 3.8
+            python-version: 3.9
             test-env: "PyQt5~=5.12.0"
 
           - os: windows-2019
