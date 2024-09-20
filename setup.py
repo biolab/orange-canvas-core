@@ -73,10 +73,7 @@ class InstallMultilingualCommand(install):
         self.compile_to_multilingual()
 
     def compile_to_multilingual(self):
-        try:
-            from trubar import translate
-        except ImportError:
-            return
+        from trubar import translate
 
         package_dir = os.path.dirname(os.path.abspath(__file__))
         translate(
@@ -98,6 +95,7 @@ if __name__ == "__main__":
         license=LICENSE,
         packages=PACKAGES,
         package_data=PACKAGE_DATA,
+        setup_requires=["trubar>=0.3.3"],
         install_requires=INSTALL_REQUIRES,
         cmdclass={
             'install': InstallMultilingualCommand,
