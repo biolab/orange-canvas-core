@@ -1,6 +1,7 @@
 """
 Tests for scheme document.
 """
+import re
 import sys
 import unittest
 from unittest import mock
@@ -408,6 +409,15 @@ class TestSchemeEdit(QAppTestCase):
         a.trigger()
         self.assertEqual(len(workflow.nodes), 2 * nnodes)
         self.assertEqual(len(workflow.links), 2 * nlinks)
+        w.selectAll()
+        a.trigger()
+        self.assertEqual(len(workflow.nodes), 4 * nnodes)
+        self.assertEqual(len(workflow.links), 4 * nlinks)
+        self.assertEqual(len(workflow.nodes),
+                         len(set(n.title for n in workflow.nodes)))
+        match = re.compile(r"\(\d+\)\s*\(\d+\)")
+        self.assertFalse(any(match.search(n.title) for n in workflow.nodes),
+                         "Duplicated renumbering ('foo (2) (1)')")
 
     def test_copy_paste(self):
         w = self.w
