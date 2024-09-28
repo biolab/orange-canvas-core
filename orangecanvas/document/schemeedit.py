@@ -9,6 +9,7 @@ import enum
 import io
 import logging
 import itertools
+import re
 import sys
 import unicodedata
 import copy
@@ -2169,10 +2170,14 @@ class SchemeEditWidget(QWidget):
             return
 
         # find unique names for new nodes
-        allnames = {node.title for node in scheme.nodes + nodedups}
+        allnames = {node.title for node in scheme.nodes}
+
         for nodedup in nodedups:
             nodedup.title = uniquify(
-                nodedup.title, allnames, pattern="{item} ({_})", start=1)
+                remove_copy_number(nodedup.title), allnames,
+                pattern="{item} ({_})", start=1
+            )
+            allnames.add(nodedup.title)
 
         if pos is not None:
             # top left of nodedups brect
@@ -2551,11 +2556,25 @@ def can_insert_node(new_node_desc, original_link):
                for input in original_link.sink_node.input_channels())
 
 
+def remove_copy_number(name):
+    """
+    >>> remove_copy_number("foo (1)")
+    foo
+    """
+    match = re.search(r"\s+\(\d+\)\s*$", name)
+    if match:
+        return name[:match.start()]
+    return name
+
+
 def uniquify(item, names, pattern="{item}-{_}", start=0):
     # type: (str, Container[str], str, int) -> str
     candidates = (pattern.format(item=item, _=i)
                   for i in itertools.count(start))
-    candidates = itertools.dropwhile(lambda item: item in names, candidates)
+    candidates = itertools.dropwhile(
+        lambda item: item in names,
+        itertools.chain((item,), candidates)
+    )
     return next(candidates)
 
 

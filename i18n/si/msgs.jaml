@@ -2046,6 +2046,8 @@ document/schemeedit.py:
     Cs: false
     Co: false
     Cn: false
+    def `remove_copy_number`:
+        \s+\(\d+\)\s*$: false
     def `uniquify`:
         {item}-{_}: false
 document/suggestions.py:
