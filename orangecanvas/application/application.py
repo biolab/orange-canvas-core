@@ -48,7 +48,7 @@ def fix_qt_plugins_path():
 
     if AnyQt.USED_API == "pyqt5":
         import PyQt5.QtCore as qc
-    if AnyQt.USED_API == "pyqt6":
+    elif AnyQt.USED_API == "pyqt6":
         import PyQt6.QtCore as qc
     elif AnyQt.USED_API == "pyside2":
         import PySide2.QtCore as qc
