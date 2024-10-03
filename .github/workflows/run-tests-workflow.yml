@@ -152,6 +152,19 @@ jobs:
           XVFBARGS: "-screen 0 1280x1024x24"
         run: catchsegv xvfb-run -a -s "$XVFBARGS" pytest -v --cov=orangecanvas --cov-report=xml
 
+      - name: Test non-ascii install path
+        if: ${{ startsWith(runner.os, 'Linux') }}
+        env:
+          TEST_ENV: ${{ matrix.test-env }}
+          XVFBARGS: "-screen 0 1280x1024x24"
+        run: |
+          NAME="ščž ćžđ"
+          python -m venv "$NAME"
+          . "$NAME"/bin/activate
+          pip install $TEST_ENV ./
+          cd ..
+          catchsegv xvfb-run -a -s "$XVFBARGS" python -m orangecanvas --help
+
       - name: Upload Coverage
         uses: codecov/codecov-action@v4
         with:
