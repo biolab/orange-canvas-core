@@ -39,6 +39,9 @@ def pl(n: int, forms: str) -> str:  # pylint: disable=invalid-name
         word = word.upper()
     return word
 
+def _load_json(path):
+    with open(path) as handle:
+        return json.load(handle)
 
 @lru_cache
 def get_languages(package=None):
@@ -52,7 +55,7 @@ def get_languages(package=None):
     for name, ext in map(os.path.splitext, os.listdir(msgs_path)):
         if ext == ".json":
             try:
-                msgs = json.load(open(os.path.join(msgs_path, name + ext)))
+                msgs = _load_json(os.path.join(msgs_path, name + ext))
             except json.JSONDecodeError:
                 warnings.warn("Invalid language file "
                               + os.path.join(msgs_path, name + ext))
@@ -102,7 +105,7 @@ class Translator:
         if not os.path.exists(path):
             path = os.path.join(package_path, "i18n", f"{DEFAULT_LANGUAGE}.json")
         assert os.path.exists(path), f"Missing language file {path}"
-        self.m = _list(json.load(open(path)))
+        self.m = _list(_load_json(path))
 
     # Extra argument(s) can give the original string or any other relevant data
     def c(self, idx, *_):
