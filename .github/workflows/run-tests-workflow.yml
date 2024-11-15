@@ -19,10 +19,6 @@ jobs:
           # Linux
           - os: ubuntu-20.04
             python-version: 3.9
-            test-env: "PyQt5~=5.12.0"
-
-          - os: ubuntu-20.04
-            python-version: 3.9
             test-env: "PyQt5~=5.14.0"
 
           - os: ubuntu-20.04
@@ -47,25 +43,26 @@ jobs:
             test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0"
             extra-system-packages: "glibc-tools"
 
-          # macOS
-          - os: macos-12
-            python-version: 3.9
-            test-env: "PyQt5~=5.12.0"
+          - os: ubuntu-22.04
+            python-version: "3.13"
+            test-env: "PyQt6~=6.7.0 PyQt6-Qt6~=6.7.0"
+            extra-system-packages: "glibc-tools"
 
-          - os: macos-12
+          # macOS
+          - os: macos-13
             python-version: 3.9
             test-env: "PyQt5~=5.14.0"
 
-          - os: macos-12
-            python-version: "3.10"
-            test-env: "PyQt5~=5.15.0"
-
           - os: macos-13
-            python-version: "3.11"
+            python-version: "3.10"
             test-env: "PyQt5~=5.15.0"
 
           - os: macos-14
             python-version: "3.11"
+            test-env: "PyQt5~=5.15.0"
+
+          - os: macos-15
+            python-version: "3.11"
             test-env: "PyQt6~=6.2.3 PyQt6-Qt6~=6.2.3"
 
           - os: macos-latest
@@ -76,11 +73,11 @@ jobs:
             python-version: "3.12"
             test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0"
 
-          # Windows
-          - os: windows-2019
-            python-version: 3.9
-            test-env: "PyQt5~=5.12.0"
+          - os: macos-latest
+            python-version: "3.13"
+            test-env: "PyQt6~=6.7.0 PyQt6-Qt6~=6.7.0"
 
+          # Windows
           - os: windows-2019
             python-version: 3.9
             test-env: "PyQt5~=5.15.0"
@@ -104,6 +101,10 @@ jobs:
           - os: windows-2019
             python-version: "3.12"
             test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0"
+
+          - os: windows-2019
+            python-version: "3.13"
+            test-env: "PyQt6~=6.7.0 PyQt6-Qt6~=6.7.0"
 
     steps:
       - uses: actions/checkout@v4
