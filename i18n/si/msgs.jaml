@@ -365,6 +365,7 @@ application/application.py:
             -style: false
             styleHints: false
             setShowShortcutsInContextMenus: false
+            win32: false
             QMessageBox: false
         def `argumentParser`:
             -style: false
