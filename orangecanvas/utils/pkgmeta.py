@@ -1,8 +1,12 @@
+from __future__ import annotations
 import os
 import sys
 import re
+import json
 import email
 from operator import itemgetter
+from urllib.parse import urlparse
+from urllib.request import url2pathname
 from typing import List, Dict, Optional, Union, cast
 
 import packaging.version
@@ -16,7 +20,7 @@ else:
 __all__ = [
     "Distribution", "EntryPoint", "entry_points", "normalize_name", "trim",
     "trim_leading_lines", "trim_trailing_lines", "parse_meta", "get_dist_meta",
-    "get_distribution"
+    "get_distribution", "develop_root", "get_dist_url"
 ]
 
 
@@ -27,13 +31,43 @@ def normalize_name(name: str) -> str:
     return re.sub(r"[-_.]+", "-", name).lower().replace('-', '_')
 
 
+def _direct_url(dist: Distribution) -> dict | None:
+    """
+    Return PEP-0610 direct_url dict.
+    """
+    direct_url_content = dist.read_text("direct_url.json")
+    if direct_url_content:
+        try:
+            return json.loads(direct_url_content)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return None
+    return None
+
+
+def develop_root(dist: Distribution) -> str | None:
+    """
+    Return the distribution's editable root path if applicable (pip install -e).
+    """
+    direct_url = _direct_url(dist)
+    if direct_url is not None and direct_url.get("dir_info", {}).get("editable", False):
+        url = direct_url.get("url", None)
+        if url is not None:
+            url = urlparse(url)
+            if url.scheme == "file":
+                return url2pathname(url.path)
+
+    egg_info_dir = dist.locate_file(f"{normalize_name(dist.name)}.egg-info/")
+    setup = dist.locate_file("setup.py")
+    if os.path.isdir(egg_info_dir) and os.path.isfile(setup):
+        return os.path.dirname(setup)
+    return None
+
+
 def is_develop_egg(dist: Distribution) -> bool:
     """
     Is the distribution installed in development mode (setup.py develop)
     """
-    egg_info_dir = dist.locate_file(f"{normalize_name(dist.name)}.egg-info/")
-    setup = dist.locate_file("setup.py")
-    return os.path.isdir(egg_info_dir) and os.path.isfile(setup)
+    return develop_root(dist) is not None
 
 
 def left_trim_lines(lines: List[str]) -> List[str]:

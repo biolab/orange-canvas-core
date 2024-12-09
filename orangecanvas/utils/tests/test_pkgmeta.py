@@ -1,8 +1,9 @@
+import os
 from unittest import TestCase
 
 from orangecanvas.utils.pkgmeta import (
     Distribution, normalize_name, is_develop_egg, get_dist_meta, parse_meta,
-    trim,
+    trim, develop_root,
 )
 
 
@@ -19,6 +20,20 @@ class TestPkgMeta(TestCase):
             pass
         else:
             is_develop_egg(d)
+
+    def test_develop_root(self):
+        d = Distribution.from_name("AnyQt")
+        path = develop_root(d)
+        if path is not None:
+            self.assertTrue(os.path.isfile(d.locate_file("setup.py")))
+        try:
+            d = Distribution.from_name("orange-canvas-core")
+        except Exception:
+            pass
+        else:
+            path = develop_root(d)
+            if path is not None:
+                self.assertTrue(os.path.isfile(d.locate_file("setup.py")))
 
     def test_get_dist_meta(self):
         d = Distribution.from_name("AnyQt")
