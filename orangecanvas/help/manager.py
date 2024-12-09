@@ -15,7 +15,7 @@ from typing import Dict, Optional, List, Tuple, Union, Callable, Sequence
 
 from AnyQt.QtCore import QObject, QUrl, QDir
 
-from ..utils.pkgmeta import get_dist_url, is_develop_egg, get_distribution
+from ..utils.pkgmeta import get_dist_url, get_distribution, develop_root
 from . import provider
 
 if typing.TYPE_CHECKING:
@@ -154,8 +154,8 @@ def _replacements_for_dist(dist):
     except KeyError:
         pass
 
-    if is_develop_egg(dist):
-        replacements["DEVELOP_ROOT"] = str(dist.locate_file("."))
+    if develop_root(dist) is not None:
+        replacements["DEVELOP_ROOT"] = develop_root(dist)
 
     return replacements
 
