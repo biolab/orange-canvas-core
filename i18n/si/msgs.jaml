@@ -2435,7 +2435,6 @@ help/manager.py:
         data: false
         URL: false
         DEVELOP_ROOT: false
-        .: false
     def `create_intersphinx_provider`:
         objects.inv: false
         Local doc root '%s' does not exist.: false
@@ -3514,11 +3513,19 @@ utils/pkgmeta.py:
     parse_meta: false
     get_dist_meta: false
     get_distribution: false
+    develop_root: false
+    get_dist_url: false
     def `normalize_name`:
         [-_.]+: false
         -: false
         _: false
-    def `is_develop_egg`:
+    def `_direct_url`:
+        direct_url.json: false
+    def `develop_root`:
+        dir_info: false
+        editable: false
+        url: false
+        file: false
         {normalize_name(dist.name)}.egg-info/: false
         setup.py: false
     def `trim`:
