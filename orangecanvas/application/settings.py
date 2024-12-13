@@ -21,7 +21,7 @@ from AnyQt.QtCore import (
     Signal)
 
 from .. import config
-from ..utils.localization import get_languages
+from ..localization import get_languages
 from ..utils.settings import SettingChangedEvent
 from ..utils.propertybindings import (
     AbstractBoundProperty, PropertyBinding, BindingManager

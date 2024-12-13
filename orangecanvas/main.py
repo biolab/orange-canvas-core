@@ -16,7 +16,7 @@ from contextlib import ExitStack, closing
 from AnyQt.QtGui import QFont, QColor, QPalette
 from AnyQt.QtCore import Qt, QSettings, QTimer, QUrl, QDir
 
-from orangecanvas.utils import localization
+from orangecanvas import localization
 from .utils.after_exit import run_after_exit
 from .styles import style_sheet, breeze_dark as _breeze_dark
 from .application.application import CanvasApplication

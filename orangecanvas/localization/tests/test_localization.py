@@ -1,6 +1,8 @@
+import importlib
 import unittest
+import warnings
 
-from orangecanvas.utils.localization import pl
+from orangecanvas.localization import pl
 
 
 class TestLocalization(unittest.TestCase):
@@ -16,6 +18,18 @@ class TestLocalization(unittest.TestCase):
             for n in (2, 5, 101, -1):
                 self.assertEqual(pl(n, forms), plural, msg=f"for n={n}")
 
+    def test_deprecated_import(self):
+        warnings.simplefilter("always")
+        # Imports must work, but with warning
+        with self.assertWarns(DeprecationWarning):
+            # unittest discovery may have already imported this file -> reload
+            import orangecanvas.utils.localization
+            importlib.reload(orangecanvas.utils.localization)
+        self.assertIs(orangecanvas.utils.localization.pl, pl)
 
+        with self.assertWarns(DeprecationWarning):
+            # pylint: disable=unused-import
+            from orangecanvas.utils.localization.si import plsi
+            
 if __name__ == "__main__":
     unittest.main()
