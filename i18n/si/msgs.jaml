@@ -2515,6 +2515,104 @@ help/provider.py:
                 content: false
         utf-16: false
         latin-1: false
+localization/__init__.py:
+    def `pl`:
+        '|': false
+        yY: false
+        aeiouAEIOU: false
+        ies: false
+        s: false
+    def `get_languages`:
+        orangecanvas: false
+        i18n: false
+        .json: false
+        'Invalid language file ': false
+    English: false
+    def `language_changed`:
+        application/language: false
+        application/last-used-language: false
+    def `update_last_used_language`:
+        application/language: false
+        English: true
+        application/last-used-language: false
+    class `Translator`:
+        def `__init__`:
+            biolab.si: false
+            Orange: false
+            application/language: false
+            i18n: false
+            {lang_eng}.json: false
+            {DEFAULT_LANGUAGE}.json: false
+            Missing language file {path}: false
+        def `c`:
+            <string>: false
+            eval: false
+localization/si.py:
+    def `plsi`:
+        '|': false
+        a: false
+        i: false
+        e: false
+        ov: false
+    def `plsi_sz`:
+        {n:_}: false
+        _: false
+        1: false
+        z: false
+        zszzzzsssssssssszzzzzz: false
+        s: false
+        0: false
+        zzzssssszz: false
+    def `z_besedo`:
+        nič: false
+        m: false
+        en: false
+        enega: false
+        enemu: false
+        enem: false
+        enim: false
+        f: false
+        ena: false
+        ene: false
+        eni: false
+        eno: false
+        n: false
+        dva: false
+        dveh: false
+        dvema: false
+        dve: false
+        tri: false
+        treh: false
+        trem: false
+        tremi: false
+        štiri: false
+        štirih: false
+        štirim: false
+        štirimi: false
+        pet: false
+        petih: false
+        petim: false
+        petimi: false
+        šest: false
+        šestih: false
+        šestim: false
+        šestimi: false
+        sedem: false
+        sedmih: false
+        sedmim: false
+        sedmimi: false
+        osem: false
+        osmih: false
+        osmim: false
+        osmimi: false
+        devet: false
+        devetih: false
+        devetim: false
+        devetimi: false
+        deset: false
+        desetih: false
+        desetim: false
+        desetimi: false
 preview/previewbrowser.py:
     '
 
@@ -3653,100 +3751,6 @@ utils/shtools.py:
         utf-8: false
         wt: false
 utils/localization/__init__.py:
-    def `pl`:
-        '|': false
-        yY: false
-        aeiouAEIOU: false
-        ies: false
-        s: false
-    def `get_languages`:
-        orangecanvas: false
-        i18n: false
-        .json: false
-        'Invalid language file ': false
-    English: false
-    def `language_changed`:
-        application/language: false
-        application/last-used-language: false
-    def `update_last_used_language`:
-        application/language: false
-        English: true
-        application/last-used-language: false
-    class `Translator`:
-        def `__init__`:
-            biolab.si: false
-            Orange: false
-            application/language: false
-            i18n: false
-            {lang_eng}.json: false
-            {DEFAULT_LANGUAGE}.json: false
-            Missing language file {path}: false
-        def `c`:
-            <string>: false
-            eval: false
+    import 'orangecanvas.localization', not 'orangecanvas.utils.localization': false
 utils/localization/si.py:
-    def `plsi`:
-        '|': false
-        a: false
-        i: false
-        e: false
-        ov: false
-    def `plsi_sz`:
-        {n:_}: false
-        _: false
-        1: false
-        z: false
-        zszzzzsssssssssszzzzzz: false
-        s: false
-        0: false
-        zzzssssszz: false
-    def `z_besedo`:
-        nič: false
-        m: false
-        en: false
-        enega: false
-        enemu: false
-        enem: false
-        enim: false
-        f: false
-        ena: false
-        ene: false
-        eni: false
-        eno: false
-        n: false
-        dva: false
-        dveh: false
-        dvema: false
-        dve: false
-        tri: false
-        treh: false
-        trem: false
-        tremi: false
-        štiri: false
-        štirih: false
-        štirim: false
-        štirimi: false
-        pet: false
-        petih: false
-        petim: false
-        petimi: false
-        šest: false
-        šestih: false
-        šestim: false
-        šestimi: false
-        sedem: false
-        sedmih: false
-        sedmim: false
-        sedmimi: false
-        osem: false
-        osmih: false
-        osmim: false
-        osmimi: false
-        devet: false
-        devetih: false
-        devetim: false
-        devetimi: false
-        deset: false
-        desetih: false
-        desetim: false
-        desetimi: false
+    import 'orangecanvas.localization.si', not 'orangecanvas.utils.localization.si': false
