@@ -39,6 +39,7 @@ INSTALL_REQUIRES = (
     "typing_extensions",
     "packaging",
     "numpy",
+    "truststore",
 )
 
 
