@@ -446,6 +446,8 @@ spec = \
      ("network/http-proxy", str, '', 'HTTP proxy.'),
 
      ("network/https-proxy", str, '', 'HTTPS proxy.'),
+
+     ("network/use-certs", bool, False, "Use system certificates."),
      ]
 
 
