@@ -34,8 +34,6 @@ INSTALL_REQUIRES = (
     "pip>=18.0",
     "dictdiffer",
     "qasync>=0.10.0",
-    "importlib_metadata>=4.6; python_version<'3.10'",
-    "importlib_resources; python_version<'3.9'",
     "typing_extensions",
     "packaging",
     "numpy",
@@ -64,7 +62,7 @@ PROJECT_URLS = {
     "Documentation": "https://orange-canvas-core.readthedocs.io/en/latest/",
 }
 
-PYTHON_REQUIRES = ">=3.9"
+PYTHON_REQUIRES = ">=3.10"
 
 
 class InstallMultilingualCommand(install):
