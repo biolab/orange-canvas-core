@@ -297,3 +297,14 @@ texinfo_documents = [
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'python': ('https://docs.python.org/3', None)}
+
+
+def fix_pyqtsignal_docstring(app, what, name, obj, options, lines):
+    from AnyQt.QtCore import pyqtSignal as Signal
+    if isinstance(obj, Signal):
+        for i in range(len(lines)):
+            lines[i] = lines[i].replace("*", r"\*")
+
+
+def setup(app):
+    app.connect("autodoc-process-docstring", fix_pyqtsignal_docstring)
