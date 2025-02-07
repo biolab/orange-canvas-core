@@ -11,10 +11,7 @@ from typing import List, Optional, IO
 from orangecanvas import config as _config
 from orangecanvas.utils.pkgmeta import Distribution
 
-try:
-    from importlib.resources import files as _files
-except ImportError:
-    from importlib_resources import files as _files
+from importlib.resources import files as _files
 
 log = logging.getLogger(__name__)
 
