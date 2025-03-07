@@ -1290,13 +1290,11 @@ application/utils/addons.py:
             install: false
             --yes: false
             --quiet: false
-            --satisfied-skip-solve: false
         def `upgrade`:
             ={}: false
             install: false
             --yes: false
             --quiet: false
-            --satisfied-skip-solve: false
         def `uninstall`:
             uninstall: false
             --yes: false
@@ -1458,6 +1456,8 @@ canvas/items/linkitem.py:
         def `__updateText`:
             <nobr>{0}</nobr> \u2192 <nobr>{1}</nobr>: false
             '<div align="center" style="font-size: small" >{0}</div>': false
+        def `__update_tooltip`:
+            {self.sourceItem.title()} is not providing the proper data type required by {self.sinkItem.title()}: {self.sourceItem.title()} ni priskrbel pravilnega podatkovnega tipa za {self.sinkItem.title()}
         def `__updatePen`:
             '#9CACB4': false
             '#959595': false
