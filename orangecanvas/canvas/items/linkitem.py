@@ -311,6 +311,8 @@ class LinkItem(QGraphicsWidget):
                     self.sourceItem.removeOutputAnchor(self.sourceAnchor)
                     self.sourceItem.selectedChanged.disconnect(
                         self.__updateSelectedState)
+                    self.sourceItem.titleEditingFinished.disconnect(
+                        self.__update_tooltip)
                 self.sourceItem = self.sourceAnchor = None
 
             self.sourceItem = item
@@ -320,6 +322,7 @@ class LinkItem(QGraphicsWidget):
                 anchor = item.newOutputAnchor(signal)
             if item is not None:
                 item.selectedChanged.connect(self.__updateSelectedState)
+                item.titleEditingFinished.connect(self.__update_tooltip)
 
         if anchor != self.sourceAnchor:
             if self.sourceAnchor is not None:
@@ -356,11 +359,13 @@ class LinkItem(QGraphicsWidget):
                 self.sinkAnchor.scenePositionChanged.disconnect(
                     self._sinkPosChanged
                 )
-
                 if self.sinkItem is not None:
                     self.sinkItem.removeInputAnchor(self.sinkAnchor)
                     self.sinkItem.selectedChanged.disconnect(
                         self.__updateSelectedState)
+                    self.sinkItem.titleEditingFinished.disconnect(
+                        self.__update_tooltip
+                    )
                 self.sinkItem = self.sinkAnchor = None
 
             self.sinkItem = item
@@ -370,6 +375,7 @@ class LinkItem(QGraphicsWidget):
                 anchor = item.newInputAnchor(signal)
             if item is not None:
                 item.selectedChanged.connect(self.__updateSelectedState)
+                item.titleEditingFinished.connect(self.__update_tooltip)
 
         if self.sinkAnchor != anchor:
             if self.sinkAnchor is not None:
@@ -670,6 +676,13 @@ class LinkItem(QGraphicsWidget):
             self.__dynamicEnabled = enabled
             if self.__dynamic:
                 self.__updatePen()
+        self.__update_tooltip()
+
+    def __update_tooltip(self):
+        if self.__dynamicEnabled:
+            self.curveItem.setToolTip(None)
+        else:
+            self.curveItem.setToolTip(f"{self.sourceItem.title()} is not providing the proper data type required by {self.sinkItem.title()}")
 
     def isDynamicEnabled(self):
         # type: () -> bool
