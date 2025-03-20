@@ -963,7 +963,8 @@ class AddonManagerDialog(QDialog):
                         icon=QMessageBox.Information
                     ).exec()
                 else:
-                    QApplication.exit(96)
+                    # Sometimes it doesn't actually exit unless this call is queued
+                    QTimer.singleShot(0, lambda: QApplication.exit(96))
 
             QTimer.singleShot(0, restart)
         else:
