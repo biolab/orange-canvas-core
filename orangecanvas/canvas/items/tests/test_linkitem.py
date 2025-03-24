@@ -12,31 +12,39 @@ from . import TestItems
 
 
 class TestLinkItem(TestItems):
-    def test_linkitem(self):
+    def setUp(self):
+        super().setUp()
+
         reg = small_testing_registry()
 
         const_desc = reg.category("Constants")
 
         one_desc = reg.widget("one")
 
-        one_item = NodeItem()
+        self.one_item = one_item = NodeItem()
         one_item.setWidgetDescription(one_desc)
         one_item.setWidgetCategory(const_desc)
-        one_item.setPos(0, 100)
 
         negate_desc = reg.widget("negate")
 
-        negate_item = NodeItem()
+        self.negate_item = negate_item = NodeItem()
         negate_item.setWidgetDescription(negate_desc)
         negate_item.setWidgetCategory(const_desc)
-        negate_item.setPos(200, 100)
         operator_desc = reg.category("Operators")
 
         add_desc = reg.widget("add")
 
-        nb_item = NodeItem()
+        self.nb_item = nb_item = NodeItem()
         nb_item.setWidgetDescription(add_desc)
         nb_item.setWidgetCategory(operator_desc)
+
+    def test_linkitem(self):
+        one_item = self.one_item
+        negate_item = self.negate_item
+        nb_item = self.nb_item
+
+        one_item.setPos(0, 100)
+        negate_item.setPos(200, 100)
         nb_item.setPos(400, 100)
 
         self.scene.addItem(one_item)
@@ -92,15 +100,15 @@ class TestLinkItem(TestItems):
 
     def test_dynamic_link(self):
         link = LinkItem()
-        anchor1 = AnchorPoint()
-        anchor2 = AnchorPoint()
+        anchor1 = self.one_item.newOutputAnchor()
+        anchor2 = self.nb_item.newInputAnchor()
 
         self.scene.addItem(link)
         self.scene.addItem(anchor1)
         self.scene.addItem(anchor2)
 
-        link.setSourceItem(None, anchor=anchor1)
-        link.setSinkItem(None, anchor=anchor2)
+        link.setSourceItem(self.one_item, anchor=anchor1)
+        link.setSinkItem(self.nb_item, anchor=anchor2)
 
         anchor2.setPos(100, 100)
 
@@ -112,6 +120,21 @@ class TestLinkItem(TestItems):
 
         link.setDynamicEnabled(True)
         self.assertTrue(link.isDynamicEnabled())
+        self.assertEqual(link.curveItem.toolTip(), "")
+
+        link.setDynamicEnabled(False)
+        self.assertIn("one", link.curveItem.toolTip())
+        self.assertIn("add", link.curveItem.toolTip())
+
+        self.one_item.setTitle("new name for source")
+        self.one_item.titleEditingFinished.emit()
+        self.assertIn("new name for source", link.curveItem.toolTip())
+        self.assertIn("add", link.curveItem.toolTip())
+
+        self.nb_item.setTitle("new name for sink")
+        self.nb_item.titleEditingFinished.emit()
+        self.assertIn("new name for source", link.curveItem.toolTip())
+        self.assertIn("new name for sink", link.curveItem.toolTip())
 
         def advance():
             clock = time.process_time()
@@ -126,12 +149,12 @@ class TestLinkItem(TestItems):
 
     def test_link_enabled(self):
         link = LinkItem()
-        anchor1 = AnchorPoint()
-        anchor2 = AnchorPoint()
+        anchor1 = self.one_item.newOutputAnchor()
+        anchor2 = self.nb_item.newInputAnchor()
         anchor2.setPos(100, 100)
 
-        link.setSourceItem(None, anchor=anchor1)
-        link.setSinkItem(None, anchor=anchor2)
+        link.setSourceItem(self.one_item, anchor=anchor1)
+        link.setSinkItem(self.nb_item, anchor=anchor2)
 
         link.setEnabled(False)
         self.assertFalse(link.isEnabled())
