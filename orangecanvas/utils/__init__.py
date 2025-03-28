@@ -1,12 +1,15 @@
 import enum
+import itertools
 import operator
 import types
+import unicodedata
+from collections import deque, Counter
 from functools import reduce
 
 import typing
 from typing import (
     Iterable, Set, Any, Optional, Union, Tuple, Callable, Mapping, List, Dict,
-    SupportsInt, cast, overload
+    SupportsInt, Container, cast, overload
 )
 
 from AnyQt.QtCore import Qt
@@ -31,12 +34,17 @@ __all__ = [
     "group_by_all",
     "mapping_get",
     "findf",
+    "index_where",
     "set_flag",
     "is_flag_set",
     "qsizepolicy_is_expanding",
     "qsizepolicy_is_shrinking",
     "is_event_source_mouse",
     "UNUSED",
+    "apply_all",
+    "uniquify",
+    "enumerate_strings",
+    "is_printable",
 ]
 
 if typing.TYPE_CHECKING:
@@ -290,6 +298,19 @@ def findf(iterable, predicate, default=None):
     return typing.cast('Union[A, B]', default)
 
 
+def index_where(iterable, predicate):
+    # type: (Iterable[A], Callable[[A], bool]) -> Optional[int]
+    """
+    Return the first index of el in `iterable` where `predicate(el)` returns True.
+
+    If no element matches return `None`.
+    """
+    for i, el in enumerate(iterable):
+        if predicate(el):
+            return i
+    return None
+
+
 def set_flag(flags, mask, on=True):
     # type: (F, Union[SupportsInt, enum.Flag], bool) -> F
     if not isinstance(mask, enum.Flag):
@@ -354,3 +375,57 @@ def UNUSED(*_unused_args) -> None:
     ...     UNUSED(bar, baz)
     ...     return True
     """
+
+
+def apply_all(op, seq):
+    # type: (Callable[[A], Any], Iterable[A]) -> None
+    """Apply `op` on all elements of `seq`."""
+    # from itertools recipes `consume`
+    deque(map(op, seq), maxlen=0)
+
+
+def uniquify(item, names, pattern="{item}-{_}", start=0):
+    # type: (str, Container[str], str, int) -> str
+    """
+    Append a number to `item` such that it will be unique among `names`.
+
+    >>> uniquify("A", [])
+    'A-0'
+    >>> uniquify("A", ["A-0"])
+    'A-1'
+    >>> uniquify("A", ["A-0", "A-1"])
+    'A-2'
+    """
+    candidates = (pattern.format(item=item, _=i)
+                  for i in itertools.count(start))
+    candidates = itertools.dropwhile(lambda item: item in names, candidates)
+    return next(candidates)
+
+
+def enumerate_strings(items, pattern="{item}-{_}"):
+    """
+    Return with possibly appended numbers such that all are unique.
+    """
+    items = list(items)
+    counts = Counter(items)
+    if len(counts) == len(items):
+        return items
+    for i in range(len(items)):
+        items_ = items[:i] + items[i + 1:]
+        item = items[i]
+        if counts[item] > 1:
+            items[i] = uniquify(item, items_, pattern=pattern, start=1)
+            counts[items[i]] += 1
+    return items
+
+
+# All control character categories.
+_control = {"Cc", "Cf", "Cs", "Co", "Cn"}
+
+
+def is_printable(unichar):
+    # type: (str) -> bool
+    """
+    Return True if the unicode character `unichar` is a printable character.
+    """
+    return unicodedata.category(unichar) not in _control

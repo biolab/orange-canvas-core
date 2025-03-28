@@ -8,7 +8,10 @@ Scheme (``scheme``)
 
 .. autoclass:: Scheme
    :members:
-   :exclude-members: runtime_env_changed
+   :exclude-members:
+      runtime_env_changed,
+      children,
+      parents
    :member-order: bysource
    :show-inheritance:
 
