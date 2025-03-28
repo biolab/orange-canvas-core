@@ -2474,7 +2474,7 @@ class CanvasMainWindow(QMainWindow):
         log.info("Setting help to url: %r", url)
         settings = QSettings()
         use_external = settings.value(
-            "help/open-in-external-browser", defaultValue=False, type=bool)
+            "help/open-in-external-browser", defaultValue=True, type=bool)
         if use_external or self.help_view is None:
             url = QUrl(url)
             QDesktopServices.openUrl(url)
