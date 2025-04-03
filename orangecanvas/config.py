@@ -434,7 +434,7 @@ spec = \
 
      ("logging/dockable", bool, True, "Allow log window to be docked"),
 
-     ("help/open-in-external-browser", bool, False,
+     ("help/open-in-external-browser", bool, True,
       "Open help in an external browser"),
 
      ("add-ons/allow-conda", bool, True,
