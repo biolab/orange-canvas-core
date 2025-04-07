@@ -511,6 +511,9 @@ class UserSettingsDialog(QMainWindow):
         line_edit_https_proxy = QLineEdit()
         self.bind(line_edit_https_proxy, "text", "network/https-proxy")
         form.addRow("HTTPS proxy:", line_edit_https_proxy)
+        cb_use_certs = QCheckBox()
+        self.bind(cb_use_certs, "checked", "network/use-certs")
+        form.addRow("Use system certificates:", cb_use_certs)
         tab.setLayout(form)
 
         if self.__macUnified:
