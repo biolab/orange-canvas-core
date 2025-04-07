@@ -2,19 +2,18 @@
 Undo/Redo Commands
 
 """
-import typing
 from typing import Callable, Optional, Tuple, List, Any
 
 from AnyQt.QtWidgets import QUndoCommand
 
-if typing.TYPE_CHECKING:
-    from ..scheme import (
-        Scheme, SchemeNode, SchemeLink, BaseSchemeAnnotation,
-        SchemeTextAnnotation, SchemeArrowAnnotation
-    )
-    Pos = Tuple[float, float]
-    Rect = Tuple[float, float, float, float]
-    Line = Tuple[Pos, Pos]
+from ..scheme import (
+    Workflow, Node, Link, MetaNode, Annotation, Text, Arrow, InputNode,
+    OutputNode,
+)
+
+Pos = Tuple[float, float]
+Rect = Tuple[float, float, float, float]
+Line = Tuple[Pos, Pos]
 
 
 class UndoCommand(QUndoCommand):
@@ -80,129 +79,169 @@ class UndoCommand(QUndoCommand):
 
 
 class AddNodeCommand(UndoCommand):
-    def __init__(self, scheme, node, parent=None):
-        # type: (Scheme, SchemeNode, Optional[UndoCommand]) -> None
+    def __init__(
+            self,
+            scheme: Workflow,
+            node: Node,
+            parent_node: MetaNode, *,
+            parent=None
+    ) -> None:
         super().__init__("Add %s" % node.title, parent)
         self.scheme = scheme
         self.node = node
+        self.parent_node = parent_node
 
     def redo(self):
-        self.scheme.add_node(self.node)
+        self.scheme.add_node(self.node, self.parent_node)
 
     def undo(self):
         self.scheme.remove_node(self.node)
 
 
+def input_links(node: Node):
+    parent = node.parent_node()
+    ilinks = parent.input_links(node)
+    if isinstance(node, InputNode):
+        parent_ = parent.parent_node()
+        imacro = parent_.find_links(
+            sink_node=parent,
+            sink_channel=node.input_channels()[0],
+        )
+    else:
+        imacro = []
+    return ilinks, imacro
+
+
+def output_links(node: Node):
+    parent = node.parent_node()
+    olinks = parent.output_links(node)
+    if isinstance(node, OutputNode):
+        parent_ = parent.parent_node()
+        omacro = parent_.find_links(
+            source_node=parent,
+            source_channel=node.output_channels()[0],
+        )
+    else:
+        omacro = []
+    return olinks, omacro
+
+
 class RemoveNodeCommand(UndoCommand):
-    def __init__(self, scheme, node, parent=None):
-        # type: (Scheme, SchemeNode, Optional[UndoCommand]) -> None
-        super().__init__("Remove %s" % node.title, parent)
+    def __init__(self, scheme, node, parent_node, parent=None):
+        # type: (Workflow, Node, MetaNode, Optional[UndoCommand]) -> None
+        super().__init__("Remove %s" % node.title, parent=parent)
         self.scheme = scheme
         self.node = node
+        self.parent_node = parent_node
         self._index = -1
-        links = scheme.input_links(self.node) + \
-                scheme.output_links(self.node)
-
-        for link in links:
-            RemoveLinkCommand(scheme, link, parent=self)
+        ilinks, imacro = input_links(node)
+        olinks, omacro = output_links(node)
+        for link in ilinks + olinks:
+            RemoveLinkCommand(scheme, link, parent_node, parent=self)
+        for link in imacro + omacro:
+            RemoveLinkCommand(scheme, link, parent_node.parent_node(), parent=self)
 
     def redo(self):
         # redo child commands
         super().redo()
-        self._index = self.scheme.nodes.index(self.node)
+        self._index = self.parent_node.nodes().index(self.node)
         self.scheme.remove_node(self.node)
 
     def undo(self):
         assert self._index != -1
-        self.scheme.insert_node(self._index, self.node)
+        self.scheme.insert_node(self._index, self.node, self.parent_node)
         # Undo child commands
         super().undo()
 
 
 class AddLinkCommand(UndoCommand):
-    def __init__(self, scheme, link, parent=None):
-        # type: (Scheme, SchemeLink, Optional[UndoCommand]) -> None
+    def __init__(self, scheme, link, parent_node, parent=None):
+        # type: (Workflow, Link, MetaNode, Optional[UndoCommand]) -> None
         super().__init__("Add link", parent)
         self.scheme = scheme
         self.link = link
+        self.parent_node = parent_node
 
     def redo(self):
-        self.scheme.add_link(self.link)
+        self.scheme.add_link(self.link, self.parent_node)
 
     def undo(self):
         self.scheme.remove_link(self.link)
 
 
 class RemoveLinkCommand(UndoCommand):
-    def __init__(self, scheme, link, parent=None):
-        # type: (Scheme, SchemeLink, Optional[UndoCommand]) -> None
+    def __init__(self, scheme, link, parent_node, parent=None):
+        # type: (Workflow, Link, MetaNode, Optional[UndoCommand]) -> None
         super().__init__("Remove link", parent)
         self.scheme = scheme
         self.link = link
+        self.parent_node = parent_node
         self._index = -1
 
     def redo(self):
-        self._index = self.scheme.links.index(self.link)
+        self._index = self.parent_node.links().index(self.link)
         self.scheme.remove_link(self.link)
 
     def undo(self):
         assert self._index != -1
-        self.scheme.insert_link(self._index, self.link)
+        self.scheme.insert_link(self._index, self.link, self.parent_node)
         self._index = -1
 
 
 class InsertNodeCommand(UndoCommand):
     def __init__(
             self,
-            scheme,     # type: Scheme
-            new_node,   # type: SchemeNode
-            old_link,   # type: SchemeLink
-            new_links,  # type: Tuple[SchemeLink, SchemeLink]
-            parent=None # type: Optional[UndoCommand]
-    ):  # type: (...) -> None
-        super().__init__("Insert widget into link", parent)
-
-        AddNodeCommand(scheme, new_node, parent=self)
-        RemoveLinkCommand(scheme, old_link, parent=self)
+            scheme: Workflow,
+            new_node: Node,
+            old_link: Link,
+            new_links: Tuple[Link, Link],
+            parent_node: MetaNode,
+            parent: Optional[UndoCommand] = None,
+    ) -> None:
+        super().__init__("Insert widget into link", parent=parent)
+        AddNodeCommand(scheme, new_node, parent_node, parent=self)
+        RemoveLinkCommand(scheme, old_link, parent_node, parent=self)
         for link in new_links:
-            AddLinkCommand(scheme, link, parent=self)
+            AddLinkCommand(scheme, link, parent_node, parent=self)
 
 
 class AddAnnotationCommand(UndoCommand):
-    def __init__(self, scheme, annotation, parent=None):
-        # type: (Scheme, BaseSchemeAnnotation, Optional[UndoCommand]) -> None
+    def __init__(self, scheme, annotation, parent_node, parent=None):
+        # type: (Workflow, Annotation, MetaNode, Optional[UndoCommand]) -> None
         super().__init__("Add annotation", parent)
         self.scheme = scheme
         self.annotation = annotation
+        self.parent_node = parent_node
 
     def redo(self):
-        self.scheme.add_annotation(self.annotation)
+        self.scheme.add_annotation(self.annotation, self.parent_node)
 
     def undo(self):
         self.scheme.remove_annotation(self.annotation)
 
 
 class RemoveAnnotationCommand(UndoCommand):
-    def __init__(self, scheme, annotation, parent=None):
-        # type: (Scheme, BaseSchemeAnnotation, Optional[UndoCommand]) -> None
+    def __init__(self, scheme, annotation, parent_node, parent=None):
+        # type: (Workflow, Annotation, MetaNode, Optional[UndoCommand]) -> None
         super().__init__("Remove annotation", parent)
         self.scheme = scheme
         self.annotation = annotation
+        self.parent_node = parent_node
         self._index = -1
 
     def redo(self):
-        self._index = self.scheme.annotations.index(self.annotation)
+        self._index = self.parent_node.annotations().index(self.annotation)
         self.scheme.remove_annotation(self.annotation)
 
     def undo(self):
         assert self._index != -1
-        self.scheme.insert_annotation(self._index, self.annotation)
+        self.scheme.insert_annotation(self._index, self.annotation, self.parent_node)
         self._index = -1
 
 
 class MoveNodeCommand(UndoCommand):
     def __init__(self, scheme, node, old, new, parent=None):
-        # type: (Scheme, SchemeNode, Pos, Pos, Optional[UndoCommand]) -> None
+        # type: (Workflow, Node, Pos, Pos, Optional[UndoCommand]) -> None
         super().__init__("Move", parent)
         self.scheme = scheme
         self.node = node
@@ -218,7 +257,7 @@ class MoveNodeCommand(UndoCommand):
 
 class ResizeCommand(UndoCommand):
     def __init__(self, scheme, item, new_geom, parent=None):
-        # type: (Scheme, SchemeTextAnnotation, Rect, Optional[UndoCommand]) -> None
+        # type: (Workflow, Text, Rect, Optional[UndoCommand]) -> None
         super().__init__("Resize", parent)
         self.scheme = scheme
         self.item = item
@@ -234,7 +273,7 @@ class ResizeCommand(UndoCommand):
 
 class ArrowChangeCommand(UndoCommand):
     def __init__(self, scheme, item, new_line, parent=None):
-        # type: (Scheme, SchemeArrowAnnotation, Line, Optional[UndoCommand]) -> None
+        # type: (Workflow, Arrow, Line, Optional[UndoCommand]) -> None
         super().__init__("Move arrow", parent)
         self.scheme = scheme
         self.item = item
@@ -251,8 +290,8 @@ class ArrowChangeCommand(UndoCommand):
 class AnnotationGeometryChange(UndoCommand):
     def __init__(
             self,
-            scheme,  # type: Scheme
-            annotation,  # type: BaseSchemeAnnotation
+            scheme,  # type: Workflow
+            annotation,  # type: Annotation
             old,  # type: Any
             new,  # type: Any
             parent=None  # type: Optional[UndoCommand]
@@ -272,7 +311,7 @@ class AnnotationGeometryChange(UndoCommand):
 
 class RenameNodeCommand(UndoCommand):
     def __init__(self, scheme, node, old_name, new_name, parent=None):
-        # type: (Scheme, SchemeNode, str, str, Optional[UndoCommand]) -> None
+        # type: (Workflow, Node, str, str, Optional[UndoCommand]) -> None
         super().__init__("Rename", parent)
         self.scheme = scheme
         self.node = node
@@ -289,8 +328,8 @@ class RenameNodeCommand(UndoCommand):
 class TextChangeCommand(UndoCommand):
     def __init__(
             self,
-            scheme,       # type: Scheme
-            annotation,   # type: SchemeTextAnnotation
+            scheme,       # type: Workflow
+            annotation,   # type: Text
             old_content,  # type: str
             old_content_type,  # type: str
             new_content,  # type: str
@@ -339,8 +378,8 @@ class SetAttrCommand(UndoCommand):
 class SetWindowGroupPresets(UndoCommand):
     def __init__(
             self,
-            scheme: 'Scheme',
-            presets: List['Scheme.WindowGroup'],
+            scheme: 'Workflow',
+            presets: List['Workflow.WindowGroup'],
             parent: Optional[UndoCommand] = None,
             **kwargs
     ) -> None:

@@ -17,10 +17,11 @@ from ..registry.description import normalize_type_simple
 from ..utils import type_lookup
 from .errors import IncompatibleChannelTypeError
 from .events import LinkEvent
+from .element import Element
 
 if typing.TYPE_CHECKING:
     from ..registry import OutputSignal as Output, InputSignal as Input
-    from . import SchemeNode as Node
+    from . import Node
 
 
 def resolve_types(types):
@@ -158,18 +159,18 @@ def _get_first_type(arg, newname):
         raise TypeError("{!r} does not resolve to a type")
 
 
-class SchemeLink(QObject):
+class Link(Element):
     """
-    A instantiation of a link between two :class:`.SchemeNode` instances
+    A instantiation of a link between two :class:`.Node` instances
     in a :class:`.Scheme`.
 
     Parameters
     ----------
-    source_node : :class:`.SchemeNode`
+    source_node : :class:`.Node`
         Source node.
     source_channel : :class:`OutputSignal`
         The source widget's signal.
-    sink_node : :class:`.SchemeNode`
+    sink_node : :class:`.Node`
         The sink node.
     sink_channel : :class:`InputSignal`
         The sink widget's input signal.
@@ -217,14 +218,14 @@ class SchemeLink(QObject):
     def __init__(self, source_node, source_channel,
                  sink_node, sink_channel,
                  enabled=True, properties=None, parent=None):
-        # type: (Node, Output, Node, Input, bool, dict, QObject) -> None
+        # type: (Node, Union[Output, str], Node, Union[Input, str], bool, dict, QObject) -> None
         super().__init__(parent)
         self.source_node = source_node
 
         if isinstance(source_channel, str):
             source_channel = source_node.output_channel(source_channel)
         elif source_channel not in source_node.output_channels():
-            raise ValueError("%r not in in nodes output channels." \
+            raise ValueError("%r not in in node's output channels."
                              % source_channel)
 
         self.source_channel = source_channel
@@ -234,7 +235,7 @@ class SchemeLink(QObject):
         if isinstance(sink_channel, str):
             sink_channel = sink_node.input_channel(sink_channel)
         elif sink_channel not in sink_node.input_channels():
-            raise ValueError("%r not in in nodes input channels." \
+            raise ValueError("%r not in in node's input channels."
                              % source_channel)
 
         self.sink_channel = sink_channel
@@ -247,7 +248,7 @@ class SchemeLink(QObject):
 
         self.__enabled = enabled
         self.__dynamic_enabled = False
-        self.__state = SchemeLink.NoState  # type: Union[SchemeLink.State, int]
+        self.__state = Link.NoState  # type: Union[Link.State, int]
         self.__tool_tip = ""
         self.properties = properties or {}
 
@@ -356,7 +357,7 @@ class SchemeLink(QObject):
 
         Parameters
         ----------
-        state : SchemeLink.State
+        state : Link.State
         """
         if self.__state != state:
             self.__state = state
@@ -371,7 +372,7 @@ class SchemeLink(QObject):
         """
         Returns
         -------
-        state : SchemeLink.State
+        state : Link.State
         """
         return self.__state
 
@@ -382,7 +383,7 @@ class SchemeLink(QObject):
 
         Parameters
         ----------
-        flag: SchemeLink.State
+        flag: Link.State
         on: bool
         """
         if on:
@@ -398,7 +399,7 @@ class SchemeLink(QObject):
 
         Parameters
         ----------
-        flag: SchemeLink.State
+        flag: Link.State
             State flag to test
 
         Returns
@@ -450,3 +451,6 @@ class SchemeLink(QObject):
         # correct sink channel
         mutable_state[3] = state[2].input_channel(state[3])
         self.__init__(*mutable_state)
+
+
+SchemeLink = Link

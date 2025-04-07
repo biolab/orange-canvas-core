@@ -9,6 +9,7 @@ import typing
 from xml.sax import make_parser, handler, saxutils, SAXParseException
 from typing import BinaryIO, Tuple, List
 
+from ..canvas.utils import grab_svg
 from ..scheme.readwrite import scheme_load
 
 if typing.TYPE_CHECKING:
@@ -126,7 +127,6 @@ def scheme_svg_thumbnail(scheme_file):
     """
     from ..scheme import Scheme
     from ..canvas import scene
-    from ..registry import global_registry
 
     scheme = Scheme()
     scheme.set_loop_flags(scheme.AllowLoops | scheme.AllowSelfLoops)
@@ -139,7 +139,6 @@ def scheme_svg_thumbnail(scheme_file):
 
     tmp_scene = scene.CanvasScene()
     tmp_scene.set_channel_names_visible(False)
-    tmp_scene.set_registry(global_registry())
     tmp_scene.set_node_animation_enabled(False)
     tmp_scene.set_scheme(scheme)
 
@@ -148,7 +147,7 @@ def scheme_svg_thumbnail(scheme_file):
     # Last added node is auto-selected. Need to clear.
     tmp_scene.clearSelection()
 
-    svg = scene.grab_svg(tmp_scene)
+    svg = grab_svg(tmp_scene)
     tmp_scene.clear()
     tmp_scene.deleteLater()
     return svg

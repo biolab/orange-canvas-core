@@ -3,32 +3,37 @@
 Scheme Workflow
 ===============
 
-The :class:`Scheme` class defines a DAG (Directed Acyclic Graph) workflow.
-
+The :class:`Scheme` class defines a model for a hierarchical DAG (Directed
+Acyclic Graph) workflow. The :func:`Scheme.root()` is the top level container
+which can contains other :class:`.Node` and :class:`.MetaNode` instances.
 """
 import types
 import logging
+import warnings
 from contextlib import ExitStack
-from operator import itemgetter
-from collections import deque
 
 import typing
-from typing import List, Tuple, Optional, Set, Dict, Any, Mapping
+from typing import List, Tuple, Optional, Set, Dict, Any, Mapping, Sequence
 
 from AnyQt.QtCore import QObject, QCoreApplication
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtProperty as Property
 
-from .node import SchemeNode
-from .link import SchemeLink, compatible_channels, _classify_connection
-from .annotations import BaseSchemeAnnotation
-from ..utils import check_arg, findf
+
+from .node import SchemeNode, Node
+from .metanode import (
+    MetaNode, node_dependents, node_dependencies, find_links,
+    all_links_recursive
+)
+from .link import Link, compatible_channels
+from .annotations import Annotation
 
 from .errors import (
     SchemeCycleError, IncompatibleChannelTypeError, SinkChannelError,
     DuplicatedLinkError
 )
-from .events import NodeEvent, LinkEvent, AnnotationEvent, WorkflowEnvChanged
-
+from .events import WorkflowEnvChanged
+from ..utils import unique
+from ..utils.graph import traverse_bf
 from ..registry import WidgetDescription, InputSignal, OutputSignal
 
 if typing.TYPE_CHECKING:
@@ -36,15 +41,11 @@ if typing.TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-Node = SchemeNode
-Link = SchemeLink
-Annotation = BaseSchemeAnnotation
-
 
 class Scheme(QObject):
     """
-    An :class:`QObject` subclass representing the scheme widget workflow
-    with annotations.
+    An :class:`QObject` subclass representing a hierarchical workflow with
+    annotations.
 
     Parameters
     ----------
@@ -61,31 +62,31 @@ class Scheme(QObject):
     NoLoops, AllowLoops, AllowSelfLoops = 0, 1, 2
 
     # Signal emitted when a `node` is added to the scheme.
-    node_added = Signal(SchemeNode)
+    node_added = Signal(Node, MetaNode)
 
     # Signal emitted when a `node` is inserted to the scheme.
-    node_inserted = Signal(int, Node)
+    node_inserted = Signal(int, Node, MetaNode)
 
     # Signal emitted when a `node` is removed from the scheme.
-    node_removed = Signal(SchemeNode)
+    node_removed = Signal(Node, MetaNode)
 
     # Signal emitted when a `link` is added to the scheme.
-    link_added = Signal(SchemeLink)
+    link_added = Signal(Link, MetaNode)
 
     # Signal emitted when a `link` is added to the scheme.
-    link_inserted = Signal(int, Link)
+    link_inserted = Signal(int, Link, MetaNode)
 
     # Signal emitted when a `link` is removed from the scheme.
-    link_removed = Signal(SchemeLink)
+    link_removed = Signal(Link, MetaNode)
 
     # Signal emitted when a `annotation` is added to the scheme.
-    annotation_added = Signal(BaseSchemeAnnotation)
+    annotation_added = Signal(Annotation, MetaNode)
 
     # Signal emitted when a `annotation` is added to the scheme.
-    annotation_inserted = Signal(int, BaseSchemeAnnotation)
+    annotation_inserted = Signal(int, Annotation, MetaNode)
 
     # Signal emitted when a `annotation` is removed from the scheme.
-    annotation_removed = Signal(BaseSchemeAnnotation)
+    annotation_removed = Signal(Annotation, MetaNode)
 
     # Signal emitted when the title of scheme changes.
     title_changed = Signal(str)
@@ -107,36 +108,74 @@ class Scheme(QObject):
         self.__title = title or ""
         #: Workflow description (empty string by default).
         self.__description = description or ""
-        self.__annotations = []  # type: List[BaseSchemeAnnotation]
-        self.__nodes = []        # type: List[SchemeNode]
-        self.__links = []        # type: List[SchemeLink]
+        self.__root = MetaNode(self.tr("Root"))
+        self.__root._set_workflow(self)
         self.__loop_flags = Scheme.NoLoops
         self.__env = dict(env)   # type: Dict[str, Any]
+        self.__window_group_presets: List['Scheme.WindowGroup'] = []
 
     @property
     def nodes(self):
-        # type: () -> List[SchemeNode]
+        # type: () -> List[Node]
         """
-        A list of all nodes (:class:`.SchemeNode`) currently in the scheme.
+        A list of all nodes (:class:`.Node`) currently in the scheme.
+
+        .. deprecated:: 0.2.0
+            Use `root().nodes()`
         """
-        return list(self.__nodes)
+        warnings.warn("'nodes' is deprecated use 'root().nodes()'",
+                      DeprecationWarning, stacklevel=2)
+        return self.__root.nodes()
+
+    def all_nodes(self) -> List[Node]:
+        """
+        Return a list of all subnodes including all subnodes of subnodes.
+
+        Equivalent to `root().all_nodes()`
+        """
+        return self.__root.all_nodes()
 
     @property
     def links(self):
-        # type: () -> List[SchemeLink]
+        # type: () -> List[Link]
         """
-        A list of all links (:class:`.SchemeLink`) currently in the scheme.
+        A list of all links (:class:`.Link`) currently in the scheme.
+
+        .. deprecated:: 0.2.0
+            Use `root().links()`
         """
-        return list(self.__links)
+        warnings.warn("'links' is deprecated use 'root().links()'",
+                      DeprecationWarning, stacklevel=2)
+        return self.__root.links()
+
+    def all_links(self) -> List[Link]:
+        """
+        Return a list of all links including all links in subnodes.
+
+        Equivalent to `root().all_links()`
+        """
+        return self.__root.all_links()
 
     @property
     def annotations(self):
-        # type: () -> List[BaseSchemeAnnotation]
+        # type: () -> List[Annotation]
         """
-        A list of all annotations (:class:`.BaseSchemeAnnotation`) in the
-        scheme.
+        A list of all annotations (:class:`.Annotation`) in the scheme.
+
+        .. deprecated:: 0.2.0
+            Use `root().annotations()`
         """
-        return list(self.__annotations)
+        warnings.warn("'annotations' is deprecated use 'root().annotations()'",
+                      DeprecationWarning, stacklevel=2)
+        return self.__root.annotations()
+
+    def all_annotations(self):
+        """
+        Return a list of all annotations including all annotations in subnodes.
+
+        Equivalent to `root().all_annotations()`
+        """
+        return self.__root.all_annotations()
 
     def set_loop_flags(self, flags):
         self.__loop_flags = flags
@@ -151,6 +190,7 @@ class Scheme(QObject):
         """
         if self.__title != title:
             self.__title = title
+            self.__root.set_title(title)
             self.title_changed.emit(title)
 
     def _title(self):
@@ -180,35 +220,38 @@ class Scheme(QObject):
     description: str
     description = Property(str, _description, set_description)  # type: ignore
 
-    def add_node(self, node):
-        # type: (SchemeNode) -> None
+    def root(self) -> MetaNode:
+        """
+        Return the root :class:`MetaNode`.
+
+        This is the top level node containing the whole workflow.
+        """
+        return self.__root
+
+    def add_node(self, node: Node, parent: MetaNode = None) -> None:
         """
         Add a node to the scheme. An error is raised if the node is
         already in the scheme.
 
         Parameters
         ----------
-        node : :class:`.SchemeNode`
+        node : Node
             Node instance to add to the scheme.
-
+        parent: MetaNode
+            An optional meta node into which the node is inserted. If `None` the
+            node is inserted into the `root()` meta node.
         """
-        self.insert_node(len(self.__nodes), node)
+        if parent is None:
+            parent = self.__root
+        parent.add_node(node)
 
-    def insert_node(self, index: int, node: Node):
+    def insert_node(self, index: int, node: Node, parent: MetaNode = None):
         """
         Insert `node` into self.nodes at the specified position `index`
         """
-        assert isinstance(node, SchemeNode)
-        check_arg(node not in self.__nodes,
-                  "Node already in scheme.")
-        self.__nodes.insert(index, node)
-
-        ev = NodeEvent(NodeEvent.NodeAdded, node, index)
-        QCoreApplication.sendEvent(self, ev)
-
-        log.info("Added node %r to scheme %r." % (node.title, self.title))
-        self.node_added.emit(node)
-        self.node_inserted.emit(index, node)
+        if parent is None:
+            parent = self.__root
+        parent.insert_node(index, node)
 
     def new_node(self, description, title=None, position=None,
                  properties=None):
@@ -238,17 +281,18 @@ class Scheme(QObject):
 
         """
         if isinstance(description, WidgetDescription):
-            node = SchemeNode(description, title=title, position=position,
-                              properties=properties)
+            node = SchemeNode(
+                description, title=title, position=position or (0, 0),
+                properties=properties)
         else:
-            raise TypeError("Expected %r, got %r." % \
+            raise TypeError("Expected %r, got %r." %
                             (WidgetDescription, type(description)))
 
         self.add_node(node)
         return node
 
     def remove_node(self, node):
-        # type: (SchemeNode) -> SchemeNode
+        # type: (Node) -> Node
         """
         Remove a `node` from the scheme. All links into and out of the
         `node` are also removed. If the node in not in the scheme an error
@@ -256,102 +300,54 @@ class Scheme(QObject):
 
         Parameters
         ----------
-        node : :class:`.SchemeNode`
+        node : :class:`.Node`
             Node instance to remove.
-
         """
-        check_arg(node in self.__nodes,
-                  "Node is not in the scheme.")
-
-        self.__remove_node_links(node)
-        index = self.__nodes.index(node)
-        self.__nodes.pop(index)
-        ev = NodeEvent(NodeEvent.NodeRemoved, node, index)
-        QCoreApplication.sendEvent(self, ev)
-        log.info("Removed node %r from scheme %r." % (node.title, self.title))
-        self.node_removed.emit(node)
+        assert node.workflow() is self
+        parent = node.parent_node()
+        assert parent is not None
+        parent.remove_node(node)
         return node
 
-    def __remove_node_links(self, node):
-        # type: (SchemeNode) -> None
-        """
-        Remove all links for node.
-        """
-        links_in, links_out = [], []
-        for link in self.__links:
-            if link.source_node is node:
-                links_out.append(link)
-            elif link.sink_node is node:
-                links_in.append(link)
-
-        for link in links_out + links_in:
-            self.remove_link(link)
-
-    def insert_link(self, index: int, link: Link):
+    def insert_link(self, index: int, link: Link, parent: MetaNode = None):
         """
         Insert `link` into `self.links` at the specified position `index`.
         """
-        assert isinstance(link, SchemeLink)
-        self.check_connect(link)
-        self.__links.insert(index, link)
-        source_index, _ = findf(
-            enumerate(self.find_links(source_node=link.source_node)),
-            lambda t: t[1] == link,
-            default=(-1, None)
-        )
-        sink_index, _ = findf(
-            enumerate(self.find_links(sink_node=link.sink_node)),
-            lambda t: t[1] == link,
-            default=(-1, None)
-        )
-        assert sink_index != -1 and source_index != -1
-        QCoreApplication.sendEvent(
-            link.source_node,
-            LinkEvent(LinkEvent.OutputLinkAdded, link, source_index)
-        )
-        QCoreApplication.sendEvent(
-            link.sink_node,
-            LinkEvent(LinkEvent.InputLinkAdded, link, sink_index)
-        )
-        QCoreApplication.sendEvent(
-            self, LinkEvent(LinkEvent.LinkAdded, link, index)
-        )
-        log.info("Added link %r (%r) -> %r (%r) to scheme %r." % \
-                 (link.source_node.title, link.source_channel.name,
-                  link.sink_node.title, link.sink_channel.name,
-                  self.title)
-                 )
-        self.link_inserted.emit(index, link)
-        self.link_added.emit(link)
+        assert link.workflow() is None, "Link already in a workflow."
+        if parent is None:
+            parent = self.__root
+        parent.insert_link(index, link)
 
-    def add_link(self, link):
-        # type: (SchemeLink) -> None
+    def add_link(self, link, parent=None):
+        # type: (Link, MetaNode) -> None
         """
         Add a `link` to the scheme.
 
         Parameters
         ----------
-        link : :class:`.SchemeLink`
+        link : :class:`.Link`
             An initialized link instance to add to the scheme.
 
         """
-        self.insert_link(len(self.__links), link)
+        if parent is None:
+            parent = self.__root
+        parent.add_link(link)
 
     def new_link(self, source_node, source_channel,
                  sink_node, sink_channel):
-        # type: (SchemeNode, OutputSignal, SchemeNode, InputSignal) -> SchemeLink
+        # type: (Node, OutputSignal, Node, InputSignal) -> Link
         """
-        Create a new :class:`.SchemeLink` from arguments and add it to
+        Create a new :class:`.Link` from arguments and add it to
         the scheme. The new link is returned.
 
         Parameters
         ----------
-        source_node : :class:`.SchemeNode`
+        source_node : :class:`.Node`
             Source node of the new link.
         source_channel : :class:`.OutputSignal`
             Source channel of the new node. The instance must be from
             ``source_node.output_channels()``
-        sink_node : :class:`.SchemeNode`
+        sink_node : :class:`.Node`
             Sink node of the new link.
         sink_channel : :class:`.InputSignal`
             Sink channel of the new node. The instance must be from
@@ -359,60 +355,31 @@ class Scheme(QObject):
 
         See also
         --------
-        .SchemeLink, Scheme.add_link
+        .Link, Scheme.add_link
 
         """
-        link = SchemeLink(source_node, source_channel,
-                          sink_node, sink_channel)
+        link = Link(source_node, source_channel, sink_node, sink_channel)
         self.add_link(link)
         return link
 
     def remove_link(self, link):
-        # type: (SchemeLink) -> None
+        # type: (Link) -> None
         """
         Remove a link from the scheme.
 
         Parameters
         ----------
-        link : :class:`.SchemeLink`
+        link : :class:`.Link`
             Link instance to remove.
 
         """
-        check_arg(link in self.__links,
-                  "Link is not in the scheme.")
-        source_index, _ = findf(
-            enumerate(self.find_links(source_node=link.source_node)),
-            lambda t: t[1] == link,
-            default=(-1, None)
-        )
-        sink_index, _ = findf(
-            enumerate(self.find_links(sink_node=link.sink_node)),
-            lambda t: t[1] == link,
-            default=(-1, None)
-        )
-        assert sink_index != -1 and source_index != -1
-        index = self.__links.index(link)
-        self.__links.pop(index)
-        QCoreApplication.sendEvent(
-            link.sink_node,
-            LinkEvent(LinkEvent.InputLinkRemoved, link, sink_index)
-        )
-        QCoreApplication.sendEvent(
-            link.source_node,
-            LinkEvent(LinkEvent.OutputLinkRemoved, link, source_index)
-        )
-        QCoreApplication.sendEvent(
-            self, LinkEvent(LinkEvent.LinkRemoved, link, index)
-        )
-        log.info("Removed link %r (%r) -> %r (%r) from scheme %r." % \
-                 (link.source_node.title, link.source_channel.name,
-                  link.sink_node.title, link.sink_channel.name,
-                  self.title)
-                 )
-        self.link_removed.emit(link)
+        assert link.workflow() is self
+        parent = link.parent_node()
+        assert parent is not None
+        parent.remove_link(link)
 
     def check_connect(self, link):
-        # type: (SchemeLink) -> None
+        # type: (Link) -> None
         """
         Check if the `link` can be added to the scheme and raise an
         appropriate exception.
@@ -462,34 +429,34 @@ class Scheme(QObject):
                     )
 
     def creates_cycle(self, link):
-        # type: (SchemeLink) -> bool
+        # type: (Link) -> bool
         """
         Return `True` if `link` would introduce a cycle in the scheme.
 
         Parameters
         ----------
-        link : :class:`.SchemeLink`
+        link : :class:`.Link`
         """
-        assert isinstance(link, SchemeLink)
+        assert isinstance(link, Link)
         source_node, sink_node = link.source_node, link.sink_node
         upstream = self.upstream_nodes(source_node)
         upstream.add(source_node)
         return sink_node in upstream
 
     def compatible_channels(self, link):
-        # type: (SchemeLink) -> bool
+        # type: (Link) -> bool
         """
         Return `True` if the channels in `link` have compatible types.
 
         Parameters
         ----------
-        link : :class:`.SchemeLink`
+        link : :class:`.Link`
         """
-        assert isinstance(link, SchemeLink)
+        assert isinstance(link, Link)
         return compatible_channels(link.source_channel, link.sink_channel)
 
     def can_connect(self, link):
-        # type: (SchemeLink) -> bool
+        # type: (Link) -> bool
         """
         Return `True` if `link` can be added to the scheme.
 
@@ -498,7 +465,7 @@ class Scheme(QObject):
         Scheme.check_connect
 
         """
-        assert isinstance(link, SchemeLink)
+        assert isinstance(link, Link)
         try:
             self.check_connect(link)
             return True
@@ -507,119 +474,108 @@ class Scheme(QObject):
             return False
 
     def upstream_nodes(self, start_node):
-        # type: (SchemeNode) -> Set[SchemeNode]
+        # type: (Node) -> Set[Node]
         """
         Return a set of all nodes upstream from `start_node` (i.e.
         all ancestor nodes).
 
         Parameters
         ----------
-        start_node : :class:`.SchemeNode`
-
+        start_node : :class:`.Node`
         """
-        visited = set()  # type: Set[SchemeNode]
-        queue = deque([start_node])
-        while queue:
-            node = queue.popleft()
-            snodes = [link.source_node for link in self.input_links(node)]
-            for source_node in snodes:
-                if source_node not in visited:
-                    queue.append(source_node)
-
-            visited.add(node)
-        visited.remove(start_node)
-        return visited
+        return set(traverse_bf(start_node, node_dependencies))
 
     def downstream_nodes(self, start_node):
-        # type: (SchemeNode) -> Set[SchemeNode]
+        # type: (Node) -> Set[Node]
         """
         Return a set of all nodes downstream from `start_node`.
 
         Parameters
         ----------
-        start_node : :class:`.SchemeNode`
-
+        start_node : :class:`.Node`
         """
-        visited = set()  # type: Set[SchemeNode]
-        queue = deque([start_node])
-        while queue:
-            node = queue.popleft()
-            snodes = [link.sink_node for link in self.output_links(node)]
-            for source_node in snodes:
-                if source_node not in visited:
-                    queue.append(source_node)
-
-            visited.add(node)
-        visited.remove(start_node)
-        return visited
+        return set(traverse_bf(start_node, node_dependents))
 
     def is_ancestor(self, node, child):
-        # type: (SchemeNode, SchemeNode) -> bool
+        # type: (Node, Node) -> bool
         """
         Return True if `node` is an ancestor node of `child` (is upstream
         of the child in the workflow). Both nodes must be in the scheme.
 
         Parameters
         ----------
-        node : :class:`.SchemeNode`
-        child : :class:`.SchemeNode`
-
+        node : :class:`.Node`
+        child : :class:`.Node`
         """
         return child in self.downstream_nodes(node)
 
-    def children(self, node):
-        # type: (SchemeNode) -> Set[SchemeNode]
+    def children(self, node):  # type: (Node) -> Set[Node]
         """
-        Return a set of all children of `node`.
+        .. deprecated:: 0.2.0
+           Use `child_nodes()`
         """
-        return set(link.sink_node for link in self.output_links(node))
+        warnings.warn("'children()' is deprecated, use 'child_nodes()'",
+                      DeprecationWarning, stacklevel=2)
+        return set(self.child_nodes(node))
 
-    def parents(self, node):
-        # type: (SchemeNode) -> Set[SchemeNode]
+    def child_nodes(self, node: Node) -> Sequence[Node]:
         """
-        Return a set of all parents of `node`.
+        Return all immediate descendant nodes of `node`.
         """
-        return set(link.source_node for link in self.input_links(node))
+        return list(unique(link.sink_node for link in self.output_links(node)))
+
+    def parents(self, node):  # type: (Node) -> Set[Node]
+        """
+        .. deprecated:: 0.2.0
+           Use parent_nodes()
+        """
+        warnings.warn("'parents()' is deprecated, use 'parent_nodes()'",
+                      DeprecationWarning, stacklevel=2)
+        return set(self.parent_nodes(node))
+
+    def parent_nodes(self, node: Node) -> Sequence[Node]:
+        """
+        Return all immediate ancestor nodes of `node`.
+        """
+        return list(unique(link.source_node for link in self.input_links(node)))
 
     def input_links(self, node):
-        # type: (SchemeNode) -> List[SchemeLink]
+        # type: (Node) -> List[Link]
         """
-        Return a list of all input links (:class:`.SchemeLink`) connected
+        Return a list of all input links (:class:`.Link`) connected
         to the `node` instance.
         """
         return self.find_links(sink_node=node)
 
     def output_links(self, node):
-        # type: (SchemeNode) -> List[SchemeLink]
+        # type: (Node) -> List[Link]
         """
-        Return a list of all output links (:class:`.SchemeLink`) connected
+        Return a list of all output links (:class:`.Link`) connected
         to the `node` instance.
         """
         return self.find_links(source_node=node)
 
-    def find_links(self, source_node=None, source_channel=None,
-                   sink_node=None, sink_channel=None):
-        # type: (Optional[SchemeNode], Optional[OutputSignal], Optional[SchemeNode], Optional[InputSignal]) -> List[SchemeLink]
-        # TODO: Speedup - keep index of links by nodes and channels
-        result = []
-
-        def match(query, value):
-            # type: (Optional[T], T) -> bool
-            return query is None or value == query
-
-        for link in self.__links:
-            if match(source_node, link.source_node) and \
-                    match(sink_node, link.sink_node) and \
-                    match(source_channel, link.source_channel) and \
-                    match(sink_channel, link.sink_channel):
-                result.append(link)
-
-        return result
+    def find_links(
+            self,
+            source_node: Optional[Node] = None,
+            source_channel: Optional[OutputSignal] = None,
+            sink_node: Optional[Node] = None,
+            sink_channel: Optional[InputSignal] = None
+    ) -> List[Link]:
+        """
+        Find links in this workflow that match the specified
+        {source,sink}_{node,channel} arguments (if `None` any will match).
+        """
+        return find_links(
+            all_links_recursive(self.__root),
+            source_node=source_node, source_channel=source_channel,
+            sink_node=sink_node, sink_channel=sink_channel
+        )
 
     def propose_links(
             self,
-            source_node: SchemeNode,
-            sink_node: SchemeNode,
+            source_node: Node,
+            sink_node: Node,
             source_signal: Optional[OutputSignal] = None,
             sink_signal: Optional[InputSignal] = None
     ) -> List[Tuple[OutputSignal, InputSignal, int]]:
@@ -630,100 +586,53 @@ class Scheme(QObject):
 
         .. note:: This can depend on the links already in the scheme.
 
+        .. deprecated:: 0.2.0
+           Use :func:`orangecanvas.document.interactions.propose_links`
         """
-        if source_node is sink_node and \
-                not self.loop_flags() & Scheme.AllowSelfLoops:
-            # Self loops are not enabled
-            return []
+        from orangecanvas.document.interactions import propose_links
+        warnings.warn("'propose_links' is deprecated use "
+                      "'orangecanvas.document.interactions.propose_links'",
+                      DeprecationWarning, stacklevel=2)
+        return propose_links(
+            self, source_node, sink_node, source_signal, sink_signal
+        )
 
-        elif not self.loop_flags() & Scheme.AllowLoops and \
-                self.is_ancestor(sink_node, source_node):
-            # Loops are not enabled.
-            return []
-
-        outputs = [source_signal] if source_signal \
-             else source_node.output_channels()
-        inputs = [sink_signal] if sink_signal \
-            else sink_node.input_channels()
-
-        # Get existing links to sink channels that are Single.
-        links = self.find_links(None, None, sink_node)
-        already_connected_sinks = [link.sink_channel for link in links \
-                                   if link.sink_channel.single]
-
-        def weight(out_c, in_c):
-            # type: (OutputSignal, InputSignal) -> int
-            if out_c.explicit or in_c.explicit:
-                weight = -1  # Negative weight for explicit links
-            else:
-                check = [in_c not in already_connected_sinks,
-                         bool(in_c.default),
-                         bool(out_c.default)]
-                weights = [2 ** i for i in range(len(check), 0, -1)]
-                weight = sum([w for w, c in zip(weights, check) if c])
-            return weight
-
-        proposed_links = []
-        for out_c in outputs:
-            for in_c in inputs:
-                if compatible_channels(out_c, in_c):
-                    proposed_links.append((out_c, in_c, weight(out_c, in_c)))
-
-        return sorted(proposed_links, key=itemgetter(-1), reverse=True)
-
-    def insert_annotation(self, index: int, annotation: Annotation) -> None:
+    def insert_annotation(self, index: int, annotation: Annotation, parent: MetaNode = None) -> None:
         """
-        Insert `annotation` into `self.annotations` at the specified
-        position `index`.
-        """
-        assert isinstance(annotation, BaseSchemeAnnotation)
-        if annotation in self.__annotations:
-            raise ValueError("Cannot add the same annotation multiple times")
-        self.__annotations.insert(index, annotation)
-        ev = AnnotationEvent(AnnotationEvent.AnnotationAdded,
-                             annotation, index)
-        QCoreApplication.sendEvent(self, ev)
-        self.annotation_inserted.emit(index, annotation)
-        self.annotation_added.emit(annotation)
+        Insert `annotation` into `parent` at the specified position `index`.
 
-    def add_annotation(self, annotation):
-        # type: (BaseSchemeAnnotation) -> None
+        If `parent` is `None` then insert into `self.root()`
         """
-        Add an annotation (:class:`BaseSchemeAnnotation` subclass) instance
-        to the scheme.
+        if parent is None:
+            parent = self.__root
+        parent.insert_annotation(index, annotation)
+
+    def add_annotation(self, annotation: Annotation, parent: MetaNode = None) -> None:
         """
-        self.insert_annotation(len(self.__annotations), annotation)
+        Add an annotation (:class:`Annotation` subclass) instance to `parent`.
+
+        If `parent` is `None` then insert into `self.root()`
+        """
+        if parent is None:
+            parent = self.__root
+        parent.add_annotation(annotation)
 
     def remove_annotation(self, annotation):
-        # type: (BaseSchemeAnnotation) -> None
+        # type: (Annotation) -> None
         """
         Remove the `annotation` instance from the scheme.
         """
-        index = self.__annotations.index(annotation)
-        self.__annotations.pop(index)
-        ev = AnnotationEvent(AnnotationEvent.AnnotationRemoved,
-                             annotation, index)
-        QCoreApplication.sendEvent(self, ev)
-        self.annotation_removed.emit(annotation)
+        assert annotation.workflow() is self
+        parent = annotation.parent_node()
+        assert parent is not None
+        parent.remove_annotation(annotation)
 
     def clear(self):
         # type: () -> None
         """
         Remove all nodes, links, and annotation items from the scheme.
         """
-        def is_terminal(node):
-            # type: (SchemeNode) -> bool
-            return not bool(self.find_links(source_node=node))
-
-        while self.nodes:
-            terminal_nodes = filter(is_terminal, self.nodes)
-            for node in terminal_nodes:
-                self.remove_node(node)
-
-        for annotation in self.annotations:
-            self.remove_annotation(annotation)
-
-        assert not (self.nodes or self.links or self.annotations)
+        self.__root.clear()
 
     def sync_node_properties(self):
         # type: () -> None
@@ -731,7 +640,6 @@ class Scheme(QObject):
         Called before saving, allowing a subclass to update/sync.
 
         The default implementation does nothing.
-
         """
         pass
 
@@ -759,7 +667,8 @@ class Scheme(QObject):
         --------
         readwrite.scheme_load
         """
-        if self.__nodes or self.__links or self.__annotations:
+        root = self.__root
+        if root.nodes() or root.links() or root.links():
             raise ValueError("Scheme is not empty.")
 
         with ExitStack() as exitstack:
@@ -815,11 +724,11 @@ class Scheme(QObject):
 
         The base implementation returns an empty list.
         """
-        return self.property("_presets") or []
+        return list(self.__window_group_presets)
 
     def set_window_group_presets(self, groups):
         # type: (List[WindowGroup]) -> None
-        self.setProperty("_presets", groups)
+        self.__window_group_presets = list(groups)
         self.window_group_presets_changed.emit()
 
 

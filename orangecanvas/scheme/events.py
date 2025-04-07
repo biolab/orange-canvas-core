@@ -8,15 +8,18 @@ instance.
 
 """
 import typing
-from typing import Any, Union, cast
+from typing import Any, Union, Optional, cast
 
 from AnyQt.QtCore import QEvent
 
+from orangecanvas.registry import InputSignal, OutputSignal
+
 if typing.TYPE_CHECKING:
-    from orangecanvas.scheme import SchemeLink, SchemeNode, BaseSchemeAnnotation
+    from orangecanvas.scheme import Node, MetaNode, Link, Annotation
 
 __all__ = [
-    "WorkflowEvent", "NodeEvent", "LinkEvent", "AnnotationEvent",
+    "WorkflowEvent", "NodeEvent", "NodeInputChannelEvent",
+    "NodeOutputChannelEvent", "LinkEvent", "AnnotationEvent",
     "WorkflowEnvChanged"
 ]
 
@@ -47,6 +50,11 @@ class WorkflowEvent(QEvent):
 
     #: An output Link has been removed from a node (:class:`LinkEvent`)
     OutputLinkRemoved = QEvent.Type(QEvent.registerEventType())
+
+    InputChannelAdded = QEvent.registerEventType()
+    InputChannelRemoved = QEvent.registerEventType()
+    OutputChannelAdded = QEvent.registerEventType()
+    OutputChannelRemoved = QEvent.registerEventType()
 
     #: Node's (runtime) state has changed (:class:`NodeEvent`)
     NodeStateChange = QEvent.Type(QEvent.registerEventType())
@@ -107,25 +115,31 @@ class NodeEvent(WorkflowEvent):
         * :data:`WorkflowEvent.NodeActivateRequest`
         * :data:`WorkflowEvent.ActivateParentRequest`
         * :data:`WorkflowEvent.OutputLinkRemoved`
+        * :data:`WorkflowEvent.InputChannelAdded`
+        * :data:`WorkflowEvent.InputChannelRemoved`
+        * :data:`WorkflowEvent.OutputChannelAdded`
+        * :data:`WorkflowEvent.OutputChannelRemoved`
 
     Parameters
     ----------
     etype: QEvent.Type
-    node: SchemeNode
+    node: Node
     pos: int
+    parent: Optional[MetaNode]
     """
-    def __init__(self, etype, node, pos=-1):
-        # type: (_EType, SchemeNode, int) -> None
+    def __init__(self, etype, node, pos=-1, parent=None):
+        # type: (_EType, Node, int, Optional[MetaNode]) -> None
         super().__init__(etype)
         self.__node = node
         self.__pos = pos
+        self.__parent = parent
 
     def node(self):
-        # type: () -> SchemeNode
+        # type: () -> Node
         """
         Return
         ------
-        node : SchemeNode
+        node : Node
             The node instance.
         """
         return self.__node
@@ -137,6 +151,41 @@ class NodeEvent(WorkflowEvent):
 
         .. versionadded:: 0.1.16
         """
+        return self.__pos
+
+    def parent(self):
+        # type: () -> Optional['MetaNode']
+        """
+        The parent meta node instance
+        """
+        return self.__parent
+
+
+class NodeInputChannelEvent(NodeEvent):
+    def __init__(self, etype, node, channel, pos=-1):
+        # type: (QEvent.Type, Node, InputSignal, int) -> None
+        super().__init__(etype, node)
+        self.__channel = channel
+        self.__pos = pos
+
+    def channel(self) -> InputSignal:
+        return self.__channel
+
+    def pos(self):
+        return self.__pos
+
+
+class NodeOutputChannelEvent(NodeEvent):
+    def __init__(self, etype, node, channel, pos=-1):
+        # type: (QEvent.Type, Node, OutputSignal, int) -> None
+        super().__init__(etype, node)
+        self.__channel = channel
+        self.__pos = pos
+
+    def channel(self) -> OutputSignal:
+        return self.__channel
+
+    def pos(self):
         return self.__pos
 
 
@@ -158,23 +207,25 @@ class LinkEvent(WorkflowEvent):
     Parameters
     ----------
     etype: QEvent.Type
-    link: SchemeLink
+    link: Link
         The link subject to change
     pos: int
         The link position index.
+    parent: Optional[MetaNode]
     """
-    def __init__(self, etype, link, pos=-1):
-        # type: (_EType, SchemeLink, int) -> None
+    def __init__(self, etype, link, pos=-1, parent=None):
+        # type: (_EType, Link, int, Optional[MetaNode]) -> None
         super().__init__(etype)
         self.__link = link
         self.__pos = pos
+        self.__parent = parent
 
     def link(self):
-        # type: () -> SchemeLink
+        # type: () -> Link
         """
         Return
         ------
-        link : SchemeLink
+        link : Link
             The link instance.
         """
         return self.__link
@@ -196,6 +247,9 @@ class LinkEvent(WorkflowEvent):
         """
         return self.__pos
 
+    def parent(self) -> Optional['MetaNode']:
+        return self.__parent
+
 
 class AnnotationEvent(WorkflowEvent):
     """
@@ -209,22 +263,24 @@ class AnnotationEvent(WorkflowEvent):
     Parameters
     ----------
     etype: QEvent.Type
-    annotation: BaseSchemeAnnotation
+    annotation: Annotation
         The annotation that is a subject of change.
     pos: int
+    parent: Optional[MetaNode]
     """
-    def __init__(self, etype, annotation, pos=-1):
-        # type: (_EType, BaseSchemeAnnotation, int) -> None
+    def __init__(self, etype, annotation, pos=-1, parent=None):
+        # type: (_EType, Annotation, int, Optional[MetaNode]) -> None
         super().__init__(etype)
         self.__annotation = annotation
         self.__pos = pos
+        self.__parent = parent
 
     def annotation(self):
-        # type: () -> BaseSchemeAnnotation
+        # type: () -> Annotation
         """
         Return
         ------
-        annotation : BaseSchemeAnnotation
+        annotation : Annotation
             The annotation instance.
         """
         return self.__annotation
@@ -236,6 +292,9 @@ class AnnotationEvent(WorkflowEvent):
         .. versionadded:: 0.1.16
         """
         return self.__pos
+
+    def parent(self) -> Optional['MetaNode']:
+        return self.__parent
 
 
 class WorkflowEnvChanged(WorkflowEvent):

@@ -54,6 +54,9 @@ class Suggestions:
                 self.increment_probability(link[0], link[1], link[2], count)
 
         def new_link(self, link):
+            if not hasattr(link.source_node, "description") or \
+                    not hasattr(link.sink_node,  "description"):
+                return
             # direction is none when a widget was not added+linked via quick menu
             if self.__direction is None:
                 return

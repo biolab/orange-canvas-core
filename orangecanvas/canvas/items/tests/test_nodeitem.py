@@ -23,10 +23,7 @@ class TestNodeItem(TestItems):
         self.add_desc = self.reg.widget("add")
 
     def test_nodeitem(self):
-        one_item = NodeItem()
-        one_item.setWidgetDescription(self.one_desc)
-        one_item.setWidgetCategory(self.const_desc)
-
+        one_item = NodeItem.from_node_meta(self.one_desc)
         one_item.setTitle("Neo")
         self.assertEqual(one_item.title(), "Neo")
 
@@ -50,17 +47,11 @@ class TestNodeItem(TestItems):
         self.scene.addItem(one_item)
         one_item.setPos(100, 100)
 
-        negate_item = NodeItem()
-        negate_item.setWidgetDescription(self.negate_desc)
-        negate_item.setWidgetCategory(self.const_desc)
-
+        negate_item = NodeItem.from_node_meta(self.negate_desc)
         self.scene.addItem(negate_item)
         negate_item.setPos(300, 100)
 
-        nb_item = NodeItem()
-        nb_item.setWidgetDescription(self.add_desc)
-        nb_item.setWidgetCategory(self.operator_desc)
-
+        nb_item = NodeItem.from_node_meta(self.add_desc)
         self.scene.addItem(nb_item)
         nb_item.setPos(500, 100)
 
@@ -104,29 +95,17 @@ class TestNodeItem(TestItems):
         timer.stop()
 
     def test_nodeanchors(self):
-        one_item = NodeItem()
-        one_item.setWidgetDescription(self.one_desc)
-        one_item.setWidgetCategory(self.const_desc)
-
+        one_item = NodeItem.from_node_meta(self.one_desc)
         one_item.setTitle("File Node")
 
         self.scene.addItem(one_item)
         one_item.setPos(100, 100)
 
-        negate_item = NodeItem()
-        negate_item.setWidgetDescription(self.negate_desc)
-        negate_item.setWidgetCategory(self.const_desc)
-
+        negate_item = NodeItem.from_node_meta(self.negate_desc)
         self.scene.addItem(negate_item)
         negate_item.setPos(300, 100)
 
-        nb_item = NodeItem()
-        nb_item.setWidgetDescription(self.add_desc)
-        nb_item.setWidgetCategory(self.operator_desc)
-
-        with self.assertRaises(ValueError):
-            one_item.newInputAnchor()
-
+        nb_item = NodeItem.from_node_meta(self.add_desc)
         anchor = one_item.newOutputAnchor()
         self.assertIsInstance(anchor, AnchorPoint)
 
@@ -203,8 +182,7 @@ class TestNodeItem(TestItems):
         self.assertEqual(path, anchoritem.anchorPath())
 
     def test_title_edit(self):
-        item = NodeItem()
-        item.setWidgetDescription(self.one_desc)
+        item = NodeItem.from_node_meta(self.one_desc)
         self.scene.addItem(item)
         item.setTitle("AA")
         item.setStatusMessage("BB")

@@ -7,7 +7,7 @@ Scheme Annotations (``annotations``)
 .. automodule:: orangecanvas.scheme.annotations
 
 
-.. autoclass:: BaseSchemeAnnotation
+.. autoclass:: Annotation
    :members:
    :member-order: bysource
    :show-inheritance:
@@ -17,13 +17,13 @@ Scheme Annotations (``annotations``)
       Signal emitted when the geometry of the annotation changes
 
 
-.. autoclass:: SchemeArrowAnnotation
+.. autoclass:: ArrowAnnotation
    :members:
    :member-order: bysource
    :show-inheritance:
 
 
-.. autoclass:: SchemeTextAnnotation
+.. autoclass:: TextAnnotation
    :members:
    :member-order: bysource
    :show-inheritance:

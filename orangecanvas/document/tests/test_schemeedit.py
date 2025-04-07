@@ -21,7 +21,7 @@ from ..interactions import (
 )
 from ...canvas import items
 from ...scheme import Scheme, SchemeNode, SchemeLink, SchemeTextAnnotation, \
-                      SchemeArrowAnnotation
+    SchemeArrowAnnotation, MetaNode
 from ...registry.tests import small_testing_registry
 from ...gui.test import QAppTestCase, mouseMove, dragDrop, dragEnterLeave, \
     contextMenu
@@ -70,6 +70,7 @@ class TestSchemeEdit(QAppTestCase):
         self.assertFalse(w.isModified())
 
         scheme = Scheme()
+        root = scheme.root()
         w.setScheme(scheme)
 
         self.assertIs(w.scheme(), scheme)
@@ -97,7 +98,7 @@ class TestSchemeEdit(QAppTestCase):
         w.addNode(node)
 
         self.assertSequenceEqual(node_list, [node])
-        self.assertSequenceEqual(scheme.nodes, node_list)
+        self.assertSequenceEqual(root.nodes(), node_list)
 
         self.assertTrue(w.isModified())
 
@@ -105,7 +106,7 @@ class TestSchemeEdit(QAppTestCase):
         stack.undo()
 
         self.assertSequenceEqual(node_list, [])
-        self.assertSequenceEqual(scheme.nodes, node_list)
+        self.assertSequenceEqual(root.nodes(), node_list)
         self.assertTrue(not w.isModified())
 
         stack.redo()
@@ -114,7 +115,7 @@ class TestSchemeEdit(QAppTestCase):
         w.addNode(node1)
 
         self.assertSequenceEqual(node_list, [node, node1])
-        self.assertSequenceEqual(scheme.nodes, node_list)
+        self.assertSequenceEqual(root.nodes(), node_list)
         self.assertTrue(w.isModified())
 
         link = SchemeLink(node, "value", node1, "value")
@@ -225,7 +226,7 @@ class TestSchemeEdit(QAppTestCase):
     @unittest.skipUnless(sys.platform == "darwin", "macos only")
     def test_node_rename_click_selected(self):
         w = self.w
-        scene = w.scene()
+        scene = w.currentScene()
         view = w.view()
         w.show()
         w.raise_()
@@ -246,14 +247,15 @@ class TestSchemeEdit(QAppTestCase):
         w = self.w
         workflow = w.scheme()
         workflow.clear()
+        root = workflow.root()
         view = w.view()
         actions = w.toolbarActions()
         action_by_name(actions, "new-arrow-action").trigger()
         QTest.mousePress(view.viewport(), Qt.LeftButton, pos=QPoint(50, 50))
         mouseMove(view.viewport(), Qt.LeftButton, pos=QPoint(100, 100))
         QTest.mouseRelease(view.viewport(), Qt.LeftButton, pos=QPoint(100, 100))
-        self.assertEqual(len(workflow.annotations), 1)
-        self.assertIsInstance(workflow.annotations[0], SchemeArrowAnnotation)
+        self.assertEqual(len(root.annotations()), 1)
+        self.assertIsInstance(root.annotations()[0], SchemeArrowAnnotation)
 
     def test_arrow_annotation_action_cancel(self):
         w = self.w
@@ -272,7 +274,7 @@ class TestSchemeEdit(QAppTestCase):
         mouseMove(view.viewport(), Qt.LeftButton, pos=QPoint(100, 100))
         QTest.keyClick(view.viewport(), Qt.Key_Escape)
         self.assertFalse(action.isChecked())
-        self.assertEqual(workflow.annotations, [])
+        self.assertEqual(workflow.root().annotations(), [])
 
     def test_text_annotation_action(self):
         w = self.w
@@ -285,10 +287,10 @@ class TestSchemeEdit(QAppTestCase):
         mouseMove(view.viewport(), Qt.LeftButton, pos=QPoint(100, 100))
         QTest.mouseRelease(view.viewport(), Qt.LeftButton, pos=QPoint(100, 100))
         # need to steal focus from the item for it to be commited.
-        w.scene().setFocusItem(None)
+        w.currentScene().setFocusItem(None)
 
-        self.assertEqual(len(workflow.annotations), 1)
-        self.assertIsInstance(workflow.annotations[0], SchemeTextAnnotation)
+        self.assertEqual(len(workflow.root().annotations()), 1)
+        self.assertIsInstance(workflow.root().annotations()[0], SchemeTextAnnotation)
 
     def test_text_annotation_action_cancel(self):
         w = self.w
@@ -307,8 +309,8 @@ class TestSchemeEdit(QAppTestCase):
         mouseMove(view.viewport(), Qt.LeftButton, pos=QPoint(100, 100))
         QTest.keyClick(view.viewport(), Qt.Key_Escape)
         self.assertFalse(action.isChecked())
-        w.scene().setFocusItem(None)
-        self.assertEqual(workflow.annotations, [])
+        w.currentScene().setFocusItem(None)
+        self.assertEqual(workflow.root().annotations(), [])
 
     def test_path(self):
         w = self.w
@@ -333,16 +335,14 @@ class TestSchemeEdit(QAppTestCase):
         w = self.w
         self.setup_test_workflow(w.scheme())
         w.selectAll()
-        self.assertSequenceEqual(
-            w.selectedNodes(), w.scheme().nodes)
-        self.assertSequenceEqual(
-            w.selectedAnnotations(), w.scheme().annotations)
-        self.assertSequenceEqual(
-            w.selectedLinks(), w.scheme().links)
+        root = w.root()
+        self.assertSequenceEqual(w.selectedNodes(), root.nodes())
+        self.assertSequenceEqual(w.selectedAnnotations(), root.annotations())
+        self.assertSequenceEqual(w.selectedLinks(), root.links())
         w.removeSelected()
-        self.assertEqual(w.scheme().nodes, [])
-        self.assertEqual(w.scheme().annotations, [])
-        self.assertEqual(w.scheme().links, [])
+        self.assertEqual(root.nodes(), [])
+        self.assertEqual(root.annotations(), [])
+        self.assertEqual(root.links(), [])
 
     def test_select_remove_link(self):
         def link_curve(link: SchemeLink) -> QPainterPath:
@@ -351,16 +351,17 @@ class TestSchemeEdit(QAppTestCase):
             return item.mapToScene(path)
         w = self.w
         workflow = self.setup_test_workflow(w.scheme())
+        root = workflow.root()
         w.alignToGrid()
-        scene, view = w.scene(), w.view()
-        link = workflow.links[0]
+        scene, view = w.currentScene(), w.view()
+        link = root.links()[0]
         path = link_curve(link)
         p = path.pointAtPercent(0.5)
         QTest.mouseClick(view.viewport(), Qt.LeftButton, pos=view.mapFromScene(p))
         self.assertSequenceEqual(w.selectedLinks(), [link])
         w.removeSelected()
         self.assertSequenceEqual(w.selectedLinks(), [])
-        self.assertTrue(link not in workflow.links)
+        self.assertTrue(link not in root.links())
 
     def test_open_selected(self):
         w = self.w
@@ -371,14 +372,15 @@ class TestSchemeEdit(QAppTestCase):
     def test_insert_node_on_link(self):
         w = self.w
         workflow = self.setup_test_workflow(w.scheme())
+        root = workflow.root()
         neg = SchemeNode(self.reg.widget("negate"))
-        target = workflow.links[0]
+        target = root.links()[0]
         spyrem = QSignalSpy(workflow.link_removed)
         spyadd = QSignalSpy(workflow.link_added)
         w.insertNode(neg, target)
-        self.assertEqual(workflow.nodes[-1], neg)
+        self.assertEqual(root.nodes()[-1], neg)
 
-        self.assertSequenceEqual(list(spyrem), [[target]])
+        self.assertSequenceEqual(list(spyrem), [[target, workflow.root()]])
         self.assertEqual(len(spyadd), 2)
         w.undoStack().undo()
 
@@ -390,42 +392,45 @@ class TestSchemeEdit(QAppTestCase):
     def test_activate_node(self):
         w = self.w
         workflow = self.setup_test_workflow()
+        root = workflow.root()
         w.setScheme(workflow)
 
-        view, scene = w.view(), w.scene()
-        item = scene.item_for_node(workflow.nodes[0])  # type: QGraphicsWidget
+        view, scene = w.view(), w.currentScene()
+        item = scene.item_for_node(root.nodes()[0])  # type: QGraphicsWidget
         item.setSelected(True)
         item.setFocus(Qt.OtherFocusReason)
-        self.assertIs(w.focusNode(), workflow.nodes[0])
+        self.assertIs(w.focusNode(), root.nodes()[0])
         item.activated.emit()
 
     def test_duplicate(self):
         w = self.w
         workflow = self.setup_test_workflow()
+        root = workflow.root()
         w.setScheme(workflow)
         w.selectAll()
-        nnodes, nlinks = len(workflow.nodes), len(workflow.links)
+        nnodes, nlinks = len(root.nodes()), len(root.links())
         a = action_by_name(w.actions(), "duplicate-action")
         a.trigger()
-        self.assertEqual(len(workflow.nodes), 2 * nnodes)
-        self.assertEqual(len(workflow.links), 2 * nlinks)
+        self.assertEqual(len(root.nodes()), 2 * nnodes)
+        self.assertEqual(len(root.links()), 2 * nlinks)
         w.selectAll()
         a.trigger()
-        self.assertEqual(len(workflow.nodes), 4 * nnodes)
-        self.assertEqual(len(workflow.links), 4 * nlinks)
-        self.assertEqual(len(workflow.nodes),
-                         len(set(n.title for n in workflow.nodes)))
+        self.assertEqual(len(root.nodes()), 4 * nnodes)
+        self.assertEqual(len(root.links()), 4 * nlinks)
+        self.assertEqual(len(root.nodes()),
+                         len(set(n.title for n in root.nodes())))
         match = re.compile(r"\(\d+\)\s*\(\d+\)")
-        self.assertFalse(any(match.search(n.title) for n in workflow.nodes),
+        self.assertFalse(any(match.search(n.title) for n in root.nodes()),
                          "Duplicated renumbering ('foo (2) (1)')")
 
     def test_copy_paste(self):
         w = self.w
         workflow = self.setup_test_workflow()
+        root = workflow.root()
         w.setRegistry(self.reg)
         w.setScheme(workflow)
         w.selectAll()
-        nnodes, nlinks = len(workflow.nodes), len(workflow.links)
+        nnodes, nlinks = len(root.nodes()), len(root.links())
         ca = action_by_name(w.actions(), "copy-action")
         cp = action_by_name(w.actions(), "paste-action")
         cb = QApplication.clipboard()
@@ -435,8 +440,8 @@ class TestSchemeEdit(QAppTestCase):
             self.assertTrue(spy.wait())
         self.assertEqual(len(spy), 1)
         cp.trigger()
-        self.assertEqual(len(workflow.nodes), 2 * nnodes)
-        self.assertEqual(len(workflow.links), 2 * nlinks)
+        self.assertEqual(len(root.nodes()), 2 * nnodes)
+        self.assertEqual(len(root.links()), 2 * nlinks)
 
         w1 = SchemeEditWidget()
         w1.setRegistry(self.reg)
@@ -445,41 +450,79 @@ class TestSchemeEdit(QAppTestCase):
         self.assertTrue(cp.isEnabled())
         cp.trigger()
         wf1 = w1.scheme()
-        self.assertEqual(len(wf1.nodes), nnodes)
-        self.assertEqual(len(wf1.links), nlinks)
+        root1 = wf1.root()
+        self.assertEqual(len(root1.nodes()), nnodes)
+        self.assertEqual(len(root1.links()), nlinks)
 
     def test_redo_remove_preserves_order(self):
+        w = self.w
+        workflow = self.setup_test_workflow()
+        root = workflow.root()
+        w.setRegistry(self.reg)
+        w.setScheme(workflow)
+        undo = w.undoStack()
+        links = root.links()
+        nodes = root.nodes()
+        annotations = root.annotations()
+        assert len(links) > 2
+        w.removeLink(links[1])
+        self.assertSequenceEqual(links[:1] + links[2:], root.links())
+        undo.undo()
+        self.assertSequenceEqual(links, root.links())
+        # find add node that has multiple in/out links
+        node = findf(root.nodes(), lambda n: n.title == "add")
+        w.removeNode(node)
+        undo.undo()
+        self.assertSequenceEqual(links, root.links())
+        self.assertSequenceEqual(nodes, root.nodes())
+
+        w.removeAnnotation(annotations[0])
+        self.assertSequenceEqual(annotations[1:], root.annotations())
+        undo.undo()
+        self.assertSequenceEqual(annotations, root.annotations())
+
+    def test_create_macro(self):
         w = self.w
         workflow = self.setup_test_workflow()
         w.setRegistry(self.reg)
         w.setScheme(workflow)
         undo = w.undoStack()
-        links = workflow.links
-        nodes = workflow.nodes
-        annotations = workflow.annotations
-        assert len(links) > 2
-        w.removeLink(links[1])
-        self.assertSequenceEqual(links[:1] + links[2:], workflow.links)
+        w.selectAll()
+        w.createMacroFromSelection()
         undo.undo()
-        self.assertSequenceEqual(links, workflow.links)
-        # find add node that has multiple in/out links
-        node = findf(workflow.nodes, lambda n: n.title == "add")
-        w.removeNode(node)
-        undo.undo()
-        self.assertSequenceEqual(links, workflow.links)
-        self.assertSequenceEqual(nodes, workflow.nodes)
+        self.assertTrue(len(workflow.root().nodes()), 1)
+        undo.redo()
 
-        w.removeAnnotation(annotations[0])
-        self.assertSequenceEqual(annotations[1:], workflow.annotations)
+    def test_expand_macro(self):
+        w = self.w
+        workflow, node = self.setup_test_meta_node(w)
+        w.expandMacro(node)
+        self.assertEqual(len(workflow.root().nodes()), 4)
+        undo = w.undoStack()
         undo.undo()
-        self.assertSequenceEqual(annotations, workflow.annotations)
+        self.assertEqual(len(workflow.root().nodes()), 3)
+        undo.redo()
+
+    def test_open_meta_node(self):
+        w = self.w
+        workflow, node = self.setup_test_meta_node(w)
+        self.assertIs(w.root(), workflow.root())
+        self.assertIs(w.currentScene().root, workflow.root())
+        w.openMetaNode(node)
+        self.assertIs(w.root(), node)
+        self.assertIs(w.currentScene().root, node)
+        undo = w.undoStack()
+        # Undo/remove macro must update the current displayed root
+        undo.undo()
+        self.assertIs(w.root(), workflow.root())
 
     def test_window_groups(self):
         w = self.w
         workflow = self.setup_test_workflow()
+        nodes = workflow.root().nodes()
         workflow.set_window_group_presets([
-            Scheme.WindowGroup("G1", False, [(workflow.nodes[0], b'\xff\x00')]),
-            Scheme.WindowGroup("G2", True, [(workflow.nodes[0], b'\xff\x00')]),
+            Scheme.WindowGroup("G1", False, [(nodes[0], b'\xff\x00')]),
+            Scheme.WindowGroup("G2", True, [(nodes[0], b'\xff\x00')]),
         ])
         manager = TestingWidgetManager()
         workflow.widget_manager = manager
@@ -518,6 +561,7 @@ class TestSchemeEdit(QAppTestCase):
         w = self.w
         w.setRegistry(self.reg)
         workflow = w.scheme()
+        root = workflow.root()
         desc = self.reg.widget("one")
         viewport = w.view().viewport()
         mime = QMimeData()
@@ -528,12 +572,12 @@ class TestSchemeEdit(QAppTestCase):
 
         self.assertTrue(dragDrop(viewport, mime, QPoint(10, 10)))
 
-        self.assertEqual(len(workflow.nodes), 1)
-        self.assertEqual(workflow.nodes[0].description, desc)
+        self.assertEqual(len(root.nodes()), 1)
+        self.assertEqual(root.nodes()[0].description, desc)
 
         dragEnterLeave(viewport, mime)
 
-        self.assertEqual(len(workflow.nodes), 1)
+        self.assertEqual(len(root.nodes()), 1)
 
     def test_drag_drop(self):
         w = self.w
@@ -582,6 +626,7 @@ class TestSchemeEdit(QAppTestCase):
         w.setRegistry(self.reg)
         w.setDropHandlers([handler])
         workflow = w.scheme()
+        root = workflow.root()
         viewport = w.view().viewport()
         # Test empty handler
         mime = QMimeData()
@@ -598,9 +643,9 @@ class TestSchemeEdit(QAppTestCase):
         dragDrop(viewport, mime, QPoint(10, 10))
 
         self.assertIsNone(w._userInteractionHandler())
-        self.assertEqual(len(workflow.nodes), 1)
-        self.assertEqual(workflow.nodes[0].description.name, "one")
-        self.assertEqual(workflow.nodes[0].properties, {"a": "from drop"})
+        self.assertEqual(len(root.nodes()), 1)
+        self.assertEqual(root.nodes()[0].description.name, "one")
+        self.assertEqual(root.nodes()[0].properties, {"a": "from drop"})
 
         workflow.clear()
 
@@ -616,9 +661,9 @@ class TestSchemeEdit(QAppTestCase):
         with mock.patch.object(QMenu, "exec", exec):
             dragDrop(viewport, mime, QPoint(10, 10))
 
-        self.assertEqual(len(workflow.nodes), 1)
-        self.assertEqual(workflow.nodes[0].description.name, "one")
-        self.assertEqual(workflow.nodes[0].properties, {"a": "from drop"})
+        self.assertEqual(len(root.nodes()), 1)
+        self.assertEqual(root.nodes()[0].description.name, "one")
+        self.assertEqual(root.nodes()[0].properties, {"a": "from drop"})
 
     def test_activate_drop_node(self):
         class NodeFromMimeData(TestNodeFromMimeData):
@@ -686,6 +731,17 @@ class TestSchemeEdit(QAppTestCase):
         scheme.add_annotation(SchemeArrowAnnotation((0, 0), (10, 10)))
         scheme.add_annotation(SchemeTextAnnotation((0, 100, 200, 200), "$$"))
         return scheme
+
+    @classmethod
+    def setup_test_meta_node(cls, editor: SchemeEditWidget):
+        workflow = cls.setup_test_workflow()
+        editor.setRegistry(cls.reg)
+        editor.setScheme(workflow)
+        one, add = workflow.root().nodes()[1:3]
+        editor.setSelection([one, add])
+        editor.createMacroFromSelection()
+        node = findf(workflow.root().nodes(), lambda n: isinstance(n, MetaNode))
+        return workflow, node
 
 
 class TestDropHandler(DropHandler):

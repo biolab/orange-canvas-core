@@ -10,7 +10,7 @@ from typing import List
 from AnyQt.QtCore import QCoreApplication, QSettings
 
 from orangecanvas import config
-from orangecanvas.scheme import SchemeNode, SchemeLink, Scheme
+from orangecanvas.scheme import Node, Link, Scheme
 
 log = logging.getLogger(__name__)
 
@@ -152,7 +152,7 @@ class UsageStatistics:
         Parameters
         ----------
         from_sink : bool
-        extended_widget : SchemeNode
+        extended_widget : Node
         """
         if not self.is_enabled():
             return
@@ -187,7 +187,7 @@ class UsageStatistics:
         Parameters
         ----------
         via_drag : bool
-        original_link : SchemeLink
+        original_link : Link
         """
         if not self.is_enabled():
             return
@@ -275,7 +275,7 @@ class UsageStatistics:
 
         Parameters
         ----------
-        widget : SchemeNode
+        widget : Node
         """
         if not self.is_enabled():
             return
@@ -289,10 +289,11 @@ class UsageStatistics:
 
         event = {
             "Type": EventType.NodeAdd,
-            "Widget Name": widget.description.id,
-            "Widget": widget_id
+            "Widget Name": (
+                widget.description.id if hasattr(widget, "description") else ""
+            ),
+            "Widget": widget_id,
         }
-
         self._events.append(event)
 
     def log_node_remove(self, widget):
@@ -301,7 +302,7 @@ class UsageStatistics:
 
         Parameters
         ----------
-        widget : SchemeNode
+        widget : Node
         """
         if not self.is_enabled():
             return
@@ -326,7 +327,7 @@ class UsageStatistics:
 
         Parameters
         ----------
-        link : SchemeLink
+        link : Link
         """
         if not self.is_enabled():
             return
@@ -339,7 +340,7 @@ class UsageStatistics:
 
         Parameters
         ----------
-        link : SchemeLink
+        link : Link
         """
         if not self.is_enabled():
             return
@@ -381,17 +382,17 @@ class UsageStatistics:
         if not self.is_enabled():
             return
 
-        if not scheme or not scheme.nodes:
+        if not scheme or not scheme.root().nodes():
             return
 
         self.begin_action(ActionType.Load)
 
         # first log nodes
-        for node in scheme.nodes:
+        for node in scheme.all_nodes():
             self.log_node_add(node)
 
         # then log links
-        for link in scheme.links:
+        for link in scheme.all_links():
             self.log_link_add(link)
 
         self.end_action()

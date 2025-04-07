@@ -119,7 +119,7 @@ class InputSignal(object):
     default = None   # type: bool
     explicit = None  # type: bool
 
-    def __init__(self, name, type, handler, flags=Single + NonDefault,
+    def __init__(self, name, type, handler="", flags=Single + NonDefault,
                  id=None, doc=None, replaces=()):
         # type: (str, TypeSpec, str, int, Optional[str], Optional[str], Iterable[str]) -> None
         self.name = name
@@ -227,6 +227,7 @@ class OutputSignal(object):
         self.default = bool(flags & Default)
         self.explicit = bool(flags & Explicit)
         self.dynamic = bool(flags & Dynamic)
+        self.single = bool(flags & Single)
         self.flags = flags
 
     @property

@@ -13,23 +13,23 @@ All interactions are subclasses of :class:`UserInteraction`.
 
 """
 import typing
-from typing import Optional, Any, Tuple, List, Set, Iterable, Sequence, Dict
-
 import abc
 import logging
+from operator import itemgetter
 from functools import reduce
-
+from typing import (
+    Optional, Any, Tuple, List, Set, Iterable, Sequence, Dict,Union
+)
 from AnyQt.QtWidgets import (
     QApplication, QGraphicsRectItem, QGraphicsSceneMouseEvent,
-    QGraphicsSceneContextMenuEvent, QWidget, QGraphicsItem,
-    QGraphicsSceneDragDropEvent, QMenu, QAction, QWidgetAction, QLabel
+    QWidget, QGraphicsItem, QGraphicsSceneDragDropEvent, QMenu, QAction,
+    QWidgetAction, QLabel
 )
-from AnyQt.QtGui import QPen, QBrush, QColor, QFontMetrics, QKeyEvent, QFont
+from AnyQt.QtGui import QPen, QBrush, QColor, QFontMetrics, QFont
 from AnyQt.QtCore import (
-    Qt, QObject, QCoreApplication, QSizeF, QPointF, QRect, QRectF, QLineF,
+    Qt, QObject, QSizeF, QPointF, QRect, QRectF, QLineF,
     QPoint, QMimeData,
 )
-from AnyQt.QtCore import pyqtSignal as Signal
 
 from orangecanvas.document.commands import UndoCommand
 from .usagestatistics import UsageStatistics
@@ -37,12 +37,12 @@ from ..registry.description import WidgetDescription, OutputSignal, InputSignal
 from ..registry.qt import QtWidgetRegistry, tooltip_helper, whats_this_helper
 from .. import scheme
 from ..scheme import (
-    SchemeNode as Node, SchemeLink as Link, Scheme, WorkflowEvent,
-    compatible_channels
+    Node, MetaNode, Link, Scheme, WorkflowEvent, compatible_channels
 )
+from ..scheme.link import _classify_connection
 from ..canvas import items
 from ..canvas.items import controlpoints
-from ..gui.quickhelp import QuickHelpTipEvent
+from ..gui.scene import UserInteraction as _UserInteraction
 from . import commands
 from .editlinksdialog import EditLinksDialog
 from ..utils import unique
@@ -64,7 +64,7 @@ def assert_not_none(optional):
     return optional
 
 
-class UserInteraction(QObject):
+class UserInteraction(_UserInteraction):
     """
     Base class for user interaction handlers.
 
@@ -77,216 +77,19 @@ class UserInteraction(QObject):
     deleteOnEnd : bool, optional
         Should the UserInteraction be deleted when it finishes (``True``
         by default).
-
     """
-    # Cancel reason flags
-
-    #: No specified reason
-    NoReason = 0
-    #: User canceled the operation (e.g. pressing ESC)
-    UserCancelReason = 1
-    #: Another interaction was set
-    InteractionOverrideReason = 3
-    #: An internal error occurred
-    ErrorReason = 4
-    #: Other (unspecified) reason
-    OtherReason = 5
-
-    #: Emitted when the interaction is set on the scene.
-    started = Signal()
-
-    #: Emitted when the interaction finishes successfully.
-    finished = Signal()
-
-    #: Emitted when the interaction ends (canceled or finished)
-    ended = Signal()
-
-    #: Emitted when the interaction is canceled.
-    canceled = Signal([], [int])
-
-    def __init__(self, document, parent=None, deleteOnEnd=True):
-        # type: ('SchemeEditWidget', Optional[QObject], bool) -> None
-        super().__init__(parent)
+    def __init__(self, document, parent=None, deleteOnEnd=True, **kwargs):
+        # type: ('SchemeEditWidget', Optional[QObject], bool, Any) -> None
+        scene = document.currentScene()
+        super().__init__(scene, parent, deleteOnEnd=deleteOnEnd, **kwargs)
         self.document = document
-        self.scene = document.scene()
         scheme_ = document.scheme()
+        root = document.root()
+        assert root is not None
         assert scheme_ is not None
         self.scheme = scheme_  # type: scheme.Scheme
+        self.root = root
         self.suggestions = document.suggestions()
-        self.deleteOnEnd = deleteOnEnd
-
-        self.cancelOnEsc = False
-
-        self.__finished = False
-        self.__canceled = False
-        self.__cancelReason = self.NoReason
-
-    def start(self):
-        # type: () -> None
-        """
-        Start the interaction. This is called by the :class:`CanvasScene` when
-        the interaction is installed.
-
-        .. note:: Must be called from subclass implementations.
-
-        """
-        self.started.emit()
-
-    def end(self):
-        # type: () -> None
-        """
-        Finish the interaction. Restore any leftover state in this method.
-
-        .. note:: This gets called from the default :func:`cancel`
-                  implementation.
-
-        """
-        self.__finished = True
-
-        if self.scene.user_interaction_handler is self:
-            self.scene.set_user_interaction_handler(None)
-
-        if self.__canceled:
-            self.canceled.emit()
-            self.canceled[int].emit(self.__cancelReason)
-        else:
-            self.finished.emit()
-
-        self.ended.emit()
-
-        if self.deleteOnEnd:
-            self.deleteLater()
-
-    def cancel(self, reason=OtherReason):
-        # type: (int) -> None
-        """
-        Cancel the interaction with `reason`.
-        """
-
-        self.__canceled = True
-        self.__cancelReason = reason
-
-        self.end()
-
-    def isFinished(self):
-        # type: () -> bool
-        """
-        Is the interaction finished.
-        """
-        return self.__finished
-
-    def isCanceled(self):
-        # type: () -> bool
-        """
-        Was the interaction canceled.
-        """
-        return self.__canceled
-
-    def cancelReason(self):
-        # type: () -> int
-        """
-        Return the reason the interaction was canceled.
-        """
-        return self.__cancelReason
-
-    def postQuickTip(self, contents: str) -> None:
-        """
-        Post a QuickHelpTipEvent with rich text `contents` to the document
-        editor.
-        """
-        hevent = QuickHelpTipEvent("", contents)
-        QApplication.postEvent(self.document, hevent)
-
-    def clearQuickTip(self):
-        """Clear the quick tip help event."""
-        self.postQuickTip("")
-
-    def mousePressEvent(self, event):
-        # type: (QGraphicsSceneMouseEvent) -> bool
-        """
-        Handle a `QGraphicsScene.mousePressEvent`.
-        """
-        return False
-
-    def mouseMoveEvent(self, event):
-        # type: (QGraphicsSceneMouseEvent) -> bool
-        """
-        Handle a `GraphicsScene.mouseMoveEvent`.
-        """
-        return False
-
-    def mouseReleaseEvent(self, event):
-        # type: (QGraphicsSceneMouseEvent) -> bool
-        """
-        Handle a `QGraphicsScene.mouseReleaseEvent`.
-        """
-        return False
-
-    def mouseDoubleClickEvent(self, event):
-        # type: (QGraphicsSceneMouseEvent) -> bool
-        """
-        Handle a `QGraphicsScene.mouseDoubleClickEvent`.
-        """
-        return False
-
-    def keyPressEvent(self, event):
-        # type: (QKeyEvent) -> bool
-        """
-        Handle a `QGraphicsScene.keyPressEvent`
-        """
-        if self.cancelOnEsc and event.key() == Qt.Key_Escape:
-            self.cancel(self.UserCancelReason)
-        return False
-
-    def keyReleaseEvent(self, event):
-        # type: (QKeyEvent) -> bool
-        """
-        Handle a `QGraphicsScene.keyPressEvent`
-        """
-        return False
-
-    def contextMenuEvent(self, event):
-        # type: (QGraphicsSceneContextMenuEvent) -> bool
-        """
-        Handle a `QGraphicsScene.contextMenuEvent`
-        """
-        return False
-
-    def dragEnterEvent(self, event):
-        # type: (QGraphicsSceneDragDropEvent) -> bool
-        """
-        Handle a `QGraphicsScene.dragEnterEvent`
-
-        .. versionadded:: 0.1.20
-        """
-        return False
-
-    def dragMoveEvent(self, event):
-        # type: (QGraphicsSceneDragDropEvent) -> bool
-        """
-        Handle a `QGraphicsScene.dragMoveEvent`
-
-        .. versionadded:: 0.1.20
-        """
-        return False
-
-    def dragLeaveEvent(self, event):
-        # type: (QGraphicsSceneDragDropEvent) -> bool
-        """
-        Handle a `QGraphicsScene.dragLeaveEvent`
-
-        .. versionadded:: 0.1.20
-        """
-        return False
-
-    def dropEvent(self, event):
-        # type: (QGraphicsSceneDragDropEvent) -> bool
-        """
-        Handle a `QGraphicsScene.dropEvent`
-
-        .. versionadded:: 0.1.20
-        """
-        return False
 
 
 class NoPossibleLinksError(ValueError):
@@ -304,6 +107,60 @@ def reversed_arguments(func):
     def wrapped(*args):
         return func(*reversed(args))
     return wrapped
+
+
+def propose_links(
+        workflow: Scheme,
+        source_node: 'Node',
+        sink_node: 'Node',
+        source_signal: Optional[OutputSignal] = None,
+        sink_signal: Optional[InputSignal] = None
+) -> List[Tuple[OutputSignal, InputSignal, int]]:
+    """
+    Return a list of ordered (:class:`OutputSignal`,
+    :class:`InputSignal`, weight) tuples that could be added to
+    the `workflow` between `source_node` and `sink_node`.
+
+    .. note:: This can depend on the links already in the `workflow`.
+    """
+    if source_node is sink_node and \
+            not workflow.loop_flags() & Scheme.AllowSelfLoops:
+        # Self loops are not enabled
+        return []
+    elif not workflow.loop_flags() & Scheme.AllowLoops and \
+            workflow.is_ancestor(sink_node, source_node):
+        # Loops are not enabled.
+        return []
+
+    outputs = [source_signal] if source_signal \
+        else source_node.output_channels()
+    inputs = [sink_signal] if sink_signal \
+        else sink_node.input_channels()
+
+    # Get existing links to sink channels that are Single.
+    links = workflow.find_links(None, None, sink_node)
+    already_connected_sinks = [link.sink_channel for link in links
+                               if link.sink_channel.single]
+
+    def weight(out_c, in_c):
+        # type: (OutputSignal, InputSignal) -> int
+        if out_c.explicit or in_c.explicit:
+            weight = -1  # Negative weight for explicit links
+        else:
+            check = [in_c not in already_connected_sinks,
+                     bool(in_c.default),
+                     bool(out_c.default)]
+            weights = [2 ** i for i in range(len(check), 0, -1)]
+            weight = sum([w for w, c in zip(weights, check) if c])
+        return weight
+
+    proposed_links = []
+    for out_c in outputs:
+        for in_c in inputs:
+            if compatible_channels(out_c, in_c):
+                proposed_links.append((out_c, in_c, weight(out_c, in_c)))
+
+    return sorted(proposed_links, key=itemgetter(-1), reverse=True)
 
 
 class NewLinkAction(UserInteraction):
@@ -399,11 +256,11 @@ class NewLinkAction(UserInteraction):
         node2 = self.scene.node_for_item(target_item)
 
         if self.direction == self.FROM_SOURCE:
-            links = self.scheme.propose_links(node1, node2,
-                                              source_signal=self.from_signal)
+            links = propose_links(self.scheme, node1, node2,
+                                  source_signal=self.from_signal)
         else:
-            links = self.scheme.propose_links(node2, node1,
-                                              sink_signal=self.from_signal)
+            links = propose_links(self.scheme, node2, node1,
+                                  sink_signal=self.from_signal)
         return [(s1, s2) for s1, s2, _ in links]
 
     def can_connect(self, target_item):
@@ -612,7 +469,7 @@ class NewLinkAction(UserInteraction):
                     node = None
 
                 if node is not None:
-                    commands.AddNodeCommand(self.scheme, node,
+                    commands.AddNodeCommand(self.scheme, node, self.root,
                                             parent=self.macro)
 
             if node is not None and not self.showing_incompatible_widget:
@@ -662,27 +519,33 @@ class NewLinkAction(UserInteraction):
         menu = self.document.quickMenu()
         node = self.scene.node_for_item(self.from_item)
         from_signal = self.from_signal
-        from_desc = node.description
+        from_sink = self.direction == self.FROM_SINK
+        if self.from_signal:
+            from_signals = [self.from_signal]
+        elif from_sink:
+            from_signals = node.input_channels()
+        else:
+            from_signals = node.output_channels()
+        from_desc = getattr(node, "description", None)
+        if from_desc is not None:
+            from_name = from_desc.name
+        else:
+            from_name = ""
 
         def is_compatible(
-                source_signal: OutputSignal,
-                source: WidgetDescription,
-                sink: WidgetDescription,
-                sink_signal: InputSignal
+                source_signals: Sequence[OutputSignal],
+                sink_signals: Sequence[InputSignal],
         ) -> bool:
-            return any(scheme.compatible_channels(output, input)
-                       for output
-                       in ([source_signal] if source_signal else source.outputs)
-                       for input
-                       in ([sink_signal] if sink_signal else sink.inputs))
 
-        from_sink = self.direction == self.FROM_SINK
+            return any(scheme.compatible_channels(output, input)
+                       for output in source_signals for input in sink_signals)
+
         if from_sink:
             # Reverse the argument order.
             is_compatible = reversed_arguments(is_compatible)
-            suggestion_sort = self.suggestions.get_source_suggestions(from_desc.name)
+            suggestion_sort = self.suggestions.get_source_suggestions(from_name)
         else:
-            suggestion_sort = self.suggestions.get_sink_suggestions(from_desc.name)
+            suggestion_sort = self.suggestions.get_sink_suggestions(from_name)
 
         def sort(left, right):
             # list stores frequencies, so sign is flipped
@@ -693,7 +556,7 @@ class NewLinkAction(UserInteraction):
         def filter(index):
             desc = index.data(QtWidgetRegistry.WIDGET_DESC_ROLE)
             if isinstance(desc, WidgetDescription):
-                return is_compatible(from_signal, from_desc, desc, None)
+                return is_compatible(from_signals, desc.outputs if from_sink else desc.inputs)
             else:
                 return False
 
@@ -732,11 +595,13 @@ class NewLinkAction(UserInteraction):
         detailed dialog for link editing.
 
         """
+        root = self.root
         UsageStatistics.set_sink_anchor_open(sink_signal is not None)
         UsageStatistics.set_source_anchor_open(source_signal is not None)
         try:
-            possible = self.scheme.propose_links(source_node, sink_node,
-                                                 source_signal, sink_signal)
+            possible = propose_links(
+                self.scheme, source_node, sink_node, source_signal, sink_signal
+            )
 
             log.debug("proposed (weighted) links: %r",
                       [(s1.name, s2.name, w) for s1, s2, w in possible])
@@ -746,8 +611,6 @@ class NewLinkAction(UserInteraction):
 
             source, sink, w = possible[0]
 
-            # just a list of signal tuples for now, will be converted
-            # to SchemeLinks later
             links_to_add = []     # type: List[Link]
             links_to_remove = []  # type: List[Link]
             show_link_dialog = False
@@ -788,9 +651,9 @@ class NewLinkAction(UserInteraction):
                 if rstatus == EditLinksDialog.Rejected:
                     raise UserCanceledError
             else:
-                # links_to_add now needs to be a list of actual SchemeLinks
+                # links_to_add now needs to be a list of actual Links
                 links_to_add = [
-                    scheme.SchemeLink(source_node, source, sink_node, sink)
+                    Link(source_node, source, sink_node, sink)
                 ]
                 links_to_add, links_to_remove = \
                     add_links_plan(self.scheme, links_to_add)
@@ -799,7 +662,7 @@ class NewLinkAction(UserInteraction):
             self.cleanup()
 
             for link in links_to_remove:
-                commands.RemoveLinkCommand(self.scheme, link,
+                commands.RemoveLinkCommand(self.scheme, link, root,
                                            parent=self.macro)
 
             for link in links_to_add:
@@ -811,7 +674,7 @@ class NewLinkAction(UserInteraction):
                 )
 
                 if not duplicate:
-                    commands.AddLinkCommand(self.scheme, link,
+                    commands.AddLinkCommand(self.scheme, link, root,
                                             parent=self.macro)
 
         except scheme.IncompatibleChannelTypeError:
@@ -853,7 +716,7 @@ class NewLinkAction(UserInteraction):
 
         if status == EditLinksDialog.Accepted:
             links_to_add = [
-                scheme.SchemeLink(
+                Link(
                     source_node, source_channel,
                     sink_node, sink_channel
                 ) for source_channel, sink_channel in links_to_add_spec
@@ -954,7 +817,7 @@ def edit_links(
 
     dlg = EditLinksDialog(parent, windowTitle="Edit Links")
 
-    # all SchemeLinks between the two nodes.
+    # all Links between the two nodes.
     links = scheme.find_links(source_node=source_node, sink_node=sink_node)
     existing_links = [(link.source_channel, link.sink_channel)
                       for link in links]
@@ -1003,12 +866,14 @@ def conflicting_single_link(scheme, link):
     If no such channel exists (or sink channel is not 'single')
     return `None`.
     """
+    node = link.sink_node
+    if isinstance(node, MetaNode):
+        node = node.node_for_input_channel(link.sink_channel)
     if link.sink_channel.single:
         existing = scheme.find_links(
-            sink_node=link.sink_node,
+            sink_node=node,
             sink_channel=link.sink_channel
         )
-
         if existing:
             assert len(existing) == 1
             return existing[0]
@@ -1019,8 +884,13 @@ def remove_duplicates(links_to_add, links_to_remove):
     # type: (List[Link], List[Link]) -> Tuple[List[Link], List[Link]]
     def link_key(link):
         # type: (Link) -> Tuple[Node, OutputSignal, Node, InputSignal]
-        return (link.source_node, link.source_channel,
-                link.sink_node, link.sink_channel)
+        source_node, source_channel = link.source_node, link.source_channel
+        sink_node, sink_channel = link.sink_node, link.sink_channel
+        if isinstance(source_node, MetaNode):
+            source_node = source_node.node_for_output_channel(source_channel)
+        if isinstance(sink_node, MetaNode):
+            sink_node = sink_node.node_for_input_channel(sink_channel)
+        return source_node, source_channel, sink_node, sink_channel
 
     add_keys = list(map(link_key, links_to_add))
     remove_keys = list(map(link_key, links_to_remove))
@@ -1234,16 +1104,16 @@ class RectangleSelectionAction(UserInteraction):
 
 class EditNodeLinksAction(UserInteraction):
     """
-    Edit multiple links between two :class:`SchemeNode` instances using
+    Edit multiple links between two :class:`Node` instances using
     a :class:`EditLinksDialog`
 
     Parameters
     ----------
     document : :class:`SchemeEditWidget`
         The editor widget.
-    source_node : :class:`SchemeNode`
+    source_node : :class:`Node`
         The source (link start) node for the link editor.
-    sink_node : :class:`SchemeNode`
+    sink_node : :class:`Node`
         The sink (link end) node for the link editor.
 
     """
@@ -1316,8 +1186,8 @@ class EditNodeLinksAction(UserInteraction):
                 self.document.removeLink(links[0])
 
             for source_channel, sink_channel in links_to_add:
-                link = scheme.SchemeLink(self.source_node, source_channel,
-                                         self.sink_node, sink_channel)
+                link = Link(self.source_node, source_channel,
+                            self.sink_node, sink_channel)
 
                 self.document.addLink(link)
 

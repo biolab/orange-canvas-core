@@ -30,10 +30,9 @@ class TestScene(QAppTestCase):
         """Test basic scene functionality.
         """
         one_desc, negate_desc, cons_desc = self.widget_desc()
-
-        one_item = items.NodeItem(one_desc)
-        negate_item = items.NodeItem(negate_desc)
-        cons_item = items.NodeItem(cons_desc)
+        one_item = items.NodeItem.from_node_meta(one_desc)
+        negate_item = items.NodeItem.from_node_meta(negate_desc)
+        cons_item = items.NodeItem.from_node_meta(cons_desc)
 
         one_item = self.scene.add_node_item(one_item)
         negate_item = self.scene.add_node_item(negate_item)
@@ -123,6 +122,7 @@ class TestScene(QAppTestCase):
 
         for node, item in zip(nodes, node_items):
             self.assertIs(item, self.scene.item_for_node(node))
+            self.assertIs(item, self.scene.item_for_element(node))
 
         # Remove a widget
         test_scheme.remove_node(cons_node)
@@ -150,86 +150,9 @@ class TestScene(QAppTestCase):
         test_scheme.add_link(link1)
         self.assertTrue(len(self.scene.link_items()) == 1)
         self.assertSequenceEqual(self.scene.link_items(), link_items)
-        self.qWait()
-
-    def test_scheme_construction(self):
-        """Test construction (editing) of the scheme through the scene.
-        """
-        test_scheme = scheme.Scheme()
-        self.scene.set_scheme(test_scheme)
-
-        node_items = []
-        link_items = []
-
-        self.scene.node_item_added.connect(node_items.append)
-        self.scene.node_item_removed.connect(node_items.remove)
-        self.scene.link_item_added.connect(link_items.append)
-        self.scene.link_item_removed.connect(link_items.remove)
-
-        one_desc, negate_desc, cons_desc = self.widget_desc()
-        one_node = scheme.SchemeNode(one_desc)
-
-        one_item = self.scene.add_node(one_node)
-        self.scene.commit_scheme_node(one_node)
-
-        self.assertSequenceEqual(self.scene.node_items(), [one_item])
-        self.assertSequenceEqual(node_items, [one_item])
-        self.assertSequenceEqual(test_scheme.nodes, [one_node])
-
-        negate_node = scheme.SchemeNode(negate_desc)
-        cons_node = scheme.SchemeNode(cons_desc)
-
-        negate_item = self.scene.add_node(negate_node)
-        cons_item = self.scene.add_node(cons_node)
-
-        self.assertSequenceEqual(self.scene.node_items(),
-                                 [one_item, negate_item, cons_item])
-        self.assertSequenceEqual(self.scene.node_items(), node_items)
-
-        # The scheme is still the same.
-        self.assertSequenceEqual(test_scheme.nodes, [one_node])
-
-        # Remove items
-        self.scene.remove_node(negate_node)
-        self.scene.remove_node(cons_node)
-
-        self.assertSequenceEqual(self.scene.node_items(), [one_item])
-        self.assertSequenceEqual(node_items, [one_item])
-        self.assertSequenceEqual(test_scheme.nodes, [one_node])
-
-        # Add them again this time also in the scheme.
-        negate_item = self.scene.add_node(negate_node)
-        cons_item = self.scene.add_node(cons_node)
-
-        self.scene.commit_scheme_node(negate_node)
-        self.scene.commit_scheme_node(cons_node)
-
-        self.assertSequenceEqual(self.scene.node_items(),
-                                 [one_item, negate_item, cons_item])
-        self.assertSequenceEqual(self.scene.node_items(), node_items)
-        self.assertSequenceEqual(test_scheme.nodes,
-                                 [one_node, negate_node, cons_node])
-
-        link1 = scheme.SchemeLink(one_node, "value", negate_node, "value")
-        link2 = scheme.SchemeLink(negate_node, "result", cons_node, "first")
-        link_item1 = self.scene.add_link(link1)
-        link_item2 = self.scene.add_link(link2)
-
-        self.assertSequenceEqual(self.scene.link_items(),
-                                 [link_item1, link_item2])
-        self.assertSequenceEqual(self.scene.link_items(), link_items)
-        self.assertSequenceEqual(test_scheme.links, [])
-
-        # Commit the links
-        self.scene.commit_scheme_link(link1)
-        self.scene.commit_scheme_link(link2)
-
-        self.assertSequenceEqual(self.scene.link_items(),
-                                 [link_item1, link_item2])
-        self.assertSequenceEqual(self.scene.link_items(), link_items)
-        self.assertSequenceEqual(test_scheme.links,
-                                 [link1, link2])
-
+        for link, item in zip([link1], link_items):
+            self.assertEqual(self.scene.item_for_element(link1), item)
+            self.assertEqual(self.scene.item_for_link(link1), item)
         self.qWait()
 
     def widget_desc(self):

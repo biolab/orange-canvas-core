@@ -10,13 +10,9 @@ class TestUsageStatistics(TestMainWindowBase):
         super().setUp()
         self.stats = self.w.current_document().usageStatistics()
         self.stats.set_enabled(True)
-
-        reg = self.w.scheme_widget._SchemeEditWidget__registry
-
+        reg = self.registry
         first_cat = reg.categories()[0]
-        data_descriptions = reg.widgets(first_cat)
-        self.descs = [reg.action_for_widget(desc).data() for desc in data_descriptions]
-
+        self.descs = reg.widgets(first_cat)
         toolbox = self.w.findChild(WidgetToolBox)
         widget = toolbox.widget(0)
         self.buttons = widget.findChildren(QToolButton)

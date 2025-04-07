@@ -1,13 +1,13 @@
 .. schemelink:
 
-======================
-Scheme Link (``link``)
-======================
+===============
+Link (``link``)
+===============
 
 .. automodule:: orangecanvas.scheme.link
 
 
-.. autoclass:: SchemeLink
+.. autoclass:: Link
    :members:
    :exclude-members:
       enabled_changed,
@@ -18,3 +18,6 @@ Scheme Link (``link``)
    .. autoattribute:: enabled_changed(enabled)
 
    .. autoattribute:: dynamic_enabled_changed(enabled)
+
+
+.. autoclass:: SchemeLink
