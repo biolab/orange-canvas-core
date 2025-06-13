@@ -6,7 +6,7 @@ from setuptools.command.install import install
 
 
 NAME = "orange-canvas-core"
-VERSION = "0.2.6"
+VERSION = "0.2.7.dev0"
 DESCRIPTION = "Core component of Orange Canvas"
 
 with open("README.rst", "rt", encoding="utf-8") as f:
