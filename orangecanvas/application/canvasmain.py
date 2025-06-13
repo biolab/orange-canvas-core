@@ -2588,6 +2588,14 @@ class CanvasMainWindow(QMainWindow):
         self.scheme_widget.setNodeAnimationEnabled(node_animations)
         settings.endGroup()
 
+        settings.beginGroup("network")
+        if settings.value("use-certs", defaultValue=False, type=bool):
+            import truststore
+
+            truststore.inject_into_ssl()
+
+        settings.endGroup()
+
         self.__update_registry_filters()
 
     def __update_registry_filters(self):
