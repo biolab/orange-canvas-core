@@ -20,7 +20,7 @@ jobs:
         libxcb-render-util0
         libxcb-xinerama0
         libxcb-xfixes0
-        libegl1-mesa
+        libegl1
         libxcb-shape0
         libxcb-cursor0
         glibc-tools
