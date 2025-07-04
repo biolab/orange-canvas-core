@@ -41,7 +41,7 @@ jobs:
 
           - os: ubuntu-latest
             python-version: "3.13"
-            test-env: "PyQt6~=6.7.0 PyQt6-Qt6~=6.7.0"
+            test-env: "PyQt6~=6.8.0 PyQt6-Qt6~=6.8.0"
             extra-system-packages: "glibc-tools"
 
           # macOS
@@ -67,7 +67,7 @@ jobs:
 
           - os: macos-latest
             python-version: "3.13"
-            test-env: "PyQt6~=6.7.0 PyQt6-Qt6~=6.7.0"
+            test-env: "PyQt6~=6.8.0 PyQt6-Qt6~=6.8.0"
 
           # Windows
           - os: windows-2022
@@ -92,7 +92,7 @@ jobs:
 
           - os: windows-latest
             python-version: "3.13"
-            test-env: "PyQt6~=6.7.0 PyQt6-Qt6~=6.7.0"
+            test-env: "PyQt6~=6.8.0 PyQt6-Qt6~=6.8.0"
 
     steps:
       - uses: actions/checkout@v4
