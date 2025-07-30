@@ -1573,6 +1573,9 @@ class CanvasMainWindow(QMainWindow):
         `True`, else show a message to the user explaining the error and
         return `False`.
         """
+        # Enforcing ".ows" extension during saving file.
+        # see .../biolab/orange-canvas-core/pull/330
+        filename = filename if str(filename).endswith('.ows') else f"{filename}.ows"
         dirname, basename = os.path.split(filename)
         title = scheme.title or "untitled"
 
