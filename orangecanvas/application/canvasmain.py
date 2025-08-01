@@ -1551,11 +1551,12 @@ class CanvasMainWindow(QMainWindow):
             objectName="save-as-ows-filedialog",
         )
         dialog.setNameFilter(self.tr("Orange Workflow (*.ows)"))
-        dialog.exec()
-        files = dialog.selectedFiles()
+        # `deleteLater` can be ivoked before `exec` as PyQt 6.9 doc says, that
+        # it is activated after `exec`, and work on PyQt 5 version well (here)
         dialog.deleteLater()
-        if files:
-            filename = files[0]
+        # dialog.exec waits for user action
+        if dialog.exec():
+            filename = dialog.selectedFiles()[0]
             settings.setValue("last-scheme-dir", os.path.dirname(filename))
             if self.save_scheme_to(curr_scheme, filename):
                 document.setPath(filename)
@@ -1594,7 +1595,7 @@ class CanvasMainWindow(QMainWindow):
                 exc_info=True,
                 parent=self
             )
-            return False
+            return False  # return False here because there is second part
 
         try:
             with open(filename, "wb") as f:
@@ -1611,7 +1612,6 @@ class CanvasMainWindow(QMainWindow):
                 informative_text=self.tr("Choose another location."),
                 parent=self
             )
-            return False
         except PermissionError as ex:
             log.error("%s saving '%s'", type(ex).__name__, filename,
                       exc_info=True)
@@ -1624,7 +1624,6 @@ class CanvasMainWindow(QMainWindow):
                     "another location."),
                 parent=self
             )
-            return False
         except OSError as ex:
             log.error("%s saving '%s'", type(ex).__name__, filename,
                       exc_info=True)
@@ -1635,8 +1634,6 @@ class CanvasMainWindow(QMainWindow):
                 exc_info=True,
                 parent=self
             )
-            return False
-
         except Exception:  # pylint: disable=broad-except
             log.error("Error saving %r to %r", scheme, filename, exc_info=True)
             message_critical(
@@ -1646,7 +1643,7 @@ class CanvasMainWindow(QMainWindow):
                 exc_info=True,
                 parent=self
             )
-            return False
+        return False  # default behaviour
 
     def save_swp(self):
         """
