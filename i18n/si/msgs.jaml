@@ -1123,7 +1123,7 @@ WelcomeActionButton:focus {
             bottom-bar: false
             Show at startup: Pokaži ob zagonu
         def `setFeedbackUrl`:
-            Help us improve!: Pomagaj, da bomo še boljši
+            Donate: Doniraj
             <a href="{url}">{text}</a>: false
         def `addRow`:
             light-orange: false

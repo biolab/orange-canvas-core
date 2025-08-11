@@ -194,7 +194,7 @@ class WelcomeDialog(QDialog):
         """
         self.__feedbackUrl = url
         if url:
-            text = self.tr("Help us improve!")
+            text = self.tr("Donate")
             self.__feedbackLabel.setText(
                 '<a href="{url}">{text}</a>'.format(url=url, text=escape(text))
             )
