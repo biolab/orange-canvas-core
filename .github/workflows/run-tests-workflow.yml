@@ -11,38 +11,48 @@ jobs:
       PIP_NO_PIP_VERSION_CHECK: 1
       PIP_CACHE_DIR: .pip-cache
       PIP_PREFER_BINARY: 1
+      UBUNTU_SYSTEM_PACKAGES: |
+        libxkbcommon-x11-0
+        libxcb-icccm4
+        libxcb-image0
+        libxcb-keysyms1
+        libxcb-randr0
+        libxcb-render-util0
+        libxcb-xinerama0
+        libxcb-xfixes0
+        libegl1
+        libxcb-shape0
+        libxcb-cursor0
+        glibc-tools
 
     strategy:
       fail-fast: False
       matrix:
         include:
           # Linux
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             python-version: "3.10"
             test-env: "PyQt5~=5.15.0"
 
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             python-version: "3.11"
             test-env: "PyQt5~=5.15.0"
 
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             python-version: "3.11"
             test-env: "PyQt6~=6.2.3 PyQt6-Qt6~=6.2.3"
 
-          - os: ubuntu-22.04
+          - os: ubuntu-latest
             python-version: "3.11"
             test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0"
-            extra-system-packages: "glibc-tools"
 
-          - os: ubuntu-22.04
+          - os: ubuntu-latest
             python-version: "3.12"
             test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0"
-            extra-system-packages: "glibc-tools"
 
-          - os: ubuntu-22.04
+          - os: ubuntu-latest
             python-version: "3.13"
-            test-env: "PyQt6~=6.7.0 PyQt6-Qt6~=6.7.0"
-            extra-system-packages: "glibc-tools"
+            test-env: "PyQt6~=6.8.0 PyQt6-Qt6~=6.8.0"
 
           # macOS
           - os: macos-13
@@ -67,32 +77,32 @@ jobs:
 
           - os: macos-latest
             python-version: "3.13"
-            test-env: "PyQt6~=6.7.0 PyQt6-Qt6~=6.7.0"
+            test-env: "PyQt6~=6.8.0 PyQt6-Qt6~=6.8.0"
 
           # Windows
-          - os: windows-2019
+          - os: windows-2022
             python-version: "3.10"
             test-env: "PyQt5~=5.15.0"
 
-          - os: windows-2019
+          - os: windows-2022
             python-version: "3.11"
             test-env: "PyQt5~=5.15.0"
 
-          - os: windows-2019
+          - os: windows-2022
             python-version: "3.11"
             test-env: "PyQt6~=6.2.3 PyQt6-Qt6~=6.2.3"
 
-          - os: windows-2019
+          - os: windows-latest
             python-version: "3.11"
             test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0"
 
-          - os: windows-2019
+          - os: windows-latest
             python-version: "3.12"
             test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0"
 
-          - os: windows-2019
+          - os: windows-latest
             python-version: "3.13"
-            test-env: "PyQt6~=6.7.0 PyQt6-Qt6~=6.7.0"
+            test-env: "PyQt6~=6.8.0 PyQt6-Qt6~=6.8.0"
 
     steps:
       - uses: actions/checkout@v4
@@ -108,7 +118,7 @@ jobs:
         # https://www.riverbankcomputing.com/pipermail/pyqt/2020-June/042949.html
         run: |
           sudo apt-get update 
-          sudo apt-get install -y libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0 libegl1-mesa libxcb-shape0 libxcb-cursor0 $PACKAGES
+          sudo apt-get install -y $UBUNTU_SYSTEM_PACKAGES $PACKAGES
 
       - name: Setup Pip Cache
         uses: actions/cache@v4
