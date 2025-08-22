@@ -204,6 +204,8 @@ class Config:
         "Screencasts": None,
         #: Used for 'Submit Feedback' action in the help menu
         "Feedback": None,
+        #: A Donate action in the help menu
+        "Donate": None,
     }  # type: Dict[str, Optional[str]]
 
 
