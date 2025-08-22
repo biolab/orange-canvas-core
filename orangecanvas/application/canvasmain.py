@@ -499,6 +499,12 @@ class CanvasMainWindow(QMainWindow):
             icon=load_styled_svg_icon("Examples.svg")
         )
 
+        self.frequent_questions_action = QAction(
+            self.tr("Frequent Questions..."), self,
+            objectName="frequent-questions"
+        )
+        config_url_action(self.frequent_questions_action, "FAQ")
+
         self.submit_feedback_action = QAction(
             self.tr("Submit Feedback..."), self,
             objectName="submit-feedback-action",
@@ -782,6 +788,7 @@ class CanvasMainWindow(QMainWindow):
         ])
         self.help_menu.addSeparator()
         self.help_menu.addActions([
+            self.frequent_questions_action,
             self.submit_feedback_action,
             self.submit_bug_report_action,
             self.donate_action,

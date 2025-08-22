@@ -194,6 +194,8 @@ class Config:
     #: Standard application urls. If defined to a valid url appropriate actions
     #: are defined in various contexts
     APPLICATION_URLS = {
+        #: FAQ
+        "FAQ": None,
         #: Submit a bug report action in the Help menu
         "Bug Report": None,
         #: A url quick tour/getting started url
