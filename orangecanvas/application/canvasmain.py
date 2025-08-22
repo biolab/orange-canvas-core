@@ -499,6 +499,30 @@ class CanvasMainWindow(QMainWindow):
             icon=load_styled_svg_icon("Examples.svg")
         )
 
+        self.frequent_questions_action = QAction(
+            self.tr("Frequent Questions..."), self,
+            objectName="frequent-questions"
+        )
+        config_url_action(self.frequent_questions_action, "FAQ")
+
+        self.submit_feedback_action = QAction(
+            self.tr("Submit Feedback..."), self,
+            objectName="submit-feedback-action",
+        )
+        config_url_action(self.submit_feedback_action, "Feedback")
+
+        self.submit_bug_report_action = QAction(
+            self.tr("Submit a Bug Report..."), self,
+            objectName="submit-bug-report-action",
+        )
+        config_url_action(self.submit_bug_report_action, "Bug Report")
+
+        self.donate_action = QAction(
+            self.tr("Donate..."), self,
+            objectName="donate-action",
+        )
+        config_url_action(self.donate_action, "Donate")
+
         self.about_action = QAction(
             self.tr("About"), self,
             objectName="about-action",
@@ -762,7 +786,13 @@ class CanvasMainWindow(QMainWindow):
             self.examples_action,
             self.documentation_action
         ])
-
+        self.help_menu.addSeparator()
+        self.help_menu.addActions([
+            self.frequent_questions_action,
+            self.submit_feedback_action,
+            self.submit_bug_report_action,
+            self.donate_action,
+        ])
         menu_bar.addMenu(self.help_menu)
 
         self.setMenuBar(menu_bar)
@@ -1978,6 +2008,10 @@ class CanvasMainWindow(QMainWindow):
         feedback = config.default.APPLICATION_URLS.get("Feedback", "")
         if feedback:
             dialog.setFeedbackUrl(feedback)
+
+        donate = config.default.APPLICATION_URLS.get("Donate", "")
+        if donate:
+            dialog.setDonateUrl(donate)
 
         def new_scheme():
             if not self.is_transient():

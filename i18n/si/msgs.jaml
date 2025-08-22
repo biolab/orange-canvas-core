@@ -14,11 +14,13 @@ config.py:
     class `Config`:
         def `core_packages`:
             orange-canvas-core >= 0.1a, < 0.2a: false
+        FAQ: Pogosta vprašanja
         Bug Report: Poročila o napakah
         Quick Start: Hiter začetek
         Documentation: Uporabniška navodila
         Screencasts: Zaslonski posnetki
         Feedback: Povratne informacije
+        Donate: Doniraj
     class `Default`:
         biolab.si: false
         Orange Canvas Core: false
@@ -98,6 +100,8 @@ config.py:
     HTTP proxy.: false
     network/https-proxy: false
     HTTPS proxy.: false
+    network/use-certs: false
+    Use system certificates.: Uporabi sistemske certifikate.
     def `log_dir`:
         darwin: false
         ~/Library/Logs: false
@@ -465,6 +469,18 @@ application/canvasmain.py:
             examples-action: false
             Browse example workflows.: Prebrskaj primere delotokov
             Examples.svg: false
+            Frequent Questions...: Pogosta vprašanja
+            frequent-questions: false
+            FAQ: Pogosta vprašanja
+            Submit Feedback...: Pošlji povratno informacijo
+            submit-feedback-action: false
+            Feedback: Povratna informacija
+            Submit a Bug Report...: Pošlji poročilo o napaki
+            submit-bug-report-action: false
+            Bug Report: Poročilo o napaki
+            Donate...: Doniraj
+            donate-action: false
+            Donate: Doniraj
             About: O programu
             about-action: false
             Show about dialog.: Pokaži opis programa
@@ -705,6 +721,7 @@ application/canvasmain.py:
             Welcome to {}: Dobrodošli v programu {}
             Welcome: Dobrodošli
             Feedback: false
+            Donate: Doniraj
             New: Nov
             Open a new workflow.: Odpri nov delotok
             New.svg: false
@@ -790,6 +807,8 @@ application/canvasmain.py:
             show-channel-names: false
             open-anchors-on-hover: false
             enable-node-animations: false
+            network: false
+            use-certs: false
     def `index`:
         key: false
         predicate: false
@@ -1054,6 +1073,8 @@ application/settings.py:
             HTTP proxy:: true
             network/https-proxy: false
             HTTPS proxy:: true
+            network/use-certs: false
+            Use system certificates:: Uporabi sistemske certifikate.
         def `reset`:
             Error reseting %r: false
         def `exec_`:
@@ -1119,11 +1140,15 @@ WelcomeActionButton:focus {
         def `__init__`:
             showAtStartup: false
             feedbackUrl: false
+            donateUrl: false
         def `setupUi`:
             bottom-bar: false
             Show at startup: Pokaži ob zagonu
         def `setFeedbackUrl`:
             Help us improve!: Pomagaj, da bomo še boljši
+            <a href="{url}">{text}</a>: false
+        def `setDonateUrl`:
+            Donate: Doniraj
             <a href="{url}">{text}</a>: false
         def `addRow`:
             light-orange: false
