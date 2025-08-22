@@ -1557,8 +1557,15 @@ class CanvasMainWindow(QMainWindow):
         # dialog.exec waits for user action
         if dialog.exec():
             filename = dialog.selectedFiles()[0]
+            # Enforcing ".ows" extension during saving file.
+            filename = filename if str(filename).endswith('.ows') else f"{filename}.ows"
+            do_override = QMessageBox.question(
+                    self, "Overwrite file?",
+                    f"File {os.path.split(filename)[1]} already exists."
+                    "\nOverwrite?"
+            ) == QMessageBox.Yes if os.path.exists(filename) else True
             settings.setValue("last-scheme-dir", os.path.dirname(filename))
-            if self.save_scheme_to(curr_scheme, filename):
+            if do_override and self.save_scheme_to(curr_scheme, filename):
                 document.setPath(filename)
                 document.setModified(False)
                 self.add_recent_scheme(curr_scheme.title, document.path())
@@ -1574,9 +1581,6 @@ class CanvasMainWindow(QMainWindow):
         `True`, else show a message to the user explaining the error and
         return `False`.
         """
-        # Enforcing ".ows" extension during saving file.
-        # see .../biolab/orange-canvas-core/pull/330
-        filename = filename if str(filename).endswith('.ows') else f"{filename}.ows"
         dirname, basename = os.path.split(filename)
         title = scheme.title or "untitled"
 
