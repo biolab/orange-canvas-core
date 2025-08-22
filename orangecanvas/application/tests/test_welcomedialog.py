@@ -38,3 +38,6 @@ class TestDialog(QAppTestCase):
         self.qWait()
         self.assertIs(action[0], d.triggeredAction())
         self.assertIs(action[0], action1)
+
+        d.setDonateUrl("https://example.com/donate")
+        d.setFeedbackUrl("https://example.com/feedback")

@@ -118,6 +118,7 @@ class WelcomeDialog(QDialog):
     def __init__(self, *args, **kwargs):
         showAtStartup = kwargs.pop("showAtStartup", True)
         feedbackUrl = kwargs.pop("feedbackUrl", "")
+        donateUrl = kwargs.pop("donateUrl", "")
         super().__init__(*args, **kwargs)
 
         self.__triggeredAction = None  # type: Optional[QAction]
@@ -125,10 +126,13 @@ class WelcomeDialog(QDialog):
         self.__mainLayout = None
         self.__feedbackUrl = None
         self.__feedbackLabel = None
+        self.__donateUrl = None
+        self.__donateLabel = None
 
         self.setupUi()
 
         self.setFeedbackUrl(feedbackUrl)
+        self.setDonateUrl(donateUrl)
         self.setShowAtStartup(showAtStartup)
 
     def setupUi(self):
@@ -159,12 +163,21 @@ class WelcomeDialog(QDialog):
             openExternalLinks=True,
             visible=False,
         )
+        self.__donateLabel = QLabel(
+            textInteractionFlags=Qt.TextBrowserInteraction,
+            openExternalLinks=True,
+            visible=False,
+        )
 
         bottom_bar_layout.addWidget(
             self.__showAtStartupCheck, alignment=Qt.AlignVCenter | Qt.AlignLeft
         )
+        bottom_bar_layout.addStretch(10)
         bottom_bar_layout.addWidget(
             self.__feedbackLabel, alignment=Qt.AlignVCenter | Qt.AlignRight
+        )
+        bottom_bar_layout.addWidget(
+            self.__donateLabel, alignment=Qt.AlignVCenter | Qt.AlignRight
         )
         self.layout().addWidget(bottom_bar, alignment=Qt.AlignBottom,
                                 stretch=1)
@@ -201,6 +214,20 @@ class WelcomeDialog(QDialog):
         else:
             self.__feedbackLabel.setText("")
         self.__feedbackLabel.setVisible(bool(url))
+
+    def setDonateUrl(self, url: str) -> None:
+        """
+        Set an 'Donate' url. When set a link is displayed in the bottom row.
+        """
+        self.__donateUrl = url
+        if url:
+            text = self.tr("Donate")
+            self.__donateLabel.setText(
+                '<a href="{url}">{text}</a>'.format(url=url, text=escape(text))
+            )
+        else:
+            self.__donateLabel.setText("")
+        self.__donateLabel.setVisible(bool(url))
 
     def addRow(self, actions, background="light-orange"):
         """Add a row with `actions`.
