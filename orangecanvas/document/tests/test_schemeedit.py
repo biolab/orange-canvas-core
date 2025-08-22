@@ -310,6 +310,24 @@ class TestSchemeEdit(QAppTestCase):
         w.scene().setFocusItem(None)
         self.assertEqual(workflow.annotations, [])
 
+    def test_quick_text_annotation_action(self):
+        w = self.w
+        workflow = w.scheme()
+        edit_menu, *_ = w.menuBarActions()
+        actions = edit_menu.menu().actions()
+        action = action_by_name(actions, "new-quick-text-annotation-action")
+        action.trigger()
+        self.assertEqual(len(workflow.annotations), 1)
+
+    def test_quick_arrow_annotation_action(self):
+        w = self.w
+        workflow = w.scheme()
+        edit_menu, *_ = w.menuBarActions()
+        actions = edit_menu.menu().actions()
+        action = action_by_name(actions, "new-quick-arrow-annotation-action")
+        action.trigger()
+        self.assertEqual(len(workflow.annotations), 1)
+
     def test_path(self):
         w = self.w
         spy = QSignalSpy(w.pathChanged)

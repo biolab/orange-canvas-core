@@ -1889,6 +1889,8 @@ document/schemeedit.py:
             Add a text annotation to the workflow.: V delotok dodaj besedilno oznako.
             Font Size: Velikost pisave
             %ipx: false
+            Text Annotation: Besedilna Oznaka
+            new-quick-text-annotation-action: false
             Arrow: Puščica
             new-arrow-action: false
             Add a arrow annotation to the workflow.: V delotok dodaj oznako s puščico.
@@ -1898,6 +1900,8 @@ document/schemeedit.py:
             '#662D91': false
             '#1F9CDF': false
             '#39B54A': false
+            Arrow Annotation: Puščična oznaka
+            new-quick-arrow-annotation-action: false
             undo-action: false
             redo-action: false
             Select all: Izberi vse
@@ -1993,6 +1997,8 @@ document/schemeedit.py:
             Canceled new arrow annotation: false
         def `__toggleNewTextAnnotation`:
             Canceled new text annotation: false
+        def `__triggerNewTextAnnotation`:
+              text/markdown: false
         def `__onHelpAction`:
             help://search?: false
             id: false
