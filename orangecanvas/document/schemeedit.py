@@ -35,7 +35,7 @@ from AnyQt.QtGui import (
     QWhatsThisClickedEvent, QKeyEvent, QPalette
 )
 from AnyQt.QtCore import (
-    Qt, QObject, QEvent, QSignalMapper, QCoreApplication, QPointF,
+    Qt, QObject, QEvent, QSignalMapper, QCoreApplication, QPointF, QRectF,
     QMimeData, Slot)
 from AnyQt.QtCore import pyqtProperty as Property, pyqtSignal as Signal
 
@@ -51,7 +51,7 @@ from ..gui.utils import (
 )
 from ..scheme import (
     scheme, signalmanager, Scheme, SchemeNode, SchemeLink,
-    BaseSchemeAnnotation, SchemeTextAnnotation, WorkflowEvent
+    BaseSchemeAnnotation, SchemeTextAnnotation, WorkflowEvent, SchemeArrowAnnotation
 )
 from ..scheme.widgetmanager import WidgetManager
 from ..canvas.scene import CanvasScene
@@ -224,6 +224,9 @@ class SchemeEditWidget(QWidget):
         self.__editMenu.addAction(self.__copySelectedAction)
         self.__editMenu.addAction(self.__pasteAction)
         self.__editMenu.addAction(self.__selectAllAction)
+        self.__editMenu.addSeparator()
+        self.__editMenu.addAction(self.__newQuickTextAnnotationAction)
+        self.__editMenu.addAction(self.__newQuickArrowAnnotationAction)
 
         # Widget context menu
         self.__widgetMenu = QMenu(self.tr("Widget"), self)
@@ -293,6 +296,13 @@ class SchemeEditWidget(QWidget):
 
         self.__newTextAnnotationAction.setMenu(self.__fontMenu)
 
+        self.__newQuickTextAnnotationAction = QAction(
+            self.tr("Text Annotation"), self,
+            objectName="new-quick-text-annotation-action",
+            toolTip=self.tr("Add a text annotation to the workflow."),
+            triggered=self.__triggerNewTextAnnotation
+        )
+
         self.__newArrowAnnotationAction = QAction(
             self.tr("Arrow"), self,
             objectName="new-arrow-action",
@@ -331,6 +341,13 @@ class SchemeEditWidget(QWidget):
         group.actions()[1].setChecked(True)
 
         self.__newArrowAnnotationAction.setMenu(self.__arrowColorMenu)
+
+        self.__newQuickArrowAnnotationAction = QAction(
+            self.tr("Arrow Annotation"), self,
+            objectName="new-quick-arrow-annotation-action",
+            toolTip=self.tr("Add a arrow annotation to the workflow."),
+            triggered=self.__triggerNewArrowAnnotation,
+        )
 
         self.__undoAction = self.__undoStack.createUndoAction(self)
         self.__undoAction.setShortcut(QKeySequence.Undo)
@@ -1958,6 +1975,38 @@ class SchemeEditWidget(QWidget):
             handler = self.__scene.user_interaction_handler
             if isinstance(handler, interactions.NewArrowAnnotation):
                 handler.setColor(action.data())
+
+    def __triggerNewTextAnnotation(self):
+        """Place a text annotation at the center of the view"""
+        center = self.view().viewport().rect().center()
+        center = self.view().mapToScene(center)
+        rect = QRectF(0, 0, 300, 150)
+        rect.moveCenter(center)
+        annotation = SchemeTextAnnotation(
+            (rect.x(), rect.y(), rect.width(), rect.height()),
+            content_type="text/markdown",
+        )
+        self.addAnnotation(annotation)
+        # Give edit focus
+        item = self.scene().item_for_annotation(annotation)
+        item.setFocus(Qt.OtherFocusReason)
+        item.setSelected(True)
+        item.startEdit()
+
+    def __triggerNewArrowAnnotation(self):
+        """Place an arrow annotation at the center of the view"""
+        center = self.view().viewport().rect().center()
+        center = self.view().mapToScene(center)
+
+        annotation = SchemeArrowAnnotation(
+            (center.x() - 100, center.y()), (center.x() + 100, center.y()),
+            color=self.__arrowColorActionGroup.checkedAction().data()
+        )
+        self.addAnnotation(annotation)
+        # Give edit focus
+        item = self.scene().item_for_annotation(annotation)
+        item.setFocus(Qt.OtherFocusReason)
+        item.setSelected(True)
 
     def __onRenameAction(self):
         # type: () -> None
