@@ -1913,7 +1913,7 @@ class SchemeEditWidget(QWidget):
             handler = self.__scene.user_interaction_handler
             if isinstance(handler, interactions.NewArrowAnnotation):
                 # Cancel the interaction and restore the state
-                handler.ended.disconnect(action.toggle)
+                handler.ended.disconnect(self.__toggleNewArrowAction)
                 handler.cancel(interactions.UserInteraction.UserCancelReason)
                 log.info("Canceled new arrow annotation")
 
@@ -1922,9 +1922,17 @@ class SchemeEditWidget(QWidget):
             checked_action = self.__arrowColorActionGroup.checkedAction()
             handler.setColor(checked_action.data())
 
-            handler.ended.connect(action.toggle)
+            handler.ended.connect(self.__toggleNewArrowAction)
 
             self._setUserInteractionHandler(handler)
+
+    def __toggleNewArrowAction(self):
+        handler = self.sender()
+        action = self.__newArrowAnnotationAction
+        action.toggle()  # end current
+        if handler.extendedOnShift:
+            handler.extendedOnShift = False  # clear shift flag
+            action.toggle()  # start new
 
     def __onFontSizeTriggered(self, action):
         # type: (QAction) -> None

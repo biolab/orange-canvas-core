@@ -116,6 +116,7 @@ class UserInteraction(QObject):
         self.deleteOnEnd = deleteOnEnd
 
         self.cancelOnEsc = False
+        self.extendedOnShift = False
 
         self.__finished = False
         self.__canceled = False
@@ -1414,6 +1415,9 @@ class NewArrowAnnotation(UserInteraction):
 
                 p1, p2 = map(self.arrow_item.mapFromScene, (p1, p2))
                 self.arrow_item.setLine(QLineF(p1, p2))
+
+            if event.modifiers() & Qt.ShiftModifier:
+                self.extendedOnShift = True
 
             self.end()
             return True
