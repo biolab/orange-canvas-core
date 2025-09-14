@@ -1549,6 +1549,7 @@ class CanvasMainWindow(QMainWindow):
             acceptMode=QFileDialog.AcceptSave,
             windowModality=Qt.WindowModal,
             objectName="save-as-ows-filedialog",
+            defaultSuffix=".ows"
         )
         dialog.setNameFilter(self.tr("Orange Workflow (*.ows)"))
         # `deleteLater` can be ivoked before `exec` as PyQt 6.9 doc says, that
@@ -1557,15 +1558,8 @@ class CanvasMainWindow(QMainWindow):
         # dialog.exec waits for user action
         if dialog.exec():
             filename = dialog.selectedFiles()[0]
-            # Enforcing ".ows" extension during saving file.
-            filename = filename if str(filename).endswith('.ows') else f"{filename}.ows"
-            do_override = QMessageBox.question(
-                    self, "Overwrite file?",
-                    f"File {os.path.split(filename)[1]} already exists."
-                    "\nOverwrite?"
-            ) == QMessageBox.Yes if os.path.exists(filename) else True
             settings.setValue("last-scheme-dir", os.path.dirname(filename))
-            if do_override and self.save_scheme_to(curr_scheme, filename):
+            if self.save_scheme_to(curr_scheme, filename):
                 document.setPath(filename)
                 document.setModified(False)
                 self.add_recent_scheme(curr_scheme.title, document.path())
