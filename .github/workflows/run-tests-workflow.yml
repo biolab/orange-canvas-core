@@ -38,10 +38,6 @@ jobs:
             python-version: "3.11"
             test-env: "PyQt5~=5.15.0"
 
-          - os: ubuntu-22.04
-            python-version: "3.11"
-            test-env: "PyQt6~=6.2.3 PyQt6-Qt6~=6.2.3"
-
           - os: ubuntu-latest
             python-version: "3.11"
             test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0"
@@ -53,6 +49,10 @@ jobs:
           - os: ubuntu-latest
             python-version: "3.13"
             test-env: "PyQt6~=6.8.0 PyQt6-Qt6~=6.8.0"
+
+          - os: ubuntu-latest
+            python-version: "3.14"
+            test-env: "PyQt6~=6.9.0 PyQt6-Qt6~=6.9.0"
 
           # macOS
           - os: macos-13
@@ -63,10 +63,6 @@ jobs:
             python-version: "3.11"
             test-env: "PyQt5~=5.15.0"
 
-          - os: macos-15
-            python-version: "3.11"
-            test-env: "PyQt6~=6.2.3 PyQt6-Qt6~=6.2.3"
-
           - os: macos-latest
             python-version: "3.11"
             test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0"
@@ -78,6 +74,10 @@ jobs:
           - os: macos-latest
             python-version: "3.13"
             test-env: "PyQt6~=6.8.0 PyQt6-Qt6~=6.8.0"
+
+          - os: macos-latest
+            python-version: "3.14"
+            test-env: "PyQt6~=6.9.0 PyQt6-Qt6~=6.9.0"
 
           # Windows
           - os: windows-2022
@@ -88,10 +88,6 @@ jobs:
             python-version: "3.11"
             test-env: "PyQt5~=5.15.0"
 
-          - os: windows-2022
-            python-version: "3.11"
-            test-env: "PyQt6~=6.2.3 PyQt6-Qt6~=6.2.3"
-
           - os: windows-latest
             python-version: "3.11"
             test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0"
@@ -103,6 +99,10 @@ jobs:
           - os: windows-latest
             python-version: "3.13"
             test-env: "PyQt6~=6.8.0 PyQt6-Qt6~=6.8.0"
+
+          - os: windows-latest
+            python-version: "3.14"
+            test-env: "PyQt6~=6.9.0 PyQt6-Qt6~=6.9.0"
 
     steps:
       - uses: actions/checkout@v4
