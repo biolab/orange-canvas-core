@@ -1,0 +1,638 @@
+config.py:
+    class `Config`:
+        Bug Report: Fehlerbericht
+        Quick Start: Schnellstart
+        Documentation: Dokumentation
+        Screencasts: Screencasts
+        Feedback: Rückmeldung
+    English: Englisch
+    Application language: Anwendungssprache
+application/aboutdialog.py:
+    '\
+<center>
+<h4>{name}</h4>
+<p>Version: {version}</p>
+</center>
+': true
+application/addons.py:
+    class `ActionItem`:
+        def `data`:
+            Update: Aktualisieren
+            Install: Installieren
+            Uninstall: Deinstallieren
+    class `AddonManagerDialog`:
+        def `__init__`:
+            Filter...: Filtern...
+            Add more...: Mehr hinzufügen...
+            Add an add-on not listed below: Add-on hinzufügen, das unten nicht aufgeführt ist
+        def `start`:
+            Retrieving package list: Paketliste wird abgerufen
+        def `__on_query_done`:
+            def `network_warning`:
+                Error fetching package list: Fehler beim Abrufen der Paketliste
+                There's an issue with the internet connection.: Es besteht ein Problem mit der Internetverbindung.
+                Error: Fehler
+                Please check you are connected to the internet.\n\n: Bitte überprüfen Sie, ob Sie mit dem Internet verbunden sind.\n\n
+                'If you are behind a proxy, please set it in Preferences ': 'Wenn Sie sich hinter einem Proxy befinden, stellen Sie ihn bitte in den Einstellungen ein '
+                - Network.: - Netzwerk.
+        def `runQueryAndAddResults`:
+            Running query: Abfrage wird ausgeführt
+        def `__run_add_package_dialog`:
+            Add add-on by name: Add-on nach Name hinzufügen
+            Package name: Paketname
+            'Enter a package name as displayed on ': 'Geben Sie einen Paketnamen ein, wie er angezeigt wird auf '
+            PyPI (capitalization is not important): PyPI (Groß-/Kleinschreibung ist nicht wichtig)
+            Name:: Name:
+            Add: Hinzufügen
+        def `__show_error_for_query`:
+            Error: Fehler
+        def `__on_add_query_finish`:
+            Query error:: Abfragefehler:
+            Failed to query package index: Paketindex konnte nicht abgefragt werden
+            The following packages were not found:<ul>: Die folgenden Pakete wurden nicht gefunden:<ul>
+        def `progressDialog`:
+            Retrieving package list: Paketliste wird abgerufen
+            Progress: Fortschritt
+        def `__accepted`:
+            Warning: Warnung
+            This action will upgrade some core packages:\n: Diese Aktion wird einige Kernpakete aktualisieren:\n
+            Do you want to continue?: Möchten Sie fortfahren?
+            Installing: Installation läuft
+        def `__on_installer_error`:
+            An error occurred while running a subprocess: Beim Ausführen eines Unterprozesses ist ein Fehler aufgetreten
+            Error: Fehler
+            {} exited with non zero status.: {} wurde mit einem ungleich null Status beendet.
+        def `__on_installer_finished`:
+            def `message_restart`:
+                Information: Information
+                {} needs to be restarted for the changes to take effect.: {} muss neu gestartet werden, damit die Änderungen wirksam werden.
+                Press OK to restart {} now.: Klicken Sie auf OK, um {} jetzt neu zu starten.
+                Close later: Später schließen
+            def `restart`:
+                Restart Cancelled: Neustart abgebrochen
+                Changes will be applied on {}'s next restart: Änderungen werden beim nächsten Neustart von {} angewendet
+application/canvasmain.py:
+    class `CanvasMainWindow`:
+        def `setup_ui`:
+            Select a widget to show its description.: Wählen Sie ein Widget aus, um seine Beschreibung anzuzeigen.
+            "See <a href='action:examples-action'>workflow examples</a>, ": "Siehe <a href='action:examples-action'>Workflow-Beispiele</a>, "
+            "<a href='action:screencasts-action'>YouTube tutorials</a>, ": "<a href='action:screencasts-action'>YouTube-Tutorials</a>, "
+            or open the <a href='action:welcome-action'>welcome screen</a>.: oder öffnen Sie den <a href='action:welcome-action'>Willkommensbildschirm</a>.
+            Show Help: Hilfe anzeigen
+            Log: Protokoll
+            Help: Hilfe
+        def `setup_actions`:
+            New: Neu
+            Open a new workflow.: Einen neuen Workflow öffnen.
+            Open: Öffnen
+            Open a workflow.: Einen Workflow öffnen.
+            Open and Freeze: Öffnen und einfrieren
+            'Open a new workflow and freeze signal ': 'Einen neuen Workflow öffnen und die Signal-'
+            propagation.: weiterleitung einfrieren.
+            Close Window: Fenster schließen
+            Close the window: Das Fenster schließen
+            Save: Speichern
+            Save current workflow.: Aktuellen Workflow speichern.
+            Save As ...: Speichern unter ...
+            Save current workflow as.: Aktuellen Workflow speichern als.
+            Save Workflow Image as SVG ...: Workflow-Bild als SVG speichern ...
+            Save workflow image as SVG.: Workflow-Bild als SVG speichern.
+            Quit: Beenden
+            Welcome: Willkommen
+            Show welcome screen.: Willkommensbildschirm anzeigen.
+            Get Started: Erste Schritte
+            View a 'Get Started' introduction.: Einführung „Erste Schritte“ anzeigen.
+            Quick Start: Schnellstart
+            Video Tutorials: Video-Tutorials
+            View video tutorials: Video-Tutorials ansehen
+            Screencasts: Screencasts
+            Documentation: Dokumentation
+            View reference documentation.: Referenzdokumentation anzeigen.
+            Example Workflows: Beispiel-Workflows
+            Browse example workflows.: Beispiel-Workflows durchsuchen.
+            About: Über
+            Show about dialog.: Info-Dialog anzeigen.
+            Browse Recent: Zuletzt verwendet
+            Browse and open a recent workflow.: Einen kürzlich verwendeten Workflow durchsuchen und öffnen.
+            Reload Last Workflow: Letzten Workflow neu laden
+            Reload last open workflow.: Zuletzt geöffneten Workflow neu laden.
+            Clear Menu: Menü löschen
+            Clear recent menu.: Menü „Zuletzt verwendet“ löschen.
+            Workflow Info: Workflow-Informationen
+            Show workflow properties.: Workflow-Eigenschaften anzeigen.
+            Settings: Einstellungen
+            Set application settings.: Anwendungseinstellungen festlegen.
+            &Add-ons...: &Add-ons...
+            Manage add-ons.: Add-ons verwalten.
+            &Log: &Protokoll
+            Show application standard output.: Standardausgabe der Anwendung anzeigen.
+            Minimize: Minimieren
+            Zoom: Zoom
+            Freeze: Einfrieren
+            Freeze signal propagation (Shift+F): Signalweiterleitung einfrieren (Umschalt+F)
+            Pause.svg: Pause.svg
+            Expand Tool Dock: Werkzeugleiste erweitern
+            Show Workflow Margins: Workflow-Ränder anzeigen
+            Show margins around the workflow view.: Ränder um die Workflow-Ansicht anzeigen.
+            Display Widgets on Top: Widgets im Vordergrund anzeigen
+            Widgets are always displayed above other windows.: Widgets werden immer über anderen Fenstern angezeigt.
+        def `setup_menu`:
+            &File: &Datei
+            Open Recent: Zuletzt geöffnet
+            &View: &Ansicht
+            &Options: &Optionen
+            Window: Fenster
+            &Help: &Hilfe
+        def `__update_window_title`:
+            Untitled [*]: Ohne Titel [*]
+        def `set_document_title`:
+            untitled: ohne Titel
+        def `_open_workflow_dialog`:
+            Open Orange Workflow File: Orange-Workflow-Datei öffnen
+            Orange Workflow (*.ows): Orange-Workflow (*.ows)
+        def `load_scheme`:
+            Error: Fehler
+            Unsupported format version: Nicht unterstützte Formatversion
+            'The file was saved in a format not supported by this ': 'Die Datei wurde in einem Format gespeichert, das von dieser '
+            application.: Anwendung nicht unterstützt wird.
+            "Could not open: '{}'": "Konnte nicht geöffnet werden: '{}'"
+            'Error was: {}': 'Fehler war: {}'
+        def `new_scheme_from`:
+            Error: Fehler
+            "Could not open: '{}'": "Die Datei '{}' konnte nicht geöffnet werden"
+            'Error was: {}': 'Fehler war: {}'
+        def `new_scheme_from_contents_and_path`:
+            Could not load an Orange Workflow file.: Orange-Workflow-Datei konnte nicht geladen werden.
+            Error: Fehler
+            'An unexpected error occurred ': 'Ein unerwarteter Fehler ist aufgetreten '
+            while loading '%s'.: beim Laden von '%s'.
+            Could not load the full workflow.: Der komplette Workflow konnte nicht geladen werden.
+            Workflow Partially Loaded: Workflow teilweise geladen
+            'Some of the nodes/links could not be reconstructed ': 'Einige Knoten/Verbindungen konnten nicht wiederhergestellt werden '
+            and were omitted from the workflow.: und wurden aus dem Workflow weggelassen.
+        def `check_requires`:
+            <h4>Required packages:</h4><ul>: <h4>Erforderliche Pakete:</h4><ul>
+            Install Additional Packages: Zusätzliche Pakete installieren
+            'Workflow you are trying to load contains widgets ': 'Der Workflow, den Sie laden möchten, enthält Widgets '
+            from missing add-ons.: aus fehlenden Add-ons.
+            Would you like to install them now?: Möchten Sie diese jetzt installieren?
+            'After installation you will have to restart the ': 'Nach der Installation müssen Sie die '
+            application and reopen the workflow.: Anwendung neu starten und den Workflow erneut öffnen.
+            Install add-ons: Add-ons installieren
+            Ignore missing widgets: Fehlende Widgets ignorieren
+            Load partial workflow by omitting missing nodes and links.: Teilweise Workflow laden, indem fehlende Knoten und Verbindungen ausgelassen werden.
+            Please Restart: Bitte neu starten
+            Please restart and reopen the file.: Bitte starten Sie die Anwendung neu und öffnen Sie die Datei erneut.
+        def `install_requirements`:
+            Install required packages: Erforderliche Pakete installieren
+        def `__title_for_scheme`:
+            untitled: ohne Titel
+        def `ask_save_changes`:
+            Do you want to save changes made to %s?: Möchten Sie die Änderungen an %s speichern?
+            Do you want to save this workflow?: Möchten Sie diesen Workflow speichern?
+            Save Changes?: Änderungen speichern?
+            Your changes will be lost if you do not save them.: Ihre Änderungen gehen verloren, wenn Sie sie nicht speichern.
+        def `save_scheme_as`:
+            Save Orange Workflow File: Orange-Workflow-Datei speichern
+            Orange Workflow (*.ows): Orange-Workflow (*.ows)
+        def `save_scheme_to`:
+            untitled: ohne Titel
+            'An error occurred while trying to save workflow ': 'Beim Versuch, den Workflow zu speichern, ist ein Fehler aufgetreten '
+            '"%s" to "%s"': '"%s" nach "%s"'
+            Error saving %s: Fehler beim Speichern von %s
+            'Workflow "%s" could not be saved. The path does ': 'Workflow "%s" konnte nicht gespeichert werden. Der Pfad existiert '
+            not exist: nicht
+            Choose another location.: Wählen Sie einen anderen Speicherort.
+            'Workflow "%s" could not be saved. You do not ': 'Workflow "%s" konnte nicht gespeichert werden. Sie haben keine '
+            have write permissions.: Schreibberechtigung.
+            'Change the file system permissions or choose ': 'Ändern Sie die Dateisystemberechtigungen oder wählen Sie '
+            another location.: einen anderen Speicherort.
+            Workflow "%s" could not be saved.: Workflow "%s" konnte nicht gespeichert werden.
+        def `ask_load_swp`:
+            Restore unsaved changes from crash?: Nicht gespeicherte Änderungen nach Absturz wiederherstellen?
+            Restore Changes?: Änderungen wiederherstellen?
+            {} seems to have crashed at some point.\n: {} scheint irgendwann abgestürzt zu sein.\n
+            Changes will be discarded if not restored now.: Änderungen gehen verloren, wenn sie jetzt nicht wiederhergestellt werden.
+        def `load_swp_from`:
+            Could not load restore data.: Wiederherstellungsdaten konnten nicht geladen werden.
+            Error: Fehler
+        def `save_as_svg`:
+            untitled.svg: ohneTitel.svg
+            Scalable Vector Graphics (*.svg): Skalierbare Vektorgrafik (*.svg)
+        def `_handle_os_write_error`:
+            Write error: Schreibfehler
+            '"%(path)s" could not be saved. You do not ': '"%(path)s" konnte nicht gespeichert werden. Sie haben keine '
+            have write permissions (%(strerror)s).: Schreibrechte (%(strerror)s).
+            'Change the file system permissions or choose ': 'Ändern Sie die Dateisystemberechtigungen oder wählen Sie '
+            another location.: einen anderen Speicherort.
+            '"%(path)s" could not be saved.': '"%(path)s" konnte nicht gespeichert werden.'
+        def `recent_scheme`:
+            Recent Workflows: Zuletzt geöffnete Workflows
+        def `examples_dialog`:
+            Example Workflows: Beispiel-Workflows
+        def `welcome_dialog`:
+            Welcome to {}: Willkommen bei {}
+            Welcome: Willkommen
+            New: Neu
+            Open a new workflow.: Einen neuen Workflow öffnen
+            Open: Öffnen
+            Open a workflow.: Einen Workflow öffnen
+            Recent: Zuletzt
+            Browse and open a recent workflow.: Zuletzt geöffnete Workflows durchsuchen und öffnen
+            Examples: Beispiele
+            Browse example workflows.: Beispiel-Workflows durchsuchen
+        def `scheme_properties_dialog`:
+            Workflow Info: Workflow-Informationen
+        def `show_scheme_properties`:
+            Change Info: Informationen ändern
+        def `open_canvas_settings`:
+            Preferences: Einstellungen
+        def `open_addons`:
+            'Add-ons: insufficient permissions': 'Add-ons: unzureichende Berechtigungen'
+            'Insufficient permissions to install add-ons. Try starting {name} ': 'Unzureichende Berechtigungen zum Installieren von Add-ons. Versuchen Sie, {name} '
+            as a system administrator or install {name} in user folders.: als Administrator zu starten oder {name} im Benutzerordner zu installieren.
+            Installer: Installer
+        def `__handle_help_query_response`:
+            There is no documentation for this widget.: Für dieses Widget gibt es keine Dokumentation.
+            No help found: Keine Hilfe gefunden
+    def `render_error_details`:
+        Missing node definitions:: Fehlende Knotendefinitionen:
+        Incompatible connection types:: Inkompatible Verbindungstypen:
+        Unqualified errors:: Unqualifizierte Fehler:
+application/schemeinfo.py:
+    class `SchemeInfoEdit`:
+        def `__setupUi`:
+            untitled: ohne Titel
+            Title: Titel
+            Description: Beschreibung
+        def `setScheme`:
+            untitled: ohne Titel
+        def `commit`:
+            untitled: ohne Titel
+    class `SchemeInfoDialog`:
+        def `__setupUi`:
+            Workflow Info: Workflow-Informationen
+            Show when I make a New Workflow.: Beim Erstellen eines neuen Workflows anzeigen.
+            'You can also edit Workflow Info later ': 'Sie können die Workflow-Informationen auch später bearbeiten '
+            (File -> Workflow Info).: (Datei -> Workflow-Informationen).
+application/settings.py:
+    class `UserSettingsDialog`:
+        def `__setupUi`:
+            General: Allgemein
+            General Options: Allgemeine Optionen
+            Changes will take effect on next application startup.: Änderungen werden beim nächsten Start der Anwendung wirksam.
+            Select the application language.: Anwendungssprache auswählen.
+            Language: Sprache
+            Enable node animations: Knotenanimiationen aktivieren
+            'Enable shadow and ping animations for nodes ': 'Schatten- und Ping-Animationen für Knoten aktivieren '
+            in the workflow.: im Workflow.
+            Open anchors on hover: Anker beim Überfahren öffnen
+            'Open/expand node anchors on mouse hover (if unchecked the ': 'Knotenanker beim Überfahren mit der Maus öffnen/erweitern (wenn deaktiviert, werden die '
+            anchors are expanded when Shift key is pressed).: Anker durch Drücken der Umschalttaste erweitert).
+            Nodes: Knoten
+            Show channel names between widgets: Kanalnamen zwischen Widgets anzeigen
+            'Show source and sink channel names ': 'Quell- und Zielkanalnamen anzeigen '
+            over the links.: über den Verbindungen.
+            Links: Verbindungen
+            Open on double click: Durch Doppelklick öffnen
+            'Open quick menu on a double click ': 'Schnellmenü durch Doppelklick öffnen '
+            on an empty spot in the canvas: auf einer freien Stelle der Arbeitsfläche
+            Open on right click: Durch Rechtsklick öffnen
+            'Open quick menu on a right click ': 'Schnellmenü durch Rechtsklick öffnen '
+            Open on space key press: Durch Leertaste öffnen
+            'Open quick menu on Space key press ': 'Schnellmenü durch Drücken der Leertaste öffnen '
+            while the mouse is hovering over the canvas.: während sich der Mauszeiger über der Arbeitsfläche befindet.
+            Open on any key press: Durch beliebige Taste öffnen
+            'Open quick menu on any key press ': 'Schnellmenü durch Drücken einer beliebigen Taste öffnen '
+            Show categories: Kategorien anzeigen
+            'In addition to searching, allow filtering ': 'Zusätzlich zur Suche das Filtern ermöglichen '
+            by categories.: nach Kategorien.
+            Quick menu: Schnellmenü
+            Show splash screen: Startbildschirm anzeigen
+            Show welcome screen: Willkommensbildschirm anzeigen
+            Load crashed scratch workflows: Abgestürzte Entwurfs-Workflows laden
+            On startup: Beim Start
+            Only one tab can be open at a time: Es kann jeweils nur ein Tab geöffnet sein
+            Tool box: Werkzeugkasten
+            &Style: &Stil
+            Application style: Anwendungsstil
+            Output: Ausgabe
+            Output Redirection: Ausgabenumleitung
+            Critical: Kritisch
+            Error: Fehler
+            Warn: Warnung
+            Info: Info
+            Debug: Debug
+            Logging: Protokollierung
+            Open in external browser: In externem Browser öffnen
+            Help window: Hilfefenster
+            Categories: Kategorien
+            Add-ons: Add-ons
+            Settings related to add-on installation: Einstellungen zur Add-on-Installation
+            Install add-ons with conda: Add-ons mit Conda installieren
+            Conda: Conda
+            Pip: Pip
+            Pip install arguments:: Pip-Installationsargumente:
+            Network: Netzwerk
+            Settings related to networking: Netzwerkeinstellungen
+            HTTP proxy:: HTTP-Proxy:
+            HTTPS proxy:: HTTPS-Proxy:
+    class `StyleConfigWidget`:
+        Windows (default): Windows (Standard)
+        macOS (default): macOS (Standard)
+        def `__init__`:
+            Default: Standard
+            Dark: Dunkel
+            Style: Stil
+            Color theme: Farbthema
+            <small>Changes will be applied on next application startup.</small>: <small>Änderungen werden beim nächsten Start der Anwendung wirksam.</small>
+application/welcomedialog.py:
+    class `WelcomeDialog`:
+        def `setupUi`:
+            Show at startup: Beim Start anzeigen
+        def `setFeedbackUrl`:
+            Help us improve!: Helfen Sie uns, Orange zu verbessern!
+application/widgettoolbox.py:
+    class `WidgetToolBox`:
+        def `__init__`:
+            Search: Suchen
+            Filter...: Filtern...
+            Filter/search the list of available widgets.: Liste der verfügbaren Widgets filtern/durchsuchen
+            Open all: Alle öffnen
+            Close all: Alle schließen
+application/utils/addons.py:
+    class `Command`:
+        Install: Installieren
+        Upgrade: Aktualisieren
+        Uninstall: Deinstallieren
+    class `Installer`:
+        def `_next`:
+            Installing {}: {} wird installiert
+            Upgrading {}: {} wird aktualisiert
+            Uninstalling {}: {} wird deinstalliert
+            'Command failed: python {}': 'Befehl fehlgeschlagen: python {}'
+canvas/view.py:
+    class `CanvasView`:
+        def `__init__`:
+            Zoom in: Vergrößern
+            Zoom out: Verkleinern
+            Reset Zoom: Zoom zurücksetzen
+canvas/items/annotationitem.py:
+    class `TextAnnotation`:
+        def `__init__`:
+            Enter text here: Text hier eingeben
+        def `contextMenuEvent`:
+            Render as: Darstellen als
+            Plain Text: Nur-Text
+            Render contents as plain text: Inhalt als Nur-Text darstellen
+            HTML: HTML
+            Render contents as HTML: Inhalt als HTML darstellen
+            RST: RST
+            'Render contents as RST ': 'Inhalt als RST darstellen '
+            (reStructuredText): (reStructuredText)
+            Markdown: Markdown
+            Render contents as Markdown: Inhalt als Markdown darstellen
+canvas/items/graphicstextitem.py:
+    def `createStandardContextMenu`:
+        &Undo: &Rückgängig
+        &Redo: &Wiederholen
+        Cu&t: Ausschneiden
+        &Copy: &Kopieren
+        Copy &Link Location: Linkadresse kopieren
+        &Paste: &Einfügen
+        Delete: Löschen
+        Select All: Alles auswählen
+canvas/items/nodeitem.py:
+    class `NodeItem`:
+        def `__updateTitleText`:
+            {0:.0f}%: {0:.0f}%
+    def `NodeItem_toolTipHelper`:
+        Inputs:<ul>{inputs}</ul><hr/>: Eingänge:<ul>{inputs}</ul><hr/>
+        Outputs:<ul>{outputs}</ul>: Ausgänge:<ul>{outputs}</ul>
+        No inputs<hr/>: Keine Eingänge<hr/>
+        No outputs: Keine Ausgänge
+document/commands.py:
+    class `AddNodeCommand`:
+        def `__init__`:
+            Add %s: %s hinzufügen
+    class `RemoveNodeCommand`:
+        def `__init__`:
+            Remove %s: %s entfernen
+    class `AddLinkCommand`:
+        def `__init__`:
+            Add link: Link hinzufügen
+    class `RemoveLinkCommand`:
+        def `__init__`:
+            Remove link: Link entfernen
+    class `InsertNodeCommand`:
+        def `__init__`:
+            Insert widget into link: Widget in Link einfügen
+    class `AddAnnotationCommand`:
+        def `__init__`:
+            Add annotation: Anmerkung hinzufügen
+    class `RemoveAnnotationCommand`:
+        def `__init__`:
+            Remove annotation: Anmerkung entfernen
+    class `MoveNodeCommand`:
+        def `__init__`:
+            Move: Verschieben
+    class `ResizeCommand`:
+        def `__init__`:
+            Resize: Größe ändern
+    class `ArrowChangeCommand`:
+        def `__init__`:
+            Move arrow: Pfeil verschieben
+    class `AnnotationGeometryChange`:
+        def `__init__`:
+            Change Annotation Geometry: Anmerkungsgeometrie ändern
+    class `RenameNodeCommand`:
+        def `__init__`:
+            Rename: Umbenennen
+    class `TextChangeCommand`:
+        def `__init__`:
+            Change text: Text ändern
+    class `SetAttrCommand`:
+        def `__init__`:
+            Set %r: %r festlegen
+    class `SetWindowGroupPresets`:
+        def `__init__`:
+            Set Window Presets: Fenster-Voreinstellungen festlegen
+document/editlinksdialog.py:
+    class `LinksEditWidget`:
+        def `addLink`:
+            Click to remove the link.: Klicken, um den Link zu entfernen
+        def `__updateAnchorState`:
+            Click and drag to connect widgets!: Klicken und ziehen, um Widgets zu verbinden!
+            No compatible input channel.: Kein kompatibler Eingangskanal
+            No compatible output channel.: Kein kompatibler Ausgangskanal
+document/interactions.py:
+    class `NewLinkAction`:
+        def `mousePressEvent`:
+            <h3>Create new link</h3>: <h3>Neuen Link erstellen</h3>
+            '<p>Drag a link to an existing node or release on ': '<p>Ziehen Sie einen Link zu einem vorhandenen Knoten oder lassen Sie ihn auf '
+            an empty spot to create a new node.</p>: einer leeren Stelle los, um einen neuen Knoten zu erstellen.</p>
+            '<p>Hold Shift when releasing the mouse button to ': '<p>Halten Sie die Umschalttaste gedrückt, wenn Sie die Maustaste loslassen, um '
+            edit connections.</p>: Verbindungen zu bearbeiten.</p>
+    def `edit_links`:
+        Edit Links: Verbindungen bearbeiten
+    class `EditNodeLinksAction`:
+        def `edit_links`:
+            Edit Links: Verbindungen bearbeiten
+    class `NewArrowAnnotation`:
+        def `start`:
+            <h3>New arrow annotation</h3>: <h3>Neue Pfeil-Anmerkung</h3>
+            <p>Click and drag to create a new arrow annotation</p>: <p>Klicken und ziehen, um eine neue Pfeil-Anmerkung zu erstellen</p>
+    class `NewTextAnnotation`:
+        def `start`:
+            <h3>New text annotation</h3>: <h3>Neue Text-Anmerkung</h3>
+            '<p>Click (and drag to resize) on the canvas to create ': '<p>Klicken (und ziehen zum Ändern der Größe) auf die Arbeitsfläche, um '
+            a new text annotation item.</p>: ein neues Text-Anmerkungsobjekt zu erstellen.</p>
+            '<p>Right click on the annotation to change how it is ': '<p>Rechtsklicken Sie auf die Anmerkung, um die Darstellung zu ändern '
+            rendered (Markdown, HTML, ...).</p>: (Markdown, HTML, ...).</p>
+    class `ResizeTextAnnotation`:
+        def `start`:
+            <h3>Edit Text Annotation</h3>: <h3>Text-Anmerkung bearbeiten</h3>
+            <p>Drag control points to resize the annotation.</p>: <p>Ziehen Sie die Kontrollpunkte, um die Größe der Anmerkung zu ändern.</p>
+            '<p>Right click on the annotation to change how it is ': '<p>Rechtsklicken Sie auf die Anmerkung, um die Darstellung zu ändern '
+            rendered (Markdown, HTML, ...).</p>: (Markdown, HTML, ...).</p>
+    class `PluginDropHandler`:
+        def `doDrop`:
+            class `Title`:
+                def `createWidget`:
+                    <b>Select a widget</b>: <b>Wählen Sie ein Widget</b>
+document/quickmenu.py:
+    class `SearchWidget`:
+        def `__setupUi`:
+            Search: Suchen
+    class `QuickMenu`:
+        def `__init__`:
+            Search for a widget...: Widget suchen...
+            Quick Search: Schnellsuche
+document/schemeedit.py:
+    class `SchemeEditWidget`:
+        def `__init__`:
+            &Edit: &Bearbeiten
+            Widget: Widget
+            &Widget: &Widget
+            Link: Verbindung
+        def `__setupActions`:
+            Clean Up: Aufräumen
+            Align widgets to a grid (Shift+A): Widgets am Raster ausrichten (Shift+A)
+            Text: Text
+            Add a text annotation to the workflow.: Eine Text-Anmerkung zum Workflow hinzufügen
+            Font Size: Schriftgröße
+            Arrow: Pfeil
+            Add a arrow annotation to the workflow.: Eine Pfeil-Anmerkung zum Workflow hinzufügen
+            Arrow Color: Pfeilfarbe
+            Select all: Alles auswählen
+            Select all items.: Alle Elemente auswählen
+            Open: Öffnen
+            Open selected widget: Ausgewähltes Widget öffnen
+            Remove: Entfernen
+            Remove selected items: Ausgewählte Elemente entfernen
+            Ctrl+Backspace: Strg+Rücktaste
+            Rename: Umbenennen
+            Rename selected widget: Ausgewähltes Widget umbenennen
+            Help: Hilfe
+            Show widget help: Widget-Hilfe anzeigen
+            Enabled: Aktiviert
+            Remove link.: Verbindung entfernen
+            Insert Widget: Widget einfügen
+            Insert widget.: Widget einfügen
+            Reset Signals: Signale zurücksetzen
+            Duplicate: Duplizieren
+            Copy: Kopieren
+            Paste: Einfügen
+            Window Groups: Fenstergruppen
+            Manage preset widget groups: Vorgefertigte Widget-Gruppen verwalten
+            Save Window Group...: Fenstergruppe speichern...
+            Create and save a new window group.: Neue Fenstergruppe erstellen und speichern
+            Delete All Groups: Alle Gruppen löschen
+            Delete all saved widget presets: Alle gespeicherten Widget-Presets löschen
+            Bring Widgets to Front: Widgets in den Vordergrund bringen
+        def `removeSelected`:
+            Remove: Entfernen
+        def `alignToGrid`:
+            Align To Grid: Am Raster ausrichten
+        def `sceneMouseReleaseEvent`:
+            Move: Verschieben
+        def `__onSelectionChanged`:
+            Open All: Alle öffnen
+            Open: Öffnen
+            Remove All: Alle entfernen
+            Remove: Entfernen
+        def `__showHelpFor`:
+            'Sorry there is no documentation available for ': 'Leider steht keine Dokumentation für '
+            this widget.: dieses Widget zur Verfügung.'
+        def `__saveWindowGroup`:
+            Save Group as...: Gruppe speichern als...
+            def `store_group`:
+                Store Window Group: Fenstergruppe speichern
+                Update Window Group: Fenstergruppe aktualisieren
+        def `__clearWindowGroups`:
+            Delete All Window Groups: Alle Fenstergruppen löschen
+    class `SaveWindowGroup`:
+        def `__init__`:
+            Window Group 1: Fenstergruppe 1
+            Save As:: Speichern unter:
+            Use as default: Als Standard verwenden
+            Automatically use this preset when opening the workflow.: Dieses Preset automatisch beim Öffnen des Workflows verwenden
+            "Save the current open widgets' window arrangement to the ": 'Die aktuelle Anordnung geöffneter Widgets in den '
+            workflow view presets.: Workflow-Ansicht-Presets speichern.'
+        def `__accept_check`:
+            Confirm Overwrite: Überschreiben bestätigen
+            "The window group '{}' already exists. Do you want ": 'Die Fenstergruppe "{}" existiert bereits. Möchten Sie '
+            to replace it?: sie ersetzen?'
+            Replace: Ersetzen
+gui/utils.py:
+    def `message_critical`:
+        An unexpected error occurred.: Ein unerwarteter Fehler ist aufgetreten.
+        Error: Fehler
+    def `message_warning`:
+        Death could come at any moment.: Der Tod kann jederzeit eintreten.
+        Murphy lurks about. Remember to save frequently.: Murphy lauert. Denken Sie daran, häufig zu speichern.
+        Warning: Warnung
+    def `message_information`:
+        Information: Information
+        I am not a number.: Ich bin keine Zahl.
+    def `message`:
+        Message: Nachricht
+        I am neither a postman nor a doctor.: Ich bin weder Postbote noch Arzt.
+preview/previewbrowser.py:
+    class `PreviewBrowser`:
+        def `__update`:
+            No description.: Keine Beschreibung.
+            Untitled: Ohne Titel
+preview/previewdialog.py:
+    class `PreviewDialog`:
+        def `__setupUi`:
+            Preview: Vorschau
+preview/previewmodel.py:
+    class `PreviewItem`:
+        def `__init__`:
+            Untitled: Ohne Titel
+            No description.: Keine Beschreibung.
+registry/qt.py:
+    def `tooltip_helper`:
+        Inputs:<ul>{0}</ul>: Eingänge:<ul>{0}</ul>
+        No inputs: Keine Eingänge
+        Outputs:<ul>{0}</ul>: Ausgänge:<ul>{0}</ul>
+        No outputs: Keine Ausgänge
+scheme/widgetmanager.py:
+    class `WidgetManager`:
+        def `__add_widget_for_node`:
+            Raise Canvas to Front: Canvas in den Vordergrund bringen
+            Raise containing canvas workflow window: Enthaltendes Workflow-Fenster in den Vordergrund bringen
+            Raise Descendants: Nachkommen in den Vordergrund bringen
+            Raise all immediate descendants of this node: Alle direkten Nachkommen dieses Knotens in den Vordergrund bringen
+            Raise Ancestors: Vorgänger in den Vordergrund bringen
+            Raise all immediate ancestors of this node: Alle direkten Vorgänger dieses Knotens in den Vordergrund bringen
+utils/overlay.py:
+    class `NotificationMessageWidget`:
+        def `__init__`:
+            Ok: OK
+            No: Nein
+    class `NotificationWidget`:
+        def `__init__`:
+            Ok: OK
+            No: Nein
