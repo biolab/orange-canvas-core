@@ -2564,7 +2564,7 @@ localization/__init__.py:
         application/last-used-language: false
     def `update_last_used_language`:
         application/language: false
-        English: true
+        English: false
         application/last-used-language: false
     class `Translator`:
         def `__init__`:
