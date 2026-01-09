@@ -639,14 +639,19 @@ class CondaInstaller:
         return bool(self.conda)
 
 
-def run_command(command, raise_on_fail=True, **kwargs):
-    # type: (List[str], bool, Any) -> Tuple[int, List[AnyStr]]
+def run_command(
+        command: List[str], raise_on_fail: bool = True, **kwargs
+) -> Tuple[int, List[str]]:
     """
     Run command in a subprocess.
 
     Return `process` return code and output once it completes.
     """
     log.info("Running %s", " ".join(command))
+
+    kwargs.setdefault("encoding", "utf-8")
+    kwargs.setdefault("errors", "backslashreplace")
+    kwargs.setdefault("universal_newlines", True)
 
     if command[0] == "python":
         process = python_process(command[1:], **kwargs)
