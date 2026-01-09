@@ -640,7 +640,7 @@ class CondaInstaller:
 
 
 def run_command(
-        command: List[str], raise_on_fail: bool = True, **kwargs
+        command: List[str], raise_on_fail: bool = True,/, file=None,  **kwargs
 ) -> Tuple[int, List[str]]:
     """
     Run command in a subprocess.
@@ -657,7 +657,7 @@ def run_command(
         process = python_process(command[1:], **kwargs)
     else:
         process = create_process(command, **kwargs)
-    rcode, output = run_process(process, file=sys.stdout)
+    rcode, output = run_process(process, file=file)
     if rcode != 0 and raise_on_fail:
         raise CommandFailed(command, rcode, output)
     else:
