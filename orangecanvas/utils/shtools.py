@@ -81,7 +81,6 @@ def create_process(
         executable: Optional[str] = None,
         stderr=subprocess.STDOUT,
         stdout=subprocess.PIPE,
-        universal_newlines=True,
         **kwargs
 ) -> subprocess.Popen:
     """
@@ -99,7 +98,6 @@ def create_process(
         executable=executable,
         stderr=stderr,
         stdout=stdout,
-        universal_newlines=universal_newlines,
         **kwargs
     )
 

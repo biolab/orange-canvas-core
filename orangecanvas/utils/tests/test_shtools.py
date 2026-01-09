@@ -7,7 +7,7 @@ import unittest
 
 class Test(unittest.TestCase):
     def test_python_process(self):
-        p = python_process(["-c", "print('Hello')"])
+        p = python_process(["-c", "print('Hello')"], encoding="utf-8")
         out, _ = p.communicate()
         self.assertEqual(out.strip(), "Hello")
         self.assertEqual(p.wait(), 0)
