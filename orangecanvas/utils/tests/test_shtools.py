@@ -16,10 +16,12 @@ class Test(unittest.TestCase):
         cases = [
             ("Hello", "utf-8"),
             ("Hello", "utf-16"),
+            (b"Hello", None)
         ]
         for content, encoding in cases:
             with temp_named_file(content, encoding=encoding) as fname:
-                with open(fname, "r", encoding=encoding) as f:
+                with open(fname, "rb" if encoding is None else "r",
+                          encoding=encoding) as f:
                     c = f.read()
                     self.assertEqual(c, content)
             self.assertFalse(os.path.exists(fname))
