@@ -649,6 +649,11 @@ def run_command(
     """
     log.info("Running %s", " ".join(command))
 
+    env = kwargs.pop("env", os.environ).copy()
+    env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONUTF8"] = "1"
+    kwargs["env"] = env
+
     kwargs.setdefault("encoding", "utf-8")
     kwargs.setdefault("errors", "backslashreplace")
     kwargs.setdefault("universal_newlines", True)
