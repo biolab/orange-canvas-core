@@ -1326,6 +1326,15 @@ application/utils/addons.py:
     def `run_command`:
         Running %s: false
         ' ': false
+        env: false
+        PYTHONIOENCODING: false
+        utf-8: false
+        PYTHONUTF8: false
+        1: false
+        encoding: false
+        errors: false
+        backslashreplace: false
+        universal_newlines: false
         python: false
     def `run_process`:
         subprocess.Popen: false
@@ -3780,6 +3789,7 @@ utils/shtools.py:
         nt: false
     def `temp_named_file`:
         utf-8: false
+        wb: false
         wt: false
 utils/localization/__init__.py:
     import 'orangecanvas.localization', not 'orangecanvas.utils.localization': false
