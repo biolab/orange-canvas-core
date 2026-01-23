@@ -81,7 +81,6 @@ def create_process(
         executable: Optional[str] = None,
         stderr=subprocess.STDOUT,
         stdout=subprocess.PIPE,
-        universal_newlines=True,
         **kwargs
 ) -> subprocess.Popen:
     """
@@ -99,14 +98,13 @@ def create_process(
         executable=executable,
         stderr=stderr,
         stdout=stdout,
-        universal_newlines=universal_newlines,
         **kwargs
     )
 
 
 @contextmanager
 def temp_named_file(
-        content: str, encoding="utf-8",
+        content: str | bytes, encoding: str | None = "utf-8",
         suffix: Optional[str] = None,
         prefix: Optional[str] = None,
         dir: Optional[str] = None,
@@ -118,7 +116,7 @@ def temp_named_file(
 
     Parameters
     ----------
-    content: str
+    content: str | bytes
         The contents to write into the temp file
     encoding: str
         Encoding
@@ -141,7 +139,8 @@ def temp_named_file(
     tempfile.mkstemp
     """
     fd, name = tempfile.mkstemp(suffix, prefix, dir=dir, text=True)
-    file = os.fdopen(fd, mode="wt", encoding=encoding,)
+    mode = "wb" if encoding is None else "wt"
+    file = os.fdopen(fd, mode=mode, encoding=encoding,)
     file.write(content)
     file.close()
     try:

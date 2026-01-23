@@ -1,6 +1,8 @@
+import io
 import os
 import stat
 import unittest
+from shutil import which
 from tempfile import mkdtemp
 
 from requests import Session
@@ -14,9 +16,10 @@ from orangecanvas.application.utils.addons import (
     installable_from_json_response,
     installable_items,
     is_updatable,
-    prettify_name, _session,
+    prettify_name, _session, run_command,
 )
 from orangecanvas.application.tests.test_addons import FakeDistribution
+from orangecanvas.utils.shtools import temp_named_file
 
 
 class TestUtils(unittest.TestCase):
@@ -111,6 +114,13 @@ class TestUtils(unittest.TestCase):
         temp_dir = mkdtemp()
         os.chmod(temp_dir, stat.S_IRUSR)
         self.assertIsInstance(_session(temp_dir), Session)
+
+    @unittest.skipIf(which("cat") is None, "'cat' not present")
+    def test_run_command_decode_errors(self):
+        f = io.StringIO()
+        with temp_named_file(b'\x00' * 16, encoding=None) as fname:
+            run_command(["cat", fname], file=f)
+        self.assertEqual("\x00" * 16, f.getvalue())
 
 
 if __name__ == "__main__":

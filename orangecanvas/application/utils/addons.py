@@ -639,8 +639,9 @@ class CondaInstaller:
         return bool(self.conda)
 
 
-def run_command(command, raise_on_fail=True, **kwargs):
-    # type: (List[str], bool, Any) -> Tuple[int, List[AnyStr]]
+def run_command(
+        command: List[str], raise_on_fail: bool = True,/, file=None,  **kwargs
+) -> Tuple[int, List[str]]:
     """
     Run command in a subprocess.
 
@@ -648,11 +649,20 @@ def run_command(command, raise_on_fail=True, **kwargs):
     """
     log.info("Running %s", " ".join(command))
 
+    env = kwargs.pop("env", os.environ).copy()
+    env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONUTF8"] = "1"
+    kwargs["env"] = env
+
+    kwargs.setdefault("encoding", "utf-8")
+    kwargs.setdefault("errors", "backslashreplace")
+    kwargs.setdefault("universal_newlines", True)
+
     if command[0] == "python":
         process = python_process(command[1:], **kwargs)
     else:
         process = create_process(command, **kwargs)
-    rcode, output = run_process(process, file=sys.stdout)
+    rcode, output = run_process(process, file=file)
     if rcode != 0 and raise_on_fail:
         raise CommandFailed(command, rcode, output)
     else:
