@@ -14,7 +14,8 @@ from urllib.request import getproxies
 from contextlib import ExitStack, closing
 
 from AnyQt.QtGui import QFont, QColor, QPalette
-from AnyQt.QtCore import Qt, QSettings, QTimer, QUrl, QDir
+from AnyQt.QtCore import Qt, QSettings, QTimer, QUrl, QDir, QObject, QEvent
+from AnyQt.QtWidgets import QWidget
 
 from orangecanvas import localization
 from .utils.after_exit import run_after_exit
@@ -96,6 +97,18 @@ class Main:
         config.set_default(cfg)
         # Init config
         config.init()
+
+    def install_shadow_remover(self):
+        class ShadowRemover(QObject):
+            def eventFilter(self, obj, event):
+                if event.type() == QEvent.Type.Polish:
+                    if isinstance(obj, QWidget) and obj.isWindow():
+                        obj.setWindowFlags(
+                            obj.windowFlags() | Qt.WindowType.NoDropShadowWindowHint)
+                return super().eventFilter(obj, event)
+
+        self.__remover = ShadowRemover()
+        self.application.installEventFilter(self.__remover)
 
     def show_splash_message(self, message: str, color=QColor()):
         """Display splash screen message"""
@@ -201,6 +214,8 @@ class Main:
         with ExitStack() as stack:
             self.stack = stack
             self.setup_application()
+            if self.options.no_shadow:
+                self.install_shadow_remover()
             stack.callback(self.tear_down_application)
             self.setup_sys_redirections()
             stack.callback(self.tear_down_sys_redirections)
@@ -524,6 +539,11 @@ def arg_parser():
     parser.add_argument(
         "--config", help="Configuration namespace",
         type=str, default=None,
+    )
+
+    parser.add_argument(
+        "--no-shadow", help="Disable drop shadows in the UI",
+        action="store_true", default=False
     )
 
     deprecated = parser.add_argument_group("Deprecated")
