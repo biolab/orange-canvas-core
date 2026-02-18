@@ -3495,9 +3495,6 @@ utils/__init__.py:
     findf: false
     set_flag: false
     is_flag_set: false
-    qsizepolicy_is_expanding: false
-    qsizepolicy_is_shrinking: false
-    is_event_source_mouse: false
     UNUSED: false
     H: false
     A: false
@@ -3529,6 +3526,14 @@ utils/__init__.py:
         Callable[[A], H]: false
     def `findf`:
         Union[A, B]: false
+    qsizepolicy_is_expanding: false
+    orangecanvas.gui.utils.qsizepolicy_is_expanding: false
+    qsizepolicy_is_shrinking: false
+    orangecanvas.gui.utils.qsizepolicy_is_shrinking: false
+    is_event_source_mouse: false
+    orangecanvas.gui.utils.is_event_source_mouse: false
+    def `__getattr__`:
+        "'{__name__}.{name}' is deprecated, use '{_LAZY_DEPRECATED[name]}'": false
 utils/after_exit.py:
     def `run_after_exit`:
         --arg=: false

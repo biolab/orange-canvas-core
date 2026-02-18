@@ -12,7 +12,7 @@ from AnyQt.QtCore import (
 )
 from AnyQt.QtCore import Property, pyqtSignal as Signal
 
-from orangecanvas.utils import is_event_source_mouse
+from orangecanvas.gui.utils import is_event_source_mouse
 
 log = logging.getLogger(__name__)
 
