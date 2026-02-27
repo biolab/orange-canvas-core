@@ -11,7 +11,7 @@ from AnyQt.QtWidgets import QAbstractButton, QHBoxLayout, QPushButton, QStyle, Q
     QVBoxLayout, QLabel, QSizePolicy, QStyleOption, QFocusFrame, QStylePainter, QStyleOptionButton
 
 from orangecanvas.gui.stackedwidget import StackLayout
-from orangecanvas.utils import qsizepolicy_is_expanding
+from orangecanvas.gui.utils import qsizepolicy_is_expanding
 
 log = logging.getLogger(__name__)
 

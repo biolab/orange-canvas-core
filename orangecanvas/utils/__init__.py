@@ -1,19 +1,14 @@
 import enum
 import operator
 import types
+import warnings
 from functools import reduce
 
 import typing
 from typing import (
     Iterable, Set, Any, Optional, Union, Tuple, Callable, Mapping, List, Dict,
-    SupportsInt, cast, overload
+    SupportsInt, cast, overload,
 )
-
-from AnyQt.QtCore import Qt
-from AnyQt.QtGui import QMouseEvent, QWheelEvent
-from AnyQt.QtWidgets import QSizePolicy
-
-from .qtcompat import toPyObject
 
 __all__ = [
     "dotted_getattr",
@@ -33,9 +28,6 @@ __all__ = [
     "findf",
     "set_flag",
     "is_flag_set",
-    "qsizepolicy_is_expanding",
-    "qsizepolicy_is_shrinking",
-    "is_event_source_mouse",
     "UNUSED",
 ]
 
@@ -324,26 +316,6 @@ def is_flag_set(flags, mask):
     return bool(flags_i & mask_i)
 
 
-def qsizepolicy_is_expanding(policy: QSizePolicy.Policy) -> bool:
-    return is_flag_set(policy, QSizePolicy.ExpandFlag)
-
-
-def qsizepolicy_is_shrinking(policy: QSizePolicy.Policy) -> bool:
-    return is_flag_set(policy, QSizePolicy.ShrinkFlag)
-
-
-def is_event_source_mouse(event: Union[QWheelEvent, QMouseEvent]) -> bool:
-    """
-    Does th event originate from a mouse type device or from another source
-    (touchpad/screen).
-    """
-    try:
-        return event.source() != Qt.MouseEventNotSynthesized
-    except AttributeError:  # PyQt6
-        from AnyQt.QtGui import QInputDevice
-        return event.device().type() == QInputDevice.DeviceType.Mouse
-
-
 def UNUSED(*_unused_args) -> None:
     """
     *Mark* the function arguments as unused for a code checker
@@ -354,3 +326,21 @@ def UNUSED(*_unused_args) -> None:
     ...     UNUSED(bar, baz)
     ...     return True
     """
+
+
+# These were moved to minimize imports.
+_LAZY_DEPRECATED= {
+    "qsizepolicy_is_expanding": "orangecanvas.gui.utils.qsizepolicy_is_expanding",
+    "qsizepolicy_is_shrinking": "orangecanvas.gui.utils.qsizepolicy_is_shrinking",
+    "is_event_source_mouse": "orangecanvas.gui.utils.is_event_source_mouse",
+}
+
+def __getattr__(name):
+    if name in _LAZY_DEPRECATED:
+        warnings.warn(
+            f"'{__name__}.{name}' is deprecated, use '{_LAZY_DEPRECATED[name]}'",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return name_lookup(_LAZY_DEPRECATED[name])
+    raise AttributeError(name)

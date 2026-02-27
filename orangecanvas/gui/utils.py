@@ -5,8 +5,6 @@ Helper utilities
 import os
 import sys
 import traceback
-from typing import List
-
 import ctypes
 import ctypes.util
 import platform
@@ -15,15 +13,18 @@ from contextlib import contextmanager
 from typing import Optional, Union
 
 from AnyQt.QtWidgets import (
-    QWidget, QMessageBox, QStyleOption, QStyle, QTextEdit, QScrollBar
+    QWidget, QMessageBox, QStyleOption, QStyle, QTextEdit, QScrollBar,
+    QSizePolicy
 )
 from AnyQt.QtGui import (
     QGradient, QLinearGradient, QRadialGradient, QBrush, QPainter,
     QPaintEvent, QColor, QPixmap, QPixmapCache, QTextOption, QGuiApplication,
-    QTextCharFormat, QFont
+    QTextCharFormat, QFont, QMouseEvent, QWheelEvent
 )
 from AnyQt.QtCore import Qt, QPointF, QPoint, QRect, QRectF, Signal, QEvent
 from AnyQt import sip
+
+from orangecanvas.utils import is_flag_set
 
 
 @contextmanager
@@ -787,3 +788,23 @@ def available_screen_geometry(widget: QWidget, pos: Optional[QPoint] = None) -> 
         if sibling is not None:
             screen = sibling
     return screen.availableGeometry()
+
+
+def qsizepolicy_is_expanding(policy: QSizePolicy.Policy) -> bool:
+    return is_flag_set(policy, QSizePolicy.ExpandFlag)
+
+
+def qsizepolicy_is_shrinking(policy: QSizePolicy.Policy) -> bool:
+    return is_flag_set(policy, QSizePolicy.ShrinkFlag)
+
+
+def is_event_source_mouse(event: Union[QWheelEvent, QMouseEvent]) -> bool:
+    """
+    Does thw event originate from a mouse type device or from another source
+    (touchpad/screen).
+    """
+    try:
+        return event.source() != Qt.MouseEventNotSynthesized
+    except AttributeError:  # PyQt6
+        from AnyQt.QtGui import QInputDevice
+        return event.device().type() == QInputDevice.DeviceType.Mouse
