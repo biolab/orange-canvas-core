@@ -8,6 +8,7 @@ import logging
 import pickle
 import shlex
 import warnings
+from itertools import chain
 from typing import List, Optional, IO, Any, Iterable
 
 from urllib.request import getproxies
@@ -28,9 +29,10 @@ from . import utils, config
 from .gui.splashscreen import SplashScreen
 from .gui.utils import macos_set_nswindow_tabbing as _macos_set_nswindow_tabbing
 
-from .registry import WidgetRegistry, set_global_registry
+from .registry import WidgetRegistry, set_global_registry, InputSignal, OutputSignal
 from .registry.qt import QtRegistryHandler
 from .registry import cache
+from .scheme.link import resolve_types
 
 log = logging.getLogger(__name__)
 
@@ -185,8 +187,20 @@ class Main:
         self.registry = widget_registry
         if language_changed:
             localization.update_last_used_language()
+        self.preimport_signal_types()
         self.close_splash_screen()
         return widget_registry
+
+    def preimport_signal_types(self):
+        def iter_all_signals(reg: WidgetRegistry) -> Iterable[InputSignal | OutputSignal]:
+            widgets = reg.widgets()
+            return chain.from_iterable(
+                chain(w.inputs, w.outputs) for w in widgets
+            )
+        types = set(chain.from_iterable(
+            sig.types for sig in iter_all_signals(self.registry))
+        )
+        resolve_types(types)
 
     def setup_application(self):
         # sys.argv[0] must be in QApplication's argv list.
