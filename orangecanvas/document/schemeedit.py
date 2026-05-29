@@ -549,6 +549,20 @@ class SchemeEditWidget(QWidget):
         layout.addWidget(view)
         self.setLayout(layout)
 
+    def linkMenu(self) -> QMenu:
+        """
+        Return the default 'link' context menu.
+        """
+        return self.__linkMenu
+
+    def contextMenuForLink(self, link: SchemeLink) -> QMenu:
+        """
+        Return a `QMenu` for a context click on the connection represented
+        by `link`.
+        """
+        UNUSED(link)
+        return self.linkMenu()
+
     def __setupScene(self, scene):
         # type: (CanvasScene) -> None
         """
@@ -1688,7 +1702,8 @@ class SchemeEditWidget(QWidget):
             link = self.scene().link_for_item(item)
             self.__linkEnableAction.setChecked(link.enabled)
             self.__contextMenuTarget = link
-            self.__linkMenu.popup(globalPos)
+            menu = self.contextMenuForLink(link)
+            menu.popup(globalPos)
             return True
 
         item = self.scene().item_at(scenePos)

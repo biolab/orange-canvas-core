@@ -204,7 +204,7 @@ class icon_loader(resource_loader):
             return QIcon(self._icon_cache[cache_key])
 
         if len(icons) == 1 and icons[0].lower().endswith(".svg"):
-            if self.package is not None:
+            if self.package is not None and name:
                 try:
                     contents = pkgutil.get_data(self.package, name)
                 except FileNotFoundError:

@@ -133,6 +133,9 @@ class DockWidget(QDockWidget):
 class CanvasMainWindow(QMainWindow):
     SETTINGS_VERSION = 3
 
+    #: The central workflow editor constructor.
+    EDITOR_WIDGET_CONSTRUCTOR = SchemeEditWidget
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -203,7 +206,7 @@ class CanvasMainWindow(QMainWindow):
         w.setLayout(QVBoxLayout())
         w.layout().setContentsMargins(20, 0, 10, 0)
 
-        self.scheme_widget = SchemeEditWidget()
+        self.scheme_widget = self.EDITOR_WIDGET_CONSTRUCTOR()
         self.scheme_widget.setDropHandlers([interactions.PluginDropHandler(),])
         self.set_scheme(config.workflow_constructor(parent=self))
 

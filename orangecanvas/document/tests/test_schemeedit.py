@@ -362,6 +362,12 @@ class TestSchemeEdit(QAppTestCase):
         self.assertEqual(w.scheme().annotations, [])
         self.assertEqual(w.scheme().links, [])
 
+    def _point_on_link_curve(self, link: SchemeLink) -> QPoint:
+        scene, view = self.w.scene(), self.w.view()
+        item: items.LinkItem = scene.item_for_link(link)
+        path = item.curveItem.curvePath()
+        return view.mapFromScene(item.mapToScene(path).pointAtPercent(0.5))
+
     def test_select_remove_link(self):
         def link_curve(link: SchemeLink) -> QPainterPath:
             item = scene.item_for_link(link)  # type: items.LinkItem
@@ -399,6 +405,18 @@ class TestSchemeEdit(QAppTestCase):
         self.assertSequenceEqual(list(spyrem), [[target]])
         self.assertEqual(len(spyadd), 2)
         w.undoStack().undo()
+
+    def test_link_context_menu(self):
+        w = self.w
+        workflow = self.setup_test_workflow(w.scheme())
+        link = workflow.links[0]
+        self.assertIs(w.linkMenu(), w.contextMenuForLink(link))
+        p = self._point_on_link_curve(link)
+        with mock.patch.object(
+                w, "contextMenuForLink", wraps=w.contextMenuForLink
+        ) as m:
+            contextMenu(w.view().viewport(), p)
+            m.assert_called_once_with(link)
 
     def test_align_to_grid(self):
         w = self.w
@@ -687,10 +705,10 @@ class TestSchemeEdit(QAppTestCase):
         add_desc = reg.widget("add")
         negate = reg.widget("negate")
 
-        zero_node = SchemeNode(zero_desc)
-        one_node = SchemeNode(one_desc)
-        add_node = SchemeNode(add_desc)
-        negate_node = SchemeNode(negate)
+        zero_node = SchemeNode(zero_desc, position=(0, 0))
+        one_node = SchemeNode(one_desc, position=(0, 200))
+        add_node = SchemeNode(add_desc, position=(200, 100))
+        negate_node = SchemeNode(negate, position=(400, 100))
 
         scheme.add_node(zero_node)
         scheme.add_node(one_node)
