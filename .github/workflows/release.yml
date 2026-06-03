@@ -10,8 +10,8 @@ jobs:
     name: Build distribution files
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -25,7 +25,7 @@ jobs:
         run: python -m build --wheel .
 
       - name: Upload dist files
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dist-sdist
           path: dist/*
@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           # unpacks all dist artifacts into dist/
           pattern: dist-*
@@ -61,7 +61,7 @@ jobs:
     if: always() && !failure() && !cancelled() && startsWith(github.ref, 'refs/tags')
 
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           # unpacks all dist artifacts into dist/
           pattern: dist-*
