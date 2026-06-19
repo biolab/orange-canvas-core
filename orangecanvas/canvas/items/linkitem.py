@@ -482,12 +482,20 @@ class LinkItem(QGraphicsWidget):
         # type: () -> None
         self.prepareGeometryChange()
         self.__boundingRect = None
+        angle = 0
+        path = self.curveItem.curvePath()
+        if not path.isEmpty():
+            angle = path.angleAtPercent(0.5)
 
         if self.__sourceName or self.__sinkName:
             if self.__sourceName != self.__sinkName:
-                text = ("<nobr>{0}</nobr> \u2192 <nobr>{1}</nobr>"
-                        .format(escape(self.__sourceName),
-                                escape(self.__sinkName)))
+                source = escape(self.__sourceName)
+                sink = escape(self.__sinkName)
+                if 90 <= angle < 270:
+                    text = f"<nobr>{sink}</nobr> \u2190 <nobr>{source}</nobr>"
+                else:
+                    text = f"<nobr>{source}</nobr> \u2192 <nobr>{sink}</nobr>"
+
             else:
                 # If the names are the same show only one.
                 # Is this right? If the sink has two input channels of the
@@ -500,7 +508,7 @@ class LinkItem(QGraphicsWidget):
         self.linkTextItem.setHtml(
             '<div align="center" style="font-size: small" >{0}</div>'
             .format(text))
-        path = self.curveItem.curvePath()
+
 
         # Constrain the text width if it is too long to fit on a single line
         # between the two ends

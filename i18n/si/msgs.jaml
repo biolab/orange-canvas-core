@@ -1490,7 +1490,8 @@ canvas/items/linkitem.py:
         def `setSinkItem`:
             Anchor must be belong to the item: false
         def `__updateText`:
-            <nobr>{0}</nobr> \u2192 <nobr>{1}</nobr>: false
+            <nobr>{sink}</nobr> \u2190 <nobr>{source}</nobr>: false
+            <nobr>{source}</nobr> \u2192 <nobr>{sink}</nobr>: false
             '<div align="center" style="font-size: small" >{0}</div>': false
         def `__update_tooltip`:
             {self.sourceItem.title()} is not providing the proper data type required by {self.sinkItem.title()}: {self.sourceItem.title()} ni priskrbel pravilnega podatkovnega tipa za {self.sinkItem.title()}
