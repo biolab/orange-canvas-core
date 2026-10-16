@@ -7,15 +7,10 @@ import email
 from operator import itemgetter
 from urllib.parse import urlparse
 from urllib.request import url2pathname
+from importlib.metadata import EntryPoint, Distribution, entry_points, PackageNotFoundError
 from typing import List, Dict, Optional, Union, cast
 
 import packaging.version
-
-if sys.version_info < (3, 10):
-    from importlib_metadata import EntryPoint, Distribution, entry_points, PackageNotFoundError
-else:
-    from importlib.metadata import EntryPoint, Distribution, entry_points, PackageNotFoundError
-
 
 __all__ = [
     "Distribution", "EntryPoint", "entry_points", "normalize_name", "trim",

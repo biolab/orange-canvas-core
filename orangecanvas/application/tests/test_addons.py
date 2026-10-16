@@ -46,7 +46,7 @@ class FakeDistribution(Distribution):
         pass
 
     def read_text(self, filename):
-        pass
+        return f"Name: {self.name}\nVersion: {self.version}"
 
     def __init__(self, name, version):
         super().__init__()
