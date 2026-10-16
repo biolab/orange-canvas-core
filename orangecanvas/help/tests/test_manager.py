@@ -11,7 +11,7 @@ from orangecanvas.utils import pkgmeta
 
 class FakeDistribution(pkgmeta.Distribution):
     def read_text(self, filename):
-        pass
+        return f"Name: {self.name}\nVersion: {self.version}"
 
     def locate_file(self, path):
         return os.path.join(os.path.devnull, path)
