@@ -601,7 +601,23 @@ application/canvasmain.py:
             "Could not open: '{}'": Ne morem odpreti: '{}'
             'Error was: {}': Napaka: {}
         def `new_scheme_from_contents_and_path`:
-            basedir: false
+            def `load`:
+                basedir: false
+            Security Warning: Varnostno Opozorilo
+            'This file can contain executable code and can run ': 'Ta datoteka lahko vsebuje izvedljivo kodo in lahko izvaja '
+            arbitrary commands on this computer.<br/>: poljubne ukaze na tem računalniku.<br/>
+            Would you like to load the unsafe content anyway?: Ali želite vseeno naložiti nevarno vsebino?
+            'Only select <b>Load Unsafe</b> if you trust the source ': 'Izberite <b>Naloži nevarno</b> le, če zaupate '
+            of the file.: viru datoteke.
+            Don't Open: Ne odpri
+            Load Unsafe: Naloži nevarno
+            'Load the complete file. Only select this if you trust ': 'Naloži celotno datoteko. To možnost izberite '
+            the origin of the file.: le, če zaupate izvoru datoteke.
+            Discard Unsafe Content: Zavrzi nevarno vsebino
+            'Load the file only partially, striping out all the ': 'Datoteko naložite le delno in odstranite '
+            unsafe content.: vso nevarno vsebino.
+            Did not restore settings: Nastavitve niso bile obnovljene
+            -properties-restore-error-data: false
             Could not load an Orange Workflow file.: Ne morem naložiti datoteke z delotokom.
             Error: Napaka
             'An unexpected error occurred ': 'Nepričakovana napaka ob '
@@ -651,6 +667,18 @@ application/canvasmain.py:
         def `save_scheme_to`:
             untitled: nepoimenovan
             basedir: false
+            Unsafe Contents: Nevarna vsebina
+            'The workflow contains parameters that cannot be ': 'Delovni tok vsebuje parametre, ki jih ni mogoče '
+            safely deserialized.<br/>: varno deserializirati.<br/>
+            Would you like to save a partial workflow anyway.: Ali želite delni delovni tok vseeno shraniti?
+            'Workflow structure will be saved but some node ': 'Struktura poteka dela bo shranjena, vendar bodo nekateri '
+            parameters will be lost.: parametri vozlišč izgubljeni.
+            Save Anyway: Vseeno shrani
+            'Loading such a workflow will require explicit user ': 'Nalaganje takega poteka dela bo zahtevalo izrecno '
+            confirmation.: potrditev uporabnika.
+            Discard Unsafe Content: Zavrzi nevarno vsebino
+            'The saved workflow will not be complete. ': Shranjeni potek dela ne bo dokončan.
+            Some parameters will not be restored: Nekateri parametri ne bodo obnovljeni.
             Error saving %r to %r: false
             'An error occurred while trying to save workflow ': Napaka pri shranjevanju delotoka
             '"%s" to "%s"': '"%s" v "%s"'
@@ -3199,7 +3227,7 @@ scheme/readwrite.py:
         annotations/*: false
         text: false
         rect: false
-        (0.0, 0.0, 20.0, 20.0): false
+        0.0, 0.0, 20.0, 20.0: false
         font-family: false
         font-size: false
         family: false
@@ -3208,7 +3236,7 @@ scheme/readwrite.py:
         text/plain: false
         arrow: false
         start: false
-        (0, 0): false
+        0, 0: false
         end: false
         fill: false
         red: false
@@ -3230,7 +3258,20 @@ scheme/readwrite.py:
         2.0: false
         2.1: false
         Unsupported format version {version}: false
+    def `default_serializer`:
+        literal: false
+    def `default_serializer_with_pickle_fallback`:
+        literal: false
+        ascii: false
+        pickle: false
+    def `default_deserializer_with_pickle_fallback`:
+        pickle: false
+        ascii: false
     def `scheme_load`:
+        'The file contains pickle data. The settings ': false
+        for '{}' were not restored.: false
+        Could not load properties for %r: false
+        __ows_data_deserialization_error: false
         Could not load properties for %r.: false
         text: false
         arrow: false
@@ -3241,22 +3282,26 @@ scheme/readwrite.py:
     def `_find_sink_channel`:
         '{link.sink_channel!r} is not a valid input channel ': false
         for {node.description.name!r}.: false
-    def `scheme_to_etree`:
-        literal: false
+    def `scheme_to_interm`:
+        Scheme: false
+        text: false
+        arrow: false
+        2.0: false
+    def `scheme_to_etree_2_0`:
+        Scheme: false
+    def `interm_to_etree_2_0`:
         scheme: false
         version: false
         2.0: false
         title: false
         description: false
         nodes: false
+        node: false
         id: false
         name: false
         qualified_name: false
         project_name: false
         position: false
-        scheme_node_type: false
-        %s.%s: false
-        node: false
         links: false
         source_node_id: false
         sink_node_id: false
@@ -3272,18 +3317,14 @@ scheme/readwrite.py:
         text: false
         type: false
         rect: false
-        font-family: false
-        family: false
-        font-size: false
-        size: false
+        {!r}, {!r}, {!r}, {!r}: false
         arrow: false
         start: false
+        {!r}, {!r}: false
         end: false
         fill: false
         Can't save %r: false
-        thumbnail: false
         node_properties: false
-        Error serializing properties for node %r: false
         properties: false
         node_id: false
         format: false
@@ -3294,8 +3335,12 @@ scheme/readwrite.py:
         window_state: false
         ascii: false
         window_group: false
-    def `scheme_to_ows_stream`:
+    def `scheme_to_etree`:
         literal: false
+        "'scheme_to_etree' is deprecated, use 'scheme_to_etree_2_0'": false
+    def `scheme_to_ows_stream`:
+        'pickle_fallback and data_serializer are mutually ': false
+        exclusive parameters: false
         utf-8: false
     def `indent`:
         \t: false
@@ -3303,26 +3348,20 @@ scheme/readwrite.py:
             \n: false
     def `dumps`:
         literal: false
-        Could not serialize to a literal string: false
         json: false
-        Could not serialize to a json string: false
         pickle: false
-        ascii: false
         Unsupported format %r: false
-        Using pickle fallback: false
-        Something strange happened.: false
     def `loads`:
         literal: false
         json: false
         pickle: false
-        ascii: false
-        Unknown format: false
+        Unsupported format %r: false
     def `literal_dumps`:
         def `check`:
             'Non-finite values can not be ': false
             serialized as a python literal: false
             {0} is a recursive structure: false
-            '{0} can not be serialized as a python ': false
+            {0} can not be serialized as a python: false
             literal: false
         def `check_relaxed`:
             'Non-finite values can not be ': false
