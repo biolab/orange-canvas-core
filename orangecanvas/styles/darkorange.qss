@@ -10,3 +10,8 @@ CollapsibleDockWidget QWidget#canvas-quick-dock QToolBar QToolButton:menu-indica
     height: 8px;
     width: 8px;
 }
+
+/* QMessageBox has bold informativelabel when child of styled CanvasMainWindow? */
+CanvasMainWindow QMessageBox QLabel[style=QMacStyle]#qt_msgbox_informativelabel {
+    font-weight: normal;
+}
