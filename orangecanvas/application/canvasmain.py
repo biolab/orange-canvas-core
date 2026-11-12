@@ -1648,34 +1648,62 @@ class CanvasMainWindow(QMainWindow):
         buffer = io.BytesIO()
         scheme.set_runtime_env("basedir", os.path.abspath(dirname))
         try:
-            scheme.save_to(
-                buffer, pretty=True, pickle_fallback=False
-            )
-        except (readwrite.UnserializableTypeError,
-                readwrite.UnserializableValueError):
-            mb = QMessageBox(
-                self, windowTitle="Unsafe contents",
-                icon=QMessageBox.Warning,
-                text="The workflow contains parameters that can not be safely "
-                     "deserialized.",
-                standardButtons=QMessageBox.Ok
-            )
-            mb.exec()
-            buffer.truncate(0)
             try:
                 scheme.save_to(
-                    buffer, pretty=True, pickle_fallback=True
+                    buffer, pretty=True, data_serializer=readwrite.default_serializer
                 )
-            except Exception:  # pylint: disable=broad-except
-                log.error("Error saving %r to %r", scheme, filename, exc_info=True)
-                message_critical(
-                    self.tr('An error occurred while trying to save workflow '
-                            '"%s" to "%s"') % (title, basename),
-                    title=self.tr("Error saving %s") % basename,
-                    exc_info=True,
-                    parent=self
+            except (readwrite.UnserializableTypeError,
+                    readwrite.UnserializableValueError):
+                mb = QMessageBox(
+                    self, windowTitle=self.tr("Unsafe Contents"),
+                    icon=QMessageBox.Warning,
+                    text=self.tr(
+                        "The workflow contains parameters that cannot be "
+                        "safely deserialized.<br/>"
+                        "Would you like to save a partial workflow anyway."),
+                    informativeText=self.tr(
+                        "Workflow structure will be saved but some node "
+                        "parameters will be lost."
+                    ),
+                    standardButtons=QMessageBox.Discard | QMessageBox.Save |
+                                    QMessageBox.Abort
                 )
-                return False  # return False here because there is second part
+                mb.setEscapeButton(QMessageBox.Abort)
+                mb.setDefaultButton(QMessageBox.Save)
+                b = mb.button(QMessageBox.Save)
+                b.setText(self.tr("Save Anyway"))
+                b.setToolTip(self.tr(
+                    "Loading such a workflow will require explicit user "
+                    "confirmation."))
+                b = mb.button(QMessageBox.Discard)
+                b.setText(self.tr("Discard Unsafe Content"))
+                b.setToolTip(self.tr("The saved workflow will not be complete. "
+                                     "Some parameters will not be restored"))
+                res = mb.exec()
+                buffer.truncate(0)
+                if res == QMessageBox.Abort:
+                    return False
+                if res == QMessageBox.Discard:
+                    def serializer(node):
+                        try:
+                            return readwrite.default_serializer(node)
+                        except Exception:
+                            return None
+                else:
+                    serializer = readwrite.default_serializer_with_pickle_fallback
+                scheme.save_to(
+                    buffer, pretty=True, data_serializer=serializer
+                )
+        except Exception:
+            log.error("Error saving %r to %r", scheme, filename, exc_info=True)
+            message_critical(
+                self.tr('An error occurred while trying to save workflow '
+                        '"%s" to "%s"') % (title, basename),
+                title=self.tr("Error saving %s") % basename,
+                exc_info=True,
+                parent=self
+            )
+            return False
 
         try:
             with open(filename, "wb") as f:
