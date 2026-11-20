@@ -145,6 +145,10 @@ class TestMainWindow(TestMainWindowBase):
         QApplication.sendEvent(w, ev)
 
 
+class Obj:
+    pass
+
+
 class TestMainWindowLoad(TestMainWindowBase):
     filename = ""
 
@@ -241,7 +245,7 @@ class TestMainWindowLoad(TestMainWindowBase):
         w = self.w
         workflow = Scheme()
         node = SchemeNode(self.registry.widget("one"))
-        node.properties = {"a": object()}
+        node.properties = {"a": Obj()}
         workflow.add_node(node)
         with open(self.filename, "wb") as f:
             workflow.save_to(f, pickle_fallback=True)
@@ -264,7 +268,7 @@ class TestMainWindowLoad(TestMainWindowBase):
             f.assert_called_with()
             workflow = w.current_document().scheme()
             self.assertEqual(len(workflow.nodes), 1)
-            self.assertEqual(workflow.nodes[0].properties["a"].__class__, object)
+            self.assertEqual(workflow.nodes[0].properties["a"].__class__, Obj)
 
     def test_save_swp(self):
         w = self.w

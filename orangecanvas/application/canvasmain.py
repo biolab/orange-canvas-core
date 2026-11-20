@@ -1305,12 +1305,11 @@ class CanvasMainWindow(QMainWindow):
             if isinstance(warning, readwrite.PickleDataWarning):
                 raise warning
 
-        def load(fileobj, warning_handler=None,
-                 data_deserializer=readwrite.default_deserializer):
+        def load(fileobj, warning_handler=None, data_deserializer=None):
             new_scheme = config.workflow_constructor()
             new_scheme.set_runtime_env(
                 "basedir", os.path.abspath(os.path.dirname(path)))
-            errors = []  # type: List[Exception]
+            errors: List[Exception] = []
             new_scheme.load_from(
                 fileobj, registry=self.widget_registry,
                 error_handler=errors.append, warning_handler=warning_handler,
@@ -1323,7 +1322,7 @@ class CanvasMainWindow(QMainWindow):
             pos = fileobj.tell()
             new_scheme, errors = load(
                 fileobj, warning_handler=warn,
-                data_deserializer=readwrite.default_deserializer
+                data_deserializer=readwrite.default_deserializer_with_pickle_fallback,
             )
         except (readwrite.UnsupportedPickleFormatError,
                 readwrite.PickleDataWarning):
@@ -1361,9 +1360,9 @@ class CanvasMainWindow(QMainWindow):
             if res == QMessageBox.Abort:
                 return None
             elif res == QMessageBox.Yes:  # load with unsafe data
-                data_deserializer = readwrite.default_deserializer_with_pickle_fallback
+                data_deserializer = readwrite.unsafe_deserializer
             elif res == QMessageBox.No:  # load but discard unsafe data
-                data_deserializer = readwrite.default_deserializer
+                data_deserializer = readwrite.default_deserializer_with_pickle_fallback
             else:
                 assert False
             fileobj.seek(pos, os.SEEK_SET)
@@ -1372,7 +1371,8 @@ class CanvasMainWindow(QMainWindow):
                 data_deserializer=data_deserializer
             )
             for e in list(errors):
-                if isinstance(e, readwrite.UnsupportedPickleFormatError):
+                if isinstance(e, (readwrite.UnsupportedPickleFormatError,
+                                  readwrite.UnsafeUnpicklingError)):
                     if e.node is not None and e.node in new_scheme.nodes:
                         e.node.set_state_message(
                             UserMessage(
@@ -1660,7 +1660,8 @@ class CanvasMainWindow(QMainWindow):
         try:
             try:
                 scheme.save_to(
-                    buffer, pretty=True, data_serializer=readwrite.default_serializer
+                    buffer, pretty=True,
+                    data_serializer=readwrite.default_serializer_with_pickle_fallback
                 )
             except (readwrite.UnserializableTypeError,
                     readwrite.UnserializableValueError):
@@ -1694,13 +1695,17 @@ class CanvasMainWindow(QMainWindow):
                 if res == QMessageBox.Abort:
                     return False
                 if res == QMessageBox.Discard:
-                    def serializer(node):
+                    def serializer(node: SchemeNode):
+                        serializer = readwrite._resolve_default_serializer(
+                            readwrite.default_serializer_with_pickle_fallback,
+                            node.description
+                        )
                         try:
-                            return readwrite.default_serializer(node)
+                            return serializer(node)
                         except Exception:
                             return None
                 else:
-                    serializer = readwrite.default_serializer_with_pickle_fallback
+                    serializer = readwrite.unsafe_serializer
                 scheme.save_to(
                     buffer, pretty=True, data_serializer=serializer
                 )
