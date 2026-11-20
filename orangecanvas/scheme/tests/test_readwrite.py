@@ -214,7 +214,7 @@ class TestReadWrite(test.QAppTestCase):
         w1.clear()
         w1.load_from(
             io.BytesIO(contents), registry=reg,
-            data_deserializer=readwrite.default_deserializer_with_pickle_fallback
+            data_deserializer=readwrite.unsafe_deserializer
         )
         self.assertEqual(node.properties, w1.nodes[0].properties)
 
@@ -225,7 +225,7 @@ class TestReadWrite(test.QAppTestCase):
         workflow.add_node(node)
         node.properties = {"a": {"b": Obj()}}
         f = io.BytesIO()
-        workflow.save_to(f, data_serializer=readwrite.default_serializer_with_pickle_fallback)
+        workflow.save_to(f, data_serializer=readwrite.unsafe_serializer)
         contents = f.getvalue()
         workflow = Scheme()
 

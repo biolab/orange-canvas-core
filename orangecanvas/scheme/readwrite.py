@@ -4,10 +4,10 @@ Scheme save/load routines.
 """
 import io
 import numbers
+import typing
 import warnings
 import base64
 import binascii
-import itertools
 import math
 import pickle
 from functools import partial
@@ -38,6 +38,7 @@ from .errors import IncompatibleChannelTypeError
 from ..registry import global_registry, WidgetRegistry
 from ..registry import WidgetDescription, InputSignal, OutputSignal
 from ..utils import findf
+from ..utils.pickle import RestrictedPickler, RestrictedUnpickler, UnsafeUnpicklingError
 
 log = logging.getLogger(__name__)
 
@@ -434,14 +435,28 @@ def default_serializer(node: SchemeNode, data_format="literal") -> Optional[Tupl
 
 
 def default_serializer_with_pickle_fallback(
-        node: SchemeNode, data_format="literal"
+        node: SchemeNode, data_format="literal", pickler_class=None
 ) -> Optional[Tuple[AnyStr, str]]:
     try:
         return default_serializer(node, data_format=data_format)
     except (UnserializableTypeError, UnserializableValueError):
-        data = pickle.dumps(node.properties, protocol=PICKLE_PROTOCOL)
+        buff = io.BytesIO()
+        if pickler_class is None:
+            pickler_class = RestrictedPickler
+        pickler = pickler_class(buff, protocol=PICKLE_PROTOCOL)
+        try:
+            pickler.dump(node.properties)
+        except pickle.PicklingError:
+            raise UnserializableTypeError
+        data = buff.getvalue()
         data = base64.encodebytes(data).decode("ascii")
         return data, "pickle"
+
+
+def unsafe_serializer(node: SchemeNode, data_format="literal"):
+    return default_serializer_with_pickle_fallback(
+        node, data_format, pickler_class=pickle.Pickler
+    )
 
 
 DataSerializerType = Callable[[SchemeNode], Optional[Tuple[AnyStr, str]]]
@@ -458,14 +473,32 @@ def default_deserializer_with_pickle_fallback(
         if isinstance(payload, str):
             payload = payload.encode("ascii")
         if unpickler_class is None:
-            unpickler_class = pickle.Unpickler
+            unpickler_class = RestrictedUnpickler
         unpickler = unpickler_class(io.BytesIO(base64.decodebytes(payload)))
         return unpickler.load()
     else:
         return default_deserializer(payload, format_)
 
 
+def unsafe_deserializer(payload, format):
+    return default_deserializer_with_pickle_fallback(
+        payload, format, unpickler_class=pickle.Unpickler
+    )
+
 DataDeserializerType = Callable[[AnyStr, str], Any]
+
+
+def _resolve_default_deserializer(
+        data_deserializer: DataDeserializerType, desc: WidgetDescription
+) -> DataDeserializerType:
+    if data_deserializer is default_deserializer_with_pickle_fallback:
+        data_deserializer = partial(
+            data_deserializer,
+            unpickler_class=partial(
+                RestrictedUnpickler, allowed=desc.allowed_property_types
+            )
+        )
+    return data_deserializer
 
 
 def scheme_load(
@@ -522,20 +555,26 @@ def scheme_load(
             data = node_d.data
 
             if data is not None:
+                deserializer = _resolve_default_deserializer(data_deserializer, w_desc)
                 try:
-                    properties = data_deserializer(data.data, data.format)
-                except UnsupportedFormatError as err:
+                    properties = deserializer(data.data, data.format)
+                except (UnsupportedFormatError, UnsafeUnpicklingError) as err:
                     err.node = node
                     err.args = err.args + (node,)
                     error_handler(err)
-                    if isinstance(err, UnsupportedPickleFormatError):
+                    if isinstance(err, UnsafeUnpicklingError):
                         warning = PickleDataWarning(
-                            "The file contains pickle data. The settings "
-                            "for '{}' were not restored.".format(node_d.title)
+                            f"The file contains unsafe pickle data: '{err.name}'. "
+                            f"The settings for '{node_d.title}' were not restored."
+                        )
+                    elif isinstance(err, UnsupportedPickleFormatError):
+                        warning = PickleDataWarning(
+                            f"The file contains unsafe pickle data. "
+                            f"The settings for '{node_d.title}' were not restored."
                         )
                     else:
                         warning = DeserializationWarning(
-                            "Could not load properties for %r".format(node.title),
+                            f"Could not load properties for {node.title}",
                         )
                     warning.node = node
                     warning_handler(warning)
@@ -543,7 +582,7 @@ def scheme_load(
                 except Exception as err:  # pylint: disable=broad-except
                     error_handler(err)
                     warning = DeserializationWarning(
-                        "Could not load properties for %r.", node.title
+                        f"Could not load properties for {node.title}"
                     )
                     warning.node = node
                     warning_handler(warning)
@@ -660,6 +699,20 @@ def default_warning_handler(err: Warning):
     warnings.warn(err, stacklevel=2)
 
 
+def _resolve_default_serializer(
+        data_serializer: DataSerializerType, desc: WidgetDescription
+) -> DataSerializerType:
+    if data_serializer is default_serializer_with_pickle_fallback:
+        data_serializer = partial(
+            default_serializer_with_pickle_fallback,
+            pickler_class = partial(
+                RestrictedPickler,
+                allowed=desc.allowed_property_types
+            )
+        )
+    return data_serializer
+
+
 def scheme_to_interm(
         scheme: 'Scheme',
         data_serializer: Optional[DataSerializerType] = None,
@@ -688,8 +741,9 @@ def scheme_to_interm(
     # Nodes
     for node_id, node in enumerate(scheme.nodes):  # type: SchemeNode
         data_payload = None
+        serializer = _resolve_default_serializer(data_serializer, node.description)
         try:
-            data_payload_ = data_serializer(node)
+            data_payload_ = serializer(node)
         except Exception as err:
             error_handler(err)
         else:
@@ -928,7 +982,7 @@ def scheme_to_ows_stream(
                         "exclusive parameters")
     if data_serializer is None:
         if pickle_fallback:
-            data_serializer = default_serializer_with_pickle_fallback
+            data_serializer = unsafe_serializer
         else:
             data_serializer = default_serializer
 
