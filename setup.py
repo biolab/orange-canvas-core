@@ -34,7 +34,6 @@ INSTALL_REQUIRES = (
     "pip>=18.0",
     "dictdiffer",
     "qasync>=0.10.0",
-    "typing_extensions",
     "packaging",
     "numpy",
     "truststore",

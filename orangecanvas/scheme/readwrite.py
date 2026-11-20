@@ -2,34 +2,26 @@
 Scheme save/load routines.
 
 """
-import io
-import numbers
-import typing
-import warnings
+import ast
 import base64
 import binascii
-import math
-import pickle
-from functools import partial
-
-from xml.etree.ElementTree import TreeBuilder, Element, ElementTree, parse
-
-from itertools import chain
-
+import io
 import json
-import pprint
-
-import ast
-from ast import literal_eval
-
 import logging
-
+import math
+import numbers
+import pickle
+import pprint
+import typing
+import warnings
+from ast import literal_eval
+from functools import partial
+from itertools import chain
 from typing import (
-    NamedTuple, Dict, Tuple, List, Union, Any, Optional, AnyStr, IO, Callable,
-    cast
+    Any, AnyStr, Callable, cast, Dict, IO, List, Literal, NamedTuple,
+    Optional, Tuple, TypeGuard, Union,
 )
-
-from typing_extensions import TypeGuard
+from xml.etree.ElementTree import Element, ElementTree, TreeBuilder, parse
 
 from . import SchemeNode, SchemeLink
 from .annotations import SchemeTextAnnotation, SchemeArrowAnnotation
@@ -217,6 +209,8 @@ _session_data = NamedTuple(
         ("groups", List[_window_group])
     ]
 )
+
+DataFormat = Literal["literal", "json", "pickle"]
 
 
 def parse_ows_etree_v_2_0(tree):
@@ -427,7 +421,9 @@ def resolve_replaced(scheme_desc: _scheme, registry: WidgetRegistry) -> _scheme:
     return scheme_desc._replace(nodes=nodes, links=links)
 
 
-def default_serializer(node: SchemeNode, data_format="literal") -> Optional[Tuple[AnyStr, str]]:
+def default_serializer(
+        node: SchemeNode, data_format: DataFormat = "literal"
+) -> Optional[Tuple[AnyStr, str]]:
     if node.properties:
         return dumps(node.properties, format=data_format), data_format
     else:
@@ -435,7 +431,9 @@ def default_serializer(node: SchemeNode, data_format="literal") -> Optional[Tupl
 
 
 def default_serializer_with_pickle_fallback(
-        node: SchemeNode, data_format="literal", pickler_class=None
+        node: SchemeNode,
+        data_format: DataFormat = "literal",
+        pickler_class=None,
 ) -> Optional[Tuple[AnyStr, str]]:
     try:
         return default_serializer(node, data_format=data_format)
@@ -453,7 +451,9 @@ def default_serializer_with_pickle_fallback(
         return data, "pickle"
 
 
-def unsafe_serializer(node: SchemeNode, data_format="literal"):
+def unsafe_serializer(
+        node: SchemeNode, data_format: DataFormat = "literal"
+):
     return default_serializer_with_pickle_fallback(
         node, data_format, pickler_class=pickle.Pickler
     )
@@ -502,10 +502,13 @@ def _resolve_default_deserializer(
 
 
 def scheme_load(
-        scheme, stream, registry=None,
-        error_handler=None, warning_handler=None,
-        data_deserializer: DataDeserializerType = None
-):
+        scheme: 'Scheme',
+        stream: Union[AnyStr, IO[bytes], IO[str]],
+        registry: Optional[WidgetRegistry] = None,
+        error_handler: Optional[Callable[[Exception], None]] = None,
+        warning_handler: Optional[Callable[[Warning], None]] = None,
+        data_deserializer: Optional[DataDeserializerType] = None,
+) -> 'Scheme':
     """
     Populate a Scheme instance with workflow read from an ows data stream.
 
@@ -939,7 +942,11 @@ def interm_to_etree_2_0(scheme: _scheme) -> ElementTree:
     return tree
 
 
-def scheme_to_etree(scheme, data_format="literal", pickle_fallback=False):
+def scheme_to_etree(
+    scheme: 'Scheme',
+    data_format: DataFormat = "literal",
+    pickle_fallback: bool = False,
+) -> ElementTree:
     warnings.warn(
         "'scheme_to_etree' is deprecated, use 'scheme_to_etree_2_0'",
         DeserializationWarning, stacklevel=2
@@ -992,7 +999,7 @@ def scheme_to_ows_stream(
     tree.write(stream, encoding="utf-8", xml_declaration=True)
 
 
-def indent(element, level=0, indent="\t"):
+def indent(element: Element, level: int = 0, indent: str = "\t") -> None:
     """
     Indent an instance of a :class:`Element`. Based on
     (http://effbot.org/zone/element-lib.htm#prettyprint).
@@ -1036,7 +1043,7 @@ class UnserializableTypeError(TypeError):
     node: Optional[SchemeNode] = None
 
 
-def dumps(obj, format="literal", indent=4):
+def dumps(obj, format: DataFormat = "literal", indent: int = 4):
     """
     Serialize `obj` using `format` ('json' or 'literal') and return its
     string representation.
