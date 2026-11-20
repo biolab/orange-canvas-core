@@ -15,7 +15,7 @@ from ..utils.addons import _QueryResult, Installable
 from ...scheme import SchemeTextAnnotation, SchemeLink, SchemeNode, Scheme
 from ...gui.quickhelp import QuickHelpTipEvent, QuickHelp
 from ...utils.shtools import temp_named_file
-from ...utils.pickle import swp_name
+from ..utils.pickle import swp_name
 from ...gui.test import QAppTestCase
 from ..canvasmain import CanvasMainWindow
 from ..widgettoolbox import WidgetToolBox
@@ -298,7 +298,7 @@ class TestMainWindowLoad(TestMainWindowBase):
         desc = self.registry.widgets()[0]
         w.current_document().createNewNode(desc)
 
-        from orangecanvas.utils.pickle import canvas_scratch_name_memo as memo
+        from orangecanvas.application.utils.pickle import canvas_scratch_name_memo as memo
         memo.clear()
 
         with patch.object(w2, "load_swp_from") as f:

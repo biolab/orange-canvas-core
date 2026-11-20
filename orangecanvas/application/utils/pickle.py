@@ -5,7 +5,7 @@ import pickle
 from AnyQt.QtCore import QSettings
 
 from orangecanvas import config
-from ..scheme import Scheme, SchemeNode, SchemeLink, BaseSchemeAnnotation
+from ...scheme import Scheme, SchemeNode, SchemeLink, BaseSchemeAnnotation
 
 
 class Pickler(pickle.Pickler):

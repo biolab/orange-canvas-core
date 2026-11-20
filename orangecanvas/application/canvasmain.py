@@ -77,7 +77,7 @@ from ..registry import WidgetRegistry, WidgetDescription, CategoryDescription
 from ..registry.qt import QtWidgetRegistry
 from ..utils.settings import QSettings_readArray, QSettings_writeArray
 from ..utils.qinvoke import qinvoke
-from ..utils.pickle import Pickler, Unpickler, glob_scratch_swps, swp_name, \
+from .utils.pickle import Pickler, Unpickler, glob_scratch_swps, swp_name, \
     canvas_scratch_name_memo, register_loaded_swp
 from ..utils import unique, group_by_all, set_flag, findf
 from ..utils.asyncutils import get_event_loop
