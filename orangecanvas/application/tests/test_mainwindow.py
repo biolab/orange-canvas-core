@@ -270,6 +270,31 @@ class TestMainWindowLoad(TestMainWindowBase):
             self.assertEqual(len(workflow.nodes), 1)
             self.assertEqual(workflow.nodes[0].properties["a"].__class__, Obj)
 
+    def test_load_unsafe_state_message(self):
+        """Verify that nodes show specific error messages after restricted load."""
+        w = self.w
+        workflow = Scheme()
+        node = SchemeNode(self.registry.widget("one"))
+        node.properties = {"a": Obj()}
+        workflow.add_node(node)
+
+        with open(self.filename, "wb") as f:
+            workflow.save_to(f, pickle_fallback=True)
+
+        # Load in restricted mode (user says No to unsafe)
+        with self.patch_messagebox_exec(return_value=QMessageBox.No):
+            w.load_scheme(self.filename)
+
+        workflow = w.current_document().scheme()
+        self.assertEqual(len(workflow.nodes), 1)
+        loaded_node = workflow.nodes[0]
+        # Properties should be empty (not restored)
+        self.assertEqual(loaded_node.properties, {})
+        # State message should mention the specific issue
+        msg = loaded_node.state_message("-properties-restore-error-data")
+        self.assertIsNotNone(msg)
+        self.assertIn("settings", msg.contents.lower())
+
     def test_save_swp(self):
         w = self.w
         swpname = swp_name(w)

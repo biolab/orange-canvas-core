@@ -1301,11 +1301,17 @@ class CanvasMainWindow(QMainWindow):
         -------
         workflow: Optional[Scheme]
         """
-        def warn(warning):
+        def raise_pickle_data_error(warning: Warning) -> None:
+            """Warning handler that raises on pickle data."""
             if isinstance(warning, readwrite.PickleDataWarning):
                 raise warning
 
-        def load(fileobj, warning_handler=None, data_deserializer=None):
+        def make_scheme(
+                fileobj: IO,
+                warning_handler: Optional[Callable[[Warning], None]],
+                data_deserializer: Optional[Callable[..., Any]],
+        ) -> Tuple[Scheme, List[Exception]]:
+            """Helper to create a Scheme from the file object."""
             new_scheme = config.workflow_constructor()
             new_scheme.set_runtime_env(
                 "basedir", os.path.abspath(os.path.dirname(path)))
@@ -1320,42 +1326,15 @@ class CanvasMainWindow(QMainWindow):
         pos = -1
         try:
             pos = fileobj.tell()
-            new_scheme, errors = load(
-                fileobj, warning_handler=warn,
+            # Safe deserialization with pickle warning as error
+            new_scheme, errors = make_scheme(
+                fileobj, warning_handler=raise_pickle_data_error,
                 data_deserializer=readwrite.default_deserializer_with_pickle_fallback,
             )
         except (readwrite.UnsupportedPickleFormatError,
                 readwrite.PickleDataWarning):
-            mbox = QMessageBox(
-                icon=QMessageBox.Warning,
-                windowTitle=self.tr("Security Warning"),
-                text=self.tr(
-                    "This file can contain executable code and can run "
-                    "arbitrary commands on this computer.<br/>"
-                    "Would you like to load the unsafe content anyway?"
-                ),
-                informativeText=self.tr(
-                    "Only select <b>Load Unsafe</b> if you trust the source "
-                    "of the file."
-                ),
-                textFormat=Qt.RichText,
-                standardButtons=QMessageBox.Yes | QMessageBox.No | QMessageBox.Abort
-            )
-            mbox.setDefaultButton(QMessageBox.Abort)
-            abort = mbox.button(QMessageBox.Abort)
-            abort.setText(self.tr("Don't Open"))
-            yes = mbox.button(QMessageBox.Yes)
-            yes.setText(self.tr("Load Unsafe"))
-            yes.setToolTip(self.tr(
-                "Load the complete file. Only select this if you trust "
-                "the origin of the file."
-            ))
-            no = mbox.button(QMessageBox.No)
-            no.setText(self.tr("Discard Unsafe Content"))
-            no.setToolTip(self.tr(
-                "Load the file only partially, striping out all the "
-                "unsafe content."
-            ))
+            # Raise a security warning message box
+            mbox = self._security_warning_dialog()
             res = mbox.exec()
             if res == QMessageBox.Abort:
                 return None
@@ -1366,17 +1345,27 @@ class CanvasMainWindow(QMainWindow):
             else:
                 assert False
             fileobj.seek(pos, os.SEEK_SET)
-            new_scheme, errors = load(
-                fileobj, warning_handler=None,
-                data_deserializer=data_deserializer
+            new_scheme, errors = make_scheme(
+                fileobj, warning_handler=None, data_deserializer=data_deserializer
             )
+            # Add a message to every node where settings were not restored
             for e in list(errors):
                 if isinstance(e, (readwrite.UnsupportedPickleFormatError,
                                   readwrite.UnsafeUnpicklingError)):
                     if e.node is not None and e.node in new_scheme.nodes:
+                        if isinstance(e, readwrite.UnsafeUnpicklingError):
+                            reason = (
+                                f"Disallowed type '{e.name}' prevented "
+                                "settings restoration"
+                            )
+                        else:
+                            reason = (
+                                "Pickle data format not supported in "
+                                "restricted mode; settings not restored"
+                            )
                         e.node.set_state_message(
                             UserMessage(
-                                "Did not restore settings", UserMessage.Warning,
+                                reason, UserMessage.Warning,
                                 message_id="-properties-restore-error-data",
                         ))
                     errors.remove(e)
@@ -1404,6 +1393,41 @@ class CanvasMainWindow(QMainWindow):
             )
         new_scheme.setParent(self)
         return new_scheme
+
+    def _security_warning_dialog(self) -> QMessageBox:
+        """Return a security warning dialog for unsafe workflow files."""
+        mbox = QMessageBox(
+            icon=QMessageBox.Warning,
+            windowTitle=self.tr("Security Warning"),
+            text=self.tr(
+                "This file can contain executable code and can run "
+                "arbitrary commands on this computer.<br/>"
+                "Would you like to load the unsafe content anyway?"
+            ),
+            informativeText=self.tr(
+                "Only select <b>Load Unsafe</b> if you trust the source "
+                "of the file."
+            ),
+            textFormat=Qt.RichText,
+            standardButtons=QMessageBox.Yes | QMessageBox.No | QMessageBox.Abort,
+        )
+        mbox.setDefaultButton(QMessageBox.Abort)
+
+        abort = mbox.button(QMessageBox.Abort)
+        abort.setText(self.tr("Don't Open"))
+        yes = mbox.button(QMessageBox.Yes)
+        yes.setText(self.tr("Load Unsafe"))
+        yes.setToolTip(self.tr(
+            "Load the complete file. Only select this if you trust "
+            "the origin of the file."
+        ))
+        no = mbox.button(QMessageBox.No)
+        no.setText(self.tr("Discard Unsafe Content"))
+        no.setToolTip(self.tr(
+            "Load the file only partially, stripping out all the "
+            "unsafe content."
+        ))
+        return mbox
 
     def check_requires(self, fileobj: IO) -> bool:
         requires = scheme_requires(fileobj, self.widget_registry)
