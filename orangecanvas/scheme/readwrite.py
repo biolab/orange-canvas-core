@@ -423,7 +423,27 @@ def resolve_replaced(scheme_desc: _scheme, registry: WidgetRegistry) -> _scheme:
 
 def default_serializer(
         node: SchemeNode, data_format: DataFormat = "literal"
-) -> Optional[Tuple[AnyStr, str]]:
+) -> tuple[AnyStr, str] | None:
+    """Serialize node properties using the specified data format.
+
+    Parameters
+    ----------
+    node : SchemeNode
+        The node whose properties to serialize.
+    data_format : DataFormat
+        The serialization format to use ('literal', 'json').
+
+    Returns
+    -------
+    tuple[AnyStr, str] | None
+        A tuple of (serialized_data, format) if properties exist,
+        None otherwise.
+
+    Raises
+    ------
+    UnserializableTypeError
+        If the properties contain types that cannot be serialized.
+    """
     if node.properties:
         return dumps(node.properties, format=data_format), data_format
     else:
@@ -433,8 +453,37 @@ def default_serializer(
 def default_serializer_with_pickle_fallback(
         node: SchemeNode,
         data_format: DataFormat = "literal",
-        pickler_class=None,
-) -> Optional[Tuple[AnyStr, str]]:
+        pickler_class: type[pickle.Pickler] | None = None,
+) -> tuple[AnyStr, str] | None:
+    """Serialize node properties with pickle fallback.
+
+    Attempts to serialize using the specified format first. If that fails
+    due to unsupported types, falls back to using pickle serialization
+    with :class:`RestrictedPickler`.
+
+    Parameters
+    ----------
+    node : SchemeNode
+        The node whose properties to serialize.
+    data_format : DataFormat
+        The preferred serialization format ('literal' or 'json').
+    pickler_class : Optional[Type[pickle.Pickler]]
+        The Pickler class to use for fallback serialization.
+        Defaults to :class:`RestrictedPickler`.
+
+    Returns
+    -------
+    tuple[AnyStr, str] | None
+        A tuple of (serialized_data, format) if properties exist,
+        None otherwise. The format will be 'pickle' if fallback was used.
+
+    Raises
+    ------
+    UnserializableTypeError
+        If neither the primary format nor pickle can serialize the properties.
+    UnserializableValueError
+        If the properties contain a recursive structure.
+    """
     try:
         return default_serializer(node, data_format=data_format)
     except (UnserializableTypeError, UnserializableValueError):
@@ -453,7 +502,15 @@ def default_serializer_with_pickle_fallback(
 
 def unsafe_serializer(
         node: SchemeNode, data_format: DataFormat = "literal"
-):
+) -> tuple[AnyStr, str] | None:
+    """
+    .. warning::
+        This serializer should only be used with trusted data sources,
+        as the resulting pickle data can execute arbitrary code during
+        deserialization.
+
+    Serialize node properties using pickle with unrestricted unpickling.
+    """
     return default_serializer_with_pickle_fallback(
         node, data_format, pickler_class=pickle.Pickler
     )
@@ -462,14 +519,61 @@ def unsafe_serializer(
 DataSerializerType = Callable[[SchemeNode], Optional[Tuple[AnyStr, str]]]
 
 
-def default_deserializer(payload, format_):
-    return loads(payload, format_)
+def default_deserializer(payload: str, format: str) -> Any:
+    """Deserialize a payload using the specified format.
+
+    Parameters
+    ----------
+    payload : str
+        The serialized data to deserialize.
+    format : str
+        The format of the payload ('literal' or 'json').
+
+    Returns
+    -------
+    Any
+        The deserialized object.
+
+    Raises
+    ------
+    UnsupportedFormatError
+        If the format is not supported.
+    """
+    return loads(payload, format)
 
 
 def default_deserializer_with_pickle_fallback(
-        payload, format_, *, unpickler_class=None
-):
-    if format_ == "pickle":
+        payload: str, format: str, *,
+        unpickler_class: type[pickle.Unpickler] | None = None
+) -> Any:
+    """Deserialize a payload with pickle support using restricted unpickling.
+
+    If the format is 'pickle', deserializes using :class:`RestrictedUnpickler`.
+    Otherwise, delegates to :func:`default_deserializer`.
+
+    Parameters
+    ----------
+    payload : str
+        The serialized data to deserialize.
+    format : str
+        The format of the payload ('literal', 'json', or 'pickle').
+    unpickler_class : type[pickle.Unpickler] | None
+        The Unpickler class to use for pickle data. Defaults to
+        :class:`RestrictedUnpickler`.
+
+    Returns
+    -------
+    Any
+        The deserialized object.
+
+    Raises
+    ------
+    UnsafeUnpicklingError
+        If the pickle data attempts to load an unsafe type.
+    UnsupportedFormatError
+        If the format is not supported.
+    """
+    if format == "pickle":
         if isinstance(payload, str):
             payload = payload.encode("ascii")
         if unpickler_class is None:
@@ -477,10 +581,38 @@ def default_deserializer_with_pickle_fallback(
         unpickler = unpickler_class(io.BytesIO(base64.decodebytes(payload)))
         return unpickler.load()
     else:
-        return default_deserializer(payload, format_)
+        return default_deserializer(payload, format)
 
 
-def unsafe_deserializer(payload, format):
+def unsafe_deserializer(payload: str, format: str) -> Any:
+    """
+    .. warning::
+        This deserializer should only be used with trusted data sources,
+        as pickle data can execute arbitrary code during deserialization.
+
+    Deserialize a payload using pickle with unrestricted unpickling.
+
+    Like :func:`default_deserializer_with_pickle_fallback` but uses
+    :class:`pickle.Unpickler` instead of :class:`RestrictedUnpickler`,
+    allowing all Python objects to be deserialized.
+
+    Parameters
+    ----------
+    payload : str
+        The serialized data to deserialize.
+    format : str
+        The format of the payload ('literal', 'json', or 'pickle').
+
+    Returns
+    -------
+    Any
+        The deserialized object.
+
+    Raises
+    ------
+    UnsupportedFormatError
+        If the format is not supported.
+    """
     return default_deserializer_with_pickle_fallback(
         payload, format, unpickler_class=pickle.Unpickler
     )
@@ -491,6 +623,25 @@ DataDeserializerType = Callable[[AnyStr, str], Any]
 def _resolve_default_deserializer(
         data_deserializer: DataDeserializerType, desc: WidgetDescription
 ) -> DataDeserializerType:
+    """Resolve the appropriate deserializer for a widget description.
+
+    If the provided deserializer is
+    :func:`default_deserializer_with_pickle_fallback`, wraps it with
+    a partial that restricts unpickling to types allowed by the widget
+    description's ``allowed_property_types``.
+
+    Parameters
+    ----------
+    data_deserializer : DataDeserializerType
+        The data deserializer function to potentially wrap.
+    desc : WidgetDescription
+        The widget description containing allowed parameter types.
+
+    Returns
+    -------
+    DataDeserializerType
+        The resolved deserializer function.
+    """
     if data_deserializer is default_deserializer_with_pickle_fallback:
         data_deserializer = partial(
             data_deserializer,
@@ -514,12 +665,36 @@ def scheme_load(
 
     Parameters
     ----------
-    scheme: Scheme
-    stream: typing.IO
-    registry: WidgetRegistry
-    error_handler:  Callable[[Exception], None]
-    warning_handler: Callable[[Warning], None]
-    data_deserializer: Callable[[AnyStr, str], Any]
+    scheme : Scheme
+        The Scheme instance to populate.
+    stream : typing.IO
+        A file-like object opened for reading the scheme data.
+    registry : WidgetRegistry, optional
+        The widget registry to use for resolving widget definitions.
+        Defaults to the global registry.
+    error_handler : Callable[[Exception], None], optional
+        Function called when an error occurs during deserialization.
+        By default, re-raises the exception.
+    warning_handler : Callable[[Warning], None], optional
+        Function called when a warning occurs during deserialization.
+        By default, uses :func:`warnings.warn`.
+    data_deserializer : Callable[[AnyStr, str], Any], optional
+        Function for deserializing node properties. If not provided,
+        defaults to :func:`default_deserializer`.
+
+        When using :func:`default_deserializer_with_pickle_fallback`,
+        the deserializer is automatically wrapped with
+        :func:`_resolve_default_deserializer` for each widget, which
+        restricts pickle unpickling to types allowed by the widget's
+        ``allowed_property_types`` attribute. This ensures that only
+        safe types specified by the widget definition can be deserialized
+        from pickle data.
+
+    Raises
+    ------
+    UnknownWidgetDefinition
+        Raised by the default error handler when a widget definition
+        cannot be found in the registry.
     """
     desc = parse_ows_stream(stream)  # type: _scheme
 
@@ -705,6 +880,25 @@ def default_warning_handler(err: Warning):
 def _resolve_default_serializer(
         data_serializer: DataSerializerType, desc: WidgetDescription
 ) -> DataSerializerType:
+    """Resolve the appropriate serializer for a widget description.
+
+    If the provided serializer is
+    :func:`default_serializer_with_pickle_fallback`, wraps it with
+    a partial that restricts pickling to types allowed by the widget
+    description's ``allowed_property_types``.
+
+    Parameters
+    ----------
+    data_serializer : DataSerializerType
+        The data serializer function to potentially wrap.
+    desc : WidgetDescription
+        The widget description containing allowed parameter types.
+
+    Returns
+    -------
+    DataSerializerType
+        The resolved serializer function.
+    """
     if data_serializer is default_serializer_with_pickle_fallback:
         data_serializer = partial(
             default_serializer_with_pickle_fallback,
