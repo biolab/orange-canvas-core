@@ -50,6 +50,7 @@ from AnyQt.QtCore import (
 from ..scheme import Scheme, IncompatibleChannelTypeError, SchemeNode
 from ..scheme import readwrite
 from ..scheme.readwrite import UnknownWidgetDefinition
+from ..scheme.node import UserMessage
 from ..gui.dropshadow import DropShadowFrame
 from ..gui.dock import CollapsibleDockWidget
 from ..gui.quickhelp import QuickHelpTipEvent
@@ -1300,15 +1301,85 @@ class CanvasMainWindow(QMainWindow):
         -------
         workflow: Optional[Scheme]
         """
-        new_scheme = config.workflow_constructor(parent=self)
-        new_scheme.set_runtime_env(
-            "basedir", os.path.abspath(os.path.dirname(path)))
-        errors = []  # type: List[Exception]
-        try:
+        def warn(warning):
+            if isinstance(warning, readwrite.PickleDataWarning):
+                raise warning
+
+        def load(fileobj, warning_handler=None,
+                 data_deserializer=readwrite.default_deserializer):
+            new_scheme = config.workflow_constructor()
+            new_scheme.set_runtime_env(
+                "basedir", os.path.abspath(os.path.dirname(path)))
+            errors = []  # type: List[Exception]
             new_scheme.load_from(
                 fileobj, registry=self.widget_registry,
-                error_handler=errors.append
+                error_handler=errors.append, warning_handler=warning_handler,
+                data_deserializer=data_deserializer
             )
+            return new_scheme, errors
+
+        pos = -1
+        try:
+            pos = fileobj.tell()
+            new_scheme, errors = load(
+                fileobj, warning_handler=warn,
+                data_deserializer=readwrite.default_deserializer
+            )
+        except (readwrite.UnsupportedPickleFormatError,
+                readwrite.PickleDataWarning):
+            mbox = QMessageBox(
+                icon=QMessageBox.Warning,
+                windowTitle=self.tr("Security Warning"),
+                text=self.tr(
+                    "This file can contain executable code and can run "
+                    "arbitrary commands on this computer.<br/>"
+                    "Would you like to load the unsafe content anyway?"
+                ),
+                informativeText=self.tr(
+                    "Only select <b>Load Unsafe</b> if you trust the source "
+                    "of the file."
+                ),
+                textFormat=Qt.RichText,
+                standardButtons=QMessageBox.Yes | QMessageBox.No | QMessageBox.Abort
+            )
+            mbox.setDefaultButton(QMessageBox.Abort)
+            abort = mbox.button(QMessageBox.Abort)
+            abort.setText(self.tr("Don't Open"))
+            yes = mbox.button(QMessageBox.Yes)
+            yes.setText(self.tr("Load Unsafe"))
+            yes.setToolTip(self.tr(
+                "Load the complete file. Only select this if you trust "
+                "the origin of the file."
+            ))
+            no = mbox.button(QMessageBox.No)
+            no.setText(self.tr("Discard Unsafe Content"))
+            no.setToolTip(self.tr(
+                "Load the file only partially, striping out all the "
+                "unsafe content."
+            ))
+            res = mbox.exec()
+            if res == QMessageBox.Abort:
+                return None
+            elif res == QMessageBox.Yes:  # load with unsafe data
+                data_deserializer = readwrite.default_deserializer_with_pickle_fallback
+            elif res == QMessageBox.No:  # load but discard unsafe data
+                data_deserializer = readwrite.default_deserializer
+            else:
+                assert False
+            fileobj.seek(pos, os.SEEK_SET)
+            new_scheme, errors = load(
+                fileobj, warning_handler=None,
+                data_deserializer=data_deserializer
+            )
+            for e in list(errors):
+                if isinstance(e, readwrite.UnsupportedPickleFormatError):
+                    if e.node is not None and e.node in new_scheme.nodes:
+                        e.node.set_state_message(
+                            UserMessage(
+                                "Did not restore settings", UserMessage.Warning,
+                                message_id="-properties-restore-error-data",
+                        ))
+                    errors.remove(e)
         except Exception:  # pylint: disable=broad-except
             log.exception("")
             message_critical(
@@ -1331,6 +1402,7 @@ class CanvasMainWindow(QMainWindow):
                 details=details,
                 parent=self,
             )
+        new_scheme.setParent(self)
         return new_scheme
 
     def check_requires(self, fileobj: IO) -> bool:
@@ -1584,9 +1656,54 @@ class CanvasMainWindow(QMainWindow):
         # First write the scheme to a buffer so we don't truncate an
         # existing scheme file if `scheme.save_to` raises an error.
         buffer = io.BytesIO()
+        scheme.set_runtime_env("basedir", os.path.abspath(dirname))
         try:
-            scheme.set_runtime_env("basedir", os.path.abspath(dirname))
-            scheme.save_to(buffer, pretty=True, pickle_fallback=True)
+            try:
+                scheme.save_to(
+                    buffer, pretty=True, data_serializer=readwrite.default_serializer
+                )
+            except (readwrite.UnserializableTypeError,
+                    readwrite.UnserializableValueError):
+                mb = QMessageBox(
+                    self, windowTitle=self.tr("Unsafe Contents"),
+                    icon=QMessageBox.Warning,
+                    text=self.tr(
+                        "The workflow contains parameters that cannot be "
+                        "safely deserialized.<br/>"
+                        "Would you like to save a partial workflow anyway."),
+                    informativeText=self.tr(
+                        "Workflow structure will be saved but some node "
+                        "parameters will be lost."
+                    ),
+                    standardButtons=QMessageBox.Discard | QMessageBox.Save |
+                                    QMessageBox.Abort
+                )
+                mb.setEscapeButton(QMessageBox.Abort)
+                mb.setDefaultButton(QMessageBox.Save)
+                b = mb.button(QMessageBox.Save)
+                b.setText(self.tr("Save Anyway"))
+                b.setToolTip(self.tr(
+                    "Loading such a workflow will require explicit user "
+                    "confirmation."))
+                b = mb.button(QMessageBox.Discard)
+                b.setText(self.tr("Discard Unsafe Content"))
+                b.setToolTip(self.tr("The saved workflow will not be complete. "
+                                     "Some parameters will not be restored"))
+                res = mb.exec()
+                buffer.truncate(0)
+                if res == QMessageBox.Abort:
+                    return False
+                if res == QMessageBox.Discard:
+                    def serializer(node):
+                        try:
+                            return readwrite.default_serializer(node)
+                        except Exception:
+                            return None
+                else:
+                    serializer = readwrite.default_serializer_with_pickle_fallback
+                scheme.save_to(
+                    buffer, pretty=True, data_serializer=serializer
+                )
         except Exception:
             log.error("Error saving %r to %r", scheme, filename, exc_info=True)
             message_critical(
@@ -1596,7 +1713,7 @@ class CanvasMainWindow(QMainWindow):
                 exc_info=True,
                 parent=self
             )
-            return False  # return False here because there is second part
+            return False
 
         try:
             with open(filename, "wb") as f:
@@ -2791,7 +2908,7 @@ def render_error_details(errors: Iterable[Exception]) -> str:
                                      IncompatibleChannelTypeError))
     )
     contents = []
-    if missing_node_defs is not None:
+    if missing_node_defs:
         contents.extend([
             "Missing node definitions:",
             *["  \N{BULLET} " + e.args[0] for e in missing_node_defs],

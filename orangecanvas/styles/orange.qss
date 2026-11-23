@@ -20,6 +20,11 @@ CanvasMainWindow::separator {
     height: 1px; /* when horizontal */
 }
 
+/* QMessageBox has bold informativelabel when child of styled CanvasMainWindow? */
+CanvasMainWindow QMessageBox QLabel[style=QMacStyle]#qt_msgbox_informativelabel {
+    font-weight: normal;
+}
+
 /* The widget buttons in the dock tool box */
 
 WidgetToolBox WidgetToolGrid QToolButton {
