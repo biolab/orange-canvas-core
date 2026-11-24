@@ -236,10 +236,38 @@ class TestMainWindowLoad(TestMainWindowBase):
             f.assert_called_with()
             self.assertNotIn("pickle", contents())
 
-        with self.patch_messagebox_exec(QMessageBox.Ignore) as f:
+        with self.patch_messagebox_exec(QMessageBox.Save) as f:
             w.save_scheme()
             f.assert_called_with()
             self.assertIn("pickle", contents())
+
+    def test_save_unsafe_warn_data_loss(self):
+        """Verify that partial save tracks and reports lost nodes."""
+        w = self.w
+        doc = w.current_document()
+        doc.setPath(self.filename)
+
+        # Create two nodes — both with unserializable data
+        node1 = SchemeNode(self.registry.widget("one"), title="NodeAlpha")
+        node1.properties = {"a": object()}
+        doc.addNode(node1)
+
+        node2 = SchemeNode(self.registry.widget("zero"), title="NodeBeta")
+        node2.properties = {"b": object()}
+        doc.addNode(node2)
+
+        # Partial save with 2 lost nodes.
+        # Use side_effect for the two sequential QMessageBox.exec() calls:
+        #   1. unsafe contents dialog -> Discard
+        #   2. data loss warning dialog -> Ok
+        with patch.object(QMessageBox, "exec",
+                          side_effect=[QMessageBox.Discard, QMessageBox.Ok]):
+            w.save_scheme()
+
+        # Verify the file doesn't contain pickle (partial save)
+        with open(self.filename, "r", encoding="utf-8") as f:
+            contents = f.read()
+        self.assertNotIn("pickle", contents)
 
     def test_load_unsafe_ask(self):
         w = self.w

@@ -1667,13 +1667,26 @@ class CanvasMainWindow(QMainWindow):
 
         return QFileDialog.Rejected
 
-    def save_scheme_to(self, scheme, filename):
-        # type: (Scheme, str) -> bool
+    def save_scheme_to(self, scheme: Scheme, filename: str) -> bool:
         """
         Save a Scheme instance `scheme` to `filename`. On success return
         `True`, else show a message to the user explaining the error and
         return `False`.
         """
+        lost_nodes: list[str] = []  # Track nodes whose data was dropped
+
+        def partial_serializer(node: SchemeNode) -> tuple[Any, str] | None:
+            """Serializer that skips nodes whose properties cannot be serialized."""
+            try:
+                serializer = readwrite._resolve_default_serializer(
+                    readwrite.default_serializer_with_pickle_fallback,
+                    node.description
+                )
+                return serializer(node)
+            except Exception:  # pylint: disable=broad-except
+                lost_nodes.append(node.title or str(node))
+                return None
+
         dirname, basename = os.path.split(filename)
         title = scheme.title or "untitled"
 
@@ -1681,76 +1694,51 @@ class CanvasMainWindow(QMainWindow):
         # existing scheme file if `scheme.save_to` raises an error.
         buffer = io.BytesIO()
         scheme.set_runtime_env("basedir", os.path.abspath(dirname))
+        serializer: Callable[[SchemeNode], tuple[Any, str] | None]
         try:
-            try:
-                scheme.save_to(
-                    buffer, pretty=True,
-                    data_serializer=readwrite.default_serializer_with_pickle_fallback
-                )
-            except (readwrite.UnserializableTypeError,
-                    readwrite.UnserializableValueError):
-                mb = QMessageBox(
-                    self, windowTitle=self.tr("Unsafe Contents"),
-                    icon=QMessageBox.Warning,
-                    text=self.tr(
-                        "The workflow contains parameters that cannot be "
-                        "safely deserialized.<br/>"
-                        "Would you like to save a partial workflow anyway."),
-                    informativeText=self.tr(
-                        "Workflow structure will be saved but some node "
-                        "parameters will be lost."
-                    ),
-                    standardButtons=QMessageBox.Discard | QMessageBox.Save |
-                                    QMessageBox.Abort
-                )
-                mb.setEscapeButton(QMessageBox.Abort)
-                mb.setDefaultButton(QMessageBox.Save)
-                b = mb.button(QMessageBox.Save)
-                b.setText(self.tr("Save Anyway"))
-                b.setToolTip(self.tr(
-                    "Loading such a workflow will require explicit user "
-                    "confirmation."))
-                b = mb.button(QMessageBox.Discard)
-                b.setText(self.tr("Discard Unsafe Content"))
-                b.setToolTip(self.tr("The saved workflow will not be complete. "
-                                     "Some parameters will not be restored"))
-                res = mb.exec()
-                buffer.truncate(0)
-                if res == QMessageBox.Abort:
-                    return False
-                if res == QMessageBox.Discard:
-                    def serializer(node: SchemeNode):
-                        serializer = readwrite._resolve_default_serializer(
-                            readwrite.default_serializer_with_pickle_fallback,
-                            node.description
-                        )
-                        try:
-                            return serializer(node)
-                        except Exception:
-                            return None
-                else:
-                    serializer = readwrite.unsafe_serializer
-                scheme.save_to(
-                    buffer, pretty=True, data_serializer=serializer
-                )
-        except Exception:
-            log.error("Error saving %r to %r", scheme, filename, exc_info=True)
-            message_critical(
-                self.tr('An error occurred while trying to save workflow '
-                        '"%s" to "%s"') % (title, basename),
-                title=self.tr("Error saving %s") % basename,
-                exc_info=True,
-                parent=self
+            scheme.save_to(
+                buffer, pretty=True,
+                data_serializer=readwrite.default_serializer_with_pickle_fallback
             )
-            return False
+        except (readwrite.UnserializableTypeError,
+                readwrite.UnserializableValueError):
+            mbox = self._save_unsafe_contents_dialog()
+            res = mbox.exec()
+            if res == QMessageBox.Abort:
+                return False
+            elif res == QMessageBox.Discard:
+                serializer = partial_serializer
+            else:
+                serializer = readwrite.unsafe_serializer
+            buffer.truncate(0)
+            scheme.save_to(
+                buffer, pretty=True, data_serializer=serializer
+            )
 
         try:
             with open(filename, "wb") as f:
                 f.write(buffer.getvalue())
             self.clear_swp()
+
+            # Warn about lost data when using partial_serializer
+            if lost_nodes:
+                node_list = "\n".join(f"  - {n}" for n in lost_nodes[:10])
+                if len(lost_nodes) > 10:
+                    node_list += f"\n  ... and {len(lost_nodes) - 10} more"
+                message_warning(
+                    self.tr('Some workflow data was not saved.'),
+                    title=self.tr("Data Loss Warning"),
+                    informative_text=self.tr(
+                        "The following nodes lost their parameters because "
+                        "they contain unserializable data:"
+                    ),
+                    details=node_list,
+                    parent=self,
+                )
+
             return True
-        except FileNotFoundError as ex:
-            log.error("%s saving '%s'", type(ex).__name__, filename,
+        except FileNotFoundError:
+            log.error("FileNotFoundError saving '%s'", filename,
                       exc_info=True)
             message_warning(
                 self.tr('Workflow "%s" could not be saved. The path does '
@@ -1759,8 +1747,8 @@ class CanvasMainWindow(QMainWindow):
                 informative_text=self.tr("Choose another location."),
                 parent=self
             )
-        except PermissionError as ex:
-            log.error("%s saving '%s'", type(ex).__name__, filename,
+        except PermissionError:
+            log.error("PermissionError saving '%s'", filename,
                       exc_info=True)
             message_warning(
                 self.tr('Workflow "%s" could not be saved. You do not '
@@ -1772,8 +1760,7 @@ class CanvasMainWindow(QMainWindow):
                 parent=self
             )
         except OSError as ex:
-            log.error("%s saving '%s'", type(ex).__name__, filename,
-                      exc_info=True)
+            log.error("OSError saving '%s'", filename, exc_info=True)
             message_warning(
                 self.tr('Workflow "%s" could not be saved.') % title,
                 title="",
@@ -1790,7 +1777,38 @@ class CanvasMainWindow(QMainWindow):
                 exc_info=True,
                 parent=self
             )
-        return False  # default behaviour
+        return False
+
+    def _save_unsafe_contents_dialog(self) -> QMessageBox:
+        """Return dialog for unserializable workflow contents."""
+        mb = QMessageBox(
+            self, windowTitle=self.tr("Unserializable Contents"),
+            icon=QMessageBox.Warning,
+            text=self.tr(
+                "The workflow contains parameters that cannot be "
+                "serialized in a safe format.<br/>"
+                "Would you like to save a partial workflow anyway?"),
+            informativeText=self.tr(
+                "Workflow structure will be saved but some node "
+                "parameters will be lost."
+            ),
+            standardButtons=QMessageBox.Discard | QMessageBox.Save |
+                            QMessageBox.Abort
+        )
+        mb.setEscapeButton(QMessageBox.Abort)
+        mb.setDefaultButton(QMessageBox.Save)
+        b = mb.button(QMessageBox.Save)
+        b.setText(self.tr("Save Anyway"))
+        b.setToolTip(self.tr(
+            "Save the complete workflow using unrestricted pickle. "
+            "Loading such a workflow will require explicit user "
+            "confirmation because it may execute arbitrary code."))
+        b = mb.button(QMessageBox.Discard)
+        b.setText(self.tr("Discard Unserializable Data"))
+        b.setToolTip(self.tr("The saved workflow will not be complete. "
+                             "Some parameters will not be restored"))
+        mb.setAttribute(Qt.WA_DeleteOnClose)
+        return mb
 
     def save_swp(self):
         """
