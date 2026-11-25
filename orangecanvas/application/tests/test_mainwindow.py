@@ -2,7 +2,7 @@ import io
 import os
 import tempfile
 from unittest.mock import patch, Mock
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 
 from AnyQt.QtGui import QWhatsThisClickedEvent
 from AnyQt.QtWidgets import (
@@ -428,6 +428,50 @@ class TestMainWindowLoad(TestMainWindowBase):
         w.current_document().removeAnnotation(a)
         test(lambda:
              self.assertFalse(w2.scheme_widget.scheme().annotations))
+
+    def test_load_swp_restricted_unpickler(self):
+        """Verify that SWP loading uses restricted unpickling by default."""
+        import os
+        import pickle
+        from orangecanvas.utils.pickle import UnsafeUnpicklingError
+        from orangecanvas.application.utils.pickle import (
+            RestrictedApplicationUnpickler
+        )
+
+        # RestrictedApplicationUnpickler should block os.system
+        data = pickle.dumps(os.system)
+        with self.assertRaises(UnsafeUnpicklingError):
+            RestrictedApplicationUnpickler(io.BytesIO(data), Mock()).load()
+
+        # But it should allow basic builtins
+        result = RestrictedApplicationUnpickler(
+            io.BytesIO(pickle.dumps([1, "hello", {"key": True}])), Mock()
+        ).load()
+        self.assertEqual(result, [1, "hello", {"key": True}])
+
+    def test_load_swp_blocked_by_default(self):
+        """Verify that SWP files with unsafe types are blocked by default."""
+        import pickle
+        import os as os_module
+        w = self.w
+        es = ExitStack()
+        with (es, temp_named_file("", delete=False) as tf):
+            @es.callback
+            def cleanup():
+                if os.path.exists(tf):
+                    os.remove(tf)
+
+            with open(tf, "wb") as f:
+                # Use standard pickle to create the malicious SWP file
+                pickle.dump(({"os.system": os_module.system}, []), f)
+
+            # Loading should fail with an error message box
+            with self.patch_messagebox_exec(QMessageBox.Ok) as mock:
+                w.load_swp_from(tf)
+                # The malicious data was not loaded
+                properties = w.scheme_widget.uncleanProperties()
+                self.assertFalse(any("os.system" in str(node) for node in properties))
+                mock.assert_called_once()
 
     def test_open_ows_req(self):
         w = self.w

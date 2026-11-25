@@ -5,6 +5,7 @@ import pickle
 from AnyQt.QtCore import QSettings
 
 from orangecanvas import config
+from orangecanvas.utils.pickle import RestrictedUnpickler
 from ...scheme import Scheme, SchemeNode, SchemeLink, BaseSchemeAnnotation
 
 
@@ -42,6 +43,69 @@ class Unpickler(pickle.Unpickler):
             return self.scheme.links[link_index]
         elif pid.startswith('BaseSchemeAnnotation_'):
             annotation_index = int(pid.split('_')[1])
+            return self.scheme.annotations[annotation_index]
+        else:
+            raise pickle.UnpicklingError("Unsupported persistent object")
+
+
+class RestrictedApplicationUnpickler(RestrictedUnpickler):
+    """A restricted unpickler for SWP (crash recovery) files.
+
+    Inherits from :class:`RestrictedUnpickler` and adds support for
+    application-specific persistent IDs (SchemeNode, SchemeLink, etc.)
+    while restricting unpickling to a safe whitelist of types.
+
+    This prevents arbitrary code execution when loading SWP files that
+    may have been created or tampered with by untrusted sources.
+
+    Attributes
+    ----------
+    scheme : Scheme
+        The scheme to resolve persistent IDs against.
+    """
+    #: Types allowed for SWP file loading
+    EXTRA = (
+        # Undo command classes
+        "orangecanvas.document.commands:AddNodeCommand",
+        "orangecanvas.document.commands:RemoveNodeCommand",
+        "orangecanvas.document.commands:AddLinkCommand",
+        "orangecanvas.document.commands:RemoveLinkCommand",
+        "orangecanvas.document.commands:AddAnnotationCommand",
+        "orangecanvas.document.commands:RemoveAnnotationCommand",
+        "orangecanvas.document.commands:MoveNodeCommand",
+        "orangecanvas.document.commands:LinkMoveCommand",
+        "orangecanvas.document.commands:SetTitleCommand",
+        "orangecanvas.document.commands:TextChangeCommand",
+        "orangecanvas.document.commands:SetAttrCommand",
+        "orangecanvas.document.commands:SetWindowGroupPresets",
+        "orangecanvas.document.commands:SimpleUndoCommand",
+        # UndoCommand base class
+        "orangecanvas.document.commands:UndoCommand",
+        # Workflow classes
+        "orangecanvas.scheme.node:SchemeNode",
+        "orangecanvas.scheme.link:SchemeLink",
+        "orangecanvas.scheme.annotations:SchemeArrowAnnotation",
+        "orangecanvas.scheme.annotations:SchemeTextAnnotation",
+        "orangecanvas.registry.description:WidgetDescription",
+        "orangecanvas.registry.description:OutputSignal",
+        "orangecanvas.registry.description:InputSignal",
+    )
+
+    def __init__(self, file, scheme, **kwargs):
+        super().__init__(file, **kwargs)
+        self.scheme = scheme
+
+    def persistent_load(self, pid: str):
+        if pid == "scheme":
+            return self.scheme
+        elif pid.startswith("SchemeNode_"):
+            node_index = int(pid.split("_")[1])
+            return self.scheme.nodes[node_index]
+        elif pid.startswith("SchemeLink_"):
+            link_index = int(pid.split("_")[1])
+            return self.scheme.links[link_index]
+        elif pid.startswith("BaseSchemeAnnotation_"):
+            annotation_index = int(pid.split("_")[1])
             return self.scheme.annotations[annotation_index]
         else:
             raise pickle.UnpicklingError("Unsupported persistent object")

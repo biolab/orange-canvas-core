@@ -10,6 +10,7 @@ import io
 import traceback
 from concurrent import futures
 from contextlib import contextmanager
+from itertools import chain
 
 from xml.sax.saxutils import escape
 from functools import partial, reduce
@@ -77,8 +78,10 @@ from ..registry import WidgetRegistry, WidgetDescription, CategoryDescription
 from ..registry.qt import QtWidgetRegistry
 from ..utils.settings import QSettings_readArray, QSettings_writeArray
 from ..utils.qinvoke import qinvoke
-from .utils.pickle import Pickler, Unpickler, glob_scratch_swps, swp_name, \
+from .utils.pickle import (
+    Pickler, RestrictedApplicationUnpickler, glob_scratch_swps, swp_name,
     canvas_scratch_name_memo, register_loaded_swp
+)
 from ..utils import unique, group_by_all, set_flag, findf
 from ..utils.asyncutils import get_event_loop
 from ..utils.qobjref import qobjref
@@ -1956,15 +1959,24 @@ class CanvasMainWindow(QMainWindow):
 
     def load_swp_from(self, filename):
         """
-        Load a diff of node properties and UndoCommands from a file
+        Load a diff of node properties and UndoCommands from a file.
+
+        Uses restricted unpickling by default. If restricted loading fails
+        due to disallowed types, shows a security warning dialog and falls
+        back to unrestricted loading if the user consents.
         """
         document = self.current_document()
         undoStack = document.undoStack()
-
         try:
             with open(filename, "rb") as f:
-                loaded: Tuple[Dict[SchemeNode, dict], List[UndoCommand]]
-                loaded = Unpickler(f, document.scheme()).load()
+                loaded: tuple[dict[SchemeNode, dict], list[UndoCommand]]
+                allowed = list(chain.from_iterable(
+                    d.allowed_property_types for d in self.widget_registry.widgets()
+                ))
+                unpickler = RestrictedApplicationUnpickler(
+                    f, document.scheme(), allowed=allowed
+                )
+                loaded = unpickler.load()
         except Exception:
             log.error("Could not load swp file: %r", filename, exc_info=True)
             message_critical(
