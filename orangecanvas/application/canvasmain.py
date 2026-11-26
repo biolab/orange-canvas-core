@@ -10,6 +10,7 @@ import io
 import traceback
 from concurrent import futures
 from contextlib import contextmanager
+from itertools import chain
 
 from xml.sax.saxutils import escape
 from functools import partial, reduce
@@ -50,6 +51,7 @@ from AnyQt.QtCore import (
 from ..scheme import Scheme, IncompatibleChannelTypeError, SchemeNode
 from ..scheme import readwrite
 from ..scheme.readwrite import UnknownWidgetDefinition
+from ..scheme.node import UserMessage
 from ..gui.dropshadow import DropShadowFrame
 from ..gui.dock import CollapsibleDockWidget
 from ..gui.quickhelp import QuickHelpTipEvent
@@ -76,8 +78,10 @@ from ..registry import WidgetRegistry, WidgetDescription, CategoryDescription
 from ..registry.qt import QtWidgetRegistry
 from ..utils.settings import QSettings_readArray, QSettings_writeArray
 from ..utils.qinvoke import qinvoke
-from ..utils.pickle import Pickler, Unpickler, glob_scratch_swps, swp_name, \
+from .utils.pickle import (
+    Pickler, RestrictedApplicationUnpickler, glob_scratch_swps, swp_name,
     canvas_scratch_name_memo, register_loaded_swp
+)
 from ..utils import unique, group_by_all, set_flag, findf
 from ..utils.asyncutils import get_event_loop
 from ..utils.qobjref import qobjref
@@ -1300,15 +1304,74 @@ class CanvasMainWindow(QMainWindow):
         -------
         workflow: Optional[Scheme]
         """
-        new_scheme = config.workflow_constructor(parent=self)
-        new_scheme.set_runtime_env(
-            "basedir", os.path.abspath(os.path.dirname(path)))
-        errors = []  # type: List[Exception]
-        try:
+        def raise_pickle_data_error(warning: Warning) -> None:
+            """Warning handler that raises on pickle data."""
+            if isinstance(warning, readwrite.PickleDataWarning):
+                raise warning
+
+        def make_scheme(
+                fileobj: IO,
+                warning_handler: Optional[Callable[[Warning], None]],
+                data_deserializer: Optional[Callable[..., Any]],
+        ) -> Tuple[Scheme, List[Exception]]:
+            """Helper to create a Scheme from the file object."""
+            new_scheme = config.workflow_constructor()
+            new_scheme.set_runtime_env(
+                "basedir", os.path.abspath(os.path.dirname(path)))
+            errors: List[Exception] = []
             new_scheme.load_from(
                 fileobj, registry=self.widget_registry,
-                error_handler=errors.append
+                error_handler=errors.append, warning_handler=warning_handler,
+                data_deserializer=data_deserializer
             )
+            return new_scheme, errors
+
+        pos = -1
+        try:
+            pos = fileobj.tell()
+            # Safe deserialization with pickle warning as error
+            new_scheme, errors = make_scheme(
+                fileobj, warning_handler=raise_pickle_data_error,
+                data_deserializer=readwrite.default_deserializer_with_pickle_fallback,
+            )
+        except (readwrite.UnsupportedPickleFormatError,
+                readwrite.PickleDataWarning):
+            # Raise a security warning message box
+            mbox = self._security_warning_dialog()
+            res = mbox.exec()
+            if res == QMessageBox.Abort:
+                return None
+            elif res == QMessageBox.Yes:  # load with unsafe data
+                data_deserializer = readwrite.unsafe_deserializer
+            elif res == QMessageBox.No:  # load but discard unsafe data
+                data_deserializer = readwrite.default_deserializer_with_pickle_fallback
+            else:
+                assert False
+            fileobj.seek(pos, os.SEEK_SET)
+            new_scheme, errors = make_scheme(
+                fileobj, warning_handler=None, data_deserializer=data_deserializer
+            )
+            # Add a message to every node where settings were not restored
+            for e in list(errors):
+                if isinstance(e, (readwrite.UnsupportedPickleFormatError,
+                                  readwrite.UnsafeUnpicklingError)):
+                    if e.node is not None and e.node in new_scheme.nodes:
+                        if isinstance(e, readwrite.UnsafeUnpicklingError):
+                            reason = (
+                                f"Disallowed type '{e.name}' prevented "
+                                "settings restoration"
+                            )
+                        else:
+                            reason = (
+                                "Pickle data format not supported in "
+                                "restricted mode; settings not restored"
+                            )
+                        e.node.set_state_message(
+                            UserMessage(
+                                reason, UserMessage.Warning,
+                                message_id="-properties-restore-error-data",
+                        ))
+                    errors.remove(e)
         except Exception:  # pylint: disable=broad-except
             log.exception("")
             message_critical(
@@ -1331,7 +1394,43 @@ class CanvasMainWindow(QMainWindow):
                 details=details,
                 parent=self,
             )
+        new_scheme.setParent(self)
         return new_scheme
+
+    def _security_warning_dialog(self) -> QMessageBox:
+        """Return a security warning dialog for unsafe workflow files."""
+        mbox = QMessageBox(
+            icon=QMessageBox.Warning,
+            windowTitle=self.tr("Security Warning"),
+            text=self.tr(
+                "This file can contain executable code and can run "
+                "arbitrary commands on this computer.<br/>"
+                "Would you like to load the unsafe content anyway?"
+            ),
+            informativeText=self.tr(
+                "Only select <b>Load Unsafe</b> if you trust the source "
+                "of the file."
+            ),
+            textFormat=Qt.RichText,
+            standardButtons=QMessageBox.Yes | QMessageBox.No | QMessageBox.Abort,
+        )
+        mbox.setDefaultButton(QMessageBox.Abort)
+
+        abort = mbox.button(QMessageBox.Abort)
+        abort.setText(self.tr("Don't Open"))
+        yes = mbox.button(QMessageBox.Yes)
+        yes.setText(self.tr("Load Unsafe"))
+        yes.setToolTip(self.tr(
+            "Load the complete file. Only select this if you trust "
+            "the origin of the file."
+        ))
+        no = mbox.button(QMessageBox.No)
+        no.setText(self.tr("Discard Unsafe Content"))
+        no.setToolTip(self.tr(
+            "Load the file only partially, stripping out all the "
+            "unsafe content."
+        ))
+        return mbox
 
     def check_requires(self, fileobj: IO) -> bool:
         requires = scheme_requires(fileobj, self.widget_registry)
@@ -1571,40 +1670,78 @@ class CanvasMainWindow(QMainWindow):
 
         return QFileDialog.Rejected
 
-    def save_scheme_to(self, scheme, filename):
-        # type: (Scheme, str) -> bool
+    def save_scheme_to(self, scheme: Scheme, filename: str) -> bool:
         """
         Save a Scheme instance `scheme` to `filename`. On success return
         `True`, else show a message to the user explaining the error and
         return `False`.
         """
+        lost_nodes: list[str] = []  # Track nodes whose data was dropped
+
+        def partial_serializer(node: SchemeNode) -> tuple[Any, str] | None:
+            """Serializer that skips nodes whose properties cannot be serialized."""
+            try:
+                serializer = readwrite._resolve_default_serializer(
+                    readwrite.default_serializer_with_pickle_fallback,
+                    node.description
+                )
+                return serializer(node)
+            except Exception:  # pylint: disable=broad-except
+                lost_nodes.append(node.title or str(node))
+                return None
+
         dirname, basename = os.path.split(filename)
         title = scheme.title or "untitled"
 
         # First write the scheme to a buffer so we don't truncate an
         # existing scheme file if `scheme.save_to` raises an error.
         buffer = io.BytesIO()
+        scheme.set_runtime_env("basedir", os.path.abspath(dirname))
+        serializer: Callable[[SchemeNode], tuple[Any, str] | None]
         try:
-            scheme.set_runtime_env("basedir", os.path.abspath(dirname))
-            scheme.save_to(buffer, pretty=True, pickle_fallback=True)
-        except Exception:
-            log.error("Error saving %r to %r", scheme, filename, exc_info=True)
-            message_critical(
-                self.tr('An error occurred while trying to save workflow '
-                        '"%s" to "%s"') % (title, basename),
-                title=self.tr("Error saving %s") % basename,
-                exc_info=True,
-                parent=self
+            scheme.save_to(
+                buffer, pretty=True,
+                data_serializer=readwrite.default_serializer_with_pickle_fallback
             )
-            return False  # return False here because there is second part
+        except (readwrite.UnserializableTypeError,
+                readwrite.UnserializableValueError):
+            mbox = self._save_unsafe_contents_dialog()
+            res = mbox.exec()
+            if res == QMessageBox.Abort:
+                return False
+            elif res == QMessageBox.Discard:
+                serializer = partial_serializer
+            else:
+                serializer = readwrite.unsafe_serializer
+            buffer.truncate(0)
+            scheme.save_to(
+                buffer, pretty=True, data_serializer=serializer
+            )
 
         try:
             with open(filename, "wb") as f:
                 f.write(buffer.getvalue())
             self.clear_swp()
+
+            # Warn about lost data when using partial_serializer
+            if lost_nodes:
+                node_list = "\n".join(f"  - {n}" for n in lost_nodes[:10])
+                if len(lost_nodes) > 10:
+                    node_list += f"\n  ... and {len(lost_nodes) - 10} more"
+                message_warning(
+                    self.tr('Some workflow data was not saved.'),
+                    title=self.tr("Data Loss Warning"),
+                    informative_text=self.tr(
+                        "The following nodes lost their parameters because "
+                        "they contain unserializable data:"
+                    ),
+                    details=node_list,
+                    parent=self,
+                )
+
             return True
-        except FileNotFoundError as ex:
-            log.error("%s saving '%s'", type(ex).__name__, filename,
+        except FileNotFoundError:
+            log.error("FileNotFoundError saving '%s'", filename,
                       exc_info=True)
             message_warning(
                 self.tr('Workflow "%s" could not be saved. The path does '
@@ -1613,8 +1750,8 @@ class CanvasMainWindow(QMainWindow):
                 informative_text=self.tr("Choose another location."),
                 parent=self
             )
-        except PermissionError as ex:
-            log.error("%s saving '%s'", type(ex).__name__, filename,
+        except PermissionError:
+            log.error("PermissionError saving '%s'", filename,
                       exc_info=True)
             message_warning(
                 self.tr('Workflow "%s" could not be saved. You do not '
@@ -1626,8 +1763,7 @@ class CanvasMainWindow(QMainWindow):
                 parent=self
             )
         except OSError as ex:
-            log.error("%s saving '%s'", type(ex).__name__, filename,
-                      exc_info=True)
+            log.error("OSError saving '%s'", filename, exc_info=True)
             message_warning(
                 self.tr('Workflow "%s" could not be saved.') % title,
                 title="",
@@ -1644,7 +1780,38 @@ class CanvasMainWindow(QMainWindow):
                 exc_info=True,
                 parent=self
             )
-        return False  # default behaviour
+        return False
+
+    def _save_unsafe_contents_dialog(self) -> QMessageBox:
+        """Return dialog for unserializable workflow contents."""
+        mb = QMessageBox(
+            self, windowTitle=self.tr("Unserializable Contents"),
+            icon=QMessageBox.Warning,
+            text=self.tr(
+                "The workflow contains parameters that cannot be "
+                "serialized in a safe format.<br/>"
+                "Would you like to save a partial workflow anyway?"),
+            informativeText=self.tr(
+                "Workflow structure will be saved but some node "
+                "parameters will be lost."
+            ),
+            standardButtons=QMessageBox.Discard | QMessageBox.Save |
+                            QMessageBox.Abort
+        )
+        mb.setEscapeButton(QMessageBox.Abort)
+        mb.setDefaultButton(QMessageBox.Save)
+        b = mb.button(QMessageBox.Save)
+        b.setText(self.tr("Save Anyway"))
+        b.setToolTip(self.tr(
+            "Save the complete workflow using unrestricted pickle. "
+            "Loading such a workflow will require explicit user "
+            "confirmation because it may execute arbitrary code."))
+        b = mb.button(QMessageBox.Discard)
+        b.setText(self.tr("Discard Unserializable Data"))
+        b.setToolTip(self.tr("The saved workflow will not be complete. "
+                             "Some parameters will not be restored"))
+        mb.setAttribute(Qt.WA_DeleteOnClose)
+        return mb
 
     def save_swp(self):
         """
@@ -1792,15 +1959,24 @@ class CanvasMainWindow(QMainWindow):
 
     def load_swp_from(self, filename):
         """
-        Load a diff of node properties and UndoCommands from a file
+        Load a diff of node properties and UndoCommands from a file.
+
+        Uses restricted unpickling by default. If restricted loading fails
+        due to disallowed types, shows a security warning dialog and falls
+        back to unrestricted loading if the user consents.
         """
         document = self.current_document()
         undoStack = document.undoStack()
-
         try:
             with open(filename, "rb") as f:
-                loaded: Tuple[Dict[SchemeNode, dict], List[UndoCommand]]
-                loaded = Unpickler(f, document.scheme()).load()
+                loaded: tuple[dict[SchemeNode, dict], list[UndoCommand]]
+                allowed = list(chain.from_iterable(
+                    d.allowed_property_types for d in self.widget_registry.widgets()
+                ))
+                unpickler = RestrictedApplicationUnpickler(
+                    f, document.scheme(), allowed=allowed
+                )
+                loaded = unpickler.load()
         except Exception:
             log.error("Could not load swp file: %r", filename, exc_info=True)
             message_critical(
@@ -2791,7 +2967,7 @@ def render_error_details(errors: Iterable[Exception]) -> str:
                                      IncompatibleChannelTypeError))
     )
     contents = []
-    if missing_node_defs is not None:
+    if missing_node_defs:
         contents.extend([
             "Missing node definitions:",
             *["  \N{BULLET} " + e.args[0] for e in missing_node_defs],

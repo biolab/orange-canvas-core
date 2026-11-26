@@ -288,7 +288,7 @@ class WidgetDescription(object):
     Parameters
     ----------
     name : str
-        A human readable name of the widget.
+        A human-readable name of the widget.
     id : str
         A unique identifier of the widget (in most situations this should
         be the full module name).
@@ -337,6 +337,10 @@ class WidgetDescription(object):
         A list of ids this widget replaces (optional).
     short_name: str, optional
         Short name for display where text would otherwise elide.
+    allowed_property_types: Sequence[str]
+        A set of widget property types allowed for default serialization
+        with pickle format in the form of ``'{__module__}:{__qualname__}'``.
+        See :class:`..scheme.readwrite.RestrictedUnpickler`.
     """
     name = ""  # type: str
     id = ""    # type: str
@@ -353,6 +357,8 @@ class WidgetDescription(object):
     replaces = []  # type: Sequence[str]
     keywords = []  # type: Sequence[str]
 
+    allowed_property_types: Sequence[str] = []
+
     def __init__(self, name, id, category=None, version=None,
                  description=None, long_description=None,
                  qualified_name=None, package=None, project_name=None,
@@ -363,6 +369,7 @@ class WidgetDescription(object):
                  priority=sys.maxsize,
                  icon=None, background=None,
                  replaces=None, short_name=None,
+                 allowed_property_types=()
                  ):
         if inputs is None:
             inputs = []
@@ -416,6 +423,7 @@ class WidgetDescription(object):
         self.icon = icon
         self.background = background
         self.replaces = list(replaces)
+        self.allowed_property_types = list(allowed_property_types)
 
     def __str__(self):
         return ("WidgetDescription(name=%(name)r, id=%(id)r), "

@@ -2,6 +2,7 @@ import io
 import os
 import tempfile
 from unittest.mock import patch, Mock
+from contextlib import contextmanager, ExitStack
 
 from AnyQt.QtGui import QWhatsThisClickedEvent
 from AnyQt.QtWidgets import (
@@ -11,10 +12,10 @@ from AnyQt.QtWidgets import (
 from .. import addons
 from ..outputview import TextStream
 from ..utils.addons import _QueryResult, Installable
-from ...scheme import SchemeTextAnnotation, SchemeLink
+from ...scheme import SchemeTextAnnotation, SchemeLink, SchemeNode, Scheme
 from ...gui.quickhelp import QuickHelpTipEvent, QuickHelp
 from ...utils.shtools import temp_named_file
-from ...utils.pickle import swp_name
+from ..utils.pickle import swp_name
 from ...gui.test import QAppTestCase
 from ..canvasmain import CanvasMainWindow
 from ..widgettoolbox import WidgetToolBox
@@ -144,6 +145,10 @@ class TestMainWindow(TestMainWindowBase):
         QApplication.sendEvent(w, ev)
 
 
+class Obj:
+    pass
+
+
 class TestMainWindowLoad(TestMainWindowBase):
     filename = ""
 
@@ -205,6 +210,119 @@ class TestMainWindowLoad(TestMainWindowBase):
             contents = f.read()
         self.assertIn(b"<svg", contents)
 
+    @contextmanager
+    def patch_messagebox_exec(self, return_value):
+        with patch("AnyQt.QtWidgets.QMessageBox.exec",
+                   return_value=return_value) as f:
+            yield f
+
+    def test_save_unsafe_warn(self):
+        w = self.w
+        doc = w.current_document()
+        doc.setPath(self.filename)
+        node = SchemeNode(self.registry.widget("one"))
+        node.properties = {"a": object()}
+        doc.addNode(node)
+
+        def contents():
+            with open(self.filename, "r", encoding="utf-8") as f:
+                return f.read()
+        with self.patch_messagebox_exec(QMessageBox.Abort) as f:
+            w.save_scheme()
+            f.assert_called_with()
+            self.assertEqual(contents(), "")
+        with self.patch_messagebox_exec(QMessageBox.Discard) as f:
+            w.save_scheme()
+            f.assert_called_with()
+            self.assertNotIn("pickle", contents())
+
+        with self.patch_messagebox_exec(QMessageBox.Save) as f:
+            w.save_scheme()
+            f.assert_called_with()
+            self.assertIn("pickle", contents())
+
+    def test_save_unsafe_warn_data_loss(self):
+        """Verify that partial save tracks and reports lost nodes."""
+        w = self.w
+        doc = w.current_document()
+        doc.setPath(self.filename)
+
+        # Create two nodes — both with unserializable data
+        node1 = SchemeNode(self.registry.widget("one"), title="NodeAlpha")
+        node1.properties = {"a": object()}
+        doc.addNode(node1)
+
+        node2 = SchemeNode(self.registry.widget("zero"), title="NodeBeta")
+        node2.properties = {"b": object()}
+        doc.addNode(node2)
+
+        # Partial save with 2 lost nodes.
+        # Use side_effect for the two sequential QMessageBox.exec() calls:
+        #   1. unsafe contents dialog -> Discard
+        #   2. data loss warning dialog -> Ok
+        with patch.object(QMessageBox, "exec",
+                          side_effect=[QMessageBox.Discard, QMessageBox.Ok]):
+            w.save_scheme()
+
+        # Verify the file doesn't contain pickle (partial save)
+        with open(self.filename, "r", encoding="utf-8") as f:
+            contents = f.read()
+        self.assertNotIn("pickle", contents)
+
+    def test_load_unsafe_ask(self):
+        w = self.w
+        workflow = Scheme()
+        node = SchemeNode(self.registry.widget("one"))
+        node.properties = {"a": Obj()}
+        workflow.add_node(node)
+        with open(self.filename, "wb") as f:
+            workflow.save_to(f, pickle_fallback=True)
+
+        with self.patch_messagebox_exec(QMessageBox.Abort) as f:
+            w.load_scheme(self.filename)
+            f.assert_called_with()
+            self.assertEqual(len(w.current_document().scheme().nodes), 0)
+            self.assertTrue(w.is_transient())
+
+        with self.patch_messagebox_exec(return_value=QMessageBox.No) as f:
+            w.load_scheme(self.filename)
+            f.assert_called_with()
+            workflow = w.current_document().scheme()
+            self.assertEqual(len(workflow.nodes), 1)
+            self.assertEqual(workflow.nodes[0].properties, {})
+
+        with self.patch_messagebox_exec(QMessageBox.Yes) as f:
+            w.load_scheme(self.filename)
+            f.assert_called_with()
+            workflow = w.current_document().scheme()
+            self.assertEqual(len(workflow.nodes), 1)
+            self.assertEqual(workflow.nodes[0].properties["a"].__class__, Obj)
+
+    def test_load_unsafe_state_message(self):
+        """Verify that nodes show specific error messages after restricted load."""
+        w = self.w
+        workflow = Scheme()
+        node = SchemeNode(self.registry.widget("one"))
+        node.properties = {"a": Obj()}
+        workflow.add_node(node)
+
+        with open(self.filename, "wb") as f:
+            workflow.save_to(f, pickle_fallback=True)
+
+        # Load in restricted mode (user says No to unsafe)
+        with self.patch_messagebox_exec(return_value=QMessageBox.No):
+            w.load_scheme(self.filename)
+
+        workflow = w.current_document().scheme()
+        self.assertEqual(len(workflow.nodes), 1)
+        loaded_node = workflow.nodes[0]
+        # Properties should be empty (not restored)
+        self.assertEqual(loaded_node.properties, {})
+        # State message should mention the specific issue
+        msg = loaded_node.state_message("-properties-restore-error-data")
+        self.assertIsNotNone(msg)
+        self.assertIn("settings", msg.contents.lower())
+
     def test_save_swp(self):
         w = self.w
         swpname = swp_name(w)
@@ -237,7 +355,7 @@ class TestMainWindowLoad(TestMainWindowBase):
         desc = self.registry.widgets()[0]
         w.current_document().createNewNode(desc)
 
-        from orangecanvas.utils.pickle import canvas_scratch_name_memo as memo
+        from orangecanvas.application.utils.pickle import canvas_scratch_name_memo as memo
         memo.clear()
 
         with patch.object(w2, "load_swp_from") as f:
@@ -310,6 +428,50 @@ class TestMainWindowLoad(TestMainWindowBase):
         w.current_document().removeAnnotation(a)
         test(lambda:
              self.assertFalse(w2.scheme_widget.scheme().annotations))
+
+    def test_load_swp_restricted_unpickler(self):
+        """Verify that SWP loading uses restricted unpickling by default."""
+        import os
+        import pickle
+        from orangecanvas.utils.pickle import UnsafeUnpicklingError
+        from orangecanvas.application.utils.pickle import (
+            RestrictedApplicationUnpickler
+        )
+
+        # RestrictedApplicationUnpickler should block os.system
+        data = pickle.dumps(os.system)
+        with self.assertRaises(UnsafeUnpicklingError):
+            RestrictedApplicationUnpickler(io.BytesIO(data), Mock()).load()
+
+        # But it should allow basic builtins
+        result = RestrictedApplicationUnpickler(
+            io.BytesIO(pickle.dumps([1, "hello", {"key": True}])), Mock()
+        ).load()
+        self.assertEqual(result, [1, "hello", {"key": True}])
+
+    def test_load_swp_blocked_by_default(self):
+        """Verify that SWP files with unsafe types are blocked by default."""
+        import pickle
+        import os as os_module
+        w = self.w
+        es = ExitStack()
+        with (es, temp_named_file("", delete=False) as tf):
+            @es.callback
+            def cleanup():
+                if os.path.exists(tf):
+                    os.remove(tf)
+
+            with open(tf, "wb") as f:
+                # Use standard pickle to create the malicious SWP file
+                pickle.dump(({"os.system": os_module.system}, []), f)
+
+            # Loading should fail with an error message box
+            with self.patch_messagebox_exec(QMessageBox.Ok) as mock:
+                w.load_swp_from(tf)
+                # The malicious data was not loaded
+                properties = w.scheme_widget.uncleanProperties()
+                self.assertFalse(any("os.system" in str(node) for node in properties))
+                mock.assert_called_once()
 
     def test_open_ows_req(self):
         w = self.w
